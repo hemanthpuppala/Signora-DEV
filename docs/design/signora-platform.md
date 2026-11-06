@@ -3,6 +3,7 @@
 Status: draft v2 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
 
 Changelog
+- v3: monorepo layout and modular-monolith module map with public interfaces, ownership, communication rules and tool-enforced boundaries (ADR-008).
 - v2: two access levels only (read, read/write); multiple signers and countersigners with role-scoped field keys; dynamic send form and CSV template; deterministic detector as a separate, independently scored module; idempotency and failure recovery; explicit signer-transparency requirements; corrected accuracy metrics; eval harness kept private.
 - v1: initial design.
 
@@ -152,18 +153,91 @@ Internet ──TLS──► Tailscale Funnel (hemanth.tail50655e.ts.net:443) ─
 - **ADR-006: Storage** behind a `BlobStore` interface; local content-addressed filesystem now, S3 later. Blobs are immutable.
 - **ADR-007: Detectors as pluggable modules, not separate services (yet).** Deterministic and AI detectors implement one `Detector` interface (`detect(DocumentLayout, context) -> DetectionResult`) and are scored independently. They run in the worker today; either can be moved to its own container later without changing callers. A separate network service now would add deployment and failure surface with no scaling benefit at this volume.
 
-### Backend modules (`backend/app/`)
-`core` (config, db, security primitives, logging) · `tenancy` (workspaces, members, invites, access policy) · `auth` ·
-`projects` · `documents` (versions, blobs) · `detection` (normalize, layout, `deterministic`, `ai`, `resolve`, `merge`) ·
-`fields` (schema, roles, review, accuracy) · `envelopes` (send, bulk, state machine) ·
-`signing` (tokens, OTP, access code, session, submit validation) · `identity` (Stripe) · `pdf` (stamp, flatten, addendum, certificate) ·
-`notifications` (templates, outbox, SMTP provider) · `scheduler` · `jobs` · `idempotency` · `audit`.
-Dependency rule: routers → services → repositories/domain; domain never imports FastAPI or DB sessions.
+### ADR-008: Monorepo + modular monolith with enforced module boundaries
+**Context.** The product must stay maintainable as it grows into a sellable SaaS, and parts (detection,
+notifications) may later need to scale or deploy independently.
+**Decision.** One repository holding every deployable and shared contract (monorepo). The backend is one
+deployable application split into **business modules**, each owning its data, logic and API, and exposing a
+single public interface. Boundaries are enforced by tooling, not convention.
+**Consequences.** One build, one deploy, one transaction boundary (simple consistency); each module can be read,
+tested and changed alone; a module can later be extracted to a service by replacing in-process calls to its
+public interface with network calls, and its event subscriptions with a broker.
 
-### Frontend (`frontend/`)
-Next.js (App Router, TypeScript strict). Console under `/app/*`, signer under `/s/*`. pdf.js (`react-pdf`) with
-an absolutely-positioned field overlay shared by the review editor and the signer page; `signature_pad` for
-drawing. All validation is re-done server-side.
+#### Repository layout
+```
+signora/                                  (monorepo root)
+├── apps/
+│   ├── api/                              Python backend: one application, two entrypoints (api, worker)
+│   │   ├── pyproject.toml
+│   │   ├── src/signora/
+│   │   │   ├── kernel/                   technical foundation, no business rules
+│   │   │   │   config · db · logging · errors · security (hashing, tokens) · blobstore
+│   │   │   │   jobs (queue) · events (domain-event bus over the queue) · idempotency · ratelimit · clock
+│   │   │   ├── modules/                  business modules (see table below)
+│   │   │   │   └── <module>/
+│   │   │   │       ├── __init__.py       PUBLIC interface: facade functions, DTOs, event types — the only importable surface
+│   │   │   │       ├── domain.py         entities, value objects, rules, state machines (pure Python)
+│   │   │   │       ├── service.py        use cases; transactions; publishes events
+│   │   │   │       ├── repository.py     persistence for this module's tables only
+│   │   │   │       ├── models.py         SQLAlchemy tables owned by this module
+│   │   │   │       ├── router.py         HTTP endpoints (FastAPI)
+│   │   │   │       ├── schemas.py        request/response models
+│   │   │   │       ├── handlers.py       subscriptions to other modules' events / job handlers
+│   │   │   │       └── tests/
+│   │   │   └── entrypoints/              api.py (FastAPI app factory) · worker.py (job loop) · cli.py
+│   │   └── migrations/                   Alembic
+│   └── web/                              Next.js frontend
+│       └── src/
+│           ├── app/                      routes: /(console)/…, /s/… (signer)
+│           ├── features/<module>/        UI per business module, mirrors backend modules
+│           └── shared/                   SSoT primitives: ui/, pdf-canvas/, signature/, api-client/
+├── packages/
+│   └── contracts/                        OpenAPI spec exported from the API + generated TS types (SSoT for the API contract; generated, never hand-edited)
+├── infra/
+│   ├── compose.yaml                      postgres, gotenberg, api, worker, web, caddy, mailpit(dev)
+│   └── caddy/Caddyfile
+├── docs/                                 design/, adr/, agent-memory/
+├── scripts/                              dev helpers (contract generation, seed data)
+├── eval/                                 PRIVATE detection eval — git-ignored
+└── Makefile                              one entry point: make dev | test | lint | contracts | eval
+```
+Tooling: `uv` for Python, `pnpm` workspace for TypeScript (`apps/web`, `packages/contracts`).
+
+#### Business modules
+| Module | Owns (responsibility) | Owns tables | Public interface (examples) | Depends on |
+|---|---|---|---|---|
+| `identity_access` | accounts, sessions, workspaces, members, invites, access policy | users, sessions, workspaces, memberships, invites, project_grants | `current_actor()`, `authorize(actor, action, resource)` | kernel |
+| `projects` | departments, settings, countersigner designations | projects, project_countersigners | `get_project()`, `effective_settings()` | identity_access |
+| `documents` | documents, immutable versions, roles, fields, placements, review & approval, review metrics | documents, document_versions, roles, fields, placements, review_metrics | `get_approved_version()`, `field_schema(versions)` | projects |
+| `detection` | normalize, layout, deterministic + AI detectors, merge, metric function | detection_results | `detect(version_id) -> DetectionResult` (job) | kernel only (receives bytes + context; no knowledge of projects) |
+| `envelopes` | send form generation, envelopes, recipients, role mapping, status machine, bulk, reminders, expiry | envelopes, envelope_documents, recipients, recipient_roles, field_values, bulk_* | `create_envelopes()`, `record_signature()` | documents, projects |
+| `signing` | signer-facing flow: link exchange, OTP, access code, consent, submit validation, countersign | (uses envelopes' interface; owns otp/session columns via envelopes API) | signer HTTP API | envelopes, verification |
+| `verification` | Stripe Identity sessions, webhook | identity_checks | `start_check()`, `check_status()` | kernel |
+| `rendering` | stamp, flatten, addendum page, certificate, hashes | — (writes blobs) | `finalize(envelope_snapshot) -> FinalDocs` | kernel only (pure input → output) |
+| `notifications` | templates, email outbox, SMTP provider, retry | email_outbox | subscribes to events; `retry(outbox_id)` | kernel |
+| `audit` | append-only hash-chained log, verification | audit_events | subscribes to all events; `verify_chain()` | kernel |
+
+Dependency graph is acyclic and points one way:
+`identity_access ← projects ← documents ← envelopes ← signing`; `detection`, `rendering`, `verification`,
+`notifications`, `audit` are leaf modules that depend only on `kernel`.
+
+#### Communication rules
+1. **Synchronous:** a module calls another only through its public `__init__` interface and receives DTOs, never ORM objects.
+2. **Asynchronous:** cross-cutting reactions use **domain events** (`RecipientSigned`, `EnvelopeCompleted`, `EnvelopeDeclined`, `VersionApproved`, …). Events are written to the jobs table **in the same transaction** as the state change (outbox pattern) and dispatched by the worker to subscribers (`notifications`, `audit`, `envelopes`). This keeps `envelopes` unaware of email and makes every reaction retryable.
+3. **Data ownership:** a module reads and writes only its own tables. Foreign keys across modules are allowed for integrity; queries joining another module's tables are not.
+4. **Leaf modules are pure services:** `detection` and `rendering` take inputs and return outputs; they do not read other modules' data. This is what makes them the first candidates for extraction into separate services.
+
+#### Enforcement
+- **Python:** `import-linter` contracts in CI/`make lint`: (a) modules may import other modules only via their package root (`signora.modules.x`), never internals (`signora.modules.x.repository`); (b) the layered dependency order above; (c) leaf modules import only `kernel`; (d) `domain.py` imports nothing from FastAPI/SQLAlchemy.
+- **TypeScript:** `eslint-plugin-boundaries`: `features/x` may import `shared/*` and `packages/contracts`, not other features' internals.
+- **Contract SSoT:** the API's OpenAPI schema is exported and the TS types are generated from it (`make contracts`); a check fails if they drift.
+- **Tests per module** live inside the module; cross-module flows are covered by integration tests at the entrypoint level.
+
+### Frontend
+Next.js (App Router, TypeScript strict). Console under `/(console)/*`, signer under `/s/*`. `shared/pdf-canvas`
+(pdf.js via `react-pdf` + absolutely-positioned field overlay) is the single implementation used by both the
+review editor and the signer page; `shared/signature` wraps `signature_pad`. The frontend holds no business
+rules beyond UX hints; all validation is re-done server-side.
 
 ---
 
@@ -263,6 +337,7 @@ All tenant tables carry `workspace_id` (FK, indexed) and every repository query 
 | `recipient_roles` | recipient_id, version_id, role_id — unique (envelope, version, role) |
 | `field_values` | envelope_id, field_id, recipient_id, value, blob_sha, filled_at — unique (envelope_id, field_id) |
 | `bulk_batches` / `bulk_rows` | batch: id, project_id, blob_sha, status · rows: batch_id, row_no (unique pair), data jsonb, errors jsonb, envelope_id |
+| `identity_checks` | id, workspace_id, recipient_id, provider (`stripe`), provider_session_id, status, last_event_id, verified_at (owned by `verification`) |
 | `idempotency_keys` | scope, key (PK), request_hash, response jsonb, created_at (TTL 24 h) |
 | `jobs` | id, kind, payload jsonb, dedupe_key (unique, nullable), run_at, attempts, max_attempts, locked_by, locked_at, last_error, done_at |
 | `email_outbox` | id, dedupe_key (unique), to, template, payload, status (`queued/sending/sent/failed`), attempts, next_attempt_at, message_id, last_error, sent_at |
@@ -427,7 +502,7 @@ checks, NER pre-pass, PAdES cryptographic PDF signatures (stretch), mobile apps,
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
 | 0 | Research + design doc v2 | done | this file |
-| 1 | Repo scaffold, `.env`/`.env.example`, `.gitignore`, Docker Compose (postgres, gotenberg, api, worker, web, caddy, mailpit) | in-progress | — |
+| 1 | Monorepo scaffold per ADR-008 (uv + pnpm workspaces, module skeletons, import-linter + eslint boundaries, Makefile), Docker Compose (postgres, gotenberg, api, worker, web, caddy, mailpit) | in-progress | `.env.example`, `.gitignore` in commit 722193c |
 | 2 | Private corpus (10 docs) + ground truth in `eval/` | todo | — |
 | 3 | Detection: normalize, page classify, layout | todo | — |
 | 4 | Deterministic detector + standalone eval score | todo | — |
