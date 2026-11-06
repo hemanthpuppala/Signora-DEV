@@ -233,6 +233,21 @@ Dependency graph is acyclic and points one way:
 - **Contract SSoT:** the API's OpenAPI schema is exported and the TS types are generated from it (`make contracts`); a check fails if they drift.
 - **Tests per module** live inside the module; cross-module flows are covered by integration tests at the entrypoint level.
 
+### Backend process model
+One codebase, two processes, one database:
+
+| Process | Purpose | Handles |
+|---|---|---|
+| **API** (`entrypoints/api.py`) | fast request/response | HTTP, authentication and sessions, access checks, uploads (store blob + enqueue detection), review/approve, envelope creation, signer link/OTP/consent/submit, status and timeline reads |
+| **Worker** (`entrypoints/worker.py`) | background jobs | AI + deterministic detection, DOCX→PDF via Gotenberg, OCR (deferred), PDF finalization (stamp, flatten, certificate), email delivery from the outbox, reminders and expiry, bulk sends, domain-event dispatch |
+| **PostgreSQL** (shared) | single source of truth | application data, persistent job queue, transactional outbox |
+
+Rules:
+- The API never calls slow or unreliable external services (AI provider, SMTP, Gotenberg) inside a request. It commits the state change and enqueues a job in the same transaction, then returns. Target API p95 ≤ 300 ms excluding uploads.
+- External calls happen only in the worker, with timeouts, retries with backoff, and dedupe keys (§5.7).
+- Both processes are stateless apart from Postgres and the blob store, so either can be restarted at any time without losing work; the worker can be scaled to N replicas because jobs are claimed with `FOR UPDATE SKIP LOCKED`.
+- Stripe Identity is the one exception the API touches: creating a verification session is a fast call the signer is waiting on; the result is confirmed by webhook and re-checked in the worker.
+
 ### Frontend
 Next.js (App Router, TypeScript strict). Console under `/(console)/*`, signer under `/s/*`. `shared/pdf-canvas`
 (pdf.js via `react-pdf` + absolutely-positioned field overlay) is the single implementation used by both the
