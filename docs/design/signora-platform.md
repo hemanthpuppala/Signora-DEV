@@ -517,7 +517,8 @@ checks, NER pre-pass, PAdES cryptographic PDF signatures (stretch), mobile apps,
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
 | 0 | Research + design doc v2 | done | this file |
-| 1 | Monorepo scaffold per ADR-008 (uv + pnpm workspaces, module skeletons, import-linter + eslint boundaries, Makefile), Docker Compose (postgres, gotenberg, api, worker, web, caddy, mailpit) | in-progress | `.env.example`, `.gitignore` in commit 722193c |
+| 1a | Infra: Postgres 18.4 + Gotenberg 8.40.0 in `infra/compose.yaml`, `make up` | done | 2026-11-06: both healthy; `select version()` → 18.4, checksums on, scram-sha-256; Gotenberg `/health` up, `/version` 8.40.0, DOCX → 1-page PDF via `POST /forms/libreoffice/convert` (field `files`), text verified with pdftotext |
+| 1b | Monorepo scaffold per ADR-008 (uv + pnpm workspaces, module skeletons, import-linter + eslint boundaries), compose services api, worker, web, caddy, mailpit | todo | — |
 | 2 | Private corpus (10 docs) + ground truth in `eval/` | todo | — |
 | 3 | Detection: normalize, page classify, layout | todo | — |
 | 4 | Deterministic detector + standalone eval score | todo | — |
