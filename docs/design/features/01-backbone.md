@@ -646,7 +646,9 @@ console — never configuration.
 5. **Core vs integrations.** Core settings (app, database, storage, Gotenberg, signing defaults, worker) are required
    to start. Integration settings (AI, email, Stripe) may be empty when `APP_ENV=development`: using an unconfigured
    integration raises a clear `IntegrationNotConfigured` error, and the readiness endpoint reports it as
-   "not configured". With `APP_ENV=production` every integration is required at startup.
+   "not configured". With `APP_ENV=production`, AI and email are required at startup (the core product needs them).
+   **Stripe is never required to start:** it is needed only to offer ID verification, and a project cannot enable ID
+   verification unless Stripe is configured (checked when project settings are saved).
 6. **Secrets** are `SecretStr`: shown as `**********` in logs, errors and `repr`; the raw value is read only where
    it is used.
 7. **Grouped settings, least privilege.** Settings are grouped by area and each module receives only its own group
@@ -667,12 +669,27 @@ console — never configuration.
 | `gotenberg` | `GOTENBERG_HOST`, `GOTENBERG_PORT` | core |
 | `signing` | `SIGNING_OTP_TTL_MINUTES`, `SIGNING_OTP_MAX_ATTEMPTS`, `SIGNER_SESSION_MINUTES`, `DEFAULT_REMINDER_INTERVAL_HOURS`, `DEFAULT_MAX_REMINDERS`, `DEFAULT_EXPIRY_DAYS` | core (defaults) |
 | `worker` | `WORKER_CONCURRENCY` | core (default 8) |
+| `api` | `API_THREADS` | core (default 20) |
 | `ai` | `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_REASONING_EFFORT`, `AI_WHOLE_DOC_MAX_TOKENS`, `AI_MAX_CONCURRENCY` | integration |
 | `email` | `EMAIL_PROVIDER`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_STARTTLS`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `EMAIL_DAILY_LIMIT` | integration |
-| `stripe` | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | integration (later feature) |
+| `stripe` | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | optional; needed only to offer ID verification (later feature) |
 
 `.env` keeps its flat names; they are mapped into these groups. New in Phase 1: `BLOB_STORE_BACKEND` (default
-`local`) and `WORKER_CONCURRENCY` (default 8) are added to `.env.example`.
+`local`), `WORKER_CONCURRENCY` (default 8) and `API_THREADS` (default 20) are added to `.env.example`.
+
+### 6.3a Database connections and request handlers
+
+- **Route handlers that touch the database are plain `def`**, never `async def`. FastAPI runs `def` handlers in its
+  thread pool; an `async def` handler calling synchronous SQLAlchemy would block the event loop for every request.
+  `async def` is allowed only for code that does no blocking I/O. (Checked in code review; a test asserts every route
+  that depends on the unit of work is a plain function.)
+- **API:** the thread pool is capped at `API_THREADS` (default 20) and the connection pool matches it
+  (`pool_size = API_THREADS`, `max_overflow = 0`, `pool_timeout = 5 s`). Every thread can get a connection; if the
+  pool is ever exhausted the request fails fast with `503` instead of piling up.
+- **Worker:** `pool_size = WORKER_CONCURRENCY + 2` (one per job slot, one for lease renewal, one for the scheduler),
+  plus one dedicated connection outside the pool for `LISTEN`.
+- **Budget:** with defaults, API 20 + worker 11 + migrate 1 ≈ 32 connections, well under Postgres'
+  `max_connections = 100`, leaving room for a second worker and the test database.
 
 ### 6.4 Interface (sketch)
 
@@ -846,12 +863,17 @@ Same rule as the backend: only releases published at least 14 days earlier. Enfo
 |---|---|---|
 | next | 16.4.3 | 2026-10-23 |
 | react, react-dom | 19.3.1 | 2026-10-14 |
-| typescript | 7.0.2 | 2026-07-08 |
+| typescript | 6.0.3 | 2026-04-16 |
 | @tanstack/react-query | 5.104.5 | 2026-10-19 |
 | openapi-typescript / openapi-fetch | 7.13.0 / 0.17.0 | 2026-02-11 |
 | eslint / eslint-plugin-boundaries | 10.13.0 / 7.3.0 | 2026-10-16 / 2026-10-23 |
 | vitest | 5.0.5 | 2026-10-15 |
 | pnpm (`packageManager`) | 12.15.0 | 2026-10-21 |
+
+**TypeScript 6, not 7:** TypeScript 7.0 (the native Go port) ships without a compiler API, so `typescript-eslint` — and
+any tool that imports the compiler as a library, including build-time type checking — cannot use it; Microsoft's own
+guidance is to keep TypeScript 6 for those tools. `typescript-eslint` supports `<6.1.0`. Revisit when the ecosystem
+supports 7.
 
 ### 8.2 Role of Next.js
 
@@ -861,16 +883,18 @@ Same rule as the backend: only releases published at least 14 days earlier. Enfo
 - Production build: Next.js `standalone` output, run as a small Node server behind Caddy. Development: `next dev`
   with a rewrite of `/api/*` to the local API.
 
-### 8.3 Structure (`apps/web/src/`)
+### 8.3 Structure
 
 ```
-app/                 routes only (thin): (public)/…, (console)/…, s/… (signer), dev/ui (gallery, development only)
-features/<module>/   one folder per business module, filled in its own phase
-shared/
-  ui/                tokens.css + design-system components (single source of styling)
-  api/               typed client, query client setup, useIdempotentAction (topic 3.6)
-  lib/               small pure helpers (formatting, etc.)
-packages/contracts/  types generated from the API's OpenAPI document (never edited by hand)
+apps/web/src/
+  app/                 routes only (thin): (public)/…, (console)/…, s/… (signer), dev/ui (gallery, development only)
+  features/<module>/   one folder per business module, filled in its own phase
+  shared/
+    ui/                tokens.css + design-system components (single source of styling)
+    api/               typed client, query client setup, useIdempotentAction (topic 3.6)
+    lib/               small pure helpers (formatting, etc.)
+  proxy.ts             Next.js 16 request proxy (formerly middleware): CSP nonce only, no business logic
+packages/contracts/    (repository root) types generated from the API's OpenAPI document, never edited by hand
 ```
 
 Boundary rule (`eslint-plugin-boundaries`): `features/*` may import `shared/*` and `packages/contracts`, never
@@ -985,7 +1009,8 @@ behind Caddy, which is what the public Funnel URL serves.
 - Security headers on every response: `Strict-Transport-Security` (the public origin is HTTPS via Funnel),
   `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, a minimal
   `Permissions-Policy`. API responses also get `Content-Security-Policy: default-src 'none'`; HTML pages get a
-  nonce-based CSP set by Next.js middleware. Signer-specific headers (`noindex`) come with Phase 8.
+  nonce-based CSP set by the Next.js 16 `proxy.ts` (the file that replaced `middleware.ts`; it runs on Node.js).
+  Signer-specific headers (`noindex`) come with Phase 8.
 
 ### 9.7 Development ports
 
@@ -1028,7 +1053,7 @@ the API dev port.
 
 | ADR | Decision | Main reason |
 |---|---|---|
-| B-1 | Synchronous SQLAlchemy 2 + psycopg 3; async FastAPI handlers call it through the thread pool | Simpler code and tests; slow work runs in the worker anyway |
+| B-1 | Synchronous SQLAlchemy 2 + psycopg 3; database-touching route handlers are plain `def` run in FastAPI's thread pool; pools sized to threads (§6.3a) | Simpler code and tests; slow work runs in the worker anyway; no event-loop blocking or pool exhaustion |
 | B-2 | UUIDv7 primary keys (Postgres 18 `uuidv7()`), exposed as plain UUID strings; the UI shortens them for display | Time-ordered ids with good index locality, no extra encoding layer |
 | B-3 | Postgres job queue with `SKIP LOCKED`, leases and LISTEN/NOTIFY; events as fan-out jobs; no Redis/Celery | One less service, transactional enqueue, durable across restarts (topics 1–2) |
 | B-4 | Idempotency key held inside the action's transaction; status codes per the IETF draft and Stripe | Database serializes duplicates; standard client behaviour (topic 3) |
