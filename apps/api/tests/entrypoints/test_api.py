@@ -184,6 +184,36 @@ def test_proxy_request_id_and_client_ip_are_trusted_when_configured(
     assert malformed.headers["X-Request-ID"] != "bad id with spaces"
 
 
+@pytest.mark.parametrize(
+    ("trust_proxy_headers", "headers"),
+    [
+        (True, {"X-Forwarded-For": "unknown"}),
+        (True, {"X-Forwarded-For": "not-an-ip, 10.0.0.2"}),
+        (False, {}),  # the test client's peer address is the name "testclient"
+    ],
+)
+def test_client_ip_that_is_not_an_ip_is_stored_as_unknown(
+    settings: Settings, engine: Engine, trust_proxy_headers: bool, headers: dict[str, str]
+) -> None:
+    configured = settings.model_copy(
+        update={
+            "api": ApiSettings(
+                threads=settings.api.threads, trust_proxy_headers=trust_proxy_headers
+            )
+        }
+    )
+    app = create_app(configured, engine=engine, checks_factory=_ok_checks)
+
+    @app.get("/api/v1/test/info")
+    def info(request: Request) -> dict[str, str | None]:
+        return {"ip": request_info(request).ip}
+
+    response = TestClient(app).get("/api/v1/test/info", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"ip": None}
+
+
 def test_live_and_meta(client: TestClient) -> None:
     assert client.get("/api/v1/health/live").json() == {"status": "ok"}
     meta = client.get("/api/v1/meta").json()

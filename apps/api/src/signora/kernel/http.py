@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import re
 import time
 import uuid
@@ -145,6 +146,16 @@ def problem_response(
     return JSONResponse(body, status_code=status, headers=headers, media_type=PROBLEM_MEDIA_TYPE)
 
 
+def _ip_or_none(value: str) -> str | None:
+    """Only a real IP address enters the request context; anything else ("unknown", a test
+    client's name) is stored as unknown (None) instead of failing the audit record later."""
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return None
+    return value
+
+
 class RequestContextMiddleware:
     """Pure ASGI middleware (no BaseHTTPMiddleware: keeps streaming and context intact)."""
 
@@ -162,9 +173,9 @@ class RequestContextMiddleware:
         if self.trust_proxy_headers:
             forwarded = headers.get("x-forwarded-for")
             if forwarded:
-                return forwarded.split(",")[0].strip() or None
+                return _ip_or_none(forwarded.split(",")[0].strip())
         client = scope.get("client")
-        return client[0] if client else None
+        return _ip_or_none(client[0]) if client else None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
