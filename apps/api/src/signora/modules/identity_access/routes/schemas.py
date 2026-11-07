@@ -33,8 +33,17 @@ class SignupCompleteRequest(TokenRequest):
     password: PasswordInput
 
 
+class ResetRequest(TokenRequest):
+    password: PasswordInput
+
+
+class ChangePasswordRequest(_Body):
+    current_password: PasswordInput
+    new_password: PasswordInput
+
+
 class AcceptedResponse(BaseModel):
-    status: Literal["check_email"] = "check_email"
+    status: Literal["check_email", "changed"] = "check_email"
 
 
 class EmailResponse(BaseModel):

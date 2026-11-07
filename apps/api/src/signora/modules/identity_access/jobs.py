@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from signora.kernel.config import get_settings
 from signora.kernel.jobs import JobContext, JobKind, JobRegistry, RecurringJob
-from signora.modules.identity_access import signup
+from signora.modules.identity_access import passwords, signup
 from signora.modules.identity_access.sessions import purge_idle_sessions
 
 SWEEP = "sweep.identity"
@@ -35,10 +35,20 @@ def signup_request(context: JobContext) -> None:
     )
 
 
+def password_reset_request(context: JobContext) -> None:
+    settings = get_settings()
+    passwords.handle_reset_request(
+        context, base_url=str(settings.app.public_base_url), settings=settings.auth
+    )
+
+
 def register(jobs_registry: JobRegistry) -> list[RecurringJob]:
     lease = timedelta(minutes=2)
     jobs_registry.register(JobKind(SWEEP, sweep, max_attempts=3, lease=lease))
     jobs_registry.register(
         JobKind(signup.SIGNUP_REQUEST, signup_request, max_attempts=8, lease=lease)
+    )
+    jobs_registry.register(
+        JobKind(passwords.RESET_REQUEST, password_reset_request, max_attempts=8, lease=lease)
     )
     return [RecurringJob(SWEEP, every=timedelta(hours=1))]

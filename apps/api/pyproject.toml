@@ -143,10 +143,14 @@ protected_modules = [
     "signora.modules.identity_access.domain",
     "signora.modules.identity_access.errors",
     "signora.modules.identity_access.jobs",
+    "signora.modules.identity_access.emails",
+    "signora.modules.identity_access.links",
     "signora.modules.identity_access.login",
     "signora.modules.identity_access.models",
+    "signora.modules.identity_access.passwords",
     "signora.modules.identity_access.routes",
     "signora.modules.identity_access.sessions",
+    "signora.modules.identity_access.signup",
 ]
 allowed_importers = ["signora.modules.identity_access", "signora.models", "signora.handlers"]
 
