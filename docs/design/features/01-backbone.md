@@ -549,9 +549,14 @@ Why this layout follows common practice:
 1. **Deduplicated per workspace only.** The same file from two workspaces is stored twice: no cross-tenant
    "this file exists" signal, and a tenant's data can be deleted by prefix.
 2. **Immutable.** Writes are put-if-absent; existing objects are never replaced.
-3. **Atomic writes.** Local: stream into a temporary file under `BLOB_STORE_DIR/.tmp/`, hashing and enforcing the
-   size limit while streaming, `fsync`, then `rename` into place. S3: a single `PUT` (atomic by definition) with
-   `If-None-Match: *` (conditional write) after hashing to a spooled temporary file.
+3. **Atomic, put-if-absent writes.**
+   - Local: stream into a temporary file under `BLOB_STORE_DIR/.tmp/`, hashing and enforcing the size limit while
+     streaming, `fsync` the file, then `os.link(temp, final)` — which fails with `EEXIST` instead of overwriting —
+     then remove the temp file and `fsync` the destination directory. `EEXIST` means identical content is already
+     stored and counts as success. (`rename` is not used because it silently replaces an existing file.)
+   - S3: hash to a spooled temporary file, then a single `PUT` (atomic) with `If-None-Match: *`. A
+     `412 Precondition Failed` means the object already exists — identical content, since the key is the hash — and
+     counts as success.
 4. **No public URLs.** Reads go only through API endpoints that check permission and stream the bytes. (A later
    option for large downloads: short-lived pre-signed URLs issued after the same check.)
 5. **No path tricks.** Keys are built only from a validated UUID and a 64-character lowercase hex digest, never from
@@ -605,6 +610,7 @@ the S3 backend (MinIO in Docker) when it is added:
 - put then open returns identical bytes; `sha256` and `size` are correct; the key matches the layout.
 - Same bytes twice in one workspace → one object; in two workspaces → two objects.
 - Over `max_bytes` → `TooLarge`, and nothing is left behind.
+- Writing an object that already exists → success without replacing it (local `EEXIST`, S3 `412`).
 - Interrupted write (simulated crash) → no partial object at the final key.
 - Invalid workspace id or digest → rejected before any filesystem or network access.
 
@@ -766,12 +772,16 @@ entries). A test asserts the counter and the audit entry exist after the error r
   known (bound through context, not passed by hand).
 - One access line per request: method, **route template** (e.g. `/s/{token}`, never the raw path, because signing
   links carry secret tokens), status, duration in ms.
-- **Request id:** an incoming `X-Request-ID` is accepted only if it is a well-formed id (Caddy sets one); otherwise a
-  new one is generated. It is returned in the `X-Request-ID` response header, included in error bodies, and stored in
+- **Request id:** Caddy always generates the request id and **overwrites** any `X-Request-ID` sent by the client, so
+  clients cannot choose ids that end up in `audit_events.request_id`. The API accepts the header only from the proxy
+  (behind Caddy); when running without Caddy (host development) it generates its own. It is returned in the `X-Request-ID` response header, included in error bodies, and stored in
   the metadata of every job enqueued by that request, so a job's logs link back to the action that caused it.
 - **Never logged:** request or response bodies; passwords, tokens, OTP codes, cookies, `Authorization` headers;
-  signature images. A redaction processor masks any field whose name matches
-  `password|secret|token|otp|code|cookie|authorization` as a safety net.
+  signature images. As a safety net, a redaction processor masks fields by **exact name** — `password`, `passwd`,
+  `secret`, `token`, `access_token`, `refresh_token`, `api_key`, `otp`, `otp_code`, `cookie`, `set_cookie`,
+  `authorization`, `signature_image` — and by exact suffix `_password`, `_secret`, `_api_key`. It never matches
+  substrings, so metrics such as `status_code`, `postal_code`, the error `code`, `prompt_tokens` and
+  `completion_tokens` stay visible.
 - **Personal data minimised:** logs carry ids, not names or email addresses. (The audit log keeps names
   intentionally, as evidence.)
 - Levels: `INFO` by default (`LOG_LEVEL`), `DEBUG` locally when needed.
@@ -780,21 +790,33 @@ entries). A test asserts the counter and the audit entry exist after the error r
 
 | Endpoint | Answers | Checks | Used by |
 |---|---|---|---|
-| `GET /api/v1/health/live` | Is the process running? | Nothing external; 200 whenever it can respond | Docker restart policy |
-| `GET /api/v1/health/ready` | Can it serve traffic? | Database (`SELECT 1`), migrations at head, blob store writable, Gotenberg `/health`; AI, email and Stripe reported as configured or not (informational in development) | Docker, Caddy, operators |
+| `GET /api/v1/health/live` | Is the process running? | Nothing external; 200 whenever it can respond | Container healthcheck |
+| `GET /api/v1/health/ready` | Can it serve traffic? (public, summary only) | Same checks as below; body is only `{"status":"ok"}` or `{"status":"unavailable"}` | Anyone |
+| `GET /internal/health/ready` | Which component is failing? (detail) | Database (`SELECT 1`), migrations at head, blob store writable, Gotenberg `/health`; AI, email and Stripe reported as configured or not | Operators, container healthcheck |
 | `GET /api/v1/meta` | Which build is running? | — | UI footer, bug reports |
 
 - Each readiness check has a 2-second timeout. `200` when every core check passes, otherwise `503`.
-- **Public vs local detail:** requests from outside (through Funnel) receive only `{"status":"ok"}` or
-  `{"status":"unavailable"}`. The per-check breakdown (component, status, duration, message) is returned only to
-  requests from the loopback address or the Docker networks.
+- **Detail is never reachable from the internet.** Behind Caddy every request arrives from the Docker network, so
+  source addresses cannot tell public from local. Instead, the detailed endpoint lives under `/internal/`, which Caddy
+  never forwards (it routes only `/api/*` to the API and explicitly answers `404` for `/internal/*`). It is reachable
+  only inside the Docker network or on the host development port.
 - `/meta` returns `{"version": "<package version>", "commit": "<short git sha>"}`; the commit is baked in at build time
   (`SIGNORA_COMMIT`), falling back to `"dev"`.
 
 ### 7.4 Worker health
 
-The worker serves no HTTP. It touches a heartbeat file every 10 seconds; the container healthcheck fails if the
-file is older than 30 seconds, and Docker restarts it. No extra table or port.
+Plain Docker Compose restarts a container only when its process **exits**; a failing healthcheck alone restarts
+nothing. So:
+
+- **Worker:** the main loop updates an in-process heartbeat and touches a heartbeat file every 10 seconds. A
+  **watchdog thread** checks the in-process heartbeat; if the loop has not advanced for 60 seconds it logs a fatal
+  event and exits the process (`os._exit(1)`), and `restart: unless-stopped` starts a fresh worker. The heartbeat file
+  feeds the container healthcheck so `docker ps` shows the state.
+- **Worker readiness:** at startup the worker checks that migrations are at head and refuses to start (exits with an
+  error) otherwise.
+- **API:** Uvicorn exits on fatal errors and is restarted by the same policy. A hung-but-running API is not restarted
+  automatically by plain Compose; this is a known limitation for the single-host deployment. An autoheal sidecar was
+  considered and rejected: it needs access to the Docker socket, which is a larger risk than the failure it covers.
 
 ### 7.5 Tests that prove it
 
@@ -802,11 +824,14 @@ file is older than 30 seconds, and Docker restarts it. No extra table or port.
   per-field `errors`.
 - An unexpected exception → 500 with `request_id` only; the log line contains the stack trace.
 - Cross-workspace access → 404.
-- Redaction masks secret-looking keys; the access log uses route templates (a `/s/<token>` request logs `/s/{token}`).
-- A request id appears in the response header, the error body, the logs, and the jobs enqueued by that request.
-- `/health/ready` returns 503 naming the failed check when the database or Gotenberg is down (local request), and
-  only `{"status":"unavailable"}` for a non-local request.
-- Worker heartbeat goes stale when the loop is blocked → healthcheck fails.
+- Redaction masks the listed names and suffixes and leaves `status_code`, `postal_code`, `code`, `prompt_tokens`
+  untouched; the access log uses route templates (a `/s/<token>` request logs `/s/{token}`).
+- A request id appears in the response header, the error body, the logs, and the jobs enqueued by that request; a
+  client-supplied `X-Request-ID` is replaced by Caddy's.
+- `/internal/health/ready` returns 503 naming the failed check when the database or Gotenberg is down;
+  `/api/v1/health/ready` returns only `{"status":"unavailable"}`; `/internal/*` through Caddy returns 404.
+- Blocking the worker loop for over 60 seconds makes the watchdog exit the process.
+- A worker started against an un-migrated database exits with an error.
 
 ---
 
@@ -951,8 +976,11 @@ behind Caddy, which is what the public Funnel URL serves.
 
 ### 9.6 Caddy
 
-- Routes `/api/*` to the API and everything else to the web server.
-- Sets `X-Request-ID` when absent; JSON access logs.
+- Routes `/api/*` to the API and everything else to the web server; answers `404` for `/internal/*`.
+- Always sets `X-Request-ID` to a fresh id, overwriting any client value.
+- JSON access logs with a **log filter that rewrites the URI** so signing tokens never reach the log: `/s/<token>…`
+  is logged as `/s/{token}…` (same rule for any later token-bearing path). Caddy's default redaction of `Cookie` and
+  `Authorization` headers stays on.
 - Request body limit slightly above the upload limit (55 MB).
 - Security headers on every response: `Strict-Transport-Security` (the public origin is HTTPS via Funnel),
   `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, a minimal
@@ -974,7 +1002,7 @@ the API dev port.
 | ID | Requirement |
 |---|---|
 | FR-B1 | Configuration loads once, resolves the repository root and relative paths independently of the working directory, and fails at startup listing every invalid value (topic 6). |
-| FR-B2 | Schema changes are applied with Alembic migrations; the API and worker refuse to report ready unless migrations are at head. |
+| FR-B2 | Schema changes are applied with Alembic migrations; the API reports not-ready and the worker refuses to start unless migrations are at head. |
 | FR-B3 | Jobs can be enqueued inside a business transaction, are delivered at least once and claimed by exactly one worker at a time, retried with backoff, dead-lettered after the per-kind limit, and reclaimed after a lease expires (topics 1–2). |
 | FR-B4 | Domain events fan out to every registered subscriber as independent jobs (topic 1.5). |
 | FR-B5 | Create endpoints honour `Idempotency-Key` per the server contract (topic 3). |
