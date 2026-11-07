@@ -49,6 +49,9 @@
 .nav {
   display: flex;
   flex-wrap: wrap;
+  /* Text baselines line up even when an item is taller (a button with a 40px tap target, the
+     active link's underline); the default "stretch" pushed them apart. */
+  align-items: baseline;
   gap: 10px 32px;
 }
 
