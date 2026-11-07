@@ -229,7 +229,7 @@ Dependency graph is acyclic and points one way:
 4. **Leaf modules are pure services:** `detection` and `rendering` take inputs and return outputs; they do not read other modules' data. This is what makes them the first candidates for extraction into separate services.
 
 #### Enforcement
-- **Python:** `import-linter` contracts in CI/`make lint`: (a) modules may import other modules only via their package root (`signora.modules.x`), never internals (`signora.modules.x.repository`); (b) the layered dependency order above; (c) leaf modules import only `kernel`; (d) `domain.py` imports nothing from FastAPI/SQLAlchemy.
+- **Python:** `import-linter` contracts in `make check`: (a) modules may import other modules only via their package root (`signora.modules.x`), never internals (`signora.modules.x.repository`); (b) the layered dependency order above; (c) leaf modules import only `kernel`; (d) `domain.py` imports nothing from FastAPI/SQLAlchemy.
 - **TypeScript:** `eslint-plugin-boundaries`: `features/x` may import `shared/*` and `packages/contracts`, not other features' internals.
 - **Contract SSoT:** the API's OpenAPI schema is exported and the TS types are generated from it (`make contracts`); a check fails if they drift.
 - **Tests per module** live inside the module; cross-module flows are covered by integration tests at the entrypoint level.
@@ -515,14 +515,14 @@ checks, NER pre-pass, PAdES cryptographic PDF signatures (stretch), mobile apps,
 
 ## Delivery plan (v4: vertical feature slices, core first)
 
-**How we build.** One feature at a time, end to end: its own LLD (`docs/design/features/NN-<slug>.md`, brainstormed and agreed before code) → backend module → frontend screens from the design system → tests → one branch and one PR (see `CONTRIBUTING.md`). Each commit is one task inside the feature.
+**How we build.** One feature at a time, end to end: its own LLD (`docs/design/features/NN-<slug>.md`, brainstormed and agreed before code) → backend module → frontend screens from the design system → tests → one branch and one PR. Each commit is one task inside the feature. Before a PR is merged: `make check` passes locally (lint, types, import boundaries, tests, web build) and the feature is tested manually; there is no hosted CI.
 
 **Order.** The core signing path and its business rules and security come first, then hardening. Nicer features (bulk send, ID verification, OCR, extra-signer addendum, phone-specific signer, landing page) come only after the core is hardened. The modular structure (ADR-008) applies from the first line.
 
 | Phase | Branch | Feature | Backend | Frontend (prototype screens) | Tier |
 |---|---|---|---|---|---|
 | 0 | `phase-0/foundation` | Foundation | design, infra, installer | design system reference | done |
-| 1 | `phase-1/backbone` | Backbone | `kernel` (config, db + Alembic, logging, errors, idempotency, jobs, events, blob store, clock), `audit` module, API + worker entrypoints, import-linter, CI | Next.js scaffold, tokens + base components, app shell | core |
+| 1 | `phase-1/backbone` | Backbone | `kernel` (config, db + Alembic, logging, errors, idempotency, jobs, events, blob store, clock), `audit` module, API + worker entrypoints, import-linter, `make check` (local quality gate) | Next.js scaffold, tokens + base components, app shell | core |
 | 2 | `phase-2/accounts` | Accounts & workspaces | `identity_access`: signup, login, sessions, CSRF, workspaces, members, invites, access policy | 02 sign up, 03 log in, 04 invite, 19 members | core |
 | 3 | `phase-3/projects` | Projects | `projects`: CRUD, settings, grants, countersigners | 05 home, 06 new project, 08 read-only, 09 settings | core |
 | 4 | `phase-4/documents` | Documents & versions | `documents`: upload, Gotenberg conversion, immutable versions, hashes | 10 documents, 11 upload | core |
@@ -545,7 +545,7 @@ Each feature's detailed task list lives in its LLD file and is copied here as it
 | P0.2 | Infra: Postgres 18.4 + Gotenberg 8.40.0 in `infra/compose.yaml`, `make up` | done | 2026-11-06: both healthy; `select version()` → 18.4, checksums on, scram-sha-256; Gotenberg `/health` up, `/version` 8.40.0, DOCX → 1-page PDF via `POST /forms/libreoffice/convert` (field `files`), text verified with pdftotext |
 | P0.3 | Backend Python project + `./install.sh` | done | commit 78102ec; clean-copy install and pip requirements install verified 2026-11-06 |
 | P0.4 | Design system reference | done | `docs/design-system/` |
-| P0.5 | Branch / commit / PR workflow | done | `CONTRIBUTING.md`, PR template |
+| P0.5 | Branch / commit / PR workflow | done | PR template (`.github/pull_request_template.md`) |
 | P1 | Backbone | todo — LLD next | — |
 | P2–P10 | Core features | todo | — |
 | P11 | Hardening | todo | — |

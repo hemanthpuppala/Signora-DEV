@@ -15,6 +15,7 @@
 
 ## Checklist
 - [ ] One commit per task, Conventional Commit messages
-- [ ] Tests, lint and type checks pass
+- [ ] `make check` passes locally (lint, types, import boundaries, tests, build)
+- [ ] Feature tested manually
 - [ ] Design doc and task tracker updated
 - [ ] No secrets, runtime data, `eval/` files or real personal data
