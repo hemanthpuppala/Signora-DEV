@@ -10,8 +10,7 @@ import threading
 import time
 import uuid
 from collections import Counter
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -30,26 +29,17 @@ from signora.kernel.jobs import (
     LeaseLostError,
     RecurringJob,
     UnknownJobKindError,
-    Worker,
     enqueue,
     housekeeping,
 )
 from signora.kernel.jobs import core as jobs_core
 from signora.kernel.jobs.core import NOTIFY_CHANNEL, claim, reclaim_expired
 from signora.kernel.logging import bind_context, clear_context
+from tests.support.workers import running_worker, wait_until
 
 
 def unique_kind(label: str) -> str:
     return f"test.{label}.{uuid.uuid4().hex[:8]}"
-
-
-def wait_until(predicate: Callable[[], bool], timeout: float = 10.0) -> None:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.05)
-    raise AssertionError("condition not met in time")
 
 
 def job_rows(db: Database, kind: str) -> list[Any]:
@@ -70,33 +60,6 @@ def register(
     lease: timedelta = timedelta(seconds=30),
 ) -> None:
     reg.register(JobKind(kind, handler, max_attempts=max_attempts, lease=lease))
-
-
-@pytest.fixture
-def no_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(jobs_core, "backoff_seconds", lambda attempt: 0.0)
-
-
-@contextmanager
-def running_worker(
-    database: Database, settings: DatabaseSettings, reg: JobRegistry, **options: Any
-) -> Iterator[Worker]:
-    worker = Worker(
-        database=database,
-        conninfo=settings.conninfo,
-        jobs_registry=reg,
-        concurrency=options.pop("concurrency", 4),
-        poll_interval=options.pop("poll_interval", 0.2),
-        **options,
-    )
-    thread = threading.Thread(target=worker.run, daemon=True)
-    thread.start()
-    try:
-        yield worker
-    finally:
-        worker.stop()
-        thread.join(timeout=20)
-        assert not thread.is_alive(), "worker did not stop"
 
 
 def test_enqueue_is_rolled_back_with_its_transaction(committing_db: Database) -> None:

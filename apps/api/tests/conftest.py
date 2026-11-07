@@ -14,6 +14,7 @@ from sqlalchemy import Engine, create_engine, text
 
 from signora.kernel.config import DatabaseSettings, load_settings
 from signora.kernel.db import Database, create_db_engine
+from signora.kernel.jobs import core as jobs_core
 from signora.kernel.migrations import upgrade_to_head
 
 TEST_DATABASE = "signora_test"
@@ -53,3 +54,9 @@ def db(engine: Engine) -> Iterator[Database]:
 def committing_db(engine: Engine) -> Database:
     """Units of work that really commit. Use unique ids; the database is recreated per session."""
     return Database(engine)
+
+
+@pytest.fixture
+def no_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Retry failed jobs immediately instead of waiting for backoff."""
+    monkeypatch.setattr(jobs_core, "backoff_seconds", lambda attempt: 0.0)
