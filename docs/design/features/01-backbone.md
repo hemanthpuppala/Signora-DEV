@@ -12,7 +12,7 @@ agreed.
 |---|---|---|
 | 1 | Background jobs and events | **agreed** (2026-11-07) |
 | 2 | Jobs table schema | **agreed** (2026-11-07) |
-| 3 | Idempotency (create endpoints only) and schema | open |
+| 3 | Idempotency: server contract and schema | **agreed** (2026-11-07); client reconnect behaviour (§3.6) proposed, pending confirmation |
 | 4 | Audit log: chain scope, system events, schema | open — proposal on the table: one chain per envelope plus one per workspace |
 | 5 | File storage | open |
 | 6 | Configuration and path resolution | open |
@@ -207,3 +207,107 @@ CREATE INDEX jobs_finished ON jobs (finished_at)      WHERE status = 'succeeded'
 useful for debugging multiple workers; worker identity is in the logs).
 
 **Retention:** `succeeded` rows are deleted after 7 days by `sweep.housekeeping`; `dead` rows are kept.
+
+---
+
+## Topic 3 — Idempotency (safe retries)
+
+Reference: IETF HTTPAPI draft *The Idempotency-Key HTTP Header Field* (draft-ietf-httpapi-idempotency-key-header-07,
+Oct 2025; work in progress) and Stripe's API, which follows the same model. Our status codes follow -07.
+
+### 3.1 Problem
+
+A request that creates something can succeed on the server while its response is lost (network blip). The client
+retries and, without protection, the action happens twice — e.g. two envelopes and two emails to the client.
+
+### 3.2 Where it applies
+
+Endpoints that **create a record or trigger a side effect that must not repeat** require an `Idempotency-Key`:
+
+| Requires a key | Does not (and why) |
+|---|---|
+| Create project | Submit signature — guarded state change (`WHERE status IN ('opened','viewed')`) |
+| Upload document / new version | Countersign — guarded state change |
+| Send envelope(s) | Approve version — guarded state change (`WHERE status = 'needs_review'`) |
+| Invite member | Sign-up — unique email rejects a duplicate |
+| Remind now, resend (each sends an email) | Settings updates — naturally idempotent (same result when repeated) |
+| *later:* confirm bulk send | |
+
+**Guarded actions answer with their result when repeated.** If a guarded action is already in its target state, the
+server returns the same success response as the first time (e.g. the signer's confirmation with the original signing
+time) instead of an error.
+
+### 3.3 Server contract
+
+| Situation | Response |
+|---|---|
+| Key missing on an endpoint that requires it | `400` problem+json linking to the API docs |
+| First request with a key | Runs normally; the response is stored with the key |
+| Repeat after the first completed | The stored status and body are returned; nothing runs again |
+| Repeat while the first is still running | `409 Conflict`, `Retry-After: 1` ("a request is outstanding for this key") |
+| Same key, different request body | `422` problem+json |
+| First request failed (rolled back) | Nothing is stored; a retry runs normally (errors are never replayed) |
+
+- **Key format:** a string of 1–255 printable characters (our frontend sends a UUIDv4).
+- **Scope:** `<user_id>:<METHOD> <route template>`, so different users and endpoints never collide.
+- **Retention:** 24 hours from creation (configuration), then deleted by `sweep.housekeeping`.
+
+### 3.4 Mechanism
+
+The key row is written **inside the action's own transaction**, before the work:
+
+1. `SET LOCAL lock_timeout = '2s'`, then `INSERT (scope, key, request_hash)`.
+2. Conflict with a **committed** row → compare `request_hash`; same → return the stored response; different → `422`.
+3. Conflict with an **in-flight** row → Postgres waits on the other transaction; if it has not finished within 2 s
+   the lock timeout fires → `409` with `Retry-After: 1`.
+4. No conflict → do the work, then `UPDATE` the row with the response, and commit. A rollback removes the key row too.
+
+There is no `in_progress` state column: in-flight rows are invisible to other transactions until they commit,
+and the database serializes duplicates.
+
+### 3.5 Schema
+
+```sql
+CREATE TABLE idempotency_keys (
+  scope           text        NOT NULL,                       -- '<user_id>:POST /api/v1/projects/{id}/envelopes'
+  key             text        NOT NULL CHECK (char_length(key) BETWEEN 1 AND 255),
+  request_hash    bytea       NOT NULL,                       -- sha256 of the canonical request body
+  response_status smallint,                                   -- set before commit; non-null in every committed row
+  response_body   jsonb,                                      -- replayed to retries
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (scope, key)
+);
+CREATE INDEX idempotency_keys_created ON idempotency_keys (created_at);
+```
+
+| Column | Purpose |
+|---|---|
+| `scope`, `key` | Identify one user action on one endpoint |
+| `request_hash` | Detect key reuse with a different request (`422`) |
+| `response_status`, `response_body` | The stored answer replayed to retries |
+| `created_at` | 24-hour retention |
+
+**Removed after review:** `state` (the transaction itself serializes duplicates) and `expires_at` (always
+`created_at` + 24 h; the duration lives in configuration).
+
+**Complexity:** one primary-key insert or lookup per protected request, O(log n), plus one SHA-256 of the body.
+
+### 3.6 Client behaviour after a network blip (proposed, pending confirmation)
+
+1. One key per **user action**, kept (also in `sessionStorage`) until a definite response arrives; every retry
+   reuses it.
+2. While pending, the button shows "Sending…" and is disabled; on a network error it shows
+   "Connection lost — retrying…", never "Failed".
+3. Automatic retry with the same key on the browser `online` event and on backoff (1 s, 2 s, 4 s … max 30 s);
+   `409` is retried after `Retry-After`.
+4. Pressing the button again while an action is pending resends the same key, so it cannot create a duplicate.
+5. Server data refetches on reconnect and on window focus, so changes made while offline appear without a reload.
+
+### 3.7 Tests that prove it
+
+- Same key twice (sequential) → one record; second call returns the stored response.
+- Same key twice (concurrent) → one record; the other gets the stored response or `409`.
+- Same key, different body → `422`. Missing key on a protected endpoint → `400`.
+- Failed first request → retry with the same key runs and succeeds.
+- Guarded action repeated (e.g. submit after signed) → same success response, no second effect.
+- Housekeeping removes keys older than 24 h.
