@@ -12,8 +12,8 @@ agreed.
 |---|---|---|
 | 1 | Background jobs and events | **agreed** (2026-11-07) |
 | 2 | Jobs table schema | **agreed** (2026-11-07) |
-| 3 | Idempotency: server contract and schema | **agreed** (2026-11-07); client reconnect behaviour (§3.6) proposed, pending confirmation |
-| 4 | Audit log: chain scope, system events, schema | open — proposal on the table: one chain per envelope plus one per workspace |
+| 3 | Idempotency: server contract, schema, client reconnect behaviour | **agreed** (2026-11-07) |
+| 4 | Audit log: chain scope, system events, schema | **agreed** (2026-11-07) |
 | 5 | File storage | open |
 | 6 | Configuration and path resolution | open |
 | 7 | Errors, logging, health APIs | open |
@@ -292,7 +292,7 @@ CREATE INDEX idempotency_keys_created ON idempotency_keys (created_at);
 
 **Complexity:** one primary-key insert or lookup per protected request, O(log n), plus one SHA-256 of the body.
 
-### 3.6 Client behaviour after a network blip (proposed, pending confirmation)
+### 3.6 Client behaviour after a network blip
 
 1. One key per **user action**, kept (also in `sessionStorage`) until a definite response arrives; every retry
    reuses it.
@@ -311,3 +311,136 @@ CREATE INDEX idempotency_keys_created ON idempotency_keys (created_at);
 - Failed first request → retry with the same key runs and succeeds.
 - Guarded action repeated (e.g. submit after signed) → same success response, no second effect.
 - Housekeeping removes keys older than 24 h.
+
+---
+
+## Topic 4 — Audit log
+
+### 4.1 Purpose
+
+A permanent, tamper-evident record of who did what, when, from where. It is used for:
+
+- the **certificate of completion** (who signed, when, IP, user agent, how they were verified);
+- the console's **audit log** screen;
+- **evidence** if a signature or an admin action is disputed.
+
+Each entry carries a SHA-256 fingerprint that covers its own content **and the previous entry's fingerprint**, so
+changing or deleting any earlier entry breaks every fingerprint after it.
+
+### 4.2 Chains
+
+| Chain | Holds | Who can wait on whom |
+|---|---|---|
+| **Envelope chain** (one per envelope) | Everything about one envelope: sent, link opened, code verified, consent, viewed to end, signed, declined, reminder sent, countersigned, completed | Only people acting on the *same* envelope |
+| **Workspace chain** (one per workspace) | Admin and account actions: member invited/joined, access changed, project created/updated, document uploaded, version approved, settings changed, login succeeded/failed | Admin actions within one workspace |
+| **System chain** (one, fixed system workspace) | Actions with no workspace yet: sign-up, failed login for an unknown email | — |
+
+Why per envelope: hundreds of signers in one company can submit at the same moment without queuing behind one
+workspace-wide lock, and a certificate covers exactly one envelope chain. The audit screen still shows a whole
+workspace by filtering on `workspace_id`.
+
+The **system workspace** is a fixed, reserved workspace row (created by the Phase 2 migration), so every entry
+has a workspace and the schema has no special NULL case.
+
+### 4.3 Writing an entry
+
+`audit.record(...)` runs **inside the action's own transaction**: if the action commits, so does its entry; if it
+rolls back, neither exists. Request context (request id, IP, user agent) is attached automatically.
+
+1. `pg_advisory_xact_lock(<chain_id>)` — serializes appends to this chain only; released at commit.
+2. Read the last entry's `seq` and `hash` for the chain (primary-key index, O(log n)); for a new chain use
+   `seq = 0` and 32 zero bytes.
+3. `hash = sha256(previous_hash ‖ canonical_json(entry))`, insert with `seq + 1`.
+
+**Canonical JSON** (stable bytes for hashing): keys sorted, UTF-8, no insignificant whitespace, timestamps as UTC
+ISO-8601 with microseconds, in the spirit of RFC 8785. Audit `data` holds only strings, integers, booleans, lists
+and objects — no floating-point numbers — so a database round trip cannot change the bytes.
+
+### 4.4 Verifying a chain
+
+Walk the chain in `seq` order and recompute every hash from the previous one. The chain is intact when `seq` runs
+1, 2, 3 … with no gaps and every recomputed hash equals the stored one. A changed entry fails at that entry; a
+deleted entry shows as a gap. Cost O(n) for an n-entry chain. Available as `signora audit verify` (CLI) now and as
+a console action later.
+
+### 4.5 Protection and its limits
+
+- Database triggers reject `UPDATE`, `DELETE` and `TRUNCATE` on `audit_events`.
+- **Limit:** someone with full database control can drop the triggers and rewrite a whole chain consistently; the
+  hash chain detects partial edits, not a complete rewrite. Mitigations:
+  - **Anchoring (Phase 9):** each completion certificate prints its envelope chain's final hash. Signers keep copies,
+    so a later rewrite no longer matches what they hold.
+  - **Hardening phase:** the app connects as a database role with only `INSERT`/`SELECT` on `audit_events`;
+    migrations run as the owner.
+
+### 4.6 Schema
+
+```sql
+CREATE TABLE audit_events (
+  chain_kind   text        NOT NULL CHECK (chain_kind IN ('system', 'workspace', 'envelope')),
+  chain_id     uuid        NOT NULL,                 -- envelope id, or workspace id for workspace/system chains
+  seq          bigint      NOT NULL CHECK (seq >= 1),
+  workspace_id uuid        NOT NULL,                 -- FK to workspaces added in Phase 2
+  occurred_at  timestamptz NOT NULL,
+  actor_type   text        NOT NULL CHECK (actor_type IN ('user', 'recipient', 'system')),
+  actor_id     uuid,                                 -- NULL for system
+  actor_label  text,                                 -- name/email as it was at that moment
+  action       text        NOT NULL,                 -- '<entity>.<past-tense verb>', e.g. 'recipient.signed'
+  subject_type text,
+  subject_id   uuid,
+  request_id   text,
+  ip           inet,
+  user_agent   text,
+  data         jsonb       NOT NULL DEFAULT '{}',
+  hash         bytea       NOT NULL CHECK (octet_length(hash) = 32),
+  PRIMARY KEY (chain_id, seq)
+);
+CREATE INDEX audit_events_workspace_time ON audit_events (workspace_id, occurred_at DESC);
+-- Triggers: BEFORE UPDATE OR DELETE (row) and BEFORE TRUNCATE (statement) raise an exception.
+```
+
+| Column | Purpose |
+|---|---|
+| `chain_kind`, `chain_id` | Which chain the entry belongs to; `chain_kind` says how to read `chain_id` (envelope vs workspace) |
+| `seq` | Position in the chain; gaps reveal deletions |
+| `workspace_id` | Tenant filter for the audit screen and isolation (equals `chain_id` on workspace chains; kept so every query filters the same way) |
+| `occurred_at` | When it happened (printed on the certificate) |
+| `actor_type`, `actor_id` | Who acted: a user, a signer (no account) or the system |
+| `actor_label` | Snapshot of the name/email at that moment; names change later and signers are not users |
+| `action` | What happened |
+| `subject_type`, `subject_id` | What it happened to |
+| `request_id` | Links the entry to server logs |
+| `ip`, `user_agent` | E-signature attribution evidence; printed on the certificate |
+| `data` | Action-specific details (e.g. decline reason, verification method) |
+| `hash` | The fingerprint that makes tampering detectable |
+
+**Removed after review:** the `audit_chain_heads` table (an advisory lock plus the last row does the same job),
+a separate `id` (the primary key is `(chain_id, seq)`), and `prev_hash` (it duplicated the previous row's `hash`;
+the verifier recomputes it and gaps reveal deletions).
+
+### 4.7 Interface (sketch)
+
+```python
+class AuditChain:                                   # value object
+    @staticmethod
+    def envelope(workspace_id: UUID, envelope_id: UUID) -> "AuditChain": ...
+    @staticmethod
+    def workspace(workspace_id: UUID) -> "AuditChain": ...
+    @staticmethod
+    def system() -> "AuditChain": ...
+
+def record(uow, *, chain: AuditChain, actor: Actor, action: str,
+           subject: Subject | None = None, data: Mapping[str, JsonValue] | None = None) -> AuditEntry: ...
+def verify(uow, chain_id: UUID) -> VerificationResult: ...      # ok, entries checked, first failure (seq, reason)
+```
+
+### 4.8 Tests that prove it
+
+- Entries recorded and verified → chain intact.
+- `UPDATE`, `DELETE`, `TRUNCATE` → rejected by the triggers.
+- With triggers disabled in the test: change one entry's `data` → verify fails at that `seq`; delete one entry →
+  verify reports the gap.
+- 50 concurrent appends to one chain → `seq` 1–50 contiguous, chain verifies.
+- Appends to different chains do not wait on each other's lock.
+- Action rolled back → its audit entry does not exist.
+- Canonical JSON is byte-identical before insert and after a database round trip.
