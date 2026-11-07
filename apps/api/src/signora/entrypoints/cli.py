@@ -20,14 +20,36 @@ def _migrate(_: argparse.Namespace) -> int:
     return 0
 
 
+def _api(args: argparse.Namespace) -> int:
+    import uvicorn  # imported lazily: other commands do not need the server
+
+    get_settings()  # fail fast, with every configuration problem listed, before binding a port
+    uvicorn.run(
+        "signora.entrypoints.api:app_factory",
+        factory=True,
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        access_log=False,  # our middleware logs requests with route templates
+        log_config=None,  # logging is configured by the app factory
+        proxy_headers=False,  # proxy headers are handled by RequestContextMiddleware
+        server_header=False,
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="signora", description="Signora operations")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("migrate", help="apply database migrations up to the latest revision")
+    api = commands.add_parser("api", help="run the HTTP API server")
+    api.add_argument("--host", default="127.0.0.1")
+    api.add_argument("--port", type=int, default=8100)
+    api.add_argument("--reload", action="store_true", help="reload on code changes (development)")
     return parser
 
 
-_COMMANDS = {"migrate": _migrate}
+_COMMANDS = {"migrate": _migrate, "api": _api}
 
 
 def main(argv: Sequence[str] | None = None) -> int:

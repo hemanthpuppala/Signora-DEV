@@ -83,6 +83,8 @@ class _EnvVars(BaseSettings):
     log_level: LogLevel = "INFO"
     signora_commit: str = "dev"
     api_threads: int = Field(default=20, ge=1, le=200)
+    # Trust X-Request-ID / X-Forwarded-For only when the API is reachable solely through the proxy.
+    api_trust_proxy_headers: bool = False
     # database
     postgres_host: str
     postgres_port: int = Field(ge=1, le=65535)
@@ -174,6 +176,7 @@ class AppSettings(_Group):
 
 class ApiSettings(_Group):
     threads: int
+    trust_proxy_headers: bool
 
 
 class DatabaseSettings(_Group):
@@ -309,7 +312,7 @@ def load_settings(root: Path | None = None) -> Settings:
             commit=env.signora_commit,
             root=base,
         ),
-        api=ApiSettings(threads=env.api_threads),
+        api=ApiSettings(threads=env.api_threads, trust_proxy_headers=env.api_trust_proxy_headers),
         db=DatabaseSettings(
             host=env.postgres_host,
             port=env.postgres_port,

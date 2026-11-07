@@ -669,7 +669,7 @@ console — never configuration.
 | `gotenberg` | `GOTENBERG_HOST`, `GOTENBERG_PORT` | core |
 | `signing` | `SIGNING_OTP_TTL_MINUTES`, `SIGNING_OTP_MAX_ATTEMPTS`, `SIGNER_SESSION_MINUTES`, `DEFAULT_REMINDER_INTERVAL_HOURS`, `DEFAULT_MAX_REMINDERS`, `DEFAULT_EXPIRY_DAYS` | core (defaults) |
 | `worker` | `WORKER_CONCURRENCY` | core (default 8) |
-| `api` | `API_THREADS` | core (default 20) |
+| `api` | `API_THREADS`, `API_TRUST_PROXY_HEADERS` | core (defaults 20, `false`) |
 | `ai` | `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_REASONING_EFFORT`, `AI_WHOLE_DOC_MAX_TOKENS`, `AI_MAX_CONCURRENCY` | integration |
 | `email` | `EMAIL_PROVIDER`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_STARTTLS`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `EMAIL_DAILY_LIMIT` | integration |
 | `stripe` | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | optional; needed only to offer ID verification (later feature) |
@@ -790,8 +790,10 @@ entries). A test asserts the counter and the audit entry exist after the error r
 - One access line per request: method, **route template** (e.g. `/s/{token}`, never the raw path, because signing
   links carry secret tokens), status, duration in ms.
 - **Request id:** Caddy always generates the request id and **overwrites** any `X-Request-ID` sent by the client, so
-  clients cannot choose ids that end up in `audit_events.request_id`. The API accepts the header only from the proxy
-  (behind Caddy); when running without Caddy (host development) it generates its own. It is returned in the `X-Request-ID` response header, included in error bodies, and stored in
+  clients cannot choose ids that end up in `audit_events.request_id`. The API accepts the header (and takes the
+  client IP from `X-Forwarded-For`) only when `API_TRUST_PROXY_HEADERS=true`, which compose sets for the container
+  that is reachable solely through Caddy; otherwise (e.g. host development) it generates its own id and uses the
+  socket address. It is returned in the `X-Request-ID` response header, included in error bodies, and stored in
   the metadata of every job enqueued by that request, so a job's logs link back to the action that caused it.
 - **Never logged:** request or response bodies; passwords, tokens, OTP codes, cookies, `Authorization` headers;
   signature images. As a safety net, a redaction processor masks fields by **exact name** — `password`, `passwd`,
@@ -1071,7 +1073,7 @@ the API dev port.
 | 1.1 | Backbone LLD (this document) | done | topics 1–10 |
 | 1.2 | `kernel/config`: settings groups, repo-root resolution, validation, `.env.example` sync test | done | 14 tests pass (incl. same root/blob dir from repo root, `apps/api` and a temp dir); ruff, mypy --strict clean; 98 % coverage of `kernel/config.py` |
 | 1.3 | `kernel/db`: engine, unit of work, Alembic setup, naming conventions; migration 0001 (`jobs`, `idempotency_keys`, `audit_events` + triggers) | done | 25 tests pass: tables + UUIDv7 ids, commit / rollback / commit-then-raise, append-only triggers reject UPDATE/DELETE/TRUNCATE, pool fails fast, migration round trip; `signora migrate` works from any folder and exits 2 on bad config. Implementation notes: migration scripts live in the `signora.migrations` package (ship inside the image) rather than `apps/api/migrations`; index names follow the `ix_` naming convention; `idempotency_keys.request_hash` also has a 32-byte check |
-| 1.4 | `kernel/errors`, `kernel/logging`, request id; API app factory; health and meta endpoints | todo | — |
+| 1.4 | `kernel/errors`, `kernel/logging`, request id; API app factory; health and meta endpoints | done | 70 tests pass (problem details for every error, validation field paths, generic 500 with logged stack, route-template access log, request-id trust rules, public vs internal readiness, real readiness against Postgres + Gotenberg); real server via `signora api`: forged `X-Request-ID` replaced, signing token absent from logs, JSON logs incl. uvicorn |
 | 1.5 | `kernel/jobs`: enqueue, worker loop, `JobContext`, guarded completion, lease renewal, backoff, dead jobs, LISTEN/NOTIFY, scheduler thread, housekeeping sweep | todo | — |
 | 1.6 | `kernel/events`: publish/subscribe over jobs | todo | — |
 | 1.7 | `kernel/idempotency`: dependency, transaction-held key, 400/409/422 handling | todo | — |
