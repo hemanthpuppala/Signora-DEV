@@ -39,3 +39,10 @@ Signer: 21 Request email · 22 Email code · 23 Consent · 24 Read and sign · 2
 - Fonts load with `next/font/google` (self-hosted at build time) instead of the Google Fonts stylesheet link.
 - Accessibility kept from the prototype: visible focus ring, labelled controls, keyboard dropdowns, `prefers-reduced-motion`.
 - Prototype-only scaffolding is not ported: the "All screens" index, `Prototype:` toasts, sample data.
+
+## Deliberate deviations
+| Screen | Deviation | Reason | Recorded |
+|---|---|---|---|
+| 02 Sign up | Asks only for the email. Firm name, your name and password move to a new "verify" page opened from the emailed link. | Sign-up must not reveal whether an email is registered, so the account is created only after the email is verified ([Phase 2 LLD](../design/features/02-accounts.md), topic 1). | 2026-11-07 |
+| 04 Accept invite | Shows the role name chosen by the inviter instead of workspace plus per-project access. | Roles are data per workspace (Phase 2 LLD, ADR-A1); per-project grants arrive in Phase 3. | 2026-11-07 |
+| 19 Members | Named **People** in navigation; visible only with the `members.manage` permission (by default the creator). No saved-signature block yet (Phase 9). | Owner decision 2026-11-07 (Phase 2 LLD, topic 8). | 2026-11-07 |
