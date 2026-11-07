@@ -15,7 +15,7 @@ agreed.
 | 3 | Idempotency: server contract, schema, client reconnect behaviour | **agreed** (2026-11-07) |
 | 4 | Audit log: chain scope, system events, schema | **agreed** (2026-11-07) |
 | 5 | File storage | **agreed** (2026-11-07) |
-| 6 | Configuration and path resolution | open |
+| 6 | Configuration and path resolution | **agreed** (2026-11-07) |
 | 7 | Errors, logging, health APIs | open |
 | 8 | Frontend shell | open |
 | 9 | Quality gate (`make check`) and runtime (compose, Caddy) | open |
@@ -544,3 +544,89 @@ the S3 backend (MinIO in Docker) when it is added:
 - Invalid workspace id or digest → rejected before any filesystem or network access.
 
 **Complexity:** put and open are O(size) (one streaming pass with hashing); lookup by key is O(1).
+
+---
+
+## Topic 6 — Configuration and path resolution
+
+### 6.1 Scope
+
+**Configuration** is how this installation runs: database address, secrets, Gotenberg location, AI key, email
+account, storage backend. It comes from environment variables or `.env` and changes require a restart.
+**Business settings** (a project's reminder interval, POC emails, countersigners) are data in tables, edited in the
+console — never configuration.
+
+### 6.2 Rules
+
+1. **One settings object**, loaded once per process, typed and read-only (`pydantic-settings`). API, worker and CLI
+   load it identically.
+2. **Precedence** (twelve-factor): process environment variables > `.env` file > defaults in code. In Docker, compose
+   provides environment variables, so the same code runs unchanged.
+3. **Repository root:**
+   - `SIGNORA_ROOT` if set (container images set `/app`);
+   - otherwise derived from the package location (`apps/api/src/signora/` → four levels up) and confirmed by the
+     marker file `.env.example`;
+   - otherwise startup fails with an explanation.
+   `.env` is read from the root, never from the working directory, and every relative path setting (e.g.
+   `BLOB_STORE_DIR=./data/blobs`) resolves against the root.
+4. **Fail fast with every problem at once.** Startup validates all values and stops with one message listing every
+   violation, for example: `SECRET_KEY` shorter than 32 characters, empty `POSTGRES_PASSWORD`, port outside
+   1–65535, unknown `APP_ENV`, non-`https` `PUBLIC_BASE_URL` in production.
+5. **Core vs integrations.** Core settings (app, database, storage, Gotenberg, signing defaults, worker) are required
+   to start. Integration settings (AI, email, Stripe) may be empty when `APP_ENV=development`: using an unconfigured
+   integration raises a clear `IntegrationNotConfigured` error, and the readiness endpoint reports it as
+   "not configured". With `APP_ENV=production` every integration is required at startup.
+6. **Secrets** are `SecretStr`: shown as `**********` in logs, errors and `repr`; the raw value is read only where
+   it is used.
+7. **Grouped settings, least privilege.** Settings are grouped by area and each module receives only its own group
+   (dependency injection), so e.g. the email module never sees the database password, and tests pass small fake
+   groups.
+8. **No duplicated values.** Derived values (the database URL, Gotenberg base URL) are computed from their parts and
+   never stored as a second variable.
+9. **`.env.example` is the single list of variables.** A test fails when a setting exists in code but not in
+   `.env.example`, or the reverse.
+
+### 6.3 Groups and variables
+
+| Group | Variables (from `.env`) | Required |
+|---|---|---|
+| `app` | `APP_ENV`, `PUBLIC_BASE_URL`, `SECRET_KEY`, `LOG_LEVEL` | core |
+| `db` | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | core |
+| `blob_store` | `BLOB_STORE_BACKEND`, `BLOB_STORE_DIR` (+ S3 variables later) | core |
+| `gotenberg` | `GOTENBERG_HOST`, `GOTENBERG_PORT` | core |
+| `signing` | `SIGNING_OTP_TTL_MINUTES`, `SIGNING_OTP_MAX_ATTEMPTS`, `SIGNER_SESSION_MINUTES`, `DEFAULT_REMINDER_INTERVAL_HOURS`, `DEFAULT_MAX_REMINDERS`, `DEFAULT_EXPIRY_DAYS` | core (defaults) |
+| `worker` | `WORKER_CONCURRENCY` | core (default 8) |
+| `ai` | `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_REASONING_EFFORT`, `AI_WHOLE_DOC_MAX_TOKENS`, `AI_MAX_CONCURRENCY` | integration |
+| `email` | `EMAIL_PROVIDER`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_STARTTLS`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `EMAIL_DAILY_LIMIT` | integration |
+| `stripe` | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | integration (later feature) |
+
+`.env` keeps its flat names; they are mapped into these groups. New in Phase 1: `BLOB_STORE_BACKEND` (default
+`local`) and `WORKER_CONCURRENCY` (default 8) are added to `.env.example`.
+
+### 6.4 Interface (sketch)
+
+```python
+class DatabaseSettings(BaseModel):
+    host: str; port: int; user: str; password: SecretStr; name: str
+    @property
+    def url(self) -> str: ...                 # built from parts, never stored
+
+class Settings(BaseSettings):                 # env > .env (at repo root) > defaults
+    app: AppSettings; db: DatabaseSettings; blob_store: BlobStoreSettings
+    gotenberg: GotenbergSettings; signing: SigningSettings; worker: WorkerSettings
+    ai: AISettings; email: EmailSettings; stripe: StripeSettings
+
+def repo_root() -> Path: ...                  # SIGNORA_ROOT, else derived + marker check
+def get_settings() -> Settings: ...           # loaded once, cached, read-only
+```
+
+### 6.5 Tests that prove it
+
+- API-style and worker-style processes started from the repo root, from `apps/api` and from `/tmp` resolve the same
+  root, `.env` and `BLOB_STORE_DIR`.
+- `SIGNORA_ROOT` overrides derivation; a missing marker fails with a clear message.
+- An environment variable overrides the same key in `.env`.
+- Several invalid values → one error listing all of them.
+- Development with empty `AI_API_KEY` starts; production with it empty fails at startup.
+- `SecretStr` values never appear in `repr`, logs or error output.
+- Every settings field is in `.env.example` and every `.env.example` variable maps to a field.
