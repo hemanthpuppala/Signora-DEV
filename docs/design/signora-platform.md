@@ -512,6 +512,21 @@ checks, NER pre-pass, PAdES cryptographic PDF signatures (stretch), mobile apps,
 
 ---
 
+## Delivery phases
+
+One branch and one pull request per phase; one commit per task (see `CONTRIBUTING.md`).
+
+| Phase | Branch | Tasks |
+|---|---|---|
+| 0 Foundation | `phase-0/foundation` | 0, 1a, installer, design system, workflow docs |
+| 1 Detection | `phase-1/detection` | 1b (backend skeleton), 2–6 |
+| 2 Platform core | `phase-2/platform-core` | 7, 8, 9, 11, 22 |
+| 3 Console UI | `phase-3/console-ui` | web scaffold + design system port, 10, 21 |
+| 4 Send and sign | `phase-4/send-and-sign` | 12–17 |
+| 5 Operations | `phase-5/operations` | 18, 19, 20 |
+| 6 Release | `phase-6/release` | 23, 24, Funnel deployment |
+| 7 OCR (deferred) | `phase-7/ocr` | 25 |
+
 ## Task Tracker
 
 | # | Task | Status | Evidence of completion |
