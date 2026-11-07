@@ -12,12 +12,19 @@ from collections.abc import Iterator
 import pytest
 from sqlalchemy import Engine, create_engine, text
 
+from signora.handlers import register_all
 from signora.kernel.config import DatabaseSettings, load_settings
 from signora.kernel.db import Database, create_db_engine
 from signora.kernel.jobs import core as jobs_core
 from signora.kernel.migrations import upgrade_to_head
 
 TEST_DATABASE = "signora_test"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def registered_job_kinds() -> None:
+    """Every process registers the job kinds at start-up (handlers.py); so does the test session."""
+    register_all(jobs_core.registry)
 
 
 @pytest.fixture(scope="session")

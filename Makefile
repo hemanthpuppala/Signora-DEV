@@ -24,7 +24,7 @@ requirements:  ## Re-export pinned pip requirement files from uv.lock
 # --- infrastructure ----------------------------------------------------------------------------
 
 up:            ## Start infrastructure services and wait until healthy
-	$(COMPOSE) up -d --wait --remove-orphans postgres gotenberg gotenberg-gateway
+	$(COMPOSE) up -d --wait --remove-orphans postgres gotenberg gotenberg-gateway mailpit
 
 up-app:        ## Build and start the full stack behind Caddy on 127.0.0.1:3100 (the Funnel target)
 	SIGNORA_COMMIT=$$(git rev-parse --short HEAD) $(COMPOSE) --profile app up -d --build --wait --remove-orphans

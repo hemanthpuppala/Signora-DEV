@@ -509,10 +509,10 @@ Production requires the chosen email provider's credentials.
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
 | 2.1 | Phase 2 LLD (this file), design-system deviation, platform doc updates | done | this file |
-| 2.2 | Configuration: auth group, email providers (SendGrid, Mailpit), `.env.example` | todo | — |
-| 2.3 | `kernel/ratelimit`: `RateLimiter` protocol, in-memory implementation | todo | — |
-| 2.4 | `kernel/http`: Origin check (CSRF layer 1) | todo | — |
-| 2.5 | `notifications`: schema, `send_email`, layout, transports, delivery job, sweep, Mailpit in compose | todo | — |
+| 2.2 | Configuration: auth group, email providers (SendGrid, Mailpit), `.env.example` | done | commit 421959c; config tests: SendGrid needs its key not SMTP, production rejects Mailpit, defaults match this design |
+| 2.3 | `kernel/ratelimit`: `RateLimiter` protocol, in-memory implementation | done | commit 61776ec; 10 tests incl. LRU bound and 20 threads never exceeding the limit |
+| 2.4 | `kernel/http`: Origin check (CSRF layer 1) | done | commit 6f14361; cross-site and same-site refused, same-origin/none/matching Origin/no header pass, safe methods and non-API paths untouched |
+| 2.5 | `notifications`: schema, `send_email`, layout, transports, delivery job, sweep, Mailpit in compose | done | 29 tests: escaping, queued with the caller's transaction (rollback sends nothing), dedupe, sent/permanent/transient/max-attempts/daily-limit outcomes with body purge, SendGrid payload (tracking off) and status mapping, real SMTP delivery to Mailpit, SMTP error mapping, provider selection. Also fixed: the API process now registers job kinds (Phase 1 documented it but only the worker did) |
 | 2.6 | `identity_access` domain: emails, passwords, tokens, permissions | todo | — |
 | 2.7 | `identity_access` schema: workspaces, roles, users, sessions, email tokens, invites; system workspace | todo | — |
 | 2.8 | Sessions, `current_actor`, CSRF token, authorisation, log-in/log-out/me, throttling | todo | — |

@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import Engine
 
+from signora.handlers import register_all
 from signora.kernel.config import Settings, get_settings
 from signora.kernel.db import Database, create_db_engine
 from signora.kernel.health import Check, core_checks, integration_results, run_checks
@@ -29,6 +30,7 @@ from signora.kernel.http import (
     install_error_handlers,
     origin_of,
 )
+from signora.kernel.jobs import registry
 from signora.kernel.logging import configure_logging
 
 API_PREFIX = "/api/v1"
@@ -90,6 +92,8 @@ def create_app(
     checks_factory: ChecksFactory = core_checks,
 ) -> FastAPI:
     """Build the application. Tests pass their own engine and readiness checks."""
+    # The API enqueues jobs, so it knows the same job kinds as the worker (handlers.py).
+    register_all(registry)
     owns_engine = engine is None
     app_engine = engine or create_db_engine(settings.db, pool_size=settings.api.threads)
 

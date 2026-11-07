@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<meta name="color-scheme" content="dark light"><title>{{ heading }}</title></head>
+<body style="margin:0;padding:0;background:#000;color:#fff;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#000">
+<tr><td align="center" style="padding:40px 16px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px">
+<tr><td style="font-size:14px;letter-spacing:.16em;font-weight:600;padding-bottom:32px">SIGNORA</td></tr>
+<tr><td style="font-family:Georgia,'Times New Roman',serif;font-size:30px;line-height:1.2;font-weight:300;padding-bottom:20px">{{ heading }}</td></tr>
+{% for paragraph in paragraphs %}<tr><td style="font-size:15px;line-height:1.6;color:rgba(255,255,255,.75);padding-bottom:16px">{{ paragraph }}</td></tr>
+{% endfor %}{% if action %}<tr><td style="padding:12px 0 24px"><a href="{{ action.url }}" style="display:inline-block;border:1px solid rgba(255,255,255,.4);color:#fff;text-decoration:none;font-size:12px;letter-spacing:.3em;text-transform:uppercase;padding:14px 22px">{{ action.label }} &rarr;</a></td></tr>
+<tr><td style="font-size:12px;line-height:1.6;color:rgba(255,255,255,.55);padding-bottom:16px;word-break:break-all">If the button does not work, copy this link: {{ action.url }}</td></tr>
+{% endif %}{% if footer %}<tr><td style="font-size:12px;line-height:1.6;color:rgba(255,255,255,.55);border-top:1px solid rgba(255,255,255,.08);padding-top:16px">{{ footer }}</td></tr>
+{% endif %}</table></td></tr></table></body></html>

@@ -122,9 +122,20 @@ protected_modules = [
 allowed_importers = ["signora.modules.audit", "signora.models", "signora.handlers"]
 
 [[tool.importlinter.contracts]]
+name = "Public interface only: notifications internals are imported only by notifications and composition roots"
+type = "protected"
+protected_modules = [
+    "signora.modules.notifications.layout",
+    "signora.modules.notifications.models",
+    "signora.modules.notifications.service",
+    "signora.modules.notifications.transports",
+]
+allowed_importers = ["signora.modules.notifications", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
 name = "Leaf modules import only the kernel"
 type = "forbidden"
-source_modules = ["signora.modules.audit"]
+source_modules = ["signora.modules.audit", "signora.modules.notifications"]
 forbidden_modules = [
     "signora.entrypoints",
     "signora.handlers",
