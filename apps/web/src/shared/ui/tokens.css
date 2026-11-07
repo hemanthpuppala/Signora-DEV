@@ -1,0 +1,66 @@
+/*
+ * Signora design tokens — single source of styling (backbone LLD §8.4).
+ * Ported from docs/design-system/prototype.html. Pure black and white; the only color is the
+ * status dot. Square corners, hairline separators. Feature code never hard-codes colors or fonts.
+ */
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #000;
+  --surface: #0a0a0a;
+  --surface-2: #141414;
+  --surface-3: #1f1f1f;
+  --paper: #f6f5f2;
+  --paper-ink: #1a1a1a;
+
+  /* text (white at the given opacity) */
+  --ink: #fff;
+  --t75: rgba(255, 255, 255, 0.75);
+  --t60: rgba(255, 255, 255, 0.6);
+  --t55: rgba(255, 255, 255, 0.55);
+  --t30: rgba(255, 255, 255, 0.3);
+
+  /* lines */
+  --sep: rgba(255, 255, 255, 0.08);
+  --r40: rgba(255, 255, 255, 0.4);
+  --r25: rgba(255, 255, 255, 0.25);
+  --r15: rgba(255, 255, 255, 0.14);
+  --r08: rgba(255, 255, 255, 0.08);
+  --r05: rgba(255, 255, 255, 0.04);
+
+  /* roles on paper (grayscale) */
+  --role1: #8c8c8c;
+  --role1f: rgba(0, 0, 0, 0.05);
+  --role2: #5a5a5a;
+  --role2f: rgba(0, 0, 0, 0.09);
+  --role3: #b0b0b0;
+  --role3f: rgba(0, 0, 0, 0.04);
+  --firm: #222;
+  --firmf: rgba(0, 0, 0, 0.06);
+
+  /* status dot colors: the one place color is allowed */
+  --st-draft: #8e8e93;
+  --st-pending: #8e8e93;
+  --st-sent: #64a8ff;
+  --st-opened: #a594ff;
+  --st-viewed: #ffb547;
+  --st-signed: #4cd97b;
+  --st-completed: #2fd5a8;
+  --st-declined: #ff6b6b;
+  --st-expired: #a1a1a6;
+  --st-cancelled: #a1a1a6;
+
+  /* type */
+  --serif: var(--font-serif), "EB Garamond", Georgia, serif;
+  --sans: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans",
+    "Droid Sans", "Helvetica Neue", sans-serif;
+  --mono: var(--font-mono), ui-monospace, Menlo, monospace;
+  --logo: var(--font-logo), -apple-system, sans-serif;
+
+  /* shape */
+  --radius: 0;
+  --control-height: 44px;
+  --gutter: 16px;
+  --content-max: 1120px;
+}

@@ -26,6 +26,9 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
 ]
 
+[project.scripts]
+signora = "signora.entrypoints.cli:main"
+
 [dependency-groups]
 # All developer tooling in one group, so `uv sync` never uninstalls part of it.
 # python-docx and reportlab generate the private detection-eval corpus (eval/ is git-ignored).
@@ -48,3 +51,89 @@ default-groups = ["dev"]
 # Supply-chain guard: only resolve releases that have been public for at least two weeks.
 # Bump deliberately when upgrading dependencies.
 exclude-newer = "2026-10-23T00:00:00Z"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "UP", "S", "C4", "SIM", "RET", "PTH", "N", "RUF",
+    "DTZ",  # timezone-aware datetimes only
+    "T20",  # no print()
+    "ASYNC",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S603", "S607"]  # assert, subprocess in tests
+# Domain errors are named after the condition (NotFound, Conflict), matching the LLD catalogue.
+"src/signora/kernel/errors.py" = ["N818"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["signora"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+# Module boundaries (backbone LLD §9.2). Each new module adds its own "public interface only"
+# contract and joins the leaf/forbidden lists below as it arrives.
+[tool.importlinter]
+root_packages = ["signora"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layers: entrypoints and composition roots -> modules -> kernel (no upward imports)"
+type = "layers"
+layers = [
+    "signora.entrypoints : signora.handlers : signora.models : signora.migrations",
+    "signora.modules",
+    "signora.kernel",
+]
+containers = []
+
+[[tool.importlinter.contracts]]
+name = "Public interface only: audit internals are imported only by audit and composition roots"
+type = "protected"
+protected_modules = [
+    "signora.modules.audit.domain",
+    "signora.modules.audit.service",
+    "signora.modules.audit.models",
+]
+allowed_importers = ["signora.modules.audit", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Leaf modules import only the kernel"
+type = "forbidden"
+source_modules = ["signora.modules.audit"]
+forbidden_modules = [
+    "signora.entrypoints",
+    "signora.handlers",
+    "signora.models",
+    "signora.migrations",
+]
+
+[[tool.importlinter.contracts]]
+name = "Pure domain: domain modules import no web framework or database library"
+type = "forbidden"
+source_modules = ["signora.modules.audit.domain"]
+forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]

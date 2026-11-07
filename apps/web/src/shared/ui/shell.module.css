@@ -1,0 +1,96 @@
+/* Sticky blurred top bar and console shell (prototype .topbar, .shell, .main). */
+.topbar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--sep);
+}
+
+.topbarInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 28px;
+  padding-block: 20px;
+}
+
+.wrap {
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  flex-wrap: wrap;
+}
+
+.logo {
+  font: 500 18px/1 var(--logo);
+  letter-spacing: 0.16em;
+  color: var(--ink);
+}
+
+.logo:hover {
+  color: var(--ink);
+}
+
+.workspace {
+  font: 400 11px/1.4 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 32px;
+}
+
+.navLink {
+  font: 400 11px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t75);
+}
+
+.navLink:hover {
+  color: var(--ink);
+}
+
+.navActive {
+  color: var(--ink);
+  border-bottom: 1px solid var(--r40);
+  padding-bottom: 5px;
+}
+
+.main {
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-block: 48px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  min-width: 0;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  background: #000;
+  color: var(--ink);
+  border: 1px solid var(--r40);
+  padding: 14px 22px;
+  font: 400 11px/1.4 var(--sans);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  max-width: calc(100% - 32px);
+}

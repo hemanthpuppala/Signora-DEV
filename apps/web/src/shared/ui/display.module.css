@@ -1,0 +1,170 @@
+/* Tables inside a hairline panel (prototype .tbl-box). */
+.tablePanel {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  padding: 4px 24px;
+}
+
+.tablePanel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tablePanel th {
+  text-align: left;
+  font: 400 10px/1.4 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t55);
+  padding: 16px 16px 12px 0;
+  border-bottom: 1px solid var(--sep);
+}
+
+.tablePanel td {
+  padding: 16px 16px 16px 0;
+  border-top: 1px solid var(--sep);
+  vertical-align: top;
+  color: var(--t75);
+}
+
+.tablePanel th:last-child,
+.tablePanel td:last-child {
+  padding-right: 0;
+}
+
+.tablePanel tbody tr:first-child td {
+  border-top: 0;
+}
+
+/* Status: dot carries the color, label stays white (prototype .st). */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 10px/1.4 var(--sans);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--t75);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--dot);
+}
+
+.dotRing {
+  background: none;
+  border: 1px solid var(--dot);
+}
+
+.dotDashed {
+  background: none;
+  border: 1px dashed var(--dot);
+}
+
+.st-draft { --dot: var(--st-draft); }
+.st-pending { --dot: var(--st-pending); }
+.st-sent { --dot: var(--st-sent); }
+.st-opened { --dot: var(--st-opened); }
+.st-viewed { --dot: var(--st-viewed); }
+.st-signed { --dot: var(--st-signed); }
+.st-completed { --dot: var(--st-completed); }
+.st-declined { --dot: var(--st-declined); }
+.st-expired { --dot: var(--st-expired); }
+.st-cancelled { --dot: var(--st-cancelled); }
+
+/* Notice (prototype .notice). */
+.notice {
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  padding: 18px 24px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.noticeWarning {
+  border-color: var(--r40);
+}
+
+.noticeBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.noticeTitle {
+  font: 400 10px/15px var(--sans);
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+/* Metric tile (prototype .grid-metrics > div). */
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metricValue {
+  font: 300 44px/1 var(--serif);
+  font-variant-numeric: lining-nums;
+}
+
+.metricLabel {
+  font: 400 10px/15px var(--sans);
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+/* Tabs with a hairline underline (prototype .tabs). */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  border-bottom: 1px solid var(--sep);
+}
+
+.tab {
+  padding: 0 0 14px;
+  margin-bottom: -1px;
+  border-bottom: 1px solid transparent;
+  color: var(--t55);
+  font: 400 11px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tabActive {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+@media (max-width: 720px) {
+  .tablePanel {
+    padding-inline: 16px;
+  }
+}

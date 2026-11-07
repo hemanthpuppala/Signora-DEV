@@ -1,0 +1,61 @@
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+
+import { cx } from "@/shared/lib/cx";
+
+import styles from "./button.module.css";
+
+export type ButtonVariant = "primary" | "quiet" | "destructive";
+
+export type ButtonProps = {
+  variant?: ButtonVariant;
+  /** Adds the trailing arrow used on primary actions ("Create workspace →"). */
+  arrow?: boolean;
+  /** Shows ``loadingLabel`` and disables the button while an action is in flight. */
+  loading?: boolean;
+  loadingLabel?: string;
+  compact?: boolean;
+  children: ReactNode;
+} & ButtonHTMLAttributes<HTMLButtonElement>;
+
+export function Button({
+  variant = "primary",
+  arrow = false,
+  loading = false,
+  loadingLabel = "Sending…",
+  compact = false,
+  disabled,
+  className,
+  type = "button",
+  children,
+  ...rest
+}: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cx(
+        styles.button,
+        variant === "quiet" && styles.quiet,
+        variant === "destructive" && styles.destructive,
+        compact && styles.compact,
+        className,
+      )}
+      disabled={disabled === true || loading}
+      aria-busy={loading || undefined}
+      {...rest}
+    >
+      {loading ? loadingLabel : children}
+      {arrow && !loading ? <span aria-hidden="true">→</span> : null}
+    </button>
+  );
+}
+
+export type TextButtonProps = { children: ReactNode } & ButtonHTMLAttributes<HTMLButtonElement>;
+
+/** Secondary action rendered as tracked uppercase text (prototype .link). */
+export function TextButton({ className, type = "button", children, ...rest }: TextButtonProps) {
+  return (
+    <button type={type} className={cx(styles.textButton, className)} {...rest}>
+      {children}
+    </button>
+  );
+}

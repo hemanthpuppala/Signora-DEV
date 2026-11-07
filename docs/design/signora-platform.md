@@ -1,8 +1,12 @@
 # Signora — Low-Level Design
 
-Status: draft v5 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
+Status: draft v6 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
+
+**Source of truth:** where this document and a feature LLD in `docs/design/features/` disagree, the feature LLD is
+authoritative and this document is corrected to match.
 
 Changelog
+- v6 (2026-11-07): aligned with the Phase 1 backbone LLD (`docs/design/features/01-backbone.md`), which is authoritative for jobs, events, idempotency, audit, storage, configuration, errors and health. Email moves from an `email_outbox` table to `email.send` jobs plus an `email_messages` delivery record owned by `notifications`; idempotency keys apply to create actions while state changes are guarded; audit entries are written synchronously (not via events) with no `prev_hash` column; carried items for Phase 2 and hardening added to the delivery plan.
 - v5 (2026-11-07, PR #1 review): Gotenberg isolated on an internal-only `convert` network with outbound features disabled, reached through a `gotenberg-gateway` forwarder; compose networks split into `app` and `convert`; host-first `.env` defaults with one `*_PORT` per service shared by Docker and the app (`POSTGRES_PORT`, `GOTENBERG_HOST`/`GOTENBERG_PORT`; `*_HOST_PORT` and `GOTENBERG_URL` removed); eval tooling merged into the `dev` dependency group; installer pins uv 0.9.17 by verified archive checksum and refuses older uv; blob paths must resolve against the repo root (Phase 1 requirement).
 - v4: delivery re-planned as vertical feature slices (backend + frontend per feature, LLD per feature), core first; bulk send, ID verification, OCR moved to later.
 - v3: monorepo layout and modular-monolith module map with public interfaces, ownership, communication rules and tool-enforced boundaries (ADR-008).
@@ -102,8 +106,8 @@ agreement") and gets it signed start to finish at our submission URL.
 - **FR-35** Every action is written to an append-only, hash-chained audit log.
 
 ### Reliability
-- **FR-36** All state-changing operations are idempotent: a repeated Submit, Send, Countersign, Approve, bulk row, or webhook never produces duplicate signatures, final PDFs, certificates, or emails (§5.7).
-- **FR-37** Email failures never roll back or block business state. Failed emails are retried automatically and are visible and manually retryable in the console.
+- **FR-36** Repeating any state-changing request never duplicates its effect: create actions (send, upload, invite, create project, remind/resend, bulk confirm) require an `Idempotency-Key`; state changes (submit, decline, countersign, approve) are guarded updates that return their original result when repeated; jobs, webhooks and bulk rows are deduplicated. No duplicate signatures, final PDFs, certificates or emails (§5.7; backbone LLD topics 1 and 3).
+- **FR-37** Email failures never roll back or block business state. Each email has a delivery record (`email_messages`, owned by `notifications`) that is retried automatically through its `email.send` job and is visible and manually retryable in the console.
 
 ---
 
@@ -137,18 +141,18 @@ extraction into separate services without rewrites. No independent scaling today
 Internet ──TLS──► Tailscale Funnel (hemanth.tail50655e.ts.net:443) ──► 127.0.0.1:3100
                      Caddy :3100 ── security headers, body limits
                      ├─ /api/*  → FastAPI (api)        ┐
-                     └─ /*      → Next.js (web)        ├─ Postgres (data + job queue + outbox)
+                     └─ /*      → Next.js (web)        ├─ Postgres (data + job queue)
                      worker (same Python codebase) ────┘
                        ├─ detection jobs ─► Gotenberg (DOCX→PDF), AI provider (OpenAI-compatible)
                        ├─ reminders / expiry scheduler
-                       ├─ bulk send, email outbox ─► Gmail SMTP
+                       ├─ bulk send, email.send jobs ─► Gmail SMTP
                        └─ finalize PDFs
                      Stripe Identity (test mode) ◄─ redirect + webhook
 ```
 
 - **Caddy** — reverse proxy: one public port, path routing, headers, body limits.
 - **Gotenberg** (`gotenberg/gotenberg:8.40.0-libreoffice`, pinned) — HTTP wrapper around LibreOffice for DOCX→PDF. It converts untrusted uploads, so it sits alone on an internal-only Docker network (`convert`, no egress) with `--api-disable-download-from`, `--webhook-disable` and `--libreoffice-deny-{private,public}-ips` as a second SSRF layer. A `gotenberg-gateway` socat forwarder publishes `127.0.0.1:${GOTENBERG_PORT}` (default 53000) for host processes; in-compose services join `convert` and call `gotenberg:3000`.
-- **ADR-002: Postgres as job queue** (`SELECT … FOR UPDATE SKIP LOCKED`) + transactional outbox instead of Redis/Celery: one less service, enqueue in the same transaction as the business write, durable across restarts.
+- **ADR-002: Postgres as job queue** (`SELECT … FOR UPDATE SKIP LOCKED`) instead of Redis/Celery; the `jobs` table is the transactional outbox (enqueued in the same transaction as the business write), durable across restarts. Details: backbone LLD topics 1–2.
 - **ADR-003: Build signing in-house** rather than wrap DocuSign: grader finishes in one URL with no third-party accounts; product margin; ESIGN/UETA requirements are implementable (§9).
 - **ADR-004: PyMuPDF** for parsing/stamping/flattening (AGPL-3.0 or Artifex commercial). Fine for a public repo; production sale needs a commercial license or a swap to `pypdfium2` + `pdfplumber` + `pypdf`. Documented in README. Note (verified 2026-11-06): `pymupdf` 2.0 hard-depends on `onnxruntime` and absorbs the former `pymupdf-layout` code (1.x was PolyForm Noncommercial; the 2.0 `pymupdf-layout` package is an empty placeholder), so the declared license is PyMuPDF's AGPL/commercial dual license.
 - **ADR-005: AI provider** behind an OpenAI-compatible client (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`). Default `gpt-6-luna` (text+image input, structured outputs, 1.05M context). Chat Completions with `response_format: json_schema`; parse defensively (choose the schema-valid item).
@@ -216,8 +220,8 @@ Tooling: `uv` for Python, `pnpm` workspace for TypeScript (`apps/web`, `packages
 | `signing` | signer-facing flow: link exchange, OTP, access code, consent, submit validation, countersign | (uses envelopes' interface; owns otp/session columns via envelopes API) | signer HTTP API | envelopes, verification |
 | `verification` | Stripe Identity sessions, webhook | identity_checks | `start_check()`, `check_status()` | kernel |
 | `rendering` | stamp, flatten, addendum page, certificate, hashes | — (writes blobs) | `finalize(envelope_snapshot) -> FinalDocs` | kernel only (pure input → output) |
-| `notifications` | templates, email outbox, SMTP provider, retry | email_outbox | subscribes to events; `retry(outbox_id)` | kernel |
-| `audit` | append-only hash-chained log, verification | audit_events | subscribes to all events; `verify_chain()` | kernel |
+| `notifications` | templates, email delivery records, SMTP provider, retry | email_messages | subscribes to events; `retry(email_id)` | kernel |
+| `audit` | append-only hash-chained log, verification | audit_events | `record()` called synchronously inside each action's transaction; `verify()` | kernel |
 
 Dependency graph is acyclic and points one way:
 `identity_access ← projects ← documents ← envelopes ← signing`; `detection`, `rendering`, `verification`,
@@ -241,8 +245,8 @@ One codebase, two processes, one database:
 | Process | Purpose | Handles |
 |---|---|---|
 | **API** (`entrypoints/api.py`) | fast request/response | HTTP, authentication and sessions, access checks, uploads (store blob + enqueue detection), review/approve, envelope creation, signer link/OTP/consent/submit, status and timeline reads |
-| **Worker** (`entrypoints/worker.py`) | background jobs | AI + deterministic detection, DOCX→PDF via Gotenberg, OCR (deferred), PDF finalization (stamp, flatten, certificate), email delivery from the outbox, reminders and expiry, bulk sends, domain-event dispatch |
-| **PostgreSQL** (shared) | single source of truth | application data, persistent job queue, transactional outbox |
+| **Worker** (`entrypoints/worker.py`) | background jobs | AI + deterministic detection, DOCX→PDF via Gotenberg, OCR (deferred), PDF finalization (stamp, flatten, certificate), email delivery (`email.send` jobs), reminders and expiry, bulk sends, domain-event dispatch |
+| **PostgreSQL** (shared) | single source of truth | application data and the persistent job queue (which is the transactional outbox) |
 
 Rules:
 - The API never calls slow or unreliable external services (AI provider, SMTP, Gotenberg) inside a request. It commits the state change and enqueues a job in the same transaction, then returns. Target API p95 ≤ 300 ms excluding uploads.
@@ -304,7 +308,7 @@ Workspace defaults → project settings → per-envelope override at send time (
 ### 5.7 Idempotency and failure recovery
 Two layers, both enforced by the database rather than the UI:
 
-1. **Idempotency keys** on every mutating API call that the client may retry (send, submit, decline, countersign, approve, bulk confirm). The client generates a UUID per user action. Table `idempotency_keys(scope, key)` is unique; the first request stores its response, repeats get the stored response. A repeat with a different payload hash ⇒ 422.
+1. **Idempotency keys** on **create** actions the client may retry (send envelope, upload, invite, create project, remind/resend, bulk confirm), per the IETF draft and Stripe: missing key ⇒ 400, reuse with a different request ⇒ 422, duplicate while the first is in flight ⇒ 409 + `Retry-After`. State changes (submit, decline, countersign, approve) do not use keys; they are guarded updates (item 2) that return their original result when repeated. Full contract: backbone LLD topic 3.
 2. **Guarded state transitions.** Every transition is a conditional update inside the same transaction as its side-effect rows:
    ```sql
    UPDATE recipients SET status='signed', signed_at=now()
@@ -312,7 +316,7 @@ Two layers, both enforced by the database rather than the UI:
    ```
    Zero rows ⇒ already done ⇒ return the current state; field values and the audit event are written only when the update returned a row. The same pattern guards `signed → completed`.
 3. **Single finalization.** The transaction that makes the envelope eligible for completion enqueues `finalize` with `jobs.dedupe_key = 'finalize:{envelope_id}'` (unique). The finalize job is itself idempotent: it skips documents that already have `final_sha256`, writes blobs content-addressed (re-running produces the same hash and no duplicate), builds the certificate from stored timestamps only, and flips `signed → completed` with a guarded update.
-4. **Emails through the outbox** with `dedupe_key` unique (e.g. `completed:{envelope}:{recipient}`). Business state is committed first; email failure only marks the outbox row. Retries with exponential backoff (1 m, 5 m, 30 m, 2 h, 6 h); after the last attempt the row is `failed`, shown as a warning badge on the envelope/recipient with a **Retry** button. SMTP cannot be exactly-once (a crash between server acceptance and our commit could resend), so each email carries a deterministic `Message-ID` derived from the outbox id, letting mail clients collapse duplicates.
+4. **Emails as jobs with a delivery record.** Each email is an `email_messages` row (owned by `notifications`) plus an `email.send` job with a unique dedupe key (e.g. `email:completed:{envelope}:{recipient}`). Business state is committed first; an email failure only affects its delivery record. Retries follow the job backoff (backbone LLD §1.4: 30 s doubling to 1 h, 8 attempts); after the last attempt the record is `failed`, shown as a warning badge on the envelope/recipient with a **Retry** button that re-enqueues it. SMTP cannot be exactly-once (a crash between server acceptance and our commit could resend), so each email carries a deterministic `Message-ID` derived from its record id, letting mail clients collapse duplicates. Exact `email_messages` schema: Phase 7 LLD.
 5. **Webhooks** (Stripe) deduplicated by event id.
 6. **Jobs** are retried with backoff; a job whose lock is older than its timeout is reclaimed.
 
@@ -355,14 +359,14 @@ All tenant tables carry `workspace_id` (FK, indexed) and every repository query 
 | `field_values` | envelope_id, field_id, recipient_id, value, blob_sha, filled_at — unique (envelope_id, field_id) |
 | `bulk_batches` / `bulk_rows` | batch: id, project_id, blob_sha, status · rows: batch_id, row_no (unique pair), data jsonb, errors jsonb, envelope_id |
 | `identity_checks` | id, workspace_id, recipient_id, provider (`stripe`), provider_session_id, status, last_event_id, verified_at (owned by `verification`) |
-| `idempotency_keys` | scope, key (PK), request_hash, response jsonb, created_at (TTL 24 h) |
-| `jobs` | id, kind, payload jsonb, dedupe_key (unique, nullable), run_at, attempts, max_attempts, locked_by, locked_at, last_error, done_at |
-| `email_outbox` | id, dedupe_key (unique), to, template, payload, status (`queued/sending/sent/failed`), attempts, next_attempt_at, message_id, last_error, sent_at |
-| `audit_events` | id, workspace_id, envelope_id?, actor_type, actor_id, action, ip, ua, data jsonb, prev_hash, hash — append-only (trigger) |
+| `idempotency_keys` | authoritative schema: backbone LLD §3.5 |
+| `jobs` | authoritative schema: backbone LLD topic 2 |
+| `email_messages` | delivery record per email (recipient refs, template, status, last error, provider message id); schema in the Phase 7 LLD |
+| `audit_events` | authoritative schema: backbone LLD §4.6 (keyed by `(chain_id, seq)`, no `prev_hash`) — append-only (triggers) |
 
 Indexes: `envelopes(workspace_id, project_id, status)`, `recipients(token_hash)` unique,
-`recipients(next_reminder_at) WHERE status IN ('sent','opened','viewed')`, `jobs(run_at) WHERE done_at IS NULL`,
-`email_outbox(next_attempt_at) WHERE status IN ('queued','failed_retryable')`, `audit_events(envelope_id, id)`.
+`recipients(next_reminder_at) WHERE status IN ('sent','opened','viewed')`. Indexes for `jobs`, `idempotency_keys` and
+`audit_events` are defined in the backbone LLD.
 
 ---
 
@@ -418,12 +422,12 @@ The same function is used in-product (detector vs human-approved) and in the pri
 
 ## 8. Interface contracts (REST, JSON; `/api/v1`)
 
-All mutating endpoints accept `Idempotency-Key`. Errors: RFC 9457 problem+json.
+Create endpoints require `Idempotency-Key` (backbone LLD §3.2); state-change endpoints are guarded and return their original result when repeated. Errors: RFC 9457 problem+json (backbone LLD §7.1).
 
 Auth & tenancy: `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `GET /me`, `POST /invites`, `POST /invites/{token}/accept`, `GET/PATCH /members`.
 Projects: `GET/POST /projects`, `GET/PATCH /projects/{id}`, `PUT /projects/{id}/grants`, `PUT /projects/{id}/countersigners`.
 Documents: `POST /projects/{id}/documents` (multipart), `POST /documents/{id}/versions`, `GET /documents/{id}`, `GET /versions/{id}` (status, roles, fields, metrics), `GET /versions/{id}/pdf`, `PUT /versions/{id}/fields`, `POST /versions/{id}/approve`.
-Envelopes: `POST /projects/{id}/send-form?versions=…` (generated form schema), `POST /projects/{id}/envelopes`, `GET /projects/{id}/envelopes?status=`, `GET /envelopes/{id}` (recipients, timeline, email delivery state), `POST /envelopes/{id}/cancel`, `POST /recipients/{id}/resend|remind`, `PATCH /recipients/{id}`, `GET /recipients/{id}/link`, `GET /envelopes/{id}/download`, `POST /outbox/{id}/retry`.
+Envelopes: `POST /projects/{id}/send-form?versions=…` (generated form schema), `POST /projects/{id}/envelopes`, `GET /projects/{id}/envelopes?status=`, `GET /envelopes/{id}` (recipients, timeline, email delivery state), `POST /envelopes/{id}/cancel`, `POST /recipients/{id}/resend|remind`, `PATCH /recipients/{id}`, `GET /recipients/{id}/link`, `GET /envelopes/{id}/download`, `POST /emails/{id}/retry`.
 Bulk: `GET /projects/{id}/bulk-template?versions=…&format=csv|xlsx`, `POST /projects/{id}/bulk` (preview), `POST /bulk/{id}/confirm`.
 Signer (`/api/v1/sign`): `POST /open`, `POST /otp`, `POST /access-code`, `POST /identity/start`, `GET /identity/return`, `GET /session`, `GET /documents/{n}/pdf`, `POST /consent`, `POST /events` (viewed-to-end), `POST /submit`, `POST /decline`, `GET /receipt`.
 Countersign: `POST /envelopes/{id}/countersign` (console) and the signer routes for countersigner recipients.
@@ -441,7 +445,7 @@ Webhooks: `POST /webhooks/stripe` (signature-verified, event-id deduped).
 - **Headers:** HSTS, strict CSP with nonces, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` on `/s/*`, minimal `Permissions-Policy`.
 - **Console auth:** Argon2id, server-side sessions, CSRF double-submit token, login throttling.
 - **Documents** served only via authorized endpoints; blobs never publicly addressable.
-- **Integrity:** SHA-256 of source and final PDFs on the certificate; audit hash chain `hash = sha256(prev_hash ‖ canonical_json(event))`; triggers block UPDATE/DELETE on `audit_events` and on approved versions/fields.
+- **Integrity:** SHA-256 of source and final PDFs on the certificate; audit hash chains per envelope and per workspace, `hash = sha256(previous entry's hash ‖ canonical_json(entry))` (fields and canonical form: backbone LLD §4.3); triggers block UPDATE/DELETE/TRUNCATE on `audit_events` and UPDATE/DELETE on approved versions/fields.
 - **ESIGN/UETA:** consent with disclosure before viewing, intent statement at the final action, attribution (email OTP + optional access code / ID), retention (final PDF + certificate), copy delivered to every signer, signing time and verification method shown to the signer and on the certificate (FR-24).
 - **Secrets** only in `.env` (git-ignored); `.env.example` committed. **Test data only.**
 
@@ -460,7 +464,7 @@ Webhooks: `POST /webhooks/stripe` (signature-verified, event-id deduped).
 | `completed_copy` | all recipients + POC (PDF attached) | completion |
 | `poc_all_signed` / `poc_declined` / `poc_expired` | POC + countersigners | events |
 
-All emails go through `email_outbox` (§5.7). Dev uses Mailpit; real sends use Gmail SMTP (587/STARTTLS, app password).
+Every email is an `email_messages` delivery record sent by an `email.send` job (§5.7). Dev uses Mailpit; real sends use Gmail SMTP (587/STARTTLS, app password).
 
 ---
 
@@ -548,7 +552,7 @@ Each feature's detailed task list lives in its LLD file and is copied here as it
 | P0.4 | Design system reference | done | `docs/design-system/` |
 | P0.5 | Branch / commit / PR workflow | done | PR template (`.github/pull_request_template.md`) |
 | P0.6 | PR #1 review fixes: host-first env defaults, Gotenberg network isolation + gateway, installer hardening, single port variables, pinned/verified uv, Gotenberg log flag | done | commits e0e18d6, 85aaaea, 6f9b4e5 and follow-ups on `phase-0/foundation`; tests in commit messages |
-| P1 | Backbone | todo — LLD next. Carried requirements: config resolves relative paths (e.g. `BLOB_STORE_DIR`) against the repository root, never the working directory, with a test that API and worker started from different directories resolve the same path; `make check` target | — |
-| P2–P10 | Core features | todo | — |
-| P11 | Hardening | todo | — |
+| P1 | Backbone | done — LLD and tasks 1.1–1.13 in `docs/design/features/01-backbone.md` (carried requirements met: repo-root path resolution with a cross-directory test; `make check`) | branch `phase-1/backbone`; `make check` passes; stack live on the Funnel URL |
+| P2–P10 | Core features | todo. Carried into Phase 2: sign-up must not reveal whether an email is already registered (account enumeration), including on retries | — |
+| P11 | Hardening | todo. Carried items: Postgres row-level security; restricted DB role for `audit_events` (INSERT/SELECT only); orphaned-blob cleanup that cannot race a concurrent upload deduplicating against the same object (e.g. re-check references and object age inside one locked pass); Playwright E2E | — |
 | P12+ | Later: bulk send, Stripe Identity, extra-signer addendum, **OCR / image-only PDFs (reminder)**, phone signer, landing | todo | — |

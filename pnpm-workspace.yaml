@@ -1,0 +1,12 @@
+packages:
+  - apps/web
+  - packages/*
+
+# Supply-chain guard, mirroring `exclude-newer` in apps/api/pyproject.toml: only install releases
+# that have been public for at least 14 days (value in minutes).
+minimumReleaseAge: 20160
+
+# Install scripts are blocked by default. Allowed only where reviewed:
+# - unrs-resolver: napi-postinstall verifies/fetches its native binding (used by eslint import resolution).
+allowBuilds:
+  unrs-resolver: true

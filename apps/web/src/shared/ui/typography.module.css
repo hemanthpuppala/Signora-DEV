@@ -1,0 +1,50 @@
+.eyebrow {
+  font: 400 10px/15px var(--sans);
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.cap {
+  font: 400 11px/1.4 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t75);
+}
+
+.display {
+  font: 300 clamp(44px, 6.4vw, 72px) / 1.04 var(--serif);
+  letter-spacing: -0.02em;
+}
+
+.h1 {
+  font: 300 clamp(36px, 4.4vw, 56px) / 1.05 var(--serif);
+  letter-spacing: -0.02em;
+}
+
+.h2 {
+  font: 300 clamp(30px, 3.4vw, 44px) / 1.1 var(--serif);
+}
+
+.sub {
+  font: italic 300 clamp(20px, 2.2vw, 28px) / 1.25 var(--serif);
+  color: var(--t60);
+}
+
+.body {
+  font-size: 16px;
+  line-height: 26px;
+  color: var(--t75);
+  max-width: 60ch;
+}
+
+.small {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--t55);
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
