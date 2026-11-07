@@ -1,8 +1,9 @@
 # Signora — Low-Level Design
 
-Status: draft v4 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
+Status: draft v5 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
 
 Changelog
+- v5 (2026-11-07, PR #1 review): Gotenberg isolated on an internal-only `convert` network with outbound features disabled, reached through a `gotenberg-gateway` forwarder; compose networks split into `app` and `convert`; host-first `.env` defaults with one `*_PORT` per service shared by Docker and the app (`POSTGRES_PORT`, `GOTENBERG_HOST`/`GOTENBERG_PORT`; `*_HOST_PORT` and `GOTENBERG_URL` removed); eval tooling merged into the `dev` dependency group; installer pins uv 0.9.17 by verified archive checksum and refuses older uv; blob paths must resolve against the repo root (Phase 1 requirement).
 - v4: delivery re-planned as vertical feature slices (backend + frontend per feature, LLD per feature), core first; bulk send, ID verification, OCR moved to later.
 - v3: monorepo layout and modular-monolith module map with public interfaces, ownership, communication rules and tool-enforced boundaries (ADR-008).
 - v2: two access levels only (read, read/write); multiple signers and countersigners with role-scoped field keys; dynamic send form and CSV template; deterministic detector as a separate, independently scored module; idempotency and failure recovery; explicit signer-transparency requirements; corrected accuracy metrics; eval harness kept private.
@@ -146,7 +147,7 @@ Internet ──TLS──► Tailscale Funnel (hemanth.tail50655e.ts.net:443) ─
 ```
 
 - **Caddy** — reverse proxy: one public port, path routing, headers, body limits.
-- **Gotenberg** (`gotenberg/gotenberg:8.40.0-libreoffice`, pinned) — HTTP wrapper around LibreOffice for DOCX→PDF. It converts untrusted uploads, so it sits alone on an internal-only Docker network (`convert`, no egress) with `--api-disable-download-from`, `--webhook-disable` and `--libreoffice-deny-{private,public}-ips` as a second SSRF layer. A `gotenberg-gateway` socat forwarder publishes `127.0.0.1:53000` for host processes; in-compose services join `convert` and call `gotenberg:3000`.
+- **Gotenberg** (`gotenberg/gotenberg:8.40.0-libreoffice`, pinned) — HTTP wrapper around LibreOffice for DOCX→PDF. It converts untrusted uploads, so it sits alone on an internal-only Docker network (`convert`, no egress) with `--api-disable-download-from`, `--webhook-disable` and `--libreoffice-deny-{private,public}-ips` as a second SSRF layer. A `gotenberg-gateway` socat forwarder publishes `127.0.0.1:${GOTENBERG_PORT}` (default 53000) for host processes; in-compose services join `convert` and call `gotenberg:3000`.
 - **ADR-002: Postgres as job queue** (`SELECT … FOR UPDATE SKIP LOCKED`) + transactional outbox instead of Redis/Celery: one less service, enqueue in the same transaction as the business write, durable across restarts.
 - **ADR-003: Build signing in-house** rather than wrap DocuSign: grader finishes in one URL with no third-party accounts; product margin; ESIGN/UETA requirements are implementable (§9).
 - **ADR-004: PyMuPDF** for parsing/stamping/flattening (AGPL-3.0 or Artifex commercial). Fine for a public repo; production sale needs a commercial license or a swap to `pypdfium2` + `pdfplumber` + `pypdf`. Documented in README. Note (verified 2026-11-06): `pymupdf` 2.0 hard-depends on `onnxruntime` and absorbs the former `pymupdf-layout` code (1.x was PolyForm Noncommercial; the 2.0 `pymupdf-layout` package is an empty placeholder), so the declared license is PyMuPDF's AGPL/commercial dual license.
@@ -546,7 +547,8 @@ Each feature's detailed task list lives in its LLD file and is copied here as it
 | P0.3 | Backend Python project + `./install.sh` | done | commit 78102ec; clean-copy install and pip requirements install verified 2026-11-06 |
 | P0.4 | Design system reference | done | `docs/design-system/` |
 | P0.5 | Branch / commit / PR workflow | done | PR template (`.github/pull_request_template.md`) |
-| P1 | Backbone | todo — LLD next | — |
+| P0.6 | PR #1 review fixes: host-first env defaults, Gotenberg network isolation + gateway, installer hardening, single port variables, pinned/verified uv, Gotenberg log flag | done | commits e0e18d6, 85aaaea, 6f9b4e5 and follow-ups on `phase-0/foundation`; tests in commit messages |
+| P1 | Backbone | todo — LLD next. Carried requirements: config resolves relative paths (e.g. `BLOB_STORE_DIR`) against the repository root, never the working directory, with a test that API and worker started from different directories resolve the same path; `make check` target | — |
 | P2–P10 | Core features | todo | — |
 | P11 | Hardening | todo | — |
 | P12+ | Later: bulk send, Stripe Identity, extra-signer addendum, **OCR / image-only PDFs (reminder)**, phone signer, landing | todo | — |

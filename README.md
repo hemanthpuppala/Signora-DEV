@@ -15,7 +15,7 @@ cd signora
 ```
 
 `install.sh`:
-1. checks Docker/Compose and installs a pinned [uv](https://docs.astral.sh/uv/) if missing;
+1. checks Docker/Compose; installs [uv](https://docs.astral.sh/uv/) 0.9.17 if missing (release archive verified against a pinned SHA-256) and refuses an older uv already on PATH;
 2. creates `.env` from `.env.example` with generated secrets (mode 600; an existing `.env` is never overwritten) and checks required secrets are set;
 3. creates `apps/api/.venv` from the lockfile (`uv sync --frozen`);
 4. installs frontend packages once the pnpm workspace exists;
@@ -42,14 +42,16 @@ Regenerate them after changing dependencies with `make requirements`.
 
 | Service | Host address (local only) | Purpose |
 |---|---|---|
-| Postgres 18.4 | `127.0.0.1:55432` | data, job queue, outbox |
-| Gotenberg 8.40.0 | `127.0.0.1:53000` (via `gotenberg-gateway`) | DOCX → PDF (LibreOffice); no network egress |
+| Postgres 18.4 | `127.0.0.1:${POSTGRES_PORT}` (default 55432) | data, job queue, outbox |
+| Gotenberg 8.40.0 | `127.0.0.1:${GOTENBERG_PORT}` (default 53000, via `gotenberg-gateway`) | DOCX → PDF (LibreOffice); no network egress |
 
 `make up`, `make down`, `make ps`, `make logs`.
 
 ## Dependency policy
 
-`[tool.uv] exclude-newer` in `apps/api/pyproject.toml` only allows package releases that have been public for at least two weeks (supply-chain safety). Bump the date deliberately when upgrading.
+`[tool.uv] exclude-newer` in `apps/api/pyproject.toml` only allows package releases that have been public for at least two weeks (supply-chain safety). Bump the date deliberately when upgrading. The installer pins uv itself to 0.9.17 with per-platform archive checksums; update `UV_VERSION` and the hashes in `install.sh` together.
+
+Each service port is set once in `.env` (`POSTGRES_PORT`, `GOTENBERG_PORT`): Docker publishes it and the app connects to it.
 
 ## Licensing note
 
