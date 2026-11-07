@@ -63,6 +63,14 @@ export function useIdempotentAction<TInput, TResult>(
   const attempt = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = useRef(false);
+  // After unmount nothing is scheduled and no state is set; a stored action resumes on remount.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const performRef = useRef(perform);
   useEffect(() => {
     performRef.current = perform;
@@ -78,16 +86,21 @@ export function useIdempotentAction<TInput, TResult>(
 
   const send = useCallback(async () => {
     const current = pending.current;
-    if (!current || inFlight.current) return;
+    if (!current || inFlight.current || !mounted.current) return;
     clearTimer();
     inFlight.current = true;
+    // The answer belongs to ``current`` only while it is still this hook's action: a reset, a new
+    // ``run`` or an unmount while the request was in flight makes it stale, and it is then ignored.
+    const stillCurrent = () => mounted.current && pending.current?.key === current.key;
     try {
       const data = await performRef.current(current.input, current.key);
+      if (!stillCurrent()) return;
       pending.current = null;
       writePending(storageKey, null);
       attempt.current = 0;
       setState({ status: "success", data, error: null });
     } catch (error) {
+      if (!stillCurrent()) return;
       if (error instanceof ApiError && error.code === "request-in-progress") {
         setState((s) => ({ ...s, status: "pending" }));
         const delay = (error.retryAfterSeconds ?? 1) * 1_000;
@@ -106,6 +119,11 @@ export function useIdempotentAction<TInput, TResult>(
       }
     } finally {
       inFlight.current = false;
+      // A new action started while this request was in flight (its own send returned early on the
+      // in-flight guard): send it now.
+      if (mounted.current && pending.current && pending.current.key !== current.key) {
+        void sendRef.current();
+      }
     }
   }, [storageKey]);
 

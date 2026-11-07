@@ -930,7 +930,9 @@ another feature's internals; `shared/*` never imports `features/*`; `app/*` comp
   A definite API error is not retried.
 - **`useIdempotentAction`** — the one helper every mutating action uses: creates and keeps the idempotency key
   (also in `sessionStorage`), shows "Sending…" / "Connection lost — retrying…", retries on reconnect and on backoff,
-  honours `409 Retry-After`, and reuses the key when pressed again.
+  honours `409 Retry-After`, and reuses the key when pressed again. An answer is applied only to the action it
+  belongs to: after a reset, a new run or an unmount it is ignored, an action started while another request was in
+  flight is sent when that request ends, and nothing is scheduled after unmount (a stored action resumes on remount).
 - Errors: the problem `code` maps to a user-facing message; unexpected errors show the `request_id`.
 - "No answer" (retried) means only a failed fetch or a proxy's own `502`/`503`/`504` without a problem body. Any
   other status without a problem body (e.g. Caddy's empty `413` for an oversized upload) is a definite answer and is

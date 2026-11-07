@@ -148,4 +148,60 @@ describe("useIdempotentAction", () => {
     expect(perform).toHaveBeenCalledWith({ name: "Finance" }, "stored-key-1");
     expect(result.current.state.status).toBe("success");
   });
+  it("sends a new action started by reset and run while the old request is in flight", async () => {
+    let answerFirst: (value: string) => void = () => undefined;
+    const perform = vi
+      .fn<Perform<Input, string>>()
+      .mockImplementationOnce(() => new Promise((resolve) => (answerFirst = resolve)))
+      .mockResolvedValue("created B");
+    const { result } = renderHook(() => useIdempotentAction("create-project", perform));
+
+    act(() => result.current.run({ name: "A" }));
+    act(() => result.current.reset());
+    act(() => result.current.run({ name: "B" }));
+    expect(perform).toHaveBeenCalledTimes(1); // B waits behind A's request
+
+    answerFirst("created A");
+    await flush();
+    await flush();
+
+    expect(perform).toHaveBeenCalledTimes(2);
+    expect(perform.mock.calls[1]?.[0]).toEqual({ name: "B" });
+    expect(perform.mock.calls[1]?.[1]).not.toBe(perform.mock.calls[0]?.[1]);
+    expect(result.current.state).toEqual({ status: "success", data: "created B", error: null });
+  });
+
+  it("ignores the answer to an action that was reset while in flight", async () => {
+    let answerFirst: (value: string) => void = () => undefined;
+    const perform = vi
+      .fn<Perform<Input, string>>()
+      .mockImplementationOnce(() => new Promise((resolve) => (answerFirst = resolve)));
+    const { result } = renderHook(() => useIdempotentAction("create-project", perform));
+
+    act(() => result.current.run({ name: "A" }));
+    act(() => result.current.reset());
+    answerFirst("created A");
+    await flush();
+
+    expect(result.current.state.status).toBe("idle");
+  });
+
+  it("schedules no retry after unmount when the in-flight request fails", async () => {
+    let failFirst: (error: unknown) => void = () => undefined;
+    const perform = vi
+      .fn<Perform<Input, string>>()
+      .mockImplementationOnce(() => new Promise((_, reject) => (failFirst = reject)))
+      .mockResolvedValue("created");
+    const { result, unmount } = renderHook(() => useIdempotentAction("create-project", perform));
+
+    act(() => result.current.run({ name: "Finance" }));
+    unmount();
+    failFirst(new NetworkError());
+    await flush();
+    await act(async () => vi.advanceTimersByTime(60_000));
+
+    expect(perform).toHaveBeenCalledTimes(1);
+    // The action stays stored, so a remount resumes it with the same key.
+    expect(window.sessionStorage.getItem("signora:action:create-project")).not.toBeNull();
+  });
 });
