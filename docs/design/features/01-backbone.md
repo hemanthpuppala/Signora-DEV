@@ -53,6 +53,9 @@ If the transaction rolls back, the job never existed; if it commits, the job is 
 | *later* `bulk.send_row` | Bulk upload confirmed | Create and send one envelope per spreadsheet row, throttled | Volume; provider daily cap | 12+ |
 | *later* `stripe.webhook` | Stripe webhook received | Record an ID-verification result | Safe retry | 12+ |
 
+**Scheduler:** every worker process runs a small scheduler thread that enqueues the recurring sweeps at their time
+slot. Several workers may enqueue the same sweep; the time-slot dedupe key (§1.6) keeps exactly one.
+
 ### 1.3 Concurrency model
 
 - **API (request path):** every request is its own transaction and locks only the rows it touches, so different
@@ -84,9 +87,20 @@ If the transaction rolls back, the job never existed; if it commits, the job is 
   automatically, so failures can be diagnosed and retried by hand.
 - **Leases:** a claimed job gets `lease_expires_at = now + lease`. If the worker crashes, the job is reclaimed after
   the lease ends and counts as an attempt.
-- **Success is atomic with the work:** the handler's database writes and marking the job `succeeded` happen in one
-  transaction. On error that transaction rolls back and a separate transaction records the attempt, the error and
-  the next `run_at`.
+- **Short transactions.** A handler receives a `JobContext` (job id, payload, meta, claimed attempt) and opens units of
+  work itself, only around database reads and writes. Slow or external work — AI calls, SMTP, Gotenberg, PDF
+  rendering — runs **outside** any transaction, so no transaction is ever held open for minutes.
+- **Guarded completion.** The handler's final database writes and the success mark commit in one transaction, and the
+  success mark is conditional on the claim still being current:
+  `UPDATE jobs SET status = 'succeeded', finished_at = now() WHERE id = :id AND status = 'running' AND attempts = :claimed`.
+  If the job was reclaimed in the meantime (another worker now owns a later attempt), the update matches no row, the
+  whole transaction rolls back, and this worker's result is discarded. Final business writes must therefore happen in
+  that same transaction (or be guarded state changes themselves).
+- **Lease renewal.** While a handler runs, the worker extends `lease_expires_at` every lease/3, again only
+  `WHERE id = :id AND attempts = :claimed`. Long but healthy jobs keep their lease; a crashed worker stops renewing and
+  its job is reclaimed one lease period later.
+- **Failure.** On error, the handler's open transaction (if any) rolls back and a separate transaction records the
+  attempt, `last_error` and the next `run_at` — also guarded by `attempts = :claimed`.
 - **Side effects outside the database are at-least-once.** An email can be sent and the worker can crash before
   committing; the retry then sends again. Handlers therefore must be idempotent or tolerate a duplicate (emails
   carry a deterministic `Message-ID` so clients collapse duplicates — Phase 7).
@@ -132,9 +146,19 @@ The worker `LISTEN`s and claims immediately, with a 5-second poll as a fallback 
 ```python
 # kernel/jobs
 @dataclass(frozen=True)
+class JobContext:
+    job_id: UUID
+    kind: str
+    payload: Mapping[str, JsonValue]
+    meta: Mapping[str, JsonValue]       # request_id, enqueued_by
+    attempt: int                        # the claimed attempt number
+    def unit_of_work(self) -> UnitOfWork: ...            # short transaction for reads/intermediate writes
+    def complete(self) -> UnitOfWork: ...                # final writes + guarded success mark, one transaction
+
+@dataclass(frozen=True)
 class JobKind:
     name: str
-    handler: Callable[[UnitOfWork, dict], None]
+    handler: Callable[[JobContext], None]
     max_attempts: int
     lease: timedelta
 
@@ -155,6 +179,10 @@ def publish(uow, event: DomainEvent) -> None: ...
 - Two workers, 200 jobs → every job runs exactly once.
 - Failing handler → attempts and backoff increase; after the last attempt the job is `dead` with `last_error`.
 - Worker killed mid-job → job reclaimed after the lease and completed.
+- Handler running longer than its lease but alive → lease renewed, not reclaimed.
+- Job reclaimed while the first worker is still running → the first worker's completion matches no row and its writes
+  roll back; only the current attempt's result is kept.
+- A handler doing slow external work holds no database transaction during that work.
 - Same `dedupe_key` enqueued twice (also concurrently) → one row.
 - One event, two subscribers, one failing → the other still succeeds; the failing one retries alone.
 - Housekeeping deletes only `succeeded` rows older than 7 days.
@@ -174,6 +202,7 @@ CREATE TABLE jobs (
   id               uuid        PRIMARY KEY DEFAULT uuidv7(),
   kind             text        NOT NULL,
   payload          jsonb       NOT NULL DEFAULT '{}',
+  meta             jsonb       NOT NULL DEFAULT '{}',
   status           text        NOT NULL DEFAULT 'queued'
                    CHECK (status IN ('queued', 'running', 'succeeded', 'dead')),
   dedupe_key       text        UNIQUE,
@@ -194,6 +223,7 @@ CREATE INDEX jobs_finished ON jobs (finished_at)      WHERE status = 'succeeded'
 | `id` | Identity of the job (UUIDv7: time-ordered, good index locality) |
 | `kind` | Selects the registered handler and its policy |
 | `payload` | Handler input, e.g. `{"envelope_id": "…"}`; never secrets |
+| `meta` | Context that is not handler input: `request_id` of the request that enqueued it, `enqueued_by` (actor); used for log correlation |
 | `status` | Lifecycle; drives the partial indexes and the dead-job view |
 | `dedupe_key` | Prevents queuing the same work twice (§1.6) |
 | `run_at` | Earliest start: scheduling and retry backoff |
@@ -906,7 +936,7 @@ the API dev port.
 
 | ID | Target |
 |---|---|
-| NFR-B1 | Job pickup ≤ 1 s after the enqueuing transaction commits (LISTEN/NOTIFY), ≤ 5 s worst case (poll). |
+| NFR-B1 | When a worker slot is free, job pickup ≤ 1 s after the enqueuing transaction commits (LISTEN/NOTIFY), ≤ 5 s worst case (poll). Under load, jobs wait in `run_at` order for a free slot. |
 | NFR-B2 | Enqueue adds ≤ 5 ms to a transaction; audit append ≤ 10 ms p95 under 50 concurrent appends to one chain. |
 | NFR-B3 | Health and meta endpoints respond ≤ 50 ms p95 locally; readiness ≤ 2.5 s worst case (2 s per-check timeout, run concurrently). |
 | NFR-B4 | Startup with invalid configuration fails within 2 s with a complete list of problems. |
@@ -937,7 +967,7 @@ the API dev port.
 | 1.2 | `kernel/config`: settings groups, repo-root resolution, validation, `.env.example` sync test | todo | — |
 | 1.3 | `kernel/db`: engine, unit of work, Alembic setup, naming conventions; migration 0001 (`jobs`, `idempotency_keys`, `audit_events` + triggers) | todo | — |
 | 1.4 | `kernel/errors`, `kernel/logging`, request id; API app factory; health and meta endpoints | todo | — |
-| 1.5 | `kernel/jobs`: enqueue, worker loop, leases, backoff, dead jobs, LISTEN/NOTIFY, housekeeping sweep | todo | — |
+| 1.5 | `kernel/jobs`: enqueue, worker loop, `JobContext`, guarded completion, lease renewal, backoff, dead jobs, LISTEN/NOTIFY, scheduler thread, housekeeping sweep | todo | — |
 | 1.6 | `kernel/events`: publish/subscribe over jobs | todo | — |
 | 1.7 | `kernel/idempotency`: dependency, transaction-held key, 400/409/422 handling | todo | — |
 | 1.8 | `kernel/blobstore`: `BlobStore` interface, local backend, contract test suite | todo | — |
