@@ -17,7 +17,7 @@ export {
   type TabItem,
 } from "./Display";
 export { TextArea, TextField } from "./Field";
-export { FieldGrid, Section } from "./Layout";
+export { FieldAction, FieldGrid, Section } from "./Layout";
 export { RowActions } from "./RowActions";
 export { PasswordField, type PasswordFieldProps } from "./PasswordField";
 export { Select, type SelectOption } from "./Select";

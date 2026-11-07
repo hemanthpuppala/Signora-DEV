@@ -2,12 +2,13 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--field-gap);
   min-width: 0;
   position: relative;
 }
 
 .label {
+  min-height: var(--field-label-height);
   font: 400 10px/1.4 var(--sans);
   letter-spacing: 0.35em;
   text-transform: uppercase;
@@ -23,6 +24,7 @@
   font: 300 16px/1.4 var(--sans);
   padding: 9px 0;
   width: 100%;
+  min-height: var(--field-control-height);
 }
 
 .control:focus {

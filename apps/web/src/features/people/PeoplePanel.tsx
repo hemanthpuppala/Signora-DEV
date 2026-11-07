@@ -12,6 +12,7 @@ import {
   ActionCell,
   ActionHeader,
   Button,
+  FieldAction,
   FieldGrid,
   Notice,
   RowActions,
@@ -158,9 +159,11 @@ function InviteForm({
             onChange={(event) => setEmail(event.target.value)}
           />
           <Select label="Invite as" options={roleOptions} value={chosenRole} onChange={setRoleId} />
-          <Button type="submit" variant="quiet" loading={invite.isPending} disabled={!chosenRole}>
-            Send invite
-          </Button>
+          <FieldAction>
+            <Button type="submit" variant="quiet" loading={invite.isPending} disabled={!chosenRole}>
+              Send invite
+            </Button>
+          </FieldAction>
         </FieldGrid>
         {chosenRole && roleDescriptions[chosenRole] ? (
           <SmallText>{roleDescriptions[chosenRole]}</SmallText>

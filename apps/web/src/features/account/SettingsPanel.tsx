@@ -11,6 +11,7 @@ import { can, SESSION_QUERY_KEY, type Me } from "@/shared/session";
 import {
   BodyText,
   Button,
+  FieldAction,
   FieldGrid,
   Notice,
   PasswordField,
@@ -67,9 +68,11 @@ function ProfileForm({ me }: { me: Me }) {
             error={fieldErrors(save.error).name}
             onChange={(event) => setName(event.target.value)}
           />
-          <Button type="submit" variant="quiet" loading={save.isPending} loadingLabel="Saving…">
-            Save name
-          </Button>
+          <FieldAction>
+            <Button type="submit" variant="quiet" loading={save.isPending} loadingLabel="Saving…">
+              Save name
+            </Button>
+          </FieldAction>
         </FieldGrid>
       </Section>
     </form>
@@ -130,9 +133,11 @@ function PasswordForm() {
             error={errors.new_password}
             onChange={(event) => setNext(event.target.value)}
           />
-          <Button type="submit" variant="quiet" loading={change.isPending} loadingLabel="Saving…">
-            Change password
-          </Button>
+          <FieldAction>
+            <Button type="submit" variant="quiet" loading={change.isPending} loadingLabel="Saving…">
+              Change password
+            </Button>
+          </FieldAction>
         </FieldGrid>
       </Section>
     </form>
@@ -169,9 +174,11 @@ function WorkspaceForm({ me }: { me: Me }) {
             error={fieldErrors(save.error).name}
             onChange={(event) => setName(event.target.value)}
           />
-          <Button type="submit" variant="quiet" loading={save.isPending} loadingLabel="Saving…">
-            Rename
-          </Button>
+          <FieldAction>
+            <Button type="submit" variant="quiet" loading={save.isPending} loadingLabel="Saving…">
+              Rename
+            </Button>
+          </FieldAction>
         </FieldGrid>
       </Section>
     </form>
