@@ -21,12 +21,14 @@ from pydantic import (
     Field,
     SecretStr,
     ValidationError,
+    field_validator,
     model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_ENV_VAR = "SIGNORA_ROOT"
 ROOT_MARKER = ".env.example"
+MIN_SECRET_KEY_LENGTH = 32
 # kernel/config.py -> kernel -> signora -> src -> api -> apps -> <repository root>
 _DERIVED_ROOT_DEPTH = 5
 
@@ -77,7 +79,7 @@ class _EnvVars(BaseSettings):
     # app
     app_env: AppEnv = "development"
     public_base_url: AnyHttpUrl
-    secret_key: SecretStr = Field(min_length=32)
+    secret_key: SecretStr
     log_level: LogLevel = "INFO"
     signora_commit: str = "dev"
     api_threads: int = Field(default=20, ge=1, le=200)
@@ -123,6 +125,13 @@ class _EnvVars(BaseSettings):
     # stripe (optional; only needed to offer ID verification)
     stripe_secret_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None
+
+    @field_validator("secret_key")
+    @classmethod
+    def _secret_key_length(cls, value: SecretStr) -> SecretStr:
+        if len(value.get_secret_value()) < MIN_SECRET_KEY_LENGTH:
+            raise ValueError(f"must be at least {MIN_SECRET_KEY_LENGTH} characters")
+        return value
 
     @model_validator(mode="after")
     def _production_rules(self) -> _EnvVars:
