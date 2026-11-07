@@ -30,6 +30,22 @@
   border-bottom-color: var(--ink);
 }
 
+/*
+ * Browser autofill (saved passwords, addresses) paints its own light-blue background and text
+ * colour, which browsers do not let pages remove. Cover it with an inset shadow in the page
+ * background and restore the text and caret colours, so autofilled fields keep the design.
+ */
+.control:-webkit-autofill,
+.control:-webkit-autofill:hover,
+.control:-webkit-autofill:focus,
+.control:autofill {
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  box-shadow: 0 0 0 1000px var(--bg) inset;
+  transition: background-color 600000s 0s;
+  font: 300 16px/1.4 var(--sans);
+}
+
 .control[aria-invalid="true"] {
   border-bottom-color: var(--st-declined);
 }
