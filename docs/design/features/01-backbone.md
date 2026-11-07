@@ -259,9 +259,9 @@ Endpoints that **create a record or trigger a side effect that must not repeat**
 | Create project | Submit signature — guarded state change (`WHERE status IN ('opened','viewed')`) |
 | Upload document / new version | Countersign — guarded state change |
 | Send envelope(s) | Approve version — guarded state change (`WHERE status = 'needs_review'`) |
-| Invite member | Sign-up — unique email rejects a duplicate |
+| Invite member | Decline — guarded state change (`WHERE status IN ('sent','opened','viewed')`) |
 | Remind now, resend (each sends an email) | Settings updates — naturally idempotent (same result when repeated) |
-| *later:* confirm bulk send | |
+| *later:* confirm bulk send | Sign-up — designed in Phase 2 (its response must not reveal whether an email is already registered) |
 
 **Guarded actions answer with their result when repeated.** If a guarded action is already in its target state, the
 server returns the same success response as the first time (e.g. the signer's confirmation with the original signing
@@ -275,21 +275,32 @@ time) instead of an error.
 | First request with a key | Runs normally; the response is stored with the key |
 | Repeat after the first completed | The stored status and body are returned; nothing runs again |
 | Repeat while the first is still running | `409 Conflict`, `Retry-After: 1` ("a request is outstanding for this key") |
-| Same key, different request body | `422` problem+json |
+| Same key, different request (fingerprint differs) | `422` problem+json |
 | First request failed (rolled back) | Nothing is stored; a retry runs normally (errors are never replayed) |
 
 - **Key format:** a string of 1–255 printable characters (our frontend sends a UUIDv4).
-- **Scope:** `<user_id>:<METHOD> <route template>`, so different users and endpoints never collide.
+- **Scope:** `<user_id>:<METHOD> <concrete path>` (e.g. `POST /api/v1/projects/0193f1c2-…/envelopes`), so different
+  users, endpoints **and target resources** never collide: the same key sent to project A and project B is two
+  separate actions.
+- **Request fingerprint** (`request_hash`), computed from the parsed request so transport details cannot change it:
+  - JSON body: SHA-256 of the canonical JSON (keys sorted, no insignificant whitespace).
+  - Multipart (uploads): SHA-256 over the sorted list of `(field name, value)` for text fields and
+    `(field name, SHA-256 of the file bytes)` for files. The multipart boundary, which changes on every retry, is
+    never part of it.
+  - No body: SHA-256 of the empty string.
 - **Retention:** 24 hours from creation (configuration), then deleted by `sweep.housekeeping`.
 
 ### 3.4 Mechanism
 
 The key row is written **inside the action's own transaction**, before the work:
 
-1. `SET LOCAL lock_timeout = '2s'`, then `INSERT (scope, key, request_hash)`.
+1. `SET LOCAL lock_timeout = '2s'`, `INSERT (scope, key, request_hash)`, then immediately
+   `SET LOCAL lock_timeout = DEFAULT`. The 2-second cap applies **only to the key insert**; later lock waits in the
+   same transaction (audit chain lock, guarded updates, row locks) use the normal timeout and are never mistaken for a
+   duplicate request.
 2. Conflict with a **committed** row → compare `request_hash`; same → return the stored response; different → `422`.
 3. Conflict with an **in-flight** row → Postgres waits on the other transaction; if it has not finished within 2 s
-   the lock timeout fires → `409` with `Retry-After: 1`.
+   the lock timeout fires on the insert → `409` with `Retry-After: 1`.
 4. No conflict → do the work, then `UPDATE` the row with the response, and commit. A rollback removes the key row too.
 
 There is no `in_progress` state column: in-flight rows are invisible to other transactions until they commit,
@@ -301,7 +312,7 @@ and the database serializes duplicates.
 CREATE TABLE idempotency_keys (
   scope           text        NOT NULL,                       -- '<user_id>:POST /api/v1/projects/{id}/envelopes'
   key             text        NOT NULL CHECK (char_length(key) BETWEEN 1 AND 255),
-  request_hash    bytea       NOT NULL,                       -- sha256 of the canonical request body
+  request_hash    bytea       NOT NULL,                       -- request fingerprint (§3.3)
   response_status smallint,                                   -- set before commit; non-null in every committed row
   response_body   jsonb,                                      -- replayed to retries
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -331,6 +342,8 @@ CREATE INDEX idempotency_keys_created ON idempotency_keys (created_at);
 3. Automatic retry with the same key on the browser `online` event and on backoff (1 s, 2 s, 4 s … max 30 s);
    `409` is retried after `Retry-After`.
 4. Pressing the button again while an action is pending resends the same key, so it cannot create a duplicate.
+   While an action is pending, its form inputs are read-only, so the request cannot change under the same key (which
+   would be a `422`). After a definite response the form unlocks; the next press is a new action with a new key.
 5. Server data refetches on reconnect and on window focus, so changes made while offline appear without a reload.
 
 ### 3.7 Tests that prove it
@@ -338,6 +351,10 @@ CREATE INDEX idempotency_keys_created ON idempotency_keys (created_at);
 - Same key twice (sequential) → one record; second call returns the stored response.
 - Same key twice (concurrent) → one record; the other gets the stored response or `409`.
 - Same key, different body → `422`. Missing key on a protected endpoint → `400`.
+- Multipart upload retried with a new boundary and the same file and fields → stored response, not `422`.
+- Same key sent to two different concrete paths (project A, project B) → two independent actions.
+- After the key insert, an action that waits more than 2 s on another lock (e.g. a contended audit chain) still
+  succeeds; it is not turned into `409`.
 - Failed first request → retry with the same key runs and succeeds.
 - Guarded action repeated (e.g. submit after signed) → same success response, no second effect.
 - Housekeeping removes keys older than 24 h.
