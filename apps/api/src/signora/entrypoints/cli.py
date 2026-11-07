@@ -75,6 +75,21 @@ def _audit_verify(args: argparse.Namespace) -> int:
     return 0 if result.ok else 1
 
 
+def _openapi(args: argparse.Namespace) -> int:
+    import json
+    from pathlib import Path
+
+    from signora.entrypoints.api import create_app
+
+    document = create_app(get_settings()).openapi()
+    rendered = json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    else:
+        sys.stdout.write(rendered)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="signora", description="Signora operations")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -84,6 +99,8 @@ def build_parser() -> argparse.ArgumentParser:
     api.add_argument("--port", type=int, default=8100)
     api.add_argument("--reload", action="store_true", help="reload on code changes (development)")
     commands.add_parser("worker", help="run the background job worker")
+    openapi = commands.add_parser("openapi", help="write the OpenAPI document (deterministic)")
+    openapi.add_argument("--output", help="file to write (default: stdout)")
     audit = commands.add_parser("audit", help="audit log operations")
     audit_commands = audit.add_subparsers(dest="audit_command", required=True)
     verify_cmd = audit_commands.add_parser("verify", help="verify one hash chain")
@@ -99,6 +116,7 @@ _COMMANDS = {
     "migrate": _migrate,
     "api": _api,
     "worker": _worker,
+    "openapi": _openapi,
     "audit": _audit_verify,  # the only audit subcommand
 }
 

@@ -19,6 +19,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -34,6 +35,43 @@ _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$")
 _USER_AGENT_MAX = 512
 
 log = get_logger("signora.http")
+
+
+class ProblemFieldError(BaseModel):
+    field: str
+    message: str
+
+
+class ProblemDetails(BaseModel):
+    """RFC 9457 problem details as returned by every error (backbone LLD §7.1).
+
+    Declared in the OpenAPI document so the frontend contract types include it.
+    """
+
+    type: str
+    title: str
+    status: int
+    code: str
+    instance: str
+    request_id: str | None
+    detail: str | None = None
+    errors: list[ProblemFieldError] | None = None
+
+
+PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
+    status: {
+        "model": ProblemDetails,
+        "description": description,
+        "content": {
+            PROBLEM_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
+        },
+    }
+    for status, description in (
+        ("4XX", "Client error (problem details)"),
+        (422, "Validation failed (problem details)"),
+        ("5XX", "Server error (problem details)"),
+    )
+}
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,11 @@
+{
+  "name": "signora",
+  "private": true,
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "contracts:generate": "pnpm --filter @signora/contracts generate"
+  }
+}

@@ -221,3 +221,15 @@ def test_ready_is_200_when_checks_pass(client: TestClient) -> None:
 
 def test_openapi_document_is_served(client: TestClient) -> None:
     assert client.get("/api/v1/openapi.json").json()["info"]["title"] == "Signora API"
+
+
+def test_openapi_declares_problem_details_and_typed_responses(client: TestClient) -> None:
+    document = client.get("/api/v1/openapi.json").json()
+
+    schemas = document["components"]["schemas"]
+    assert {"ProblemDetails", "StatusResponse", "MetaResponse"} <= set(schemas)
+    meta = document["paths"]["/api/v1/meta"]["get"]["responses"]
+    assert {"200", "4XX", "422", "5XX"} <= set(meta)
+    problem = meta["4XX"]["content"]["application/problem+json"]["schema"]
+    assert problem == {"$ref": "#/components/schemas/ProblemDetails"}
+    assert "/internal/health/ready" not in document["paths"]

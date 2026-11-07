@@ -11,17 +11,22 @@ from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from importlib.metadata import version
-from typing import Any
+from typing import Any, Literal
 
 import anyio.to_thread
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy import Engine
 
 from signora.kernel.config import Settings, get_settings
 from signora.kernel.db import Database, create_db_engine
 from signora.kernel.health import Check, core_checks, integration_results, run_checks
-from signora.kernel.http import RequestContextMiddleware, install_error_handlers
+from signora.kernel.http import (
+    PROBLEM_RESPONSES,
+    RequestContextMiddleware,
+    install_error_handlers,
+)
 from signora.kernel.logging import configure_logging
 
 API_PREFIX = "/api/v1"
@@ -30,14 +35,28 @@ INTERNAL_PREFIX = "/internal"  # never forwarded by Caddy (LLD §7.3)
 ChecksFactory = Callable[[Settings, Engine], Sequence[Check]]
 
 
+class StatusResponse(BaseModel):
+    status: Literal["ok", "unavailable"]
+
+
+class MetaResponse(BaseModel):
+    version: str
+    commit: str
+
+
 def _health_router() -> APIRouter:
     router = APIRouter()
 
     @router.get(f"{API_PREFIX}/health/live", tags=["health"])
-    def live() -> dict[str, str]:
-        return {"status": "ok"}
+    def live() -> StatusResponse:
+        return StatusResponse(status="ok")
 
-    @router.get(f"{API_PREFIX}/health/ready", tags=["health"])
+    @router.get(
+        f"{API_PREFIX}/health/ready",
+        tags=["health"],
+        response_model=StatusResponse,
+        responses={503: {"model": StatusResponse, "description": "Not ready"}},
+    )
     def ready(request: Request) -> JSONResponse:
         readiness = run_checks(request.app.state.checks())
         status = "ok" if readiness.ready else "unavailable"
@@ -55,9 +74,9 @@ def _health_router() -> APIRouter:
         return JSONResponse(body, status_code=200 if readiness.ready else 503)
 
     @router.get(f"{API_PREFIX}/meta", tags=["meta"])
-    def meta(request: Request) -> dict[str, str]:
+    def meta(request: Request) -> MetaResponse:
         settings: Settings = request.app.state.settings
-        return {"version": version("signora"), "commit": settings.app.commit}
+        return MetaResponse(version=version("signora"), commit=settings.app.commit)
 
     return router
 
@@ -87,6 +106,7 @@ def create_app(
         openapi_url=f"{API_PREFIX}/openapi.json",
         docs_url=f"{API_PREFIX}/docs" if show_docs else None,
         redoc_url=None,
+        responses=PROBLEM_RESPONSES,
     )
     app.state.settings = settings
     app.state.engine = app_engine

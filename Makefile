@@ -5,7 +5,7 @@ API_DEV_PORT ?= 8100
 
 .PHONY: help install requirements up down ps logs \
         migrate api worker \
-        format lint typecheck imports test check
+        contracts contracts-check format lint typecheck imports test check
 
 help:          ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | expand -t 16
@@ -45,6 +45,16 @@ api:           ## Run the API with reload on API_DEV_PORT (default 8100)
 worker:        ## Run the background worker
 	$(UV) signora worker
 
+# --- API contract (single source of truth: the FastAPI app) -----------------------------------
+
+contracts:     ## Regenerate packages/contracts from the API's OpenAPI document
+	$(UV) signora openapi --output ../../packages/contracts/openapi.json
+	pnpm --filter @signora/contracts generate
+	pnpm --filter @signora/contracts typecheck
+
+contracts-check: contracts  ## Fail if the committed contract differs from the API
+	@scripts/check-clean.sh packages/contracts "run 'make contracts' and commit the result"
+
 # --- quality gate (run before every merge; there is no hosted CI) ------------------------------
 
 format:        ## Format and auto-fix Python code
@@ -64,5 +74,5 @@ imports:       ## Module boundary contracts
 test:          ## Tests with coverage gate (>= 85% for kernel and audit); needs `make up`
 	$(UV) pytest --cov=signora.kernel --cov=signora.modules.audit --cov-fail-under=85
 
-check: lint typecheck imports test  ## Everything that must pass before a merge
+check: lint typecheck imports test contracts-check  ## Everything that must pass before a merge
 	@echo "make check: all gates passed"
