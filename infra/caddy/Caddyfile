@@ -1,0 +1,60 @@
+# Single entry point (backbone LLD §9.6). Tailscale Funnel terminates TLS and forwards to
+# 127.0.0.1:3100, which compose publishes to this container's :3100.
+{
+	admin off
+	auto_https off
+	servers {
+		# Requests arrive from the Docker gateway (Funnel on the host). Trust its X-Forwarded-For
+		# so the API sees the real client IP for audit records.
+		trusted_proxies static private_ranges
+		client_ip_headers X-Forwarded-For
+		# Use the right-most address (added by the trusted proxy), never a client-supplied one.
+		trusted_proxies_strict
+	}
+}
+
+:3100 {
+	encode zstd gzip
+
+	request_body {
+		max_size 55MB
+	}
+
+	# Always a fresh request id: clients cannot choose ids that end up in audit records.
+	request_header X-Request-ID {http.request.uuid}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+		-Via
+	}
+
+	# Detailed readiness and any other internal endpoint never leave the Docker network.
+	handle /internal/* {
+		respond 404
+	}
+
+	handle /api/* {
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		reverse_proxy api:8000 {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format filter {
+			# Signing links carry secret tokens in the path; never write them to the access log.
+			request>uri regexp "^/s/[^/?#]+" "/s/{token}"
+			wrap json
+		}
+	}
+}

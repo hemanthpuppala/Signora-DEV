@@ -4,7 +4,7 @@ UV := cd $(API) && uv run --frozen
 API_DEV_PORT ?= 8100
 
 .PHONY: help install requirements up down ps logs \
-        migrate api worker web \
+        up-app migrate api worker web \
         web-lint web-typecheck web-test web-build \
         contracts contracts-check format lint typecheck imports test check
 
@@ -26,8 +26,11 @@ requirements:  ## Re-export pinned pip requirement files from uv.lock
 up:            ## Start infrastructure services and wait until healthy
 	$(COMPOSE) up -d --wait --remove-orphans postgres gotenberg gotenberg-gateway
 
-down:          ## Stop services (data volume kept)
-	$(COMPOSE) down
+up-app:        ## Build and start the full stack behind Caddy on 127.0.0.1:3100 (the Funnel target)
+	SIGNORA_COMMIT=$$(git rev-parse --short HEAD) $(COMPOSE) --profile app up -d --build --wait --remove-orphans
+
+down:          ## Stop all services, including the app profile (data volumes kept)
+	$(COMPOSE) --profile app down
 
 ps:            ## Show service status
 	$(COMPOSE) ps

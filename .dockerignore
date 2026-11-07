@@ -1,0 +1,18 @@
+# Keep build contexts small and free of secrets.
+.git
+.env
+.env.*
+!.env.example
+data/
+eval/
+**/node_modules
+**/.next
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.tsbuildinfo
+**/next-env.d.ts
+apps/web/AGENTS.md
+docs/

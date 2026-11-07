@@ -552,7 +552,7 @@ Each feature's detailed task list lives in its LLD file and is copied here as it
 | P0.4 | Design system reference | done | `docs/design-system/` |
 | P0.5 | Branch / commit / PR workflow | done | PR template (`.github/pull_request_template.md`) |
 | P0.6 | PR #1 review fixes: host-first env defaults, Gotenberg network isolation + gateway, installer hardening, single port variables, pinned/verified uv, Gotenberg log flag | done | commits e0e18d6, 85aaaea, 6f9b4e5 and follow-ups on `phase-0/foundation`; tests in commit messages |
-| P1 | Backbone | todo — LLD next. Carried requirements: config resolves relative paths (e.g. `BLOB_STORE_DIR`) against the repository root, never the working directory, with a test that API and worker started from different directories resolve the same path; `make check` target | — |
+| P1 | Backbone | done — LLD and tasks 1.1–1.13 in `docs/design/features/01-backbone.md` (carried requirements met: repo-root path resolution with a cross-directory test; `make check`) | branch `phase-1/backbone`; `make check` passes; stack live on the Funnel URL |
 | P2–P10 | Core features | todo. Carried into Phase 2: sign-up must not reveal whether an email is already registered (account enumeration), including on retries | — |
 | P11 | Hardening | todo. Carried items: Postgres row-level security; restricted DB role for `audit_events` (INSERT/SELECT only); orphaned-blob cleanup that cannot race a concurrent upload deduplicating against the same object (e.g. re-check references and object age inside one locked pass); Playwright E2E | — |
 | P12+ | Later: bulk send, Stripe Identity, extra-signer addendum, **OCR / image-only PDFs (reminder)**, phone signer, landing | todo | — |
