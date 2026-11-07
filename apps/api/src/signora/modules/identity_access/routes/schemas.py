@@ -83,6 +83,37 @@ class AcceptInviteRequest(TokenRequest):
     password: PasswordInput
 
 
+class MemberView(BaseModel):
+    id: uuid.UUID
+    name: str
+    email: str
+    role: RoleRef
+    is_creator: bool
+    joined_at: datetime
+
+
+class DirectoryEntryView(BaseModel):
+    id: uuid.UUID
+    name: str
+    email: str
+
+
+class RoleDetailView(BaseModel):
+    id: uuid.UUID
+    key: str
+    name: str
+    is_system: bool
+    permissions: list[str]
+
+
+class ChangeRoleRequest(_Body):
+    role_id: uuid.UUID
+
+
+class NameRequest(_Body):
+    name: NameInput
+
+
 class LoginRequest(_Body):
     email: EmailInput
     password: PasswordInput

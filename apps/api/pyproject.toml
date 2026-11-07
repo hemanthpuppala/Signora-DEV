@@ -147,6 +147,7 @@ protected_modules = [
     "signora.modules.identity_access.invites",
     "signora.modules.identity_access.links",
     "signora.modules.identity_access.login",
+    "signora.modules.identity_access.members",
     "signora.modules.identity_access.models",
     "signora.modules.identity_access.passwords",
     "signora.modules.identity_access.routes",
