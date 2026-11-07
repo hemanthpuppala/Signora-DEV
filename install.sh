@@ -2,28 +2,26 @@
 # Signora one-command setup: ./install.sh
 #
 # Installs everything needed to run Signora locally:
-#   1. checks prerequisites (Docker + Compose, curl, Python via uv)
-#   2. installs uv if missing (official installer)
+#   1. checks prerequisites (Docker + Compose, curl)
+#   2. installs a pinned uv if missing (uv also provisions Python 3.12)
 #   3. creates .env from .env.example with generated secrets (never overwrites an existing .env)
-#   4. creates the backend virtualenv (apps/api/.venv) from the lockfile
-#   5. installs frontend packages when the web app is present
-#   6. pulls and starts infrastructure services (Postgres, Gotenberg)
+#      and checks that required secrets are set
+#   4. creates the backend virtualenv (apps/api/.venv) from the lockfile, with dev tooling
+#   5. installs frontend packages once the pnpm workspace exists
+#   6. pulls and starts infrastructure services (Postgres, Gotenberg + gateway)
 #
 # Options:
 #   --no-services   skip pulling/starting Docker services
-#   --with-eval     also install the private detection-eval tooling group
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_DIR="$ROOT/apps/api"
-WEB_DIR="$ROOT/apps/web"
+UV_VERSION="0.9.17"     # pinned installer, consistent with the dependency age policy in README
 START_SERVICES=1
-WITH_EVAL=0
 
 for arg in "$@"; do
   case "$arg" in
     --no-services) START_SERVICES=0 ;;
-    --with-eval)   WITH_EVAL=1 ;;
     -h|--help)     sed -n '2,15p' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
@@ -40,15 +38,21 @@ if [[ $START_SERVICES -eq 1 ]]; then
   command -v docker >/dev/null 2>&1 || fail "Docker is required (https://docs.docker.com/engine/install/)"
   docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required"
   docker info >/dev/null 2>&1 || fail "Docker daemon is not reachable (is it running, and is your user in the docker group?)"
-  ok "docker $(docker compose version --short)"
+  ok "docker compose $(docker compose version --short)"
 fi
 
 # --- 2. uv (Python package manager; also provisions Python 3.12 if missing) --
+# The official installer honours UV_INSTALL_DIR, then XDG_BIN_HOME, then $XDG_DATA_HOME/../bin,
+# then ~/.local/bin. Put all of them on PATH so an existing or fresh install is found either way.
+for dir in "${UV_INSTALL_DIR:-}" "${XDG_BIN_HOME:-}" "${XDG_DATA_HOME:+$XDG_DATA_HOME/../bin}" "$HOME/.local/bin"; do
+  [[ -n "$dir" ]] && PATH="$dir:$PATH"
+done
+export PATH
 if ! command -v uv >/dev/null 2>&1; then
-  info "Installing uv (https://docs.astral.sh/uv/)"
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  export PATH="$HOME/.local/bin:$PATH"
-  command -v uv >/dev/null 2>&1 || fail "uv installation failed"
+  info "Installing uv $UV_VERSION (https://docs.astral.sh/uv/)"
+  curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" | env INSTALLER_NO_MODIFY_PATH=1 sh
+  hash -r
+  command -v uv >/dev/null 2>&1 || fail "uv was installed but is not on PATH; add its install directory to PATH and re-run"
 fi
 ok "$(uv --version)"
 
@@ -57,43 +61,64 @@ if [[ -f "$ROOT/.env" ]]; then
   ok ".env already exists (left unchanged)"
 else
   info "Creating .env from .env.example with generated secrets"
-  uv run --no-project --python 3.12 python - "$ROOT/.env.example" "$ROOT/.env" <<'PY'
+  # Written under umask 077 so the file is never readable by other users, even briefly.
+  (
+    umask 077
+    uv run --no-project --python 3.12 python - "$ROOT/.env.example" "$ROOT/.env" <<'PY'
 import re, secrets, sys
 src, dst = sys.argv[1], sys.argv[2]
 text = open(src, encoding="utf-8").read()
 generated = {"SECRET_KEY": secrets.token_urlsafe(64), "POSTGRES_PASSWORD": secrets.token_urlsafe(24)}
 for key, value in generated.items():
-    text = re.sub(rf"^{key}=[^\S\n]*(#.*)?$", f"{key}={value}", text, count=1, flags=re.M)
+    text, n = re.subn(rf"^{key}=[^\S\n]*(#.*)?$", f"{key}={value}", text, count=1, flags=re.M)
+    if n != 1:
+        sys.exit(f"{key} placeholder not found in {src}")
 open(dst, "w", encoding="utf-8").write(text)
 PY
-  chmod 600 "$ROOT/.env"
-  ok ".env created — fill in AI_API_KEY, SMTP_*, EMAIL_FROM_ADDRESS, STRIPE_* before running the app"
+  )
+  ok ".env created (mode 600) — fill in AI_API_KEY, SMTP_*, EMAIL_FROM_ADDRESS, STRIPE_* before running the app"
 fi
+# Required secrets must be non-empty, whether .env was just generated or already existed.
+for key in SECRET_KEY POSTGRES_PASSWORD; do
+  value="$(sed -n "s/^${key}=\([^#[:space:]]*\).*/\1/p" "$ROOT/.env" | head -n1)"
+  [[ -n "$value" ]] || fail "$key is empty in .env; set it (python3 -c 'import secrets;print(secrets.token_urlsafe(48))') and re-run"
+done
+ok "required secrets present"
 
 # --- 4. Backend virtualenv -----------------------------------------------------
 info "Installing backend dependencies into apps/api/.venv (from uv.lock)"
-groups=(--group dev)
-[[ $WITH_EVAL -eq 1 ]] && groups+=(--group eval)
-(cd "$API_DIR" && uv sync --frozen "${groups[@]}")
+(cd "$API_DIR" && uv sync --frozen)
 ok "backend: $("$API_DIR/.venv/bin/python" --version), $("$API_DIR/.venv/bin/python" -c 'import fastapi, pymupdf; print(f"fastapi {fastapi.__version__}, pymupdf {pymupdf.VersionBind}")')"
 
 # --- 5. Frontend packages --------------------------------------------------------
-if [[ -f "$WEB_DIR/package.json" ]]; then
-  info "Installing frontend dependencies"
+# The frontend is a pnpm workspace rooted at the repository root (apps/web, packages/*).
+if [[ -f "$ROOT/pnpm-workspace.yaml" ]]; then
+  info "Installing frontend dependencies (pnpm workspace)"
   command -v node >/dev/null 2>&1 || fail "Node.js 20+ is required for the web app (https://nodejs.org/)"
   node -e 'process.exit(parseInt(process.versions.node) >= 20 ? 0 : 1)' || fail "Node.js 20+ is required (found $(node --version))"
-  command -v pnpm >/dev/null 2>&1 || { corepack enable >/dev/null 2>&1 || fail "pnpm missing; run: npm install -g pnpm"; }
-  (cd "$ROOT" && pnpm install --frozen-lockfile)
+  if ! command -v pnpm >/dev/null 2>&1; then
+    # Corepack can provide pnpm without root when shims go to a user directory, and must not prompt.
+    # The shim directory must exist (corepack does not create it); it is already on PATH (step 2).
+    if command -v corepack >/dev/null 2>&1 && mkdir -p "$HOME/.local/bin" && \
+       COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack enable --install-directory "$HOME/.local/bin" pnpm >/dev/null 2>&1 && \
+       COREPACK_ENABLE_DOWNLOAD_PROMPT=0 pnpm --version >/dev/null 2>&1; then
+      ok "pnpm enabled via corepack"
+    else
+      fail "pnpm is required: install it with 'npm install -g pnpm' (or see https://pnpm.io/installation) and re-run"
+    fi
+  fi
+  (cd "$ROOT" && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 pnpm install --frozen-lockfile)
   ok "frontend dependencies installed"
 else
-  ok "web app not present yet — skipping frontend install"
+  ok "pnpm workspace not present yet — skipping frontend install"
 fi
 
 # --- 6. Infrastructure services --------------------------------------------------
 if [[ $START_SERVICES -eq 1 ]]; then
   info "Pulling and starting Postgres and Gotenberg"
-  docker compose -f "$ROOT/infra/compose.yaml" --env-file "$ROOT/.env" pull postgres gotenberg
-  docker compose -f "$ROOT/infra/compose.yaml" --env-file "$ROOT/.env" up -d --wait postgres gotenberg
+  compose=(docker compose -f "$ROOT/infra/compose.yaml" --env-file "$ROOT/.env")
+  "${compose[@]}" pull postgres gotenberg gotenberg-gateway
+  "${compose[@]}" up -d --wait --remove-orphans postgres gotenberg gotenberg-gateway
   ok "services healthy"
 fi
 

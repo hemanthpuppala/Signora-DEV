@@ -27,17 +27,16 @@ dependencies = [
 ]
 
 [dependency-groups]
+# All developer tooling in one group, so `uv sync` never uninstalls part of it.
+# python-docx and reportlab generate the private detection-eval corpus (eval/ is git-ignored).
 dev = [
     "import-linter>=2.15",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
-    "ruff>=0.17.2",
-]
-# Private detection-eval tooling (corpus generation); the eval/ folder itself is git-ignored.
-eval = [
     "python-docx>=1.2.0",
     "reportlab>=5.1.0",
+    "ruff>=0.17.2",
 ]
 
 [build-system]

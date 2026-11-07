@@ -15,13 +15,13 @@ cd signora
 ```
 
 `install.sh`:
-1. checks Docker/Compose and installs [uv](https://docs.astral.sh/uv/) if missing;
-2. creates `.env` from `.env.example` with generated secrets (an existing `.env` is never overwritten);
+1. checks Docker/Compose and installs a pinned [uv](https://docs.astral.sh/uv/) if missing;
+2. creates `.env` from `.env.example` with generated secrets (mode 600; an existing `.env` is never overwritten) and checks required secrets are set;
 3. creates `apps/api/.venv` from the lockfile (`uv sync --frozen`);
-4. installs frontend packages once the web app exists;
-5. pulls and starts Postgres and Gotenberg and waits until they are healthy.
+4. installs frontend packages once the pnpm workspace exists;
+5. pulls and starts Postgres and Gotenberg (behind its gateway) and waits until they are healthy.
 
-Options: `--no-services` (skip Docker), `--with-eval` (include internal eval tooling).
+Options: `--no-services` (skip Docker).
 
 Then fill in the external credentials in `.env`: `AI_API_KEY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
 
@@ -43,7 +43,7 @@ Regenerate them after changing dependencies with `make requirements`.
 | Service | Host address (local only) | Purpose |
 |---|---|---|
 | Postgres 18.4 | `127.0.0.1:55432` | data, job queue, outbox |
-| Gotenberg 8.40.0 | `127.0.0.1:53000` | DOCX → PDF (LibreOffice) |
+| Gotenberg 8.40.0 | `127.0.0.1:53000` (via `gotenberg-gateway`) | DOCX → PDF (LibreOffice); no network egress |
 
 `make up`, `make down`, `make ps`, `make logs`.
 
