@@ -1,0 +1,357 @@
+"""Application configuration (backbone LLD, topic 6).
+
+One read-only settings object per process. Values come from process environment variables, then
+the repository's ``.env`` file, then defaults in code. The flat variable names of ``.env`` are
+validated by ``_EnvVars`` and then grouped into small frozen models, so each module receives only
+its own group.
+"""
+
+from __future__ import annotations
+
+import os
+from functools import lru_cache
+from pathlib import Path
+from typing import Literal
+
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    SecretStr,
+    ValidationError,
+    model_validator,
+)
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+ROOT_ENV_VAR = "SIGNORA_ROOT"
+ROOT_MARKER = ".env.example"
+# kernel/config.py -> kernel -> signora -> src -> api -> apps -> <repository root>
+_DERIVED_ROOT_DEPTH = 5
+
+AppEnv = Literal["development", "production"]
+LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+ReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
+
+
+class ConfigError(Exception):
+    """Raised when configuration cannot be loaded. Lists every problem at once."""
+
+    def __init__(self, problems: list[str]) -> None:
+        self.problems = problems
+        message = "Invalid configuration:\n" + "\n".join(f"  - {p}" for p in problems)
+        super().__init__(message)
+
+
+def repo_root() -> Path:
+    """Return the repository root.
+
+    ``SIGNORA_ROOT`` wins when set (container images set it). Otherwise the root is derived from
+    this file's location. Either way it must contain the marker file, so a wrong root fails loudly.
+    """
+    explicit = os.environ.get(ROOT_ENV_VAR)
+    if explicit:
+        root = Path(explicit).expanduser().resolve()
+        source = f"{ROOT_ENV_VAR}={explicit}"
+    else:
+        root = Path(__file__).resolve().parents[_DERIVED_ROOT_DEPTH]
+        source = "derived from the package location"
+    if not (root / ROOT_MARKER).is_file():
+        raise ConfigError(
+            [f"repository root {root} ({source}) lacks {ROOT_MARKER}; set {ROOT_ENV_VAR}"]
+        )
+    return root
+
+
+class _EnvVars(BaseSettings):
+    """Every configuration variable, by its flat name. ``.env.example`` documents exactly these."""
+
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        env_ignore_empty=True,  # `AI_API_KEY=` in .env means "not set"
+        extra="ignore",  # .env also carries compose-only values; unknown keys are not errors
+        frozen=True,
+    )
+
+    # app
+    app_env: AppEnv = "development"
+    public_base_url: AnyHttpUrl
+    secret_key: SecretStr = Field(min_length=32)
+    log_level: LogLevel = "INFO"
+    signora_commit: str = "dev"
+    api_threads: int = Field(default=20, ge=1, le=200)
+    # database
+    postgres_host: str
+    postgres_port: int = Field(ge=1, le=65535)
+    postgres_user: str = Field(min_length=1)
+    postgres_password: SecretStr = Field(min_length=1)
+    postgres_db: str = Field(min_length=1)
+    # blob store
+    # "s3" is added together with its implementation (LLD topic 5)
+    blob_store_backend: Literal["local"] = "local"
+    blob_store_dir: Path = Path("./data/blobs")
+    # gotenberg
+    gotenberg_host: str
+    gotenberg_port: int = Field(ge=1, le=65535)
+    # signing defaults
+    signing_otp_ttl_minutes: int = Field(default=10, ge=1, le=60)
+    signing_otp_max_attempts: int = Field(default=5, ge=1, le=20)
+    signer_session_minutes: int = Field(default=30, ge=5, le=240)
+    default_reminder_interval_hours: int = Field(default=24, ge=1, le=24 * 30)
+    default_max_reminders: int = Field(default=5, ge=0, le=50)
+    default_expiry_days: int = Field(default=14, ge=1, le=365)
+    # worker
+    worker_concurrency: int = Field(default=8, ge=1, le=64)
+    # ai (integration)
+    ai_base_url: AnyHttpUrl = AnyHttpUrl("https://api.openai.com/v1")
+    ai_api_key: SecretStr | None = None
+    ai_model: str = "gpt-6-luna"
+    ai_reasoning_effort: ReasoningEffort = "medium"
+    ai_whole_doc_max_tokens: int = Field(default=40_000, ge=1_000)
+    ai_max_concurrency: int = Field(default=4, ge=1, le=32)
+    # email (integration)
+    email_provider: Literal["smtp", "mailpit"] = "smtp"
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_starttls: bool = True
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    email_from_address: EmailStr | None = None
+    email_from_name: str = "Signora"
+    email_daily_limit: int = Field(default=450, ge=1)
+    # stripe (optional; only needed to offer ID verification)
+    stripe_secret_key: SecretStr | None = None
+    stripe_webhook_secret: SecretStr | None = None
+
+    @model_validator(mode="after")
+    def _production_rules(self) -> _EnvVars:
+        if self.app_env != "production":
+            return self
+        problems: list[str] = []
+        if self.public_base_url.scheme != "https":
+            problems.append("PUBLIC_BASE_URL: must use https in production")
+        if self.ai_api_key is None:
+            problems.append("AI_API_KEY: required in production")
+        if self.email_provider != "smtp":
+            problems.append("EMAIL_PROVIDER: must be 'smtp' in production")
+        for name in ("smtp_username", "smtp_password", "email_from_address"):
+            if getattr(self, name) is None:
+                problems.append(f"{name.upper()}: required in production")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
+
+
+# --- Grouped, read-only settings handed to modules ---------------------------------------------
+
+
+class _Group(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class AppSettings(_Group):
+    env: AppEnv
+    public_base_url: AnyHttpUrl
+    secret_key: SecretStr
+    log_level: LogLevel
+    commit: str
+    root: Path
+
+    @property
+    def is_production(self) -> bool:
+        return self.env == "production"
+
+
+class ApiSettings(_Group):
+    threads: int
+
+
+class DatabaseSettings(_Group):
+    host: str
+    port: int
+    user: str
+    password: SecretStr
+    name: str
+
+    @property
+    def url(self) -> str:
+        """SQLAlchemy URL built from the parts; never stored as a separate variable."""
+        return (
+            f"postgresql+psycopg://{self.user}:{self.password.get_secret_value()}"
+            f"@{self.host}:{self.port}/{self.name}"
+        )
+
+
+class BlobStoreSettings(_Group):
+    backend: Literal["local"]
+    dir: Path  # absolute: resolved against the repository root
+
+
+class GotenbergSettings(_Group):
+    host: str
+    port: int
+
+    @property
+    def base_url(self) -> str:
+        return f"http://{self.host}:{self.port}"
+
+
+class SigningSettings(_Group):
+    otp_ttl_minutes: int
+    otp_max_attempts: int
+    session_minutes: int
+    default_reminder_interval_hours: int
+    default_max_reminders: int
+    default_expiry_days: int
+
+
+class WorkerSettings(_Group):
+    concurrency: int
+
+
+class AISettings(_Group):
+    base_url: AnyHttpUrl
+    api_key: SecretStr | None
+    model: str
+    reasoning_effort: ReasoningEffort
+    whole_doc_max_tokens: int
+    max_concurrency: int
+
+    @property
+    def configured(self) -> bool:
+        return self.api_key is not None
+
+
+class EmailSettings(_Group):
+    provider: Literal["smtp", "mailpit"]
+    smtp_host: str
+    smtp_port: int
+    smtp_starttls: bool
+    smtp_username: str | None
+    smtp_password: SecretStr | None
+    from_address: str | None
+    from_name: str
+    daily_limit: int
+
+    @property
+    def configured(self) -> bool:
+        if self.from_address is None:
+            return False
+        if self.provider == "mailpit":
+            return True
+        return self.smtp_username is not None and self.smtp_password is not None
+
+
+class StripeSettings(_Group):
+    secret_key: SecretStr | None
+    webhook_secret: SecretStr | None
+
+    @property
+    def configured(self) -> bool:
+        return self.secret_key is not None and self.webhook_secret is not None
+
+
+class Settings(_Group):
+    app: AppSettings
+    api: ApiSettings
+    db: DatabaseSettings
+    blob_store: BlobStoreSettings
+    gotenberg: GotenbergSettings
+    signing: SigningSettings
+    worker: WorkerSettings
+    ai: AISettings
+    email: EmailSettings
+    stripe: StripeSettings
+
+
+def _resolve(root: Path, path: Path) -> Path:
+    return path if path.is_absolute() else (root / path).resolve()
+
+
+def _format_errors(error: ValidationError) -> list[str]:
+    problems: list[str] = []
+    for item in error.errors(include_url=False, include_input=False):
+        location = ".".join(str(part) for part in item["loc"]).upper()
+        message = item["msg"].removeprefix("Value error, ")
+        problems.extend(
+            message.split("; ") if not location else [f"{location}: {message}"],
+        )
+    return problems
+
+
+def load_settings(root: Path | None = None) -> Settings:
+    """Load and validate settings for the given repository root (the real root by default).
+
+    Raises ``ConfigError`` listing every problem when any value is missing or invalid.
+    """
+    base = root if root is not None else repo_root()
+    try:
+        env = _EnvVars(_env_file=base / ".env")
+    except ValidationError as error:
+        raise ConfigError(_format_errors(error)) from None
+
+    return Settings(
+        app=AppSettings(
+            env=env.app_env,
+            public_base_url=env.public_base_url,
+            secret_key=env.secret_key,
+            log_level=env.log_level,
+            commit=env.signora_commit,
+            root=base,
+        ),
+        api=ApiSettings(threads=env.api_threads),
+        db=DatabaseSettings(
+            host=env.postgres_host,
+            port=env.postgres_port,
+            user=env.postgres_user,
+            password=env.postgres_password,
+            name=env.postgres_db,
+        ),
+        blob_store=BlobStoreSettings(
+            backend=env.blob_store_backend, dir=_resolve(base, env.blob_store_dir)
+        ),
+        gotenberg=GotenbergSettings(host=env.gotenberg_host, port=env.gotenberg_port),
+        signing=SigningSettings(
+            otp_ttl_minutes=env.signing_otp_ttl_minutes,
+            otp_max_attempts=env.signing_otp_max_attempts,
+            session_minutes=env.signer_session_minutes,
+            default_reminder_interval_hours=env.default_reminder_interval_hours,
+            default_max_reminders=env.default_max_reminders,
+            default_expiry_days=env.default_expiry_days,
+        ),
+        worker=WorkerSettings(concurrency=env.worker_concurrency),
+        ai=AISettings(
+            base_url=env.ai_base_url,
+            api_key=env.ai_api_key,
+            model=env.ai_model,
+            reasoning_effort=env.ai_reasoning_effort,
+            whole_doc_max_tokens=env.ai_whole_doc_max_tokens,
+            max_concurrency=env.ai_max_concurrency,
+        ),
+        email=EmailSettings(
+            provider=env.email_provider,
+            smtp_host=env.smtp_host,
+            smtp_port=env.smtp_port,
+            smtp_starttls=env.smtp_starttls,
+            smtp_username=env.smtp_username,
+            smtp_password=env.smtp_password,
+            from_address=env.email_from_address,
+            from_name=env.email_from_name,
+            daily_limit=env.email_daily_limit,
+        ),
+        stripe=StripeSettings(
+            secret_key=env.stripe_secret_key, webhook_secret=env.stripe_webhook_secret
+        ),
+    )
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Settings for this process, loaded once."""
+    return load_settings()
+
+
+def env_var_names() -> frozenset[str]:
+    """Names of every configuration variable (used to keep ``.env.example`` in sync)."""
+    return frozenset(name.upper() for name in _EnvVars.model_fields)
