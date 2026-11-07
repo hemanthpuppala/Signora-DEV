@@ -60,6 +60,21 @@ describe("MetaPanel", () => {
     expect(screen.getByText("Ready")).toBeTruthy();
   });
 
+  it("shows Not ready when the API answers readiness with 503 unavailable", async () => {
+    GET.mockImplementation(((path: string) =>
+      path === "/api/v1/meta"
+        ? answer(path)
+        : Promise.resolve({
+            error: { status: "unavailable" },
+            response: new Response(null, { status: 503 }),
+          })) as never);
+
+    renderPanel();
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(screen.getByText("Not ready")).toBeTruthy();
+    expect(GET.mock.calls.filter(([path]) => path === "/api/v1/health/ready")).toHaveLength(1);
+  });
+
   it("does not retry a definite API error", async () => {
     GET.mockImplementation((() =>
       Promise.resolve({
