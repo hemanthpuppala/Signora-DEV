@@ -24,8 +24,10 @@ from signora.kernel.db import Database, create_db_engine
 from signora.kernel.health import Check, core_checks, integration_results, run_checks
 from signora.kernel.http import (
     PROBLEM_RESPONSES,
+    OriginCheckMiddleware,
     RequestContextMiddleware,
     install_error_handlers,
+    origin_of,
 )
 from signora.kernel.logging import configure_logging
 
@@ -114,6 +116,10 @@ def create_app(
     app.state.checks = lambda: checks_factory(settings, app_engine)
 
     install_error_handlers(app)
+    # Added last = outermost: the request context (request id, access log) wraps the origin check.
+    app.add_middleware(
+        OriginCheckMiddleware, public_origin=origin_of(str(settings.app.public_base_url))
+    )
     app.add_middleware(
         RequestContextMiddleware, trust_proxy_headers=settings.api.trust_proxy_headers
     )
