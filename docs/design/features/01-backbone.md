@@ -17,9 +17,9 @@ agreed.
 | 5 | File storage | **agreed** (2026-11-07) |
 | 6 | Configuration and path resolution | **agreed** (2026-11-07) |
 | 7 | Errors, logging, health APIs | **agreed** (2026-11-07) |
-| 8 | Frontend shell | open |
-| 9 | Quality gate (`make check`) and runtime (compose, Caddy) | open |
-| 10 | Phase 1 FRs, NFRs, ADRs (summary) | open |
+| 8 | Frontend shell | **agreed** (2026-11-07) |
+| 9 | Quality gate (`make check`) and runtime (compose, Caddy) | **agreed** (2026-11-07, written on owner's instruction from the earlier proposals) |
+| 10 | Phase 1 FRs, NFRs, ADRs, tasks | **agreed** (2026-11-07, written on owner's instruction) |
 
 ---
 
@@ -725,3 +725,224 @@ file is older than 30 seconds, and Docker restarts it. No extra table or port.
 - `/health/ready` returns 503 naming the failed check when the database or Gotenberg is down (local request), and
   only `{"status":"unavailable"}` for a non-local request.
 - Worker heartbeat goes stale when the loop is blocked → healthcheck fails.
+
+---
+
+## Topic 8 — Frontend shell
+
+### 8.1 Versions and dependency age
+
+Same rule as the backend: only releases published at least 14 days earlier. Enforced by pnpm with
+`minimumReleaseAge: 20160` (minutes) in `pnpm-workspace.yaml`, mirroring `exclude-newer` in `apps/api/pyproject.toml`.
+
+| Package | Version | Published |
+|---|---|---|
+| next | 16.4.3 | 2026-10-23 |
+| react, react-dom | 19.3.1 | 2026-10-14 |
+| typescript | 7.0.2 | 2026-07-08 |
+| @tanstack/react-query | 5.104.5 | 2026-10-19 |
+| openapi-typescript / openapi-fetch | 7.13.0 / 0.17.0 | 2026-02-11 |
+| eslint / eslint-plugin-boundaries | 10.13.0 / 7.3.0 | 2026-10-16 / 2026-10-23 |
+| vitest | 5.0.5 | 2026-10-15 |
+| pnpm (`packageManager`) | 12.15.0 | 2026-10-21 |
+
+### 8.2 Role of Next.js
+
+- Next.js renders the UI only: **no business logic and no API routes**. All data comes from the FastAPI backend.
+- The browser calls `/api/...` on the same origin; Caddy routes it to FastAPI. Session cookies work without
+  cross-site configuration and there is a single public origin.
+- Production build: Next.js `standalone` output, run as a small Node server behind Caddy. Development: `next dev`
+  with a rewrite of `/api/*` to the local API.
+
+### 8.3 Structure (`apps/web/src/`)
+
+```
+app/                 routes only (thin): (public)/…, (console)/…, s/… (signer), dev/ui (gallery, development only)
+features/<module>/   one folder per business module, filled in its own phase
+shared/
+  ui/                tokens.css + design-system components (single source of styling)
+  api/               typed client, query client setup, useIdempotentAction (topic 3.6)
+  lib/               small pure helpers (formatting, etc.)
+packages/contracts/  types generated from the API's OpenAPI document (never edited by hand)
+```
+
+Boundary rule (`eslint-plugin-boundaries`): `features/*` may import `shared/*` and `packages/contracts`, never
+another feature's internals; `shared/*` never imports `features/*`; `app/*` composes features.
+
+### 8.4 Styling
+
+- Plain CSS: the prototype's tokens in `shared/ui/tokens.css` (single source) plus one CSS Module per component,
+  ported line by line from `docs/design-system/prototype.html`. No Tailwind.
+- Fonts via `next/font/google` (downloaded at build time, self-hosted): Cormorant Garamond 300/400/500 + italic,
+  Source Code Pro, Inter Tight (logo). Body text uses the system UI font, as in the prototype.
+- Dark only (as the prototype). Minimum width 360 px. Visible focus, labelled controls, `prefers-reduced-motion`
+  respected.
+
+### 8.5 Talking to the API
+
+- `openapi-fetch` typed with the generated contract types: an API change without a frontend update fails the build.
+- TanStack Query for reads, with `refetchOnReconnect` and `refetchOnWindowFocus` (topic 3.6).
+- **`useIdempotentAction`** — the one helper every mutating action uses: creates and keeps the idempotency key
+  (also in `sessionStorage`), shows "Sending…" / "Connection lost — retrying…", retries on reconnect and on backoff,
+  honours `409 Retry-After`, and reuses the key when pressed again.
+- Errors: the problem `code` maps to a user-facing message; unexpected errors show the `request_id`.
+
+### 8.6 Phase 1 components
+
+Button (primary ghost, quiet, quiet-destructive; loading state; trailing arrow), text-link button, TextField and
+TextArea (underline style with label, hint, error), Select (the prototype's custom keyboard-accessible listbox),
+Checkbox, Radio, TablePanel, StatusPill (all ten states with the prototype's dot colors), Notice (info, warning),
+Toast, Tabs, TopBar, AppShell (logo, workspace name, navigation), typography (Eyebrow, headings), MetricTile.
+
+Screen-specific components arrive with their feature (project cards, filter bar, date picker, timeline, drop zone,
+PDF canvas, signature pad).
+
+**Visible result of Phase 1:** `/` renders the shell and shows `/api/v1/meta` (proves browser → Caddy → API);
+`/dev/ui` (development only) shows every component for side-by-side comparison with the prototype.
+
+### 8.7 Tests
+
+Vitest + Testing Library: component behaviour (Select keyboard navigation, Button loading state, Toast) and
+`useIdempotentAction` (key reused on retry and on second press, retry on reconnect, `409` honoured, key discarded only
+after a definite response). Browser end-to-end tests (Playwright) come in the hardening phase.
+
+---
+
+## Topic 9 — Quality gate and runtime
+
+### 9.1 `make check` (the local gate before every merge; no hosted CI)
+
+| Area | Command | Fails when |
+|---|---|---|
+| Python format + lint | `ruff format --check`, `ruff check` | Style or lint violation |
+| Python types | `mypy --strict src` | Any type error |
+| Module boundaries | `lint-imports` | A boundary contract (9.2) is broken |
+| Python tests | `pytest` (incl. `.env.example` sync test) | Any failure; coverage below 85 % for `kernel` and `modules/audit` |
+| Contracts | `make contracts` then `git diff --exit-code packages/contracts` | Generated API types differ from the committed ones |
+| TypeScript | `pnpm -r typecheck` (`tsc --noEmit`) | Any type error |
+| Frontend lint | `pnpm -r lint` (ESLint incl. boundaries) | Lint or boundary violation |
+| Frontend tests | `pnpm -r test` (Vitest) | Any failure |
+| Frontend build | `pnpm --filter web build` | Build error |
+
+Other targets: `make dev` (infra + API with reload + worker + `next dev`), `make up-app` (full stack in Docker),
+`make migrate`, `make contracts`, `make test`, `make lint`.
+
+### 9.2 Import-boundary contracts (`import-linter`)
+
+1. **Layers:** `signora.entrypoints` → `signora.modules` → `signora.kernel` (no upward imports).
+2. **Public interfaces only:** a module may import another module only through its package root
+   (`signora.modules.audit`), never its internals (`signora.modules.audit.repository`).
+3. **Leaf modules** (`detection`, `rendering`, `verification`, `notifications`, `audit`) import only `signora.kernel`.
+4. **Pure domain:** `*.domain` modules import neither FastAPI nor SQLAlchemy.
+
+In Phase 1 only `kernel` and `modules/audit` exist; the contracts are written for the full module map so later
+phases inherit them.
+
+### 9.3 Test database
+
+A dedicated `signora_test` database on the compose Postgres, recreated at the start of each test session and migrated
+to head. Ordinary tests run inside a transaction that is rolled back. Concurrency tests (job claiming, audit appends,
+idempotency) need real commits; they use unique ids (fresh chain ids, job kinds), so they never collide and the
+session-level recreate cleans up — this matters because the audit triggers forbid deleting rows.
+
+### 9.4 Container images
+
+- `apps/api/Dockerfile`: multi-stage; `uv sync --frozen --no-dev`; non-root user; `SIGNORA_ROOT=/app`;
+  `SIGNORA_COMMIT` build argument. **One image** for API, worker and migrations (different commands).
+- `apps/web/Dockerfile`: multi-stage Next.js `standalone` build; non-root user.
+
+### 9.5 Compose services
+
+| Service | Image / command | Networks | Published | Notes |
+|---|---|---|---|---|
+| `postgres` | postgres 18.4 | app | `127.0.0.1:${POSTGRES_PORT}` | existing |
+| `gotenberg` | gotenberg 8.40.0 | convert (internal) | — | existing |
+| `gotenberg-gateway` | socat | app, convert | `127.0.0.1:${GOTENBERG_PORT}` | existing |
+| `migrate` | api image, `signora migrate` | app | — | one-shot; `api` and `worker` start only after it succeeds |
+| `api` | api image, uvicorn | app, convert | — | overrides `POSTGRES_HOST=postgres`, `POSTGRES_PORT=5432`, `GOTENBERG_HOST=gotenberg`, `GOTENBERG_PORT=3000`; blob volume |
+| `worker` | api image, `signora worker` | app, convert | — | heartbeat-file healthcheck (topic 7.4); blob volume |
+| `web` | web image | app | — | Next.js standalone |
+| `caddy` | caddy (pinned) | app | `127.0.0.1:3100` | Funnel target; `/api/*` → `api`, everything else → `web` |
+
+Compose profiles: `make up` starts infrastructure only (for host development); `make up-app` starts the whole stack
+behind Caddy, which is what the public Funnel URL serves.
+
+### 9.6 Caddy
+
+- Routes `/api/*` to the API and everything else to the web server.
+- Sets `X-Request-ID` when absent; JSON access logs.
+- Request body limit slightly above the upload limit (55 MB).
+- Security headers on every response: `Strict-Transport-Security` (the public origin is HTTPS via Funnel),
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, a minimal
+  `Permissions-Policy`. API responses also get `Content-Security-Policy: default-src 'none'`; HTML pages get a
+  nonce-based CSP set by Next.js middleware. Signer-specific headers (`noindex`) come with Phase 8.
+
+### 9.7 Development ports
+
+Host ports 3000, 5432–5434 and others are already used on this machine. Development servers use configurable ports
+chosen to be free: `API_DEV_PORT` (default 8100) and `WEB_DEV_PORT` (default 3200); `next dev` rewrites `/api/*` to
+the API dev port.
+
+---
+
+## Topic 10 — Requirements, decisions and tasks
+
+### 10.1 Functional requirements (backbone)
+
+| ID | Requirement |
+|---|---|
+| FR-B1 | Configuration loads once, resolves the repository root and relative paths independently of the working directory, and fails at startup listing every invalid value (topic 6). |
+| FR-B2 | Schema changes are applied with Alembic migrations; the API and worker refuse to report ready unless migrations are at head. |
+| FR-B3 | Jobs can be enqueued inside a business transaction, are delivered at least once and claimed by exactly one worker at a time, retried with backoff, dead-lettered after the per-kind limit, and reclaimed after a lease expires (topics 1–2). |
+| FR-B4 | Domain events fan out to every registered subscriber as independent jobs (topic 1.5). |
+| FR-B5 | Create endpoints honour `Idempotency-Key` per the server contract (topic 3). |
+| FR-B6 | Files are stored immutably under tenant-first object keys behind a backend-neutral interface (topic 5). |
+| FR-B7 | Audit entries are appended to per-envelope, per-workspace or system hash chains in the action's transaction, cannot be updated or deleted, and chains can be verified (topic 4). |
+| FR-B8 | All errors use RFC 9457 problem details with stable codes; logs are structured and redacted; live, ready and meta endpoints exist (topic 7). |
+| FR-B9 | The web app renders the design-system shell, the component gallery, and reads `/api/v1/meta` through Caddy (topic 8). |
+| FR-B10 | `make check` runs every gate in topic 9.1 and fails on any violation. |
+
+### 10.2 Non-functional requirements (backbone)
+
+| ID | Target |
+|---|---|
+| NFR-B1 | Job pickup ≤ 1 s after the enqueuing transaction commits (LISTEN/NOTIFY), ≤ 5 s worst case (poll). |
+| NFR-B2 | Enqueue adds ≤ 5 ms to a transaction; audit append ≤ 10 ms p95 under 50 concurrent appends to one chain. |
+| NFR-B3 | Health and meta endpoints respond ≤ 50 ms p95 locally; readiness ≤ 2.5 s worst case (2 s per-check timeout, run concurrently). |
+| NFR-B4 | Startup with invalid configuration fails within 2 s with a complete list of problems. |
+| NFR-B5 | Test coverage ≥ 85 % for `kernel` and `modules/audit`; `make check` completes in ≤ 5 minutes on the development machine. |
+| NFR-B6 | No secret, token, OTP or request body appears in logs (asserted by tests). |
+| NFR-B7 | Containers run as non-root; only Caddy (3100), Postgres and the Gotenberg gateway are published, and only on 127.0.0.1. |
+
+### 10.3 Architecture decisions recorded in this phase
+
+| ADR | Decision | Main reason |
+|---|---|---|
+| B-1 | Synchronous SQLAlchemy 2 + psycopg 3; async FastAPI handlers call it through the thread pool | Simpler code and tests; slow work runs in the worker anyway |
+| B-2 | UUIDv7 primary keys (Postgres 18 `uuidv7()`), exposed as plain UUID strings; the UI shortens them for display | Time-ordered ids with good index locality, no extra encoding layer |
+| B-3 | Postgres job queue with `SKIP LOCKED`, leases and LISTEN/NOTIFY; events as fan-out jobs; no Redis/Celery | One less service, transactional enqueue, durable across restarts (topics 1–2) |
+| B-4 | Idempotency key held inside the action's transaction; status codes per the IETF draft and Stripe | Database serializes duplicates; standard client behaviour (topic 3) |
+| B-5 | Audit hash chains per envelope and per workspace, plus a system chain; written synchronously | No cross-envelope contention; certificate = one chain; entry cannot be lost (topic 4) |
+| B-6 | Tenant-first, content-addressed object keys shared by local and S3 backends | Cloud move is configuration only; per-tenant prefix operations (topic 5) |
+| B-7 | Tenant isolation enforced in the data-access layer from Phase 2; Postgres row-level security added in the hardening phase | Fast delivery now, defence in depth before release |
+| B-8 | RFC 9457 errors with stable codes; other-tenant resources reported as 404 | One error shape for all clients; no existence leaks (topic 7) |
+| B-9 | Next.js renders UI only; plain CSS tokens ported from the prototype; typed client generated from OpenAPI | No business logic on the client tier; faithful design port; one API contract (topic 8) |
+| B-10 | Local quality gate (`make check`) instead of hosted CI, plus manual testing before merge | Owner decision (topic 9) |
+
+### 10.4 Tasks (one commit each)
+
+| # | Task | Status | Evidence |
+|---|---|---|---|
+| 1.1 | Backbone LLD (this document) | done | topics 1–10 |
+| 1.2 | `kernel/config`: settings groups, repo-root resolution, validation, `.env.example` sync test | todo | — |
+| 1.3 | `kernel/db`: engine, unit of work, Alembic setup, naming conventions; migration 0001 (`jobs`, `idempotency_keys`, `audit_events` + triggers) | todo | — |
+| 1.4 | `kernel/errors`, `kernel/logging`, request id; API app factory; health and meta endpoints | todo | — |
+| 1.5 | `kernel/jobs`: enqueue, worker loop, leases, backoff, dead jobs, LISTEN/NOTIFY, housekeeping sweep | todo | — |
+| 1.6 | `kernel/events`: publish/subscribe over jobs | todo | — |
+| 1.7 | `kernel/idempotency`: dependency, transaction-held key, 400/409/422 handling | todo | — |
+| 1.8 | `kernel/blobstore`: `BlobStore` interface, local backend, contract test suite | todo | — |
+| 1.9 | `modules/audit`: chains, record, verify, CLI `signora audit verify` | todo | — |
+| 1.10 | Import-linter contracts, Makefile targets, `make check` | todo | — |
+| 1.11 | Web: pnpm workspace, Next.js app, tokens, Phase 1 components, AppShell, `/` and `/dev/ui`, `useIdempotentAction` | todo | — |
+| 1.12 | `packages/contracts`: OpenAPI export + generated types + drift check | todo | — |
+| 1.13 | Dockerfiles, compose `migrate`/`api`/`worker`/`web`/`caddy`, Caddyfile; shell live on the Funnel URL | todo | — |
