@@ -12,15 +12,16 @@ export function TablePanel({ children, className }: { children: ReactNode; class
 /**
  * A table cell holding one row action ("Resend"). It is only as wide as its content, so the data
  * columns share the table's width and each action gets a column of its own at the row's end.
+ * ``grow`` lets one action column take the free space and centre its button in it.
  */
-export function ActionCell({ children }: { children: ReactNode }) {
-  return <td className={styles.actionCell}>{children}</td>;
+export function ActionCell({ children, grow = false }: { children: ReactNode; grow?: boolean }) {
+  return <td className={cx(styles.actionCell, grow && styles.actionCellGrow)}>{children}</td>;
 }
 
 /** The header of an ``ActionCell`` column (no visible title; named for screen readers). */
-export function ActionHeader({ label }: { label: string }) {
+export function ActionHeader({ label, grow = false }: { label: string; grow?: boolean }) {
   return (
-    <th className={styles.actionCell} aria-label={label}>
+    <th className={cx(styles.actionCell, grow && styles.actionCellGrow)} aria-label={label}>
       <span className={styles.visuallyHidden}>{label}</span>
     </th>
   );

@@ -41,6 +41,11 @@
   padding-left: 24px;
 }
 
+.tablePanel .actionCellGrow {
+  width: auto;
+  text-align: center;
+}
+
 .visuallyHidden {
   position: absolute;
   width: 1px;

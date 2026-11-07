@@ -83,7 +83,7 @@ export function PeoplePanel({ me }: { me: Me }) {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Invited</th>
-                  <ActionHeader label="Resend" />
+                  <ActionHeader label="Resend" grow />
                   <ActionHeader label="Revoke" />
                 </tr>
               </thead>
@@ -262,7 +262,7 @@ function InviteRow({ invite, onChanged }: { invite: Invite; onChanged: (message:
           {date(invite.created_at)} · {invite.expired ? "expired" : `expires ${date(invite.expires_at)}`}
         </SmallText>
       </td>
-      <ActionCell>
+      <ActionCell grow>
         <TextButton onClick={() => resend.run(invite.id)} disabled={resend.isPending}>
           Resend
         </TextButton>
