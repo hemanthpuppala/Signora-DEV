@@ -1,0 +1,1445 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Signora Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Source+Code+Pro:wght@400;500&family=Inter:wght@300;400;500;600&family=Inter+Tight:wght@500;600&display=swap">
+<style>
+/* Design system: matches theastraway.com. Pure black and white only. Cormorant Garamond Light for headings and numbers, system UI sans (300/400) for text, tracked uppercase micro-labels, square corners, hairline white separators. Buttons are ghost: transparent, white text, hairline border. */
+:root{
+  --bg:#000; --surface:#0a0a0a; --surface-2:#141414; --surface-3:#1f1f1f; --panel:#0a0a0a;
+  --ink:#fff; --t75:rgba(255,255,255,.75); --t60:rgba(255,255,255,.6); --t55:rgba(255,255,255,.55); --t30:rgba(255,255,255,.3);
+  --sep:rgba(255,255,255,.08);
+  --r40:rgba(255,255,255,.4); --r25:rgba(255,255,255,.25); --r15:rgba(255,255,255,.14); --r08:rgba(255,255,255,.08); --r05:rgba(255,255,255,.04);
+  --accent:#fff; --accent-h:#fff;
+  --decline:#fff; --decline-t:#fff; --paper:#f6f5f2; --paper-ink:#1a1a1a;
+  --role1:#8c8c8c; --role1f:rgba(0,0,0,.05); --role2:#5a5a5a; --role2f:rgba(0,0,0,.09); --role3:#b0b0b0; --role3f:rgba(0,0,0,.04); --firm:#222; --firmf:rgba(0,0,0,.06);
+  --serif:"Cormorant Garamond","EB Garamond",Georgia,serif;
+  --sans:-apple-system,system-ui,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Fira Sans","Droid Sans","Helvetica Neue",sans-serif;
+  --mono:"Source Code Pro",ui-monospace,Menlo,monospace;
+  --logo:"Inter Tight",Inter,-apple-system,sans-serif;
+  --r-card:0px; --r-ctl:0px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:300 15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+a{color:var(--t75);text-decoration:none;transition:color .15s}a:hover{color:var(--ink)}
+:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+h1,h2,h3{text-wrap:balance;margin:0;font-weight:300}
+p{margin:0}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.serif{font-family:var(--serif);font-weight:300;letter-spacing:0}
+.mono{font-variant-numeric:tabular-nums}
+.eyebrow{font:400 10px/15px var(--sans);letter-spacing:.45em;text-transform:uppercase;color:var(--t55)}
+.cap{font:400 11px/1.4 var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--t75)}
+.display{font:300 clamp(44px,6.4vw,72px)/1.04 var(--serif);letter-spacing:-.02em}
+.h1{font:300 clamp(36px,4.4vw,56px)/1.05 var(--serif);letter-spacing:-.02em}
+.h2{font:300 clamp(30px,3.4vw,44px)/1.1 var(--serif)}
+.sub{font:italic 300 clamp(20px,2.2vw,28px)/1.25 var(--serif);color:var(--t60)}
+.body{font-size:16px;line-height:26px;color:var(--t75);max-width:60ch}
+.small{font-size:13px;line-height:20px;color:var(--t55)}
+.rule{width:48px;height:1px;background:var(--r25)}
+
+/* buttons: ghost, white on black, square */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:0 28px;background:transparent;color:var(--ink);border:1px solid var(--r40);border-radius:0;font:500 11px/1 var(--sans);letter-spacing:.35em;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
+.btn:hover{color:var(--ink);background:var(--r08);border-color:var(--ink)}
+.btn[disabled]{background:transparent;color:var(--t30);border-color:var(--r15);cursor:not-allowed}
+.btn-o{border-color:var(--r15)} .btn-o:hover{border-color:var(--r40)}
+.btn-x{color:var(--t75);border-color:var(--r15)} .btn-x:hover{color:var(--ink);border-color:var(--ink);background:var(--r05)}
+.link{background:none;border:0;padding:10px 0;min-height:40px;color:var(--t75);font:400 11px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;cursor:pointer}
+.link:hover{color:var(--ink)}
+
+/* forms */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>span{font:400 10px/1.4 var(--sans);letter-spacing:.35em;text-transform:uppercase;color:var(--t55)}
+.field input,.field select,.field textarea{background:transparent;border:0;border-bottom:1px solid var(--r25);border-radius:0;color:var(--ink);font:300 16px/1.4 var(--sans);padding:9px 0;width:100%}
+.field select{background:var(--surface)}
+.field textarea{resize:vertical;min-height:80px}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-bottom-color:var(--ink)}
+.hint{font-size:12px;color:var(--t55)}
+.check{display:flex;gap:12px;align-items:flex-start;font-size:15px;color:var(--t75);cursor:pointer}
+.check input{margin-top:3px}
+
+/* metrics */
+.grid-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.grid-metrics>div{background:var(--surface);border:1px solid var(--sep);padding:22px 24px}
+.grid-metrics .eyebrow{margin-top:10px!important}
+.metric{font:300 44px/1 var(--serif);font-variant-numeric:lining-nums}
+
+/* tabs and filters: tracked labels, hairline underline */
+.tabs,.seg,.mode{display:flex;flex-wrap:wrap;gap:8px 28px;border-bottom:1px solid var(--sep);background:none;padding:0}
+.tabs a,.seg button,.mode button{padding:0 0 14px;margin-bottom:-1px;background:none;border:0;border-bottom:1px solid transparent;color:var(--t55);font:400 11px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;cursor:pointer;min-height:0}
+.tabs a:hover,.seg button:hover,.mode button:hover{color:var(--ink)}
+.tabs a.on,.seg button.on,.mode button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.seg{border-bottom:0;gap:8px 24px}
+.seg button{padding-bottom:6px}
+
+/* envelope filter bar: one quiet row; options open in a panel; active filters show as chips */
+.fbar{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;border-bottom:1px solid var(--sep);padding-bottom:16px}
+.fsearch{flex:1 1 240px;min-width:0;display:flex;align-items:center;gap:12px;color:var(--t55)}
+.fsearch input{background:transparent;border:0;color:var(--ink);font:300 15px/1.4 var(--sans);width:100%;padding:8px 0;min-width:0}
+.fsearch input:focus{outline:none}
+.fsearch input::placeholder{color:var(--t55)}
+.fbtn{min-height:38px;background:transparent;border:1px solid var(--r15);border-radius:0;color:var(--t75);font:400 10px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;cursor:pointer;padding:0 16px}
+.fbtn{display:inline-flex;align-items:center;gap:10px}
+.fbtn:hover,.fbtn[aria-expanded="true"]{border-color:var(--r40);color:var(--ink)}
+.fbtn .n{font:400 11px/1 var(--sans);letter-spacing:0;color:var(--ink)}
+.fsort{display:flex;align-items:center;gap:10px}
+.fpanel{border:1px solid var(--sep);background:var(--surface);padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:24px 32px}
+.fgroup{display:flex;flex-direction:column;gap:12px;min-width:0}
+.fgroup>.eyebrow{margin:0}
+.fopt{display:flex;align-items:center;gap:12px;font-size:14px;line-height:20px;color:var(--t75);cursor:pointer}
+.fopt:hover{color:var(--ink)}
+.fpresets{display:flex;flex-wrap:wrap;gap:8px}
+.fpanel-foot{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px;border-top:1px solid var(--sep);padding-top:16px}
+.fchips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:0}
+.fchips:empty{display:none}
+.fchip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--r15);background:none;color:var(--t75);padding:6px 10px;font:400 12px/1 var(--sans);cursor:pointer}
+.fchip:hover{border-color:var(--r40);color:var(--ink)}
+.fchip span{color:var(--t55)}
+.fcount{font-size:13px;color:var(--t55)}
+.fempty td{color:var(--t55);text-align:center;padding:32px 0}
+
+/* design-system controls: square checkbox, round radio, dropdown, date picker */
+input[type=checkbox],input[type=radio]{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin:0;flex:none;border:1px solid var(--r40);background:transparent;display:inline-grid;place-content:center;cursor:pointer;transition:border-color .15s,background .15s}
+input[type=checkbox]:hover,input[type=radio]:hover{border-color:var(--ink)}
+input[type=checkbox]::before{content:"";width:8px;height:4px;border:solid #000;border-width:0 0 1.5px 1.5px;transform:translate(0,-1px) rotate(-45deg);opacity:0}
+input[type=checkbox]:checked{background:var(--ink);border-color:var(--ink)}
+input[type=checkbox]:checked::before{opacity:1}
+input[type=radio]{border-radius:50%}
+input[type=radio]::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ink);transform:scale(0);transition:transform .12s}
+input[type=radio]:checked{border-color:var(--ink)}
+input[type=radio]:checked::before{transform:scale(1)}
+input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.45;cursor:not-allowed}
+.dd-native{position:absolute!important;left:0;top:0;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden}
+.field,.fgroup,.fsort,td{position:relative}
+.dd,.dp{position:relative;min-width:0}
+.dd-btn,.dp-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:38px;padding:0 12px;background:transparent;border:1px solid var(--r15);border-radius:0;color:var(--ink);font:300 14px/1.3 var(--sans);text-align:left;cursor:pointer;transition:border-color .15s}
+.dd-btn:hover,.dd-btn[aria-expanded="true"],.dp-btn:hover,.dp-btn[aria-expanded="true"]{border-color:var(--r40)}
+.dd-btn .v,.dp-btn .v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dp-btn .v.empty{color:var(--t55)}
+.dd-btn svg,.dp-btn svg{flex:none;color:var(--t55)}
+.field .dd-btn,.field .dp-btn{border-width:0 0 1px;border-color:var(--r25);padding:9px 0;min-height:0;font-size:16px}
+.field .dd-btn:hover,.field .dd-btn[aria-expanded="true"],.field .dp-btn:hover,.field .dp-btn[aria-expanded="true"]{border-color:var(--ink)}
+td .dd{min-width:140px}
+td .dd-btn{border-width:0 0 1px;border-color:var(--r25);padding:6px 0;min-height:0}
+.fsort .dd{min-width:170px}
+.fsort .dd-btn{font:400 10px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--t75);padding:0 14px}
+.dd-list{position:absolute;z-index:25;top:calc(100% + 6px);left:0;min-width:100%;max-width:min(320px,calc(100vw - 32px));max-height:280px;overflow:auto;margin:0;padding:6px 0;list-style:none;background:var(--surface);border:1px solid var(--r25);box-shadow:0 18px 40px rgba(0,0,0,.6)}
+.fsort .dd-list{left:auto;right:0}
+.dd-opt{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 14px;font:300 14px/1.3 var(--sans);letter-spacing:0;text-transform:none;color:var(--t75);cursor:pointer;white-space:nowrap}
+.dd-opt:hover,.dd-opt.act{background:var(--r08);color:var(--ink)}
+.dd-opt[aria-selected="true"]{color:var(--ink)}
+.dd-opt[aria-selected="true"]::after{content:"";width:8px;height:4px;border:solid var(--ink);border-width:0 0 1.5px 1.5px;transform:translateY(-2px) rotate(-45deg)}
+.dp-pop{position:absolute;z-index:25;top:calc(100% + 6px);left:0;width:288px;max-width:calc(100vw - 32px);padding:16px;background:var(--surface);border:1px solid var(--r25);box-shadow:0 18px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:12px}
+.dp-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dp-head .m{font:400 20px/1 var(--serif);color:var(--ink)}
+.dp-nav{width:32px;height:32px;display:grid;place-content:center;background:none;border:1px solid var(--r15);color:var(--t75);cursor:pointer}
+.dp-nav:hover{border-color:var(--r40);color:var(--ink)}
+.dp-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.dp-dow{font:400 9px/24px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--t55);text-align:center}
+.dp-day{height:34px;background:none;border:1px solid transparent;color:var(--t75);font:300 13px/1 var(--sans);font-variant-numeric:tabular-nums;cursor:pointer}
+.dp-day:hover{border-color:var(--r40);color:var(--ink)}
+.dp-day.today{text-decoration:underline;text-underline-offset:4px}
+.dp-day.in{background:var(--r08);color:var(--ink)}
+.dp-day.edge{background:var(--ink);color:#000}
+.dp-day:disabled{opacity:.25;cursor:default;border-color:transparent}
+.dp-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--sep);padding-top:12px}
+.dp-hint{font-size:12px;color:var(--t55)}
+
+/* tables: inside a hairline panel with inner margins */
+.tbl-box{overflow-x:auto;background:var(--surface);border:1px solid var(--sep);padding:4px 24px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font:400 10px/1.4 var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--t55);padding:16px 16px 12px 0;border-bottom:1px solid var(--sep)}
+td{padding:16px 16px 16px 0;border-top:1px solid var(--sep);vertical-align:top;color:var(--t75)}
+th:last-child,td:last-child{padding-right:0}
+tbody tr:first-child td{border-top:0}
+td b{font-weight:400;color:var(--ink)}
+td .small{margin-top:2px}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--r05)}
+
+/* status: the one place color is allowed. Each state always maps to the same hue (--st), shown only on the dot; label stays white */
+.st{--st:#8e8e93;display:inline-flex;align-items:center;gap:8px;padding:0;font:400 10px/1.4 var(--sans);letter-spacing:.25em;text-transform:uppercase;white-space:nowrap;color:var(--t75);background:none;border:0}
+.st i{width:7px;height:7px;border-radius:50%;background:var(--st);border:0;flex:none}
+.st.draft{--st:#8e8e93}
+.st.pending{--st:#8e8e93}
+.st.sent{--st:#64a8ff}
+.st.opened{--st:#a594ff}
+.st.viewed{--st:#ffb547}
+.st.signed{--st:#4cd97b}
+.st.completed{--st:#2fd5a8}
+.st.declined{--st:#ff6b6b}
+.st.expired{--st:#a1a1a6} .st.expired i{background:none;border:1px dashed var(--st)}
+.st.cancelled{--st:#a1a1a6} .st.cancelled i{background:none;border:1px solid var(--st)}
+.dot{width:10px;height:10px;flex:none;border-radius:50%}
+
+/* top bars */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:rgba(0,0,0,.85);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid var(--sep)}
+.topbar .in{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 28px;padding-block:20px}
+.logo{font:500 18px/1 var(--logo);letter-spacing:.16em;color:var(--ink)}
+.logo:hover{color:var(--ink)}
+.nav{display:flex;flex-wrap:wrap;gap:10px 32px}
+.nav a{font:400 11px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--t75)}
+.nav a:hover{color:var(--ink)}
+.nav a.on{color:var(--ink);border-bottom:1px solid var(--r40);padding-bottom:5px}
+
+/* console shell */
+.shell{display:flex;flex-wrap:wrap;min-height:calc(100vh - 60px)}
+.main{flex:999 1 560px;min-width:0;max-width:1120px;margin-inline:auto;padding-block:48px 96px;display:flex;flex-direction:column;gap:36px}
+.headrow{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px}
+.headrow>div:first-child,.main>div:first-child{gap:12px!important}
+.actions{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+.section{display:flex;flex-direction:column;gap:16px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:28px 32px}
+
+/* project cards */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:12px}
+.pcard{background:var(--surface);border:1px solid var(--sep);padding:24px;display:flex;flex-direction:column;gap:20px;color:var(--ink);transition:border-color .15s,background .15s}
+.pcard:hover{border-color:var(--r40);color:var(--ink)}
+.pcard h3{font:400 26px/1.1 var(--serif)}
+.pcard .small{margin-top:6px}
+.pstats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--sep);padding-top:16px;margin-top:auto}
+.pstats div{display:flex;flex-direction:column;gap:4px}
+.pstats div+div{border-left:1px solid var(--r15);padding-left:14px}
+.pstats b{font:300 30px/1 var(--serif);font-variant-numeric:lining-nums;color:var(--ink)}
+.pstats b.warm{font-weight:500}
+.pstats span{font:400 9px/1.4 var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--t55)}
+.pmeta{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--t55)}
+.pmeta .go{font:400 10px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--t75)}
+.pcard:hover .go{color:var(--ink)}
+.pcard.add{background:transparent;border:1px dashed var(--r25);align-items:center;justify-content:center;text-align:center;color:var(--t75);min-height:200px;gap:10px;font:400 11px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase}
+.pcard.add:hover{border-color:var(--ink);color:var(--ink)}
+.pcard.add .plus{font:300 40px/1 var(--serif);letter-spacing:0}
+
+/* grouped lists */
+.blocks{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--sep);padding:0 24px}
+.blocks:empty{display:none}
+.blocks>*{border-bottom:1px solid var(--sep)!important}
+.blocks>*:last-child{border-bottom:0!important}
+.block{padding:24px 0;display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:16px 36px}
+.block .eyebrow{color:var(--ink)!important}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 28px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--r15);border-radius:0;background:none;font:400 12px/1.2 var(--sans);color:var(--t75)}
+.bulk-chips .chip{font-family:var(--mono)}
+.drop{border:1px dashed var(--r25);background:var(--surface);padding:44px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer}
+.drop:hover{border-color:var(--ink)}
+.notice{background:var(--surface);border:1px solid var(--sep);padding:18px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.notice.warn{border-color:var(--r40)}
+.timeline{display:flex;flex-direction:column;padding:4px 24px;margin:0;background:var(--surface);border:1px solid var(--sep)}
+.timeline li{list-style:none;display:grid;grid-template-columns:minmax(0,120px) minmax(0,1fr);gap:16px;padding:13px 0;border-top:1px solid var(--sep);font-size:14px;color:var(--t75)}
+.timeline li:first-child{border-top:0}
+@media (max-width:720px){
+  .block{grid-template-columns:minmax(0,1fr)}
+  .tbl-box,.blocks,.timeline{padding-inline:16px}
+}
+
+/* landing */
+.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:40px;align-items:center;max-width:1120px;margin:0 auto;padding-block:72px 88px}
+#sphere{width:100%;max-width:440px;aspect-ratio:1;justify-self:center}
+.band{border-top:1px solid var(--sep)}
+.band .in{max-width:1120px;margin:0 auto;padding-block:80px;display:flex;flex-direction:column;gap:32px}
+.depths{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;border:0}
+.depths>div{background:var(--surface);border:1px solid var(--sep);padding:32px;display:flex;flex-direction:column;gap:12px}
+.depths .mono{color:var(--t55)}
+.band .grid-metrics>div{padding:28px}
+
+/* auth */
+.auth{max-width:400px;margin:0 auto;padding-block:80px 112px;display:flex;flex-direction:column;gap:24px}
+.auth .btn{margin-top:8px}
+
+/* document page + fields */
+.docwrap{background:var(--surface);border:1px solid var(--sep);padding:28px 16px 32px;display:flex;flex-direction:column;align-items:center;gap:16px;min-width:0}
+.paper{position:relative;width:612px;max-width:100%;aspect-ratio:612/792;background:var(--paper);color:var(--paper-ink);padding:8% 10%;font:400 11px/17px Georgia,serif;container-type:inline-size;letter-spacing:0;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.paper .t{text-align:center;font:500 16px/1 var(--serif);letter-spacing:.18em;color:var(--paper-ink)}
+.paper p{margin:12px 0 0}
+.fld{position:absolute;border:1.5px solid;font:400 10px/1 var(--sans);letter-spacing:0;padding:3px 6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;background:none;text-align:left}
+.fld.sig{border-style:dashed;font:italic 300 16px/1 var(--serif);padding:6px 8px}
+.fld.unsure{border-style:dotted;opacity:.8}
+.fld.r1{border-color:#8c8c8c;background:rgba(0,0,0,.04);color:#444}
+.fld.r2{border-color:#4a4a4a;background:rgba(0,0,0,.09);color:#222}
+.fld.firm{border-color:#111;background:rgba(0,0,0,.02);color:#111}
+.fld.sel{outline:2px solid #000;outline-offset:3px}
+
+/* review fields: document first, one calm side panel that shows either an overview or the selected field */
+.rv-top{border-bottom:1px solid var(--sep)}
+.rv-top-in{max-width:1240px;margin:0 auto;padding-block:24px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between}
+.rv-title{display:flex;flex-direction:column;gap:8px;min-width:0}
+.rv-prog{font-size:13px;color:var(--t55)}
+.rv-prog b{font-weight:400;color:var(--ink)}
+.rv{max-width:1240px;margin:0 auto;padding-block:24px 72px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.rv-doc{flex:999 1 560px;min-width:0;background:var(--surface);border:1px solid var(--sep);padding:16px 16px 32px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.rv-tools{align-self:stretch;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.rv-add{position:relative}
+.rv-add .btn{min-height:36px;padding:0 18px}
+.rv-add .dd-list{min-width:190px}
+.rv-add .dd-opt{width:100%;background:none;border:0;text-align:left}
+.rv-pages{display:flex;align-items:center;gap:12px}
+.rv-pages .dp-nav:disabled{opacity:.3;cursor:default}
+.rv-side{flex:1 1 300px;max-width:360px;position:sticky;top:calc(84px + env(safe-area-inset-top,0px))}
+@media (max-width:720px){.rv-side{max-width:none;position:static}}
+.rv-card{background:var(--surface);border:1px solid var(--sep);padding:24px;display:flex;flex-direction:column;gap:20px}
+.rv-roles{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.rv-roles li{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--t75)}
+.rv-roles li span{margin-left:auto;font-size:12px;color:var(--t55)}
+.rv-roles i{width:18px;height:12px;flex:none;background:var(--paper);border:2.5px solid var(--c)}
+.rv-attn{border:1px solid var(--r25);padding:16px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.rv-attn b{font-weight:400;color:var(--ink)}
+.rv-attn .btn{min-height:36px;padding:0 18px;margin-top:6px}
+.rv-ok{font-size:14px;color:var(--ink)}
+.rv-disc summary{list-style:none;cursor:pointer;font:400 10px/1.4 var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--t55)}
+.rv-disc summary::-webkit-details-marker{display:none}
+.rv-disc summary::after{content:"  +"}
+.rv-disc[open] summary::after{content:"  –"}
+.rv-disc summary:hover{color:var(--ink)}
+.rv-disc .in{display:flex;flex-direction:column;gap:16px;padding-top:16px}
+.rv-fhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.rv-fhead h2{font:300 30px/1.1 var(--serif)}
+.rv-warn{font-size:13px;line-height:20px;color:var(--ink);border:1px dashed var(--r40);padding:12px 14px}
+.rv-factions{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--sep);padding-top:16px}
+.rv-factions .btn{min-height:38px;padding:0 20px}
+
+/* signer */
+.signer{max-width:620px;margin:0 auto;padding-block:48px 96px;display:flex;flex-direction:column;gap:26px}
+.signer-top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-block:18px;border-bottom:1px solid var(--sep)}
+.otp{display:flex;gap:10px}
+.otp input{width:100%;max-width:50px;aspect-ratio:1/1.2;background:transparent;border:0;border-bottom:1px solid var(--r25);color:var(--ink);font:300 30px/1 var(--serif);text-align:center}
+.otp input:focus{outline:none;border-bottom-color:var(--ink)}
+.disclosure{background:var(--surface);border:1px solid var(--sep);padding:22px;max-height:240px;overflow:auto;font-size:14px;line-height:22px;color:var(--t75);display:flex;flex-direction:column;gap:12px}
+.sigpad{background:var(--paper);width:100%;height:160px;touch-action:none;display:block;cursor:crosshair}
+.typed{background:var(--paper);color:#111;height:160px;display:flex;align-items:center;padding:0 24px;font:italic 400 44px/1 var(--serif)}
+.nextfield{position:sticky;bottom:calc(16px + env(safe-area-inset-bottom,0px));align-self:flex-end}
+
+/* iPhone signer page */
+.msp{max-width:1120px;margin:0 auto;padding-block:56px 96px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:48px 80px;align-items:center}
+.msp-copy{display:flex;flex-direction:column;gap:18px;max-width:420px}
+.msp-steps{list-style:none;margin:10px 0 0;padding:0;border:1px solid var(--sep);background:var(--surface)}
+.msp-steps li+li{border-top:1px solid var(--sep)}
+.msp-steps button{width:100%;display:flex;align-items:center;gap:18px;padding:15px 20px;background:none;border:0;color:var(--t55);font:300 15px/1.3 var(--sans);text-align:left;cursor:pointer}
+.msp-steps button span{font:400 11px/1 var(--mono);color:var(--t30)}
+.msp-steps button:hover{color:var(--ink)}
+.msp-steps button.on{color:var(--ink)} .msp-steps button.on span{color:var(--ink)}
+@media (max-width:900px){.msp{grid-template-columns:minmax(0,1fr);justify-items:center}.msp-copy{max-width:393px;width:100%}}
+.phone{width:393px;height:852px;flex:none;border-radius:60px;padding:11px;background:#0e0e0e;border:1px solid #2b2b2b;box-shadow:0 0 0 3px #050505,0 50px 120px rgba(255,255,255,.05)}
+.phone-screen{position:relative;width:100%;height:100%;border-radius:49px;overflow:hidden;background:#000;display:flex;flex-direction:column;outline:1px solid #151515}
+@media (max-width:440px){.phone{width:100%;height:auto;border-radius:28px;padding:6px}.phone-screen{height:760px;border-radius:23px}}
+.ms-status{position:relative;height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0 36px;font:600 15px/1 var(--sans);color:#fff}
+.ms-island{position:absolute;left:50%;top:11px;transform:translateX(-50%);width:122px;height:35px;border-radius:20px;background:#000;box-shadow:0 0 0 1px #1a1a1a}
+.ms-ind{display:flex;gap:6px;align-items:center}
+.ms-head{flex:none;display:flex;justify-content:space-between;align-items:center;padding:12px 24px 16px}
+.ms-firm{font:400 9px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--t55)}
+.ms-prog{flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0 24px}
+.ms-prog i{height:2px;background:var(--r15);transition:background .2s}
+.ms-prog i.on{background:#fff}
+.ms-steps{position:relative;flex:1;min-height:0}
+.ms-step{position:absolute;inset:0;display:flex;flex-direction:column}
+.ms-body{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;padding:36px 24px 24px;display:flex;flex-direction:column;gap:14px}
+.ms-body::-webkit-scrollbar{display:none}
+.ms-k{font:400 10px/1.4 var(--sans);letter-spacing:.35em;text-transform:uppercase;color:var(--t55)}
+.ms-h{font:300 38px/1.05 var(--serif);color:#fff}
+.ms-p{font:300 16px/1.55 var(--sans);color:var(--t75)}
+.ms-otp{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:18px}
+.ms-otp input{width:100%;min-width:0;height:58px;background:none;border:0;border-bottom:1px solid var(--r40);border-radius:0;color:#fff;font:300 32px/1 var(--serif);text-align:center}
+.ms-otp input:focus{outline:none;border-bottom-color:#fff}
+.ms-foot{flex:none;display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:16px 24px 30px;border-top:1px solid var(--sep);background:#000}
+.ms-btn{width:100%;min-height:54px;background:transparent;border:1px solid #fff;border-radius:0;color:#fff;font:500 12px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+.ms-btn:hover,.ms-btn:active{background:rgba(255,255,255,.08)}
+.ms-btn[disabled]{border-color:var(--r15);color:var(--t30);background:none;cursor:not-allowed}
+.ms-link{align-self:center;min-height:44px;padding:12px;background:none;border:0;color:var(--t75);font:400 11px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;cursor:pointer;text-align:center}
+.ms-link:hover{color:#fff}
+.ms-legal{font-size:12px;line-height:1.5;color:var(--t55);text-align:center;padding:0 8px 10px}
+.ms-det{margin-top:10px;border-top:1px solid var(--sep);border-bottom:1px solid var(--sep)}
+.ms-det summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:16px 0;font:300 15px var(--sans);color:var(--t75);cursor:pointer}
+.ms-det summary::-webkit-details-marker{display:none}
+.ms-det summary::after{content:"+";font-size:20px;color:var(--t55)}
+.ms-det[open] summary::after{content:"–"}
+.ms-det p{font:300 14px/1.55 var(--sans);color:var(--t55);padding-bottom:12px}
+.ms-check{display:flex;gap:14px;align-items:flex-start;padding:14px 0;font:300 15px/1.45 var(--sans);color:var(--t75);cursor:pointer}
+.ms-check input{accent-color:#fff;width:20px;height:20px;margin:1px 0 0;flex:none}
+.ms-rows{border:1px solid var(--sep);background:var(--surface);margin-top:6px}
+.ms-row{display:flex;justify-content:space-between;gap:16px;padding:13px 16px;font-size:14px;line-height:1.4}
+.ms-row+.ms-row{border-top:1px solid var(--sep)}
+.ms-row span:first-child{color:var(--t55);flex:none}
+.ms-row span:last-child{color:#fff;text-align:right}
+.ms-paper{margin-top:6px;background:var(--paper);color:#1a1a1a;padding:22px 20px 20px}
+.ms-pt{text-align:center;font:500 11px/1 var(--serif);letter-spacing:.2em;margin-bottom:14px}
+.ms-paper .ln{display:block;height:4px;background:#dcdad4;margin:8px 0}
+.ms-plabel{margin-top:20px;font:500 8px/1 var(--sans);letter-spacing:.2em;text-transform:uppercase;color:#555}
+.ms-slot{display:flex;align-items:center;width:100%;height:64px;margin-top:8px;padding:0 14px;border:1.5px dashed #555;background:rgba(0,0,0,.035);font:italic 300 20px/1 var(--serif);color:#333;text-align:left;cursor:pointer;animation:ms-pulse 2.4s ease-in-out infinite}
+.ms-slot.done{border-style:solid;border-color:#bbb;background:none;animation:none;font-size:30px}
+.ms-slot img{height:54px;width:auto;max-width:100%}
+@keyframes ms-pulse{50%{border-color:#111}}
+.ms-done-ico{width:64px;height:64px;border:1px solid #fff;border-radius:50%;display:grid;place-items:center;margin-bottom:10px}
+.ms-scrim{position:absolute;inset:0;z-index:3;background:rgba(0,0,0,.6)}
+.ms-sheet{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;flex-direction:column;gap:14px;padding:10px 20px 30px;background:#0c0c0c;border-top:1px solid var(--r15);border-radius:20px 20px 0 0;transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);visibility:hidden}
+.ms-sheet.open{transform:none;visibility:visible}
+.ms-grab{width:36px;height:5px;border-radius:3px;background:var(--r25);align-self:center}
+.ms-sheet-head{display:flex;justify-content:space-between;align-items:center}
+.ms-x{width:44px;height:44px;margin-right:-12px;background:none;border:0;color:var(--t75);font:300 26px/1 var(--sans);cursor:pointer}
+.ms-mode{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--r15)}
+.ms-mode button{min-height:40px;background:none;border:0;color:var(--t55);font:400 11px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;cursor:pointer}
+.ms-mode button.on{background:#fff;color:#000}
+.ms-pad,.ms-typed{width:100%;height:190px;background:linear-gradient(transparent calc(74% - 1px),#c9c7c1 calc(74% - 1px),#c9c7c1 74%,transparent 74%),var(--paper)}
+.ms-pad{display:block;touch-action:none;cursor:crosshair}
+.ms-typed{display:flex;align-items:center;justify-content:center;color:#111;font:italic 400 48px/1 var(--serif)}
+.ms-sheet-row{display:flex;justify-content:space-between;align-items:center;margin-top:-6px}
+.ms-hint{font-size:12px;color:var(--t55)}
+.ms-home{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#fff;z-index:5}
+@media (prefers-reduced-motion:reduce){.ms-slot{animation:none}}
+
+/* screen index */
+#idx-btn{position:fixed;right:calc(20px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:20;background:#000;color:var(--ink);border:1px solid var(--r40);border-radius:0;min-height:40px;padding:0 18px;font:400 10px/1 var(--sans);letter-spacing:.35em;text-transform:uppercase;cursor:pointer}
+#idx{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.94);overflow:auto;padding-top:env(safe-area-inset-top,0px)}
+#idx .in{max-width:1100px;margin:0 auto;padding-block:56px 80px;display:flex;flex-direction:column;gap:32px}
+.idx-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.idx-cols>div{background:var(--surface);border:1px solid var(--sep);padding:20px 20px 10px}
+.idx-cols ol{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column}
+.idx-cols li a{display:flex;gap:14px;padding:10px 0;border-top:1px solid var(--sep);font-size:15px;color:var(--t75)}
+.idx-cols li a:hover{color:var(--ink)}
+.idx-cols li:first-child a{border-top:0}
+.idx-cols li a span{font:400 12px/1.9 var(--mono);color:var(--t55);min-width:22px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:40;background:#000;color:var(--ink);border:1px solid var(--r40);padding:14px 22px;font:400 11px/1.4 var(--sans);letter-spacing:.25em;text-transform:uppercase;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<!-- ===================== PUBLIC ===================== -->
+<header class="topbar" data-bar="public" hidden>
+  <div class="in wrap">
+    <a href="#home" class="logo">SIGNORA</a>
+    <nav class="nav" aria-label="Site">
+      <a href="#home">Product</a><a href="#home-how">How it works</a><a href="#home-security">Security</a><a href="#login">Client login</a><a href="#signup" class="on">Start</a>
+    </nav>
+  </div>
+</header>
+
+<section data-view="home" hidden>
+  <div class="wrap">
+    <div class="hero">
+      <div style="display:flex;flex-direction:column;gap:28px">
+        <p class="eyebrow">Agreements · signed before work begins</p>
+        <h1 class="display">Every file starts<br>with a signature.</h1>
+        <p class="sub">For firms that would rather not chase one.</p>
+                <p class="body">Upload your client agreement once. Signora finds every field and every party, you approve them, and each new matter goes out for signature in under a minute. Signed, countersigned, sealed with a certificate.</p>
+        <div class="actions"><a class="btn" href="#signup">Begin a workspace →</a><a class="link" href="#home-how">How it works</a></div>
+      </div>
+      <canvas id="sphere" aria-hidden="true"></canvas>
+    </div>
+  </div>
+  <div class="band wrap" id="home-how">
+    <div class="in">
+      <p class="eyebrow">How it works</p>
+      <h2 class="h2">Three steps, in order.</h2>
+      <div class="depths">
+        <div><span class="mono small">01</span><span class="serif" style="font-size:30px">Upload</span><p class="small">PDF or Word. Fields, signature lines and parties are detected by rules and by AI, then shown to you on the page.</p></div>
+        <div><span class="mono small">02</span><span class="serif" style="font-size:30px">Approve</span><p class="small">Move, relabel or add anything. Approval locks the version; every later change becomes a new version with its own hash.</p></div>
+        <div><span class="mono small">03</span><span class="serif" style="font-size:30px">Send</span><p class="small">One client or a spreadsheet of hundreds. Reminders, countersigning and the final certificate happen without you.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="band wrap" id="home-security">
+    <div class="in">
+      <p class="eyebrow">Security · ESIGN and UETA</p>
+      <h2 class="h2">Who signed, how we know, and when.</h2>
+      <div class="grid-metrics">
+        <div><span class="metric">6</span><p class="eyebrow" style="margin-top:10px">Digit email code per signer</p></div>
+        <div><span class="metric">256</span><p class="eyebrow" style="margin-top:10px">Bit link tokens, stored hashed</p></div>
+        <div><span class="metric">SHA</span><p class="eyebrow" style="margin-top:10px">256 on source and final PDF</p></div>
+      </div>
+      <div class="actions"><a class="btn" href="#signup">Begin a workspace →</a></div>
+    </div>
+  </div>
+</section>
+
+<section data-view="signup" hidden>
+  <div class="wrap"><form class="auth" data-go="projects" data-toast="Workspace created">
+    <p class="eyebrow">New workspace</p>
+    <h1 class="h1">Begin.</h1>
+    <label class="field"><span>Firm name</span><input id="su-firm" value="Hale &amp; Ward LLP"></label>
+    <label class="field"><span>Your name</span><input id="su-name" value="Hemanth Puppala"></label>
+    <label class="field"><span>Work email</span><input id="su-email" type="email" value="hemanth@haleward.example"></label>
+    <label class="field"><span>Password</span><input id="su-pw" type="password" value="example-only"><span class="hint" style="letter-spacing:0;text-transform:none">At least 12 characters.</span></label>
+    <button class="btn" type="submit">Create workspace →</button>
+    <p class="small">Already have one? <a href="#login" style="color:var(--ink)">Log in</a></p>
+  </form></div>
+</section>
+
+<section data-view="login" hidden>
+  <div class="wrap"><form class="auth" data-go="projects">
+    <p class="eyebrow">Client login</p>
+    <h1 class="h1">Welcome back.</h1>
+    <label class="field"><span>Email</span><input id="li-email" type="email" value="hemanth@haleward.example"></label>
+    <label class="field"><span>Password</span><input id="li-pw" type="password" value="example-only"></label>
+    <button class="btn" type="submit">Log in →</button>
+    <p class="small">No workspace yet? <a href="#signup" style="color:var(--ink)">Create one</a></p>
+  </form></div>
+</section>
+
+<section data-view="invite" hidden>
+  <div class="wrap"><form class="auth" data-go="projects" data-toast="Joined Hale & Ward LLP">
+    <p class="eyebrow">Invitation · Hale &amp; Ward LLP</p>
+    <h1 class="h1">Join your team.</h1>
+    <p class="body">Rosa Hale invited you with <b style="color:var(--ink);font-weight:400">read</b> access to the workspace and <b style="color:var(--ink);font-weight:400">read/write</b> on Client Intake.</p>
+    <label class="field"><span>Your name</span><input id="inv-name" value="Jordan Ward"></label>
+    <label class="field"><span>Set a password</span><input id="inv-pw" type="password" value="example-only"></label>
+    <button class="btn" type="submit">Accept invitation →</button>
+  </form></div>
+</section>
+
+<!-- ===================== CONSOLE ===================== -->
+<header class="topbar" data-bar="console" hidden>
+  <div class="in wrap">
+    <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap"><a href="#projects" class="logo">SIGNORA</a><span class="cap" style="color:var(--t55)">Hale &amp; Ward LLP</span></div>
+    <nav class="nav" aria-label="Console">
+      <a href="#projects" data-nav="projects">Projects</a><a href="#members" data-nav="members">Members</a><a href="#audit" data-nav="audit">Audit</a><a href="#home">Log out</a>
+    </nav>
+  </div>
+</header>
+
+
+<section data-view="projects" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div class="headrow">
+        <div style="display:flex;flex-direction:column;gap:14px"><h1 class="h1">Good morning, Hemanth.</h1><p class="sub">Nine agreements are waiting on someone.</p></div>
+        <div class="actions"><a class="btn" href="#project-new">New project →</a></div>
+      </div>
+      <div class="grid-metrics">
+        <div><span class="metric">61</span><p class="eyebrow" style="margin-top:10px">Sent this month</p></div>
+        <div><span class="metric">48</span><p class="eyebrow" style="margin-top:10px">Completed</p></div>
+        <div><span class="metric">9</span><p class="eyebrow" style="margin-top:10px">Pending</p></div>
+        <div><span class="metric">2</span><p class="eyebrow" style="margin-top:10px">Awaiting your countersign</p></div>
+      </div>
+      <div class="notice"><div style="display:flex;flex-direction:column;gap:6px"><span class="eyebrow">Your turn</span><span>Chen v. Northwind needs your countersignature.</span></div><a class="btn btn-o" href="#countersign">Review and sign</a></div>
+      <div class="section">
+        <div class="fbar" style="padding-bottom:12px">
+          <p class="eyebrow" style="flex:none">Projects</p>
+          <label class="fsearch" style="flex:0 1 320px;margin-left:auto"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" id="p-q" placeholder="Search projects" aria-label="Search projects"></label>
+        </div>
+        <p class="small" id="p-empty" hidden>No projects match “<span id="p-term"></span>”.</p>
+        <div class="pgrid" id="p-grid">
+          <a class="pcard" href="#project"><div><h3>Client Intake</h3><p class="small">Engagement letters for every new matter</p></div>
+            <div class="pstats"><div><b>41</b><span>Sent</span></div><div><b>33</b><span>Signed</span></div><div><b class="warm">6</b><span>Pending</span></div></div>
+            <div class="pmeta"><span>3 documents</span><span class="go">Open →</span></div></a>
+          <a class="pcard" href="#project"><div><h3>Immigration</h3><p class="small">Petition retainers and consent forms</p></div>
+            <div class="pstats"><div><b>14</b><span>Sent</span></div><div><b>11</b><span>Signed</span></div><div><b class="warm">3</b><span>Pending</span></div></div>
+            <div class="pmeta"><span>5 documents</span><span class="go">Open →</span></div></a>
+          <a class="pcard" href="#project-read"><div><h3>Finance</h3><p class="small">Vendor onboarding</p></div>
+            <div class="pstats"><div><b>4</b><span>Sent</span></div><div><b>4</b><span>Signed</span></div><div><b>0</b><span>Pending</span></div></div>
+            <div class="pmeta"><span>2 documents</span><span class="go">Open →</span></div></a>
+          <a class="pcard" href="#project-read"><div><h3>HR</h3><p class="small">Offer letters and NDAs</p></div>
+            <div class="pstats"><div><b>2</b><span>Sent</span></div><div><b>0</b><span>Signed</span></div><div><b>0</b><span>Pending</span></div></div>
+            <div class="pmeta"><span>4 documents</span><span class="go">Open →</span></div></a>
+          <a class="pcard add" href="#project-new"><span class="plus">+</span><span>New project</span></a>
+        </div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<section data-view="project" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div class="headrow">
+        <div style="display:flex;flex-direction:column;gap:14px"><a href="#projects" class="cap">← Projects</a><h1 class="h1">Client Intake</h1><p class="sub">Engagement letters for every new matter.</p></div>
+        <div class="actions"><a class="link" href="#bulk">Bulk send · CSV</a><a class="btn" href="#send">New envelope →</a></div>
+      </div>
+      <div class="grid-metrics">
+        <div><span class="metric">41</span><p class="eyebrow" style="margin-top:10px">Sent</p></div>
+        <div><span class="metric">33</span><p class="eyebrow" style="margin-top:10px">Completed</p></div>
+        <div><span class="metric">6</span><p class="eyebrow" style="margin-top:10px">Pending</p></div>
+        <div><span class="metric">2</span><p class="eyebrow" style="margin-top:10px">Declined · expired</p></div>
+      </div>
+      <div class="tabs"><a href="#project" class="on">Envelopes</a><a href="#documents">Documents · 3</a><a href="#project-config">Project settings</a></div>
+      <div class="section" style="gap:12px">
+        <div class="fbar">
+          <label class="fsearch"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" id="f-q" placeholder="Search matter or recipient" aria-label="Search matter or recipient"></label>
+          <button type="button" class="fbtn" id="f-toggle" aria-expanded="false" aria-controls="f-panel"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>Filter<span class="n" id="f-n"></span></button>
+          <label class="fsort"><span class="eyebrow" style="letter-spacing:.3em">Sort</span><select id="f-sort" aria-label="Sort envelopes">
+            <option value="sent-desc">Newest sent</option><option value="sent-asc">Oldest sent</option><option value="remind">Next reminder</option><option value="status">Status</option><option value="matter">Matter A–Z</option>
+          </select></label>
+        </div>
+        <div class="fpanel" id="f-panel" hidden>
+          <div class="fgroup" role="group" aria-labelledby="fg-status"><p class="eyebrow" id="fg-status">Status</p>
+            <label class="fopt"><input type="checkbox" value="sent" data-f="status"><span class="st sent" aria-hidden="true"><i></i></span>Sent</label>
+            <label class="fopt"><input type="checkbox" value="viewed" data-f="status"><span class="st viewed" aria-hidden="true"><i></i></span>Viewed</label>
+            <label class="fopt"><input type="checkbox" value="signed" data-f="status"><span class="st signed" aria-hidden="true"><i></i></span>Signed · waiting on firm</label>
+            <label class="fopt"><input type="checkbox" value="completed" data-f="status"><span class="st completed" aria-hidden="true"><i></i></span>Completed</label>
+            <label class="fopt"><input type="checkbox" value="declined" data-f="status"><span class="st declined" aria-hidden="true"><i></i></span>Declined</label>
+            <label class="fopt"><input type="checkbox" value="expired" data-f="status"><span class="st expired" aria-hidden="true"><i></i></span>Expired</label>
+          </div>
+          <div class="fgroup" role="group" aria-labelledby="fg-sent"><p class="eyebrow" id="fg-sent">Sent between</p>
+            <input type="hidden" id="f-from"><input type="hidden" id="f-to">
+            <div class="dp" id="f-range" data-from="f-from" data-to="f-to"></div>
+            <div class="fpresets"><button type="button" class="fchip" data-range="7">Last 7 days</button><button type="button" class="fchip" data-range="30">Last 30 days</button></div>
+          </div>
+          <div class="fgroup" role="group" aria-labelledby="fg-doc"><p class="eyebrow" id="fg-doc">Document</p>
+            <select id="f-doc" aria-labelledby="fg-doc"><option value="">Any document</option><option>MIND client agreement</option><option>Engagement letter</option><option>Fee schedule</option></select>
+          </div>
+          <div class="fgroup" role="radiogroup" aria-labelledby="fg-wait"><p class="eyebrow" id="fg-wait">Waiting on</p>
+            <label class="fopt"><input type="radio" name="f-wait" value="" checked>Anyone</label>
+            <label class="fopt"><input type="radio" name="f-wait" value="client">A client</label>
+            <label class="fopt"><input type="radio" name="f-wait" value="firm">The firm</label>
+          </div>
+          <div class="fpanel-foot"><button type="button" class="link" id="f-reset">Reset</button><button type="button" class="btn" id="f-done" style="min-height:38px">Done</button></div>
+        </div>
+        <div class="fchips" id="f-chips"></div>
+      </div>
+      <div class="tbl-box"><table style="min-width:820px">
+        <thead><tr><th>Matter</th><th>Recipients</th><th>Status</th><th>Next reminder</th><th style="text-align:right">Sent</th></tr></thead>
+        <tbody id="env-rows">
+          <tr class="click" data-href="#envelope" data-status="signed" data-sent="2026-11-06" data-remind="" data-wait="firm"><td><b>Chen v. Northwind</b><div class="mono small">MIND client agreement · v2</div></td><td>Maya Chen, Leo Chen</td><td><span class="st signed"><i></i>Signed</span><div class="small">Awaiting countersign · R. Hale</div></td><td class="mono small">—</td><td class="mono small" style="text-align:right">Nov 06</td></tr>
+          <tr class="click" data-href="#envelope" data-status="viewed" data-sent="2026-11-05" data-remind="6" data-wait="client"><td><b>Okafor estate</b><div class="mono small">Engagement letter · Fee schedule</div></td><td>Ada Okafor</td><td><span class="st viewed"><i></i>Viewed</span><div class="small">Read to the end, not signed</div></td><td class="mono small">in 6 h</td><td class="mono small" style="text-align:right">Nov 05</td></tr>
+          <tr class="click" data-href="#envelope" data-status="sent" data-sent="2026-11-05" data-remind="19" data-wait="client"><td><b>Ruiz · visa petition</b><div class="mono small">Engagement letter</div></td><td>Daniel Ruiz, Marta Ruiz (guarantor)</td><td><span class="st sent"><i></i>Sent</span><div class="small">0 of 2 signed</div></td><td class="mono small">in 19 h</td><td class="mono small" style="text-align:right">Nov 05</td></tr>
+          <tr class="click" data-href="#envelope" data-status="completed" data-sent="2026-11-03" data-remind="" data-wait=""><td><b>Patel holdings</b><div class="mono small">MIND client agreement · v2</div></td><td>Priya Patel</td><td><span class="st completed"><i></i>Completed</span><div class="small mono">sha256 9f2c…e41a</div></td><td class="mono small">—</td><td class="mono small" style="text-align:right">Nov 03</td></tr>
+          <tr class="click" data-href="#envelope" data-status="declined" data-sent="2026-11-02" data-remind="" data-wait=""><td><b>Lindqvist</b><div class="mono small">Engagement letter</div></td><td>Erik Lindqvist</td><td><span class="st declined"><i></i>Declined</span><div class="small">“Fee too high” · Nov 04</div></td><td class="mono small">—</td><td class="mono small" style="text-align:right">Nov 02</td></tr>
+          <tr class="click" data-href="#envelope" data-status="expired" data-sent="2026-10-21" data-remind="" data-wait=""><td><b>Moreau</b><div class="mono small">Engagement letter</div></td><td>Claire Moreau</td><td><span class="st expired"><i></i>Expired</span><div class="small">After 5 reminders</div></td><td class="mono small">—</td><td class="mono small" style="text-align:right">Oct 21</td></tr>
+        </tbody></table></div>
+    </main>
+  </div>
+</section>
+
+<section data-view="project-read" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div style="display:flex;flex-direction:column;gap:14px"><a href="#projects" class="cap">← Projects</a><h1 class="h1">Finance</h1><p class="sub">Vendor onboarding.</p></div>
+      <div class="grid-metrics">
+        <div><span class="metric">4</span><p class="eyebrow" style="margin-top:10px">Sent</p></div>
+        <div><span class="metric">4</span><p class="eyebrow" style="margin-top:10px">Signed</p></div>
+        <div><span class="metric">0</span><p class="eyebrow" style="margin-top:10px">Pending</p></div>
+      </div>
+      <div class="section"><p class="eyebrow">Documents</p>
+        <div class="tbl-box"><table style="min-width:520px"><thead><tr><th>Document</th><th>Version</th><th>Approved</th></tr></thead><tbody>
+          <tr><td><b>Vendor onboarding form</b></td><td class="mono">v3</td><td class="mono small">Oct 12</td></tr>
+          <tr><td><b>Mutual NDA</b></td><td class="mono">v1</td><td class="mono small">Sep 30</td></tr>
+        </tbody></table></div></div>
+      <div class="notice"><p class="small">Read access shows documents and counts only. Recipients, values and downloads need read/write. Ask a workspace admin for access.</p></div>
+    </main>
+  </div>
+</section>
+
+<section data-view="project-new" hidden>
+  <div class="shell wrap">
+    <main class="main"><form class="section" data-go="project" data-toast="Project created" style="gap:36px">
+      <div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">New project</p><h1 class="h1">A folder for one department.</h1></div>
+      <div class="blocks">
+        <div class="block"><div><p class="eyebrow">About</p></div><div class="fields">
+          <label class="field"><span>Name</span><input id="np-name" value="Litigation"></label>
+          <label class="field" style="grid-column:1/-1"><span>Description</span><input id="np-desc" value="Contingency agreements for new plaintiffs"></label></div></div>
+        <div class="block"><div><p class="eyebrow">Notifications</p><p class="small" style="margin-top:8px">Told when everyone has signed, on decline and on expiry.</p></div><div class="fields">
+          <label class="field" style="grid-column:1/-1"><span>Point of contact emails</span><input id="np-poc" value="litigation@haleward.example"></label></div></div>
+        <div class="block"><div><p class="eyebrow">Timing</p></div><div class="fields">
+          <label class="field"><span>Remind every</span><select id="np-int"><option>24 hours</option><option>48 hours</option><option>72 hours</option></select></label>
+          <label class="field"><span>Max reminders</span><input id="np-max" type="number" value="5"></label>
+          <label class="field"><span>Expires after</span><select id="np-exp"><option>14 days</option><option>30 days</option></select></label></div></div>
+        <div class="block"><div><p class="eyebrow">Countersigners</p><p class="small" style="margin-top:8px">Sign after every client has signed.</p></div><div style="display:flex;flex-wrap:wrap;gap:10px"><span class="chip">Rosa Hale ×</span><span class="chip">+ Add</span></div></div>
+        <div class="block"><div><p class="eyebrow">Signer checks</p></div><div style="display:flex;flex-direction:column;gap:16px">
+          <label class="check"><input type="checkbox" checked disabled>Email one-time code (always on)</label>
+          <label class="check"><input type="checkbox" id="np-code">Firm access code, shared by phone</label>
+          <label class="check"><input type="checkbox" id="np-id">Photo ID check (Stripe Identity)</label></div></div>
+      </div>
+      <div class="actions"><button class="btn" type="submit">Create project →</button><a class="link" href="#projects">Cancel</a></div>
+    </form></main>
+  </div>
+</section>
+
+<section data-view="project-config" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Client Intake</p><h1 class="h1">Project settings</h1></div>
+      <div class="tabs"><a href="#project">Envelopes</a><a href="#documents">Documents · 3</a><a href="#project-config" class="on">Project settings</a></div>
+      <div class="blocks">
+        <div class="block"><div><p class="eyebrow">Access</p><p class="small" style="margin-top:8px">Everyone in the workspace can read. Grant read/write here.</p></div>
+          <div class="tbl-box"><table style="min-width:420px"><thead><tr><th>Member</th><th>Access</th></tr></thead><tbody>
+            <tr><td><b>Rosa Hale</b><div class="small">Workspace admin</div></td><td>Read/write (all projects)</td></tr>
+            <tr><td><b>Jordan Ward</b></td><td><select aria-label="Jordan Ward access"><option>Read/write</option><option>Read</option></select></td></tr>
+            <tr><td><b>Sam Iqbal</b></td><td><select aria-label="Sam Iqbal access"><option>Read</option><option>Read/write</option></select></td></tr>
+          </tbody></table></div></div>
+        <div class="block"><div><p class="eyebrow">Timing</p></div><div class="fields">
+          <label class="field"><span>Remind every</span><select id="pc-int"><option>24 hours</option></select></label>
+          <label class="field"><span>Max reminders</span><input id="pc-max" type="number" value="5"></label>
+          <label class="field"><span>Expires after</span><select id="pc-exp"><option>14 days</option></select></label></div></div>
+        <div class="block"><div><p class="eyebrow">Countersigners</p></div><div style="display:flex;flex-wrap:wrap;gap:10px"><span class="chip">Rosa Hale · firm</span><span class="chip">+ Add</span></div></div>
+      </div>
+      <div class="actions"><button class="btn" data-toast="Settings saved">Save settings</button></div>
+    </main>
+  </div>
+</section>
+
+<section data-view="documents" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div class="headrow"><div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Client Intake</p><h1 class="h1">Documents</h1></div><div class="actions"><a class="btn" href="#upload">Upload document →</a></div></div>
+      <div class="tabs"><a href="#project">Envelopes</a><a href="#documents" class="on">Documents · 3</a><a href="#project-config">Project settings</a></div>
+      <div class="tbl-box"><table style="min-width:760px">
+        <thead><tr><th>Document</th><th>Version</th><th>Roles</th><th>Status</th><th>Detection</th></tr></thead>
+        <tbody>
+          <tr class="click" data-href="#review"><td><b>MIND client agreement</b><div class="mono small">PDF · 7 pages · sha256 3e7a…90bf</div></td><td class="mono">v2</td><td>Client 1, Client 2, Firm</td><td><span class="st sent"><i></i>Needs review</span></td><td class="mono small">14 fields · 1 unsure</td></tr>
+          <tr class="click" data-href="#review"><td><b>Engagement letter</b><div class="mono small">DOCX → PDF · 4 pages</div></td><td class="mono">v5</td><td>Client, Firm</td><td><span class="st completed"><i></i>Approved</span></td><td class="mono small">F1 0.91 vs approved</td></tr>
+          <tr class="click" data-href="#review"><td><b>Fee schedule</b><div class="mono small">PDF · 2 pages</div></td><td class="mono">v1</td><td>Client</td><td><span class="st completed"><i></i>Approved</span></td><td class="mono small">F1 0.96 vs approved</td></tr>
+          <tr><td><b>Scanned retainer (2019)</b><div class="mono small">PDF · 3 pages · image only</div></td><td class="mono">v1</td><td>—</td><td><span class="st expired"><i></i>Needs OCR</span></td><td class="small">No text layer found</td></tr>
+        </tbody></table></div>
+    </main>
+  </div>
+</section>
+
+<section data-view="upload" hidden>
+  <div class="shell wrap">
+    <main class="main"><form class="section" data-go="detecting" style="gap:32px">
+      <div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Client Intake · new document</p><h1 class="h1">Upload an agreement.</h1><p class="sub">We find the fields. You decide.</p></div>
+      <label class="drop" for="up-file"><span class="serif" style="font-size:28px">Drop a PDF or Word file</span><span class="small">or click to choose · up to 50 MB · any length</span><input id="up-file" type="file" accept=".pdf,.docx" style="position:absolute;opacity:0;width:1px;height:1px"></label>
+      <div class="fields">
+        <label class="field"><span>Name</span><input id="up-name" value="MIND client agreement"></label>
+        <label class="field" style="grid-column:1/-1"><span>Description for the detector (optional)</span><textarea id="up-desc">Two clients may sign. The firm countersigns. Fee is a contingency percentage set per matter.</textarea></label>
+      </div>
+      <div class="actions"><button class="btn" type="submit">Upload and detect →</button><a class="link" href="#documents">Cancel</a></div>
+    </form></main>
+  </div>
+</section>
+
+<section data-view="detecting" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">MIND client agreement · v2</p><h1 class="h1">Reading the document.</h1><p class="sub">About a minute for twenty pages.</p></div>
+      <ol class="timeline" aria-label="Detection progress">
+        <li><span class="mono small">done</span><span>Converted and hashed · 7 pages · sha256 3e7a…90bf</span></li>
+        <li><span class="mono small">done</span><span>Text found on every page</span></li>
+        <li><span class="mono small">done</span><span>Rules: 11 candidates, 3 signature blocks, parties “Client” and “Firm”</span></li>
+        <li><span class="mono small" style="color:var(--ink)">running</span><span style="color:var(--ink)">AI pass · whole document · 9.2k tokens</span></li>
+        <li><span class="mono small">next</span><span>Merge and place fields</span></li>
+      </ol>
+      <div class="actions"><a class="btn" href="#review">Open review →</a><span class="small">Prototype: skips the wait.</span></div>
+    </main>
+  </div>
+</section>
+
+<section data-view="review" hidden>
+  <div class="rv-top wrap"><div class="rv-top-in">
+    <div class="rv-title"><a href="#documents" class="cap">← Documents</a><h1 class="h1" style="font-size:clamp(30px,3.4vw,42px)">MIND client agreement</h1><p class="small">Version 2 · 7 pages · 11 fields found for 3 people</p></div>
+    <div class="actions"><span class="rv-prog" id="rv-prog"><b>10 of 11</b> fields look right</span><button class="btn" data-go="documents" data-toast="Version 2 approved · metrics logged">Approve version</button></div>
+  </div></div>
+  <div class="rv wrap">
+    <div class="rv-doc">
+      <div class="rv-tools">
+        <div class="rv-add"><button type="button" class="btn btn-o" id="rv-add-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="rv-add-menu">+ Add field</button>
+          <ul class="dd-list" id="rv-add-menu" role="menu" hidden>
+            <li role="none"><button type="button" role="menuitem" class="dd-opt" data-add="text">Text</button></li>
+            <li role="none"><button type="button" role="menuitem" class="dd-opt" data-add="signature">Signature</button></li>
+            <li role="none"><button type="button" role="menuitem" class="dd-opt" data-add="initials">Initials</button></li>
+            <li role="none"><button type="button" role="menuitem" class="dd-opt" data-add="date">Date</button></li>
+            <li role="none"><button type="button" role="menuitem" class="dd-opt" data-add="checkbox">Checkbox</button></li>
+          </ul></div>
+        <div class="rv-pages"><button type="button" class="dp-nav" aria-label="Previous page" data-toast="Prototype: page 6">‹</button><span class="small">Page 7 of 7</span><button type="button" class="dp-nav" aria-label="Next page" disabled>›</button></div>
+      </div>
+      <div class="paper" id="review-paper">
+        <div class="t">CLIENT AGREEMENT</div>
+        <p>This Client Agreement is entered into as of ______________ (the “Effective Date”) between Hale &amp; Ward LLP (the “Firm”) and the client(s) named below (each, a “Client”).</p>
+        <p>1. Scope. The Firm will represent Client in the matter described as ______________________________.</p>
+        <p>2. Fees. Client agrees to a contingency fee of _____ percent of any gross recovery.</p>
+        <p>3. Costs. Costs advanced by the Firm are reimbursed from the recovery before the fee is computed.</p>
+        <p>4. Electronic signatures. The parties agree this Agreement may be signed electronically.</p>
+        <div style="position:absolute;left:10%;right:10%;top:41.5%;display:grid;grid-template-columns:1fr 1fr;gap:20px;font:500 9px var(--sans);letter-spacing:.14em"><span>CLIENT 1</span><span style="padding-left:7%">CLIENT 2</span></div>
+        <div style="position:absolute;left:10%;top:73.4%;font:500 9px var(--sans);letter-spacing:.14em">FIRM</div>
+      </div>
+    </div>
+    <aside class="rv-side" aria-label="Review">
+      <div class="rv-card" id="rv-overview">
+        <div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Who signs</p><ul class="rv-roles"><li><i style="--c:#8c8c8c"></i>Client 1<span>3 fields</span></li><li><i style="--c:#4a4a4a"></i>Client 2<span>3 fields</span></li><li><i style="--c:#111"></i>Firm · countersigns<span>2 fields</span></li><li><i style="--c:#bbb"></i>Filled in by you<span>3 fields</span></li></ul></div>
+        <div class="rv-attn" id="rv-attn"><b>1 field needs a look</b><p class="small">Client 2's date was found by one detector only. Check that it sits on the right line.</p><button type="button" class="btn btn-o" id="rv-show">Show me</button></div>
+        <p class="rv-ok" id="rv-allok" hidden>Every field has been checked.</p>
+        <p class="small">Click any field on the page to change it. When everything looks right, approve the version.</p>
+        <details class="rv-disc"><summary>How fields are drawn</summary><div class="in"><p class="small">A solid box holds information. A dashed box is a signature or initials. A dotted box is a field we're unsure about.</p></div></details>
+      </div>
+      <div class="rv-card" id="rv-field" hidden>
+        <div class="rv-fhead"><div style="display:flex;flex-direction:column;gap:6px"><p class="eyebrow" id="sel-who">Client 2</p><h2 id="sel-name">Signature</h2></div><button type="button" class="link" id="rv-done">Done</button></div>
+        <p class="rv-warn" id="rv-warn" hidden>Found by one detector only. Check its position on the page, then confirm it.</p>
+        <label class="field"><span>Label shown to the signer</span><input id="sel-label" value="Client 2 signature"></label>
+        <div class="fields" style="grid-template-columns:1fr 1fr">
+          <label class="field"><span>Type</span><select id="sel-type"><option>Signature</option><option>Initials</option><option>Text</option><option>Date</option><option>Percent</option></select></label>
+          <label class="field"><span>Who fills it</span><select id="sel-role"><option value="client_1">Client 1</option><option value="client_2" selected>Client 2</option><option value="firm">Firm</option><option value="agreement">You, when sending</option></select></label>
+        </div>
+        <label class="check"><input type="checkbox" id="sel-req" checked>Required</label>
+        <details class="rv-disc"><summary>More</summary><div class="in">
+          <label class="field"><span>Filled</span><select id="sel-owner"><option>By the signer</option><option>By the sender</option><option>Automatically</option></select></label>
+          <p class="small">Field key <span class="mono" id="sel-key" style="color:var(--t75)">client_2.signature</span></p>
+          <p class="small" id="sel-src">Found by AI 0.93 and rules 0.81 · “CLIENT 2” block</p>
+        </div></details>
+        <div class="rv-factions"><button type="button" class="btn" id="rv-confirm" hidden>Looks right</button><button type="button" class="link" id="rv-delete">Delete field</button></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section data-view="send" hidden>
+  <div class="shell wrap">
+    <main class="main"><form class="section" data-go="envelope" data-toast="Sent to 2 signers" style="gap:36px">
+      <div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Client Intake · new envelope</p><h1 class="h1">Who signs this matter?</h1><p class="sub">The form below is built from the documents you pick.</p></div>
+      <div class="section"><p class="eyebrow">Documents</p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <label class="check"><input type="checkbox" id="sd-d1" checked>MIND client agreement · v2 <span class="mono small">client_1, client_2, firm</span></label>
+          <label class="check"><input type="checkbox" id="sd-d2" checked>Fee schedule · v1 <span class="mono small">client → mapped to client_1</span></label>
+          <label class="check"><input type="checkbox" id="sd-d3">Engagement letter · v5</label>
+        </div>
+      </div>
+      <div class="blocks" id="send-blocks">
+        <div class="block"><div><div style="display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--role1)"></span><p class="eyebrow" style="color:var(--ink)">Client 1</p></div><p class="small" style="margin-top:8px">Signs both documents.</p></div><div class="fields">
+          <label class="field"><span>Email</span><input id="sd-c1e" type="email" value="maya.chen@example.com"></label>
+          <label class="field"><span>First name</span><input id="sd-c1f" value="Maya"></label>
+          <label class="field"><span>Last name</span><input id="sd-c1l" value="Chen"></label></div></div>
+        <div class="block"><div><div style="display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--role2)"></span><p class="eyebrow" style="color:var(--ink)">Client 2</p></div><p class="small" style="margin-top:8px">Agreement only.</p></div><div class="fields">
+          <label class="field"><span>Email</span><input id="sd-c2e" type="email" value="leo.chen@example.com"></label>
+          <label class="field"><span>Full name</span><input id="sd-c2n" value="Leo Chen"></label></div></div>
+        <div class="block"><div><p class="eyebrow" style="color:var(--ink)">Agreement</p><p class="small" style="margin-top:8px">Shown read-only to signers.</p></div><div class="fields">
+          <label class="field"><span>Matter description</span><input id="sd-m" value="Chen v. Northwind Logistics"></label>
+          <label class="field"><span>Contingency fee %</span><input id="sd-fee" value="33.3"></label>
+          <label class="field"><span>Effective date</span><input id="sd-date" type="date" value="2026-11-06"></label></div></div>
+        <div class="block"><div><div style="display:flex;gap:10px;align-items:center"><span class="dot" style="background:#d9d9d9"></span><p class="eyebrow" style="color:var(--ink)">Firm · countersigner</p></div><p class="small" style="margin-top:8px">Signs after both clients.</p></div><div class="fields">
+          <label class="field"><span>Countersigner</span><select id="sd-cs"><option>Rosa Hale</option><option>Jordan Ward</option></select></label></div></div>
+      </div>
+      <div id="extra-signers" class="blocks" style="border-top:0"></div>
+      <button type="button" class="link" id="add-signer" style="align-self:flex-start">+ Add another signer (signs an added page)</button>
+      <div class="blocks"><div class="block"><div><p class="eyebrow">This envelope</p></div><div class="fields">
+        <label class="field"><span>Remind every</span><select id="sd-int"><option>24 hours</option><option>48 hours</option></select></label>
+        <label class="field"><span>Expires</span><select id="sd-exp"><option>in 14 days</option><option>in 30 days</option></select></label></div></div></div>
+      <div class="actions"><button class="btn" type="submit">Send for signature →</button><button type="button" class="link" data-toast="Draft saved">Save draft</button></div>
+    </form></main>
+  </div>
+</section>
+
+<section data-view="bulk" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Client Intake · bulk send</p><h1 class="h1">One row, one envelope.</h1><p class="sub">Columns come from the documents you pick.</p></div>
+      <div class="two">
+        <div class="section"><p class="eyebrow">1 · Template</p><p class="small">MIND client agreement v2 + Fee schedule v1</p>
+          <div class="bulk-chips" style="display:flex;flex-wrap:wrap;gap:8px"><span class="chip">client_1.email</span><span class="chip">client_1.first_name</span><span class="chip">client_1.last_name</span><span class="chip">client_2.email</span><span class="chip">client_2.full_name</span><span class="chip">agreement.matter</span><span class="chip">agreement.fee_percent</span></div>
+          <div class="actions"><button class="btn btn-o" data-toast="Prototype: template download">CSV template</button><button class="btn btn-o" data-toast="Prototype: template download">XLSX template</button></div></div>
+        <div class="section"><p class="eyebrow">2 · Upload</p><label class="drop" for="bk-file" style="padding:32px 20px"><span class="serif" style="font-size:24px">intake-november.csv</span><span class="small">40 rows · checked just now</span><input id="bk-file" type="file" accept=".csv,.xlsx" style="position:absolute;opacity:0;width:1px;height:1px"></label></div>
+      </div>
+      <div class="section"><div class="headrow"><p class="eyebrow">3 · Preview · 38 ready · 2 need fixes</p></div>
+        <div class="tbl-box"><table style="min-width:760px"><thead><tr><th>Row</th><th>Client 1</th><th>Client 2</th><th>Matter</th><th>Fee %</th><th>Check</th></tr></thead><tbody>
+          <tr><td class="mono">1</td><td>Ana Lopez · ana@example.com</td><td>—</td><td>Lopez v. Arcadia</td><td class="mono">33.3</td><td class="small">Ready</td></tr>
+          <tr><td class="mono">2</td><td>Ben Ortiz · ben@example.com</td><td>Cara Ortiz · cara@example.com</td><td>Ortiz estate</td><td class="mono">25</td><td class="small">Ready</td></tr>
+          <tr><td class="mono">3</td><td>Dev Rao · <span style="color:var(--decline-t)">dev@example</span></td><td>—</td><td>Rao v. Linden</td><td class="mono">33.3</td><td class="small" style="color:var(--decline-t)">Email is not valid</td></tr>
+          <tr><td class="mono">4</td><td>Eli Park · eli@example.com</td><td>—</td><td>Park v. Halsey</td><td class="mono" style="color:var(--decline-t)">—</td><td class="small" style="color:var(--decline-t)">Fee % is required</td></tr>
+          <tr><td class="mono">5</td><td>Fay Ng · fay@example.com</td><td>—</td><td>Ng v. Corwin</td><td class="mono">30</td><td class="small">Ready</td></tr>
+        </tbody></table></div></div>
+      <div class="actions"><button class="btn" data-go="project" data-toast="38 envelopes queued · sending ~1 per 8 s">Send 38 envelopes →</button><span class="small">Rows with problems are skipped. Fix and upload again to send them.</span></div>
+    </main>
+  </div>
+</section>
+
+<section data-view="envelope" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div class="headrow">
+        <div style="display:flex;flex-direction:column;gap:14px"><a href="#project" class="cap">← Client Intake</a><h1 class="h1">Chen v. Northwind</h1><div style="display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center"><span class="st signed"><i></i>Signed · waiting on firm</span><span class="mono small">env_01HZX4 · expires Nov 20</span></div></div>
+        <div class="actions"><button class="link" data-toast="Reminder sent to Rosa Hale">Remind now</button><button class="btn btn-x" data-toast="Prototype: cancel needs confirmation">Cancel envelope</button></div>
+      </div>
+      <div class="section"><p class="eyebrow">Recipients</p>
+        <div class="tbl-box"><table style="min-width:760px"><thead><tr><th>Person</th><th>Role</th><th>Status</th><th>Verified by</th><th></th></tr></thead><tbody>
+          <tr><td><b>Maya Chen</b><div class="small">maya.chen@example.com</div></td><td><span style="display:inline-flex;gap:8px;align-items:center"><span class="dot" style="background:var(--role1)"></span>Client 1</span></td><td><span class="st signed"><i></i>Signed</span><div class="mono small">Nov 06 · 10:14 PST</div></td><td class="small">Email code</td><td><button class="link" data-toast="Link copied">Copy link</button></td></tr>
+          <tr><td><b>Leo Chen</b><div class="small">leo.chen@example.com</div></td><td><span style="display:inline-flex;gap:8px;align-items:center"><span class="dot" style="background:var(--role2)"></span>Client 2</span></td><td><span class="st signed"><i></i>Signed</span><div class="mono small">Nov 06 · 13:41 PST</div></td><td class="small">Email code</td><td><button class="link" data-toast="Link copied">Copy link</button></td></tr>
+          <tr><td><b>Rosa Hale</b><div class="small">Hale &amp; Ward LLP</div></td><td><span style="display:inline-flex;gap:8px;align-items:center"><span class="dot" style="background:#d9d9d9"></span>Firm</span></td><td><span class="st sent"><i></i>Sent</span><div class="small">Next reminder in 21 h</div></td><td class="small">—</td><td><a class="link" href="#countersign">Sign now</a></td></tr>
+        </tbody></table></div></div>
+      <div class="notice warn"><div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow" style="color:var(--decline-t)">Email not delivered</span><span class="small">Receipt to leo.chen@example.com failed after 5 tries (mailbox full).</span></div><button class="btn btn-o" data-toast="Email queued again">Retry</button></div>
+      <div class="two">
+        <div class="section"><p class="eyebrow">Documents</p>
+          <div class="blocks"><div style="padding:16px 0;border-bottom:1px solid var(--r15);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><span>MIND client agreement · v2</span><span class="mono small">7 pp</span></div><div style="padding:16px 0;border-bottom:1px solid var(--r15);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><span>Fee schedule · v1</span><span class="mono small">2 pp</span></div></div>
+          <p class="small">Final PDF and certificate are available once the firm signs.</p></div>
+        <div class="section"><p class="eyebrow">Timeline</p>
+          <ol class="timeline">
+            <li><span class="mono small">Nov 06 13:41</span><span>Leo Chen signed · 73.12.x.x · Safari iOS</span></li>
+            <li><span class="mono small">Nov 06 13:38</span><span>Leo Chen passed email code</span></li>
+            <li><span class="mono small">Nov 06 10:14</span><span>Maya Chen signed · Chrome macOS</span></li>
+            <li><span class="mono small">Nov 06 09:02</span><span>Sent to 2 signers by Hemanth Puppala</span></li>
+          </ol></div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<section data-view="countersign" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Chen v. Northwind · both clients have signed</p><h1 class="h1">Review and sign.</h1><p class="sub">Your saved signature goes on the Firm lines.</p></div>
+      <div class="two">
+        <div class="docwrap"><div class="paper">
+          <div class="t">CLIENT AGREEMENT</div>
+          <p>This Client Agreement is entered into as of November 6, 2026 between Hale &amp; Ward LLP and the clients named below.</p>
+          <p>2. Fees. Client agrees to a contingency fee of 33.3 percent of any gross recovery.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:14%"><div style="font:italic 400 22px var(--serif);border-bottom:1px solid #999">Maya Chen</div><div style="font:italic 400 22px var(--serif);border-bottom:1px solid #999">Leo Chen</div></div>
+          <div style="margin-top:22%;width:46%;height:12%;border:1.5px dashed var(--firm);background:var(--firmf);display:flex;align-items:center;padding:0 8px;font:italic 400 22px var(--serif)">Rosa Hale</div>
+        </div></div>
+        <div class="section" style="gap:24px">
+          <div class="section" style="gap:10px"><p class="eyebrow">Your signature</p><div class="typed" style="height:110px;font-size:38px">Rosa Hale</div><a href="#members" class="small">Change saved signature</a></div>
+          <label class="check"><input type="checkbox" id="cs-ok">I am signing for Hale &amp; Ward LLP with intent to be bound.</label>
+          <button class="btn" id="cs-btn" disabled data-go="completed" data-toast="Envelope completed · copies sent">Sign and complete →</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<section data-view="completed" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div style="display:flex;flex-direction:column;gap:14px"><a href="#project" class="cap">← Client Intake</a><h1 class="h1">Chen v. Northwind</h1><span class="st completed"><i></i>Completed · Nov 06, 15:02 PST</span></div>
+      <div class="grid-metrics">
+        <div><span class="metric">3</span><p class="eyebrow" style="margin-top:10px">Signatures</p></div>
+        <div><span class="metric">9</span><p class="eyebrow" style="margin-top:10px">Pages incl. certificate</p></div>
+        <div><span class="metric">5</span><p class="eyebrow" style="margin-top:10px">Copies emailed</p></div>
+      </div>
+      <div class="section"><p class="eyebrow">Certificate of completion</p>
+        <div class="tbl-box"><table style="min-width:640px"><tbody>
+          <tr><td>Source SHA-256</td><td class="mono small">3e7a41c0…b2d590bf</td></tr>
+          <tr><td>Final SHA-256</td><td class="mono small">9f2c88e1…07a1e41a</td></tr>
+          <tr><td>Audit chain</td><td class="small">14 events · chain verified</td></tr>
+        </tbody></table></div></div>
+      <div class="actions"><button class="btn" data-toast="Prototype: download">Download signed PDF</button><a class="link" href="#audit">View audit log</a></div>
+    </main>
+  </div>
+</section>
+
+<section data-view="members" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div class="headrow"><div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Workspace</p><h1 class="h1">Members</h1></div></div>
+      <form class="fields" data-toast="Invitation sent to sam@haleward.example" style="align-items:end">
+        <label class="field"><span>Invite by email</span><input id="mb-email" type="email" value="sam@haleward.example"></label>
+        <label class="field"><span>Workspace access</span><select id="mb-acc"><option>Read</option><option>Read/write (admin)</option></select></label>
+        <button class="btn btn-o" type="submit">Send invite</button>
+      </form>
+      <div class="tbl-box"><table style="min-width:640px"><thead><tr><th>Member</th><th>Workspace</th><th>Read/write projects</th><th></th></tr></thead><tbody>
+        <tr><td><b>Hemanth Puppala</b><div class="small">Creator · cannot be removed</div></td><td>Read/write</td><td class="small">All</td><td></td></tr>
+        <tr><td><b>Rosa Hale</b></td><td>Read/write</td><td class="small">All</td><td><button class="link">Edit</button></td></tr>
+        <tr><td><b>Jordan Ward</b></td><td>Read</td><td class="small">Client Intake</td><td><button class="link">Edit</button></td></tr>
+        <tr><td><b>Sam Iqbal</b><div class="small">Invited · Nov 05</div></td><td>Read</td><td class="small">—</td><td><button class="link" data-toast="Invitation resent">Resend</button></td></tr>
+      </tbody></table></div>
+      <div class="section"><p class="eyebrow">Your saved signature</p><div class="typed" style="max-width:420px;height:100px;font-size:36px">Hemanth Puppala</div></div>
+    </main>
+  </div>
+</section>
+
+<section data-view="audit" hidden>
+  <div class="shell wrap">
+    <main class="main">
+      <div class="headrow"><div style="display:flex;flex-direction:column;gap:14px"><p class="eyebrow">Workspace · append-only</p><h1 class="h1">Audit log</h1></div><div class="actions"><button class="btn btn-o" data-toast="Chain verified · 1,204 events">Verify chain</button></div></div>
+      <div class="tbl-box"><table style="min-width:820px"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Object</th><th>Hash</th></tr></thead><tbody>
+        <tr><td class="mono small">Nov 06 15:02</td><td>Rosa Hale</td><td>envelope.completed</td><td class="small">Chen v. Northwind</td><td class="mono small">a91f…</td></tr>
+        <tr><td class="mono small">Nov 06 13:41</td><td>Leo Chen</td><td>recipient.signed</td><td class="small">Chen v. Northwind</td><td class="mono small">77c0…</td></tr>
+        <tr><td class="mono small">Nov 06 11:20</td><td>Hemanth Puppala</td><td>version.approved</td><td class="small">MIND client agreement v2</td><td class="mono small">5d2e…</td></tr>
+        <tr><td class="mono small">Nov 06 09:02</td><td>Hemanth Puppala</td><td>envelope.sent</td><td class="small">Chen v. Northwind</td><td class="mono small">0be4…</td></tr>
+        <tr><td class="mono small">Nov 05 17:45</td><td>System</td><td>reminder.sent</td><td class="small">Okafor estate</td><td class="mono small">c3a8…</td></tr>
+      </tbody></table></div>
+    </main>
+  </div>
+</section>
+
+<!-- ===================== SIGNER ===================== -->
+<header class="topbar" data-bar="signer" hidden><div class="in wrap" style="padding-block:16px">
+  <span class="logo" style="font-size:15px">SIGNORA</span><span class="cap" style="color:var(--t55);font-size:10px">For Hale &amp; Ward LLP</span>
+</div></header>
+
+<section data-view="sign-email" hidden>
+  <div class="wrap"><div class="signer">
+    <p class="eyebrow">What the client receives · email</p>
+    <div style="background:var(--paper);color:#1a1a1a;padding:36px 32px;display:flex;flex-direction:column;gap:18px">
+      <span style="font:500 13px var(--logo);letter-spacing:.16em">SIGNORA</span>
+      <span style="font:400 30px/1.15 var(--serif)">Hale &amp; Ward LLP asks you to sign two documents.</span>
+      <span style="font-size:15px;line-height:24px;color:#333">Hi Maya, please review and sign your client agreement for Chen v. Northwind. It takes about three minutes.</span>
+      <a href="#sign-otp" style="align-self:flex-start;background:#000;color:#fff;padding:16px 28px;font:500 11px var(--sans);letter-spacing:.35em;text-transform:uppercase">Review and sign</a>
+      <span style="font-size:12px;color:#555">This link is for you only. Expires Nov 20, 2026. Questions: intake@haleward.example</span>
+    </div>
+  </div></div>
+</section>
+
+<section data-view="sign-otp" hidden>
+  <div class="wrap"><form class="signer" data-go="sign-consent">
+    <p class="eyebrow">Step 1 of 3 · verify it's you</p>
+    <h1 class="h1">Enter your code.</h1>
+    <p class="body">We sent a 6-digit code to m•••@example.com. It works for 10 minutes.</p>
+    <div class="otp" role="group" aria-label="Six-digit code">
+      <input id="otp1" inputmode="numeric" maxlength="1" value="4" aria-label="Digit 1"><input id="otp2" inputmode="numeric" maxlength="1" value="8" aria-label="Digit 2"><input id="otp3" inputmode="numeric" maxlength="1" value="2" aria-label="Digit 3"><input id="otp4" inputmode="numeric" maxlength="1" value="9" aria-label="Digit 4"><input id="otp5" inputmode="numeric" maxlength="1" value="1" aria-label="Digit 5"><input id="otp6" inputmode="numeric" maxlength="1" value="7" aria-label="Digit 6">
+    </div>
+    <div class="actions"><button class="btn" type="submit">Continue →</button><button type="button" class="link" data-toast="New code sent">Send a new code</button></div>
+    <p class="small">Prototype: any code works.</p>
+  </form></div>
+</section>
+
+<section data-view="sign-consent" hidden>
+  <div class="wrap"><form class="signer" data-go="sign-doc">
+    <p class="eyebrow">Step 2 of 3 · electronic records</p>
+    <h1 class="h1">Before you read.</h1>
+    <div class="disclosure" tabindex="0">
+      <p>Hale &amp; Ward LLP wants to give you these documents and collect your signature electronically.</p>
+      <p><b style="color:var(--ink);font-weight:400">Paper copy.</b> You may ask for a paper copy at any time by writing to intake@haleward.example. There is no fee.</p>
+      <p><b style="color:var(--ink);font-weight:400">Withdrawing consent.</b> You can withdraw consent before signing by choosing Decline. Withdrawing does not affect anything you signed earlier.</p>
+      <p><b style="color:var(--ink);font-weight:400">What you need.</b> A current browser and an email address you can reach. You can download a PDF of everything you sign.</p>
+    </div>
+    <label class="check"><input type="checkbox" id="consent-ok">I agree to use electronic records and signatures.</label>
+    <div class="actions"><button class="btn" id="consent-btn" type="submit" disabled>Open documents →</button><a class="link" href="#sign-declined">Decline</a></div>
+  </form></div>
+</section>
+
+<section data-view="sign-doc" hidden>
+  <div class="wrap"><div class="signer" style="max-width:720px">
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:baseline"><p class="eyebrow">Step 3 of 3 · MIND client agreement · 1 of 2</p><span class="mono small" id="field-count">2 of 3 fields left</span></div>
+    <div class="docwrap" style="padding:20px 8px">
+      <div class="paper">
+        <div class="t">CLIENT AGREEMENT</div>
+        <p>This Client Agreement is entered into as of <b style="font-weight:400;background:rgba(0,0,0,.05);padding:0 4px">November 6, 2026</b> between Hale &amp; Ward LLP and the clients named below.</p>
+        <p>1. Scope. The Firm will represent Client in <b style="font-weight:400;background:rgba(0,0,0,.05);padding:0 4px">Chen v. Northwind Logistics</b>.</p>
+        <p>2. Fees. Contingency fee of <b style="font-weight:400;background:rgba(0,0,0,.05);padding:0 4px">33.3</b> percent of any gross recovery.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12%;font:500 9px var(--sans);letter-spacing:.14em"><span>CLIENT 1</span><span>CLIENT 2</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:3%">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button type="button" id="sig-slot" style="height:52px;border:1.5px dashed var(--role1);background:var(--role1f);font:italic 300 18px var(--serif);color:#333;text-align:left;padding:0 8px;cursor:pointer">Sign here</button>
+            <div style="height:22px;border:1.5px solid var(--role1);background:var(--role1f);font:400 10px var(--sans);padding:4px 6px;color:#333">Maya Chen</div>
+            <div style="height:22px;border:1.5px solid rgba(0,0,0,.2);font:400 10px var(--sans);padding:4px 6px;color:#555">Date · added when you sign</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;opacity:.55">
+            <div style="height:52px;border:1px solid #bbb"></div><div style="height:22px;border:1px solid #bbb;font:400 10px var(--sans);padding:4px 6px;color:#555">Leo Chen</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="section" id="sig-box" style="gap:14px">
+      <p class="eyebrow">Your signature</p>
+      <div class="mode" role="tablist"><button type="button" class="on" data-mode="draw">Draw</button><button type="button" data-mode="type">Type</button></div>
+      <canvas class="sigpad" id="sigpad" aria-label="Draw your signature"></canvas>
+      <div class="typed" id="typed" hidden>Maya Chen</div>
+      <div class="actions"><button type="button" class="link" id="sig-clear">Clear</button><label class="check" style="font-size:14px"><input type="checkbox" id="apply-all" checked>Apply to all my signature fields</label></div>
+    </div>
+    <div class="section" style="gap:18px;border-top:1px solid var(--r15);padding-top:28px">
+      <p class="eyebrow">Fee schedule · 2 of 2</p>
+      <p class="small">Read-only. Signed with the same signature.</p>
+    </div>
+    <div class="section" style="gap:18px;border-top:1px solid var(--r15);padding-top:28px">
+      <p class="body" style="font-size:15px">By selecting Sign and submit, I apply my electronic signature to these 2 documents and agree to be bound by them, the same as a handwritten signature.</p>
+      <div class="actions"><button class="btn" id="submit-sign" disabled data-go="sign-done">Sign and submit</button><a class="link" href="#sign-declined">Decline</a></div>
+      <p class="small" id="submit-hint">Draw or type your signature to continue.</p>
+    </div>
+  </div></div>
+</section>
+
+<section data-view="sign-done" hidden>
+  <div class="wrap"><div class="signer">
+    <p class="eyebrow">Signed</p>
+    <h1 class="h1">Thank you, Maya.</h1>
+    <p class="sub">Your signature is recorded.</p>
+    <div class="tbl-box"><table><tbody>
+      <tr><td>Signed at</td><td class="mono">Nov 6, 2026 · 10:14:22 PST (UTC−8)</td></tr>
+      <tr><td>Verified by</td><td>Email code to m•••@example.com</td></tr>
+      <tr><td>Documents</td><td>MIND client agreement · Fee schedule</td></tr>
+      <tr><td>Next</td><td>Leo Chen signs, then Hale &amp; Ward LLP countersigns. You get the completed copy by email.</td></tr>
+    </tbody></table></div>
+    <div class="actions"><button class="btn" data-toast="Prototype: download">Download my copy</button></div>
+  </div></div>
+</section>
+
+<section data-view="sign-declined" hidden>
+  <div class="wrap"><form class="signer" data-toast="Declined · Hale & Ward LLP has been told" data-go="sign-gone">
+    <p class="eyebrow">Decline</p>
+    <h1 class="h1">Tell the firm why.</h1>
+    <p class="body">Declining stops this request for everyone on it. Hale &amp; Ward LLP will see your reason.</p>
+    <label class="field"><span>Reason</span><textarea id="dec-reason">I'd like to discuss the fee before signing.</textarea></label>
+    <div class="actions"><button class="btn btn-x" type="submit">Decline to sign</button><a class="link" href="#sign-doc">Go back</a></div>
+  </form></div>
+</section>
+
+<section data-view="sign-gone" hidden>
+  <div class="wrap"><div class="signer">
+    <p class="eyebrow">Link closed</p>
+    <h1 class="h1">This request is no longer open.</h1>
+    <p class="body">It was declined, cancelled or has expired. Nothing more is needed from you. For questions, contact intake@haleward.example.</p>
+  </div></div>
+</section>
+
+<section data-view="sign-mobile" hidden>
+  <div class="wrap"><div class="msp">
+    <div class="msp-copy">
+      <p class="eyebrow">Signer · iPhone</p>
+      <h1 class="h1">Signing on a phone.</h1>
+      <p class="sub">Three steps, one thumb.</p>
+      <ol class="msp-steps" id="ms-jump">
+        <li><button type="button" data-ms-go="0" class="on"><span>01</span>Verify code</button></li>
+        <li><button type="button" data-ms-go="1"><span>02</span>Consent</button></li>
+        <li><button type="button" data-ms-go="2"><span>03</span>Review and sign</button></li>
+        <li><button type="button" data-ms-go="3"><span>04</span>Done</button></li>
+      </ol>
+      <p class="small">Tap through the phone, or jump to a step.</p>
+    </div>
+
+    <div class="phone" role="group" aria-label="iPhone preview of the signer flow">
+      <div class="phone-screen">
+        <div class="ms-status" aria-hidden="true"><span>9:41</span><span class="ms-island"></span><span class="ms-ind"><svg width="17" height="11" viewBox="0 0 17 11" fill="#fff"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="#fff" opacity=".5"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="#fff"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="#fff" opacity=".5"/></svg></span></div>
+        <header class="ms-head"><span class="logo" style="font-size:13px">SIGNORA</span><span class="ms-firm">Hale &amp; Ward LLP</span></header>
+        <div class="ms-prog" id="ms-prog" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+
+        <div class="ms-steps">
+          <div class="ms-step" data-step="0">
+            <div class="ms-body">
+              <p class="ms-k">Step 1 of 3</p>
+              <h2 class="ms-h">Enter your code.</h2>
+              <p class="ms-p">We sent 6 digits to m•••@example.com.</p>
+              <div class="ms-otp" role="group" aria-label="Six-digit code"><input inputmode="numeric" maxlength="1" value="4" aria-label="Digit 1"><input inputmode="numeric" maxlength="1" value="8" aria-label="Digit 2"><input inputmode="numeric" maxlength="1" value="2" aria-label="Digit 3"><input inputmode="numeric" maxlength="1" value="9" aria-label="Digit 4"><input inputmode="numeric" maxlength="1" value="1" aria-label="Digit 5"><input inputmode="numeric" maxlength="1" value="7" aria-label="Digit 6"></div>
+              <button type="button" class="ms-link" style="align-self:flex-start;padding-left:0" data-toast="New code sent">Send a new code</button>
+            </div>
+            <div class="ms-foot"><button type="button" class="ms-btn" data-ms-next>Continue</button></div>
+          </div>
+
+          <div class="ms-step" data-step="1" hidden>
+            <div class="ms-body">
+              <p class="ms-k">Step 2 of 3</p>
+              <h2 class="ms-h">Sign electronically?</h2>
+              <p class="ms-p">Hale &amp; Ward LLP will send your documents and collect your signature online. Paper copies are free on request.</p>
+              <details class="ms-det"><summary>Read the full disclosure</summary>
+                <p>You can ask for a paper copy at any time by writing to intake@haleward.example.</p>
+                <p>You can withdraw consent before signing by choosing Decline. It does not affect anything you signed earlier.</p>
+                <p>You need a current browser and an email address you can reach.</p>
+              </details>
+              <label class="ms-check"><input type="checkbox" id="ms-agree"><span>I agree to use electronic records and signatures.</span></label>
+            </div>
+            <div class="ms-foot"><button type="button" class="ms-btn" id="ms-agree-btn" data-ms-next disabled>Agree and continue</button><a class="ms-link" href="#sign-declined">Decline</a></div>
+          </div>
+
+          <div class="ms-step" data-step="2" hidden>
+            <div class="ms-body">
+              <p class="ms-k">Step 3 of 3 · 2 documents</p>
+              <h2 class="ms-h">Chen v. Northwind</h2>
+              <div class="ms-rows">
+                <div class="ms-row"><span>Contingency fee</span><span>33.3%</span></div>
+                <div class="ms-row"><span>Effective</span><span>Nov 6, 2026</span></div>
+                <div class="ms-row"><span>Pages</span><span>9</span></div>
+              </div>
+              <div class="ms-paper">
+                <div class="ms-pt">CLIENT AGREEMENT</div>
+                <i class="ln" style="width:92%"></i><i class="ln" style="width:100%"></i><i class="ln" style="width:78%"></i><i class="ln" style="width:96%"></i><i class="ln" style="width:64%"></i>
+                <div class="ms-plabel">Client 1 · Maya Chen</div>
+                <button type="button" class="ms-slot" id="ms-slot">Tap to sign</button>
+              </div>
+              <button type="button" class="ms-link" style="align-self:flex-start;padding-left:0" data-toast="Prototype: full document">Read all 9 pages</button>
+            </div>
+            <div class="ms-foot"><p class="ms-legal" id="ms-legal" hidden>By submitting, you sign both documents, the same as a handwritten signature.</p><button type="button" class="ms-btn" id="ms-sign">Sign</button></div>
+          </div>
+
+          <div class="ms-step" data-step="3" hidden>
+            <div class="ms-body" style="padding-top:56px">
+              <span class="ms-done-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+              <h2 class="ms-h">Signed.</h2>
+              <p class="ms-p">Thank you, Maya. Leo Chen signs next, then the firm countersigns. We'll email you the final copy.</p>
+              <div class="ms-rows">
+                <div class="ms-row"><span>Signed</span><span>Nov 6 · 10:14 PST</span></div>
+                <div class="ms-row"><span>Verified by</span><span>Email code</span></div>
+                <div class="ms-row"><span>Documents</span><span>2</span></div>
+              </div>
+            </div>
+            <div class="ms-foot"><button type="button" class="ms-btn" data-toast="Prototype: download">Download my copy</button><button type="button" class="ms-link" data-ms-go="0">Start over</button></div>
+          </div>
+        </div>
+
+        <div class="ms-scrim" id="ms-scrim" hidden></div>
+        <div class="ms-sheet" id="ms-sheet" aria-hidden="true" role="dialog" aria-label="Your signature">
+          <span class="ms-grab" aria-hidden="true"></span>
+          <div class="ms-sheet-head"><span class="ms-k">Your signature</span><button type="button" class="ms-x" id="ms-close" aria-label="Close">×</button></div>
+          <div class="ms-mode"><button type="button" class="on" data-msmode="draw">Draw</button><button type="button" data-msmode="type">Type</button></div>
+          <canvas class="ms-pad" id="ms-pad" aria-label="Draw your signature"></canvas>
+          <div class="ms-typed" id="ms-typed" hidden>Maya Chen</div>
+          <div class="ms-sheet-row"><button type="button" class="ms-link" id="ms-clear" style="padding-left:0">Clear</button><span class="ms-hint" id="ms-hint">Sign with your finger</span></div>
+          <button type="button" class="ms-btn" id="ms-apply" disabled>Apply signature</button>
+        </div>
+        <span class="ms-home" aria-hidden="true"></span>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ===================== INDEX ===================== -->
+<button id="idx-btn" type="button" aria-controls="idx">All screens</button>
+<div id="idx" hidden role="dialog" aria-label="All screens">
+  <div class="in wrap">
+    <div class="headrow"><div style="display:flex;flex-direction:column;gap:12px"><p class="eyebrow">Signora · prototype map</p><h2 class="h2">Every screen.</h2></div><button type="button" class="link" id="idx-close">Close ×</button></div>
+    <div class="idx-cols">
+      <div><p class="eyebrow">Public</p><ol>
+        <li><a href="#home"><span>01</span>Landing</a></li><li><a href="#signup"><span>02</span>Sign up</a></li><li><a href="#login"><span>03</span>Log in</a></li><li><a href="#invite"><span>04</span>Accept invite</a></li></ol></div>
+      <div><p class="eyebrow">Console</p><ol>
+        <li><a href="#projects"><span>05</span>Home · projects</a></li><li><a href="#project-new"><span>06</span>New project</a></li><li><a href="#project"><span>07</span>Project · envelopes</a></li><li><a href="#project-read"><span>08</span>Project · read only</a></li><li><a href="#project-config"><span>09</span>Project settings</a></li><li><a href="#documents"><span>10</span>Documents</a></li><li><a href="#upload"><span>11</span>Upload</a></li><li><a href="#detecting"><span>12</span>Detecting</a></li><li><a href="#review"><span>13</span>Review fields</a></li></ol></div>
+      <div><p class="eyebrow">Sending</p><ol>
+        <li><a href="#send"><span>14</span>New envelope</a></li><li><a href="#bulk"><span>15</span>Bulk send</a></li><li><a href="#envelope"><span>16</span>Envelope detail</a></li><li><a href="#countersign"><span>17</span>Countersign</a></li><li><a href="#completed"><span>18</span>Completed</a></li><li><a href="#members"><span>19</span>Members</a></li><li><a href="#audit"><span>20</span>Audit log</a></li></ol></div>
+      <div><p class="eyebrow">Signer</p><ol>
+        <li><a href="#sign-email"><span>21</span>Request email</a></li><li><a href="#sign-otp"><span>22</span>Email code</a></li><li><a href="#sign-consent"><span>23</span>Consent</a></li><li><a href="#sign-doc"><span>24</span>Read and sign</a></li><li><a href="#sign-done"><span>25</span>Confirmation</a></li><li><a href="#sign-declined"><span>26</span>Decline</a></li><li><a href="#sign-gone"><span>27</span>Link closed</a></li><li><a href="#sign-mobile"><span>28</span>iPhone signer</a></li></ol></div>
+    </div>
+  </div>
+</div>
+<div id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+  const views=[...document.querySelectorAll('[data-view]')];
+  const bars={public:document.querySelector('[data-bar=public]'),console:document.querySelector('[data-bar=console]'),signer:document.querySelector('[data-bar=signer]')};
+  const anchors={'home-how':'home','home-security':'home'};
+  const navMap={projects:'projects',members:'members',audit:'audit'};
+  function barFor(v){if(['home','signup','login','invite'].includes(v))return'public';if(v.startsWith('sign-'))return'signer';return'console'}
+  function show(){
+    let h=(location.hash||'#home').slice(1);let scrollTo=null;
+    if(anchors[h]){scrollTo=h;h=anchors[h]}
+    if(!views.some(v=>v.dataset.view===h))h='home';
+    views.forEach(v=>v.hidden=v.dataset.view!==h);
+    const b=barFor(h);Object.entries(bars).forEach(([k,el])=>el.hidden=k!==b);
+    document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('on',a.dataset.nav===(navMap[h]||(b==='console'&&!['members','audit'].includes(h)?'projects':''))));
+    document.getElementById('idx').hidden=true;
+    if(scrollTo){const t=document.getElementById(scrollTo);t&&t.scrollIntoView()}else window.scrollTo(0,0);
+    if(h==='sign-doc')sizePad();
+  }
+  addEventListener('hashchange',show);
+  let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
+  document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;if(f.dataset.toast)toast(f.dataset.toast);if(f.dataset.go)location.hash=f.dataset.go});
+  document.addEventListener('click',e=>{
+    const tr=e.target.closest('tr.click');if(tr){location.hash=tr.dataset.href;return}
+    const b=e.target.closest('button[data-toast],button[data-go]');if(b&&b.type!=='submit'&&!b.disabled){if(b.dataset.toast)toast(b.dataset.toast);if(b.dataset.go)location.hash=b.dataset.go}
+  });
+  document.getElementById('idx-btn').onclick=()=>{document.getElementById('idx').hidden=false;document.getElementById('idx-close').focus()};
+  document.getElementById('idx-close').onclick=()=>document.getElementById('idx').hidden=true;
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('idx').hidden=true});
+
+  // consent + countersign gating
+  const cOk=document.getElementById('consent-ok'),cBtn=document.getElementById('consent-btn');cOk.onchange=()=>cBtn.disabled=!cOk.checked;
+  const csOk=document.getElementById('cs-ok'),csBtn=document.getElementById('cs-btn');csOk.onchange=()=>csBtn.disabled=!csOk.checked;
+
+  // review: field overlay
+  const fields=[
+    {k:'agreement.effective_date',c:'firm',x:46.5,y:12.4,w:10,h:2.4,t:'Date',src:'Rules 0.88 · underscore run after “as of”'},
+    {k:'agreement.matter',c:'firm',x:15,y:19.9,w:28,h:2.4,t:'Text',src:'AI 0.90 · “described as”'},
+    {k:'agreement.fee_percent',c:'firm',x:47,y:24.1,w:5.5,h:2.4,t:'Percent',src:'AI 0.95 · rules 0.70'},
+    {k:'client_1.signature',c:'r1 sig',x:10,y:45.5,w:35,h:5.6,t:'Signature',src:'AI 0.94 · rules 0.86 · “CLIENT 1” block'},
+    {k:'client_1.full_name',c:'r1',x:10,y:52,w:35,h:2.6,t:'Text',src:'AI 0.92'},
+    {k:'client_1.date_signed',c:'r1',x:10,y:55.3,w:20,h:2.6,t:'Date',src:'Rules 0.90'},
+    {k:'client_2.signature',c:'r2 sig',x:54,y:45.5,w:35,h:5.6,t:'Signature',src:'AI 0.93 · rules 0.81 · “CLIENT 2” block'},
+    {k:'client_2.full_name',c:'r2',x:54,y:52,w:35,h:2.6,t:'Text',src:'AI 0.91'},
+    {k:'client_2.date_signed',c:'r2 unsure',x:54,y:55.3,w:20,h:2.6,t:'Date',src:'AI 0.58 only · check placement'},
+    {k:'firm.signature',c:'firm sig',x:10,y:77,w:35,h:5.6,t:'Signature',src:'Rules 0.92 · “FIRM” block'},
+    {k:'firm.full_name',c:'firm',x:10,y:83.6,w:35,h:2.6,t:'Text',src:'AI 0.89'}
+  ];
+  const paper=document.getElementById('review-paper');
+  const typeSel=document.getElementById('sel-type'),roleSel=document.getElementById('sel-role');
+  const rvO=document.getElementById('rv-overview'),rvF=document.getElementById('rv-field'),rvWarn=document.getElementById('rv-warn'),rvConfirm=document.getElementById('rv-confirm');
+  const who={client_1:'Client 1',client_2:'Client 2',firm:'Firm',agreement:'Filled in by you'};
+  const pretty=k=>k.split('.')[1].replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
+  let cur=-1;const btns=[];
+  function rvCount(){const unsure=fields.filter(f=>f.c.includes('unsure')).length,ok=fields.length-unsure;
+    document.getElementById('rv-prog').innerHTML='<b>'+ok+' of '+fields.length+'</b> fields look right';
+    document.getElementById('rv-attn').hidden=!unsure;document.getElementById('rv-allok').hidden=!!unsure}
+  function select(i){cur=i;const f=fields[i];btns.forEach((x,k)=>x.classList.toggle('sel',k===i));
+    const role=f.k.split('.')[0];document.getElementById('sel-who').textContent=who[role];document.getElementById('sel-name').textContent=pretty(f.k);
+    document.getElementById('sel-key').textContent=f.k;document.getElementById('sel-label').value=(role==='agreement'?'':who[role]+' ')+pretty(f.k).toLowerCase();
+    typeSel.value=f.t;roleSel.value=role;typeSel._sync&&typeSel._sync();roleSel._sync&&roleSel._sync();
+    document.getElementById('sel-src').textContent='Found by '+f.src;
+    const unsure=f.c.includes('unsure');rvWarn.hidden=!unsure;rvConfirm.hidden=!unsure;
+    rvO.hidden=true;rvF.hidden=false}
+  function deselect(){cur=-1;btns.forEach(x=>x.classList.remove('sel'));rvF.hidden=true;rvO.hidden=false}
+  fields.forEach((f,i)=>{const b=document.createElement('button');b.type='button';b.className='fld '+f.c;b.style.cssText=`left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%`;b.textContent=f.c.includes('sig')?f.k.split('.')[0].replace('_',' ')+' signs':pretty(f.k);b.setAttribute('aria-label',who[f.k.split('.')[0]]+': '+pretty(f.k));
+    b.onclick=e=>{e.stopPropagation();cur===i?deselect():select(i)};btns.push(b);paper.appendChild(b)});
+  paper.addEventListener('click',deselect);
+  document.getElementById('rv-done').onclick=deselect;
+  document.getElementById('rv-show').onclick=()=>{const i=fields.findIndex(f=>f.c.includes('unsure'));if(i>=0){select(i);btns[i].scrollIntoView({behavior:'smooth',block:'center'})}};
+  rvConfirm.onclick=()=>{const f=fields[cur];f.c=f.c.replace(' unsure','');btns[cur].classList.remove('unsure');rvCount();toast('Field confirmed');deselect()};
+  document.getElementById('rv-delete').onclick=()=>{if(cur<0)return;btns[cur].hidden=true;fields[cur].c=fields[cur].c.replace(' unsure','');rvCount();toast('Field deleted');deselect()};
+  const addBtn=document.getElementById('rv-add-btn'),addMenu=document.getElementById('rv-add-menu');
+  addBtn.onclick=e=>{e.stopPropagation();const open=addMenu.hidden;addMenu.hidden=!open;addBtn.setAttribute('aria-expanded',open)};
+  addMenu.addEventListener('click',e=>{const t=e.target.closest('[data-add]');if(!t)return;addMenu.hidden=true;addBtn.setAttribute('aria-expanded','false');toast('Click on the page to place the '+t.textContent.toLowerCase()+' field')});
+  document.addEventListener('click',e=>{if(!e.target.closest('.rv-add')){addMenu.hidden=true;addBtn.setAttribute('aria-expanded','false')}});
+  rvCount();
+
+  // send: extra signer
+  let extra=0;document.getElementById('add-signer').onclick=()=>{extra++;const d=document.createElement('div');d.className='block';d.innerHTML=`<div><p class="eyebrow" style="color:var(--ink)">Extra signer ${extra}</p><p class="small" style="margin-top:8px">Signs a page added at the end.</p></div><div class="fields"><label class="field"><span>Email</span><input id="sd-x${extra}e" type="email" placeholder="name@example.com"></label><label class="field"><span>Full name</span><input id="sd-x${extra}n"></label></div>`;document.getElementById('extra-signers').appendChild(d)};
+
+  // signature pad
+  const pad=document.getElementById('sigpad'),ctx=pad.getContext('2d');let drawing=false,hasInk=false,mode='draw';
+  function sizePad(){const r=pad.getBoundingClientRect();if(!r.width)return;const d=devicePixelRatio||1;pad.width=r.width*d;pad.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';hasInk=false;update()}
+  function pos(e){const r=pad.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+  pad.addEventListener('pointerdown',e=>{drawing=true;pad.setPointerCapture(e.pointerId);const[x,y]=pos(e);ctx.beginPath();ctx.moveTo(x,y)});
+  pad.addEventListener('pointermove',e=>{if(!drawing)return;const[x,y]=pos(e);ctx.lineTo(x,y);ctx.stroke();if(!hasInk){hasInk=true;update()}});
+  pad.addEventListener('pointerup',()=>drawing=false);
+  document.getElementById('sig-clear').onclick=()=>{ctx.clearRect(0,0,pad.width,pad.height);hasInk=false;update()};
+  document.querySelectorAll('.mode button').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll('.mode button').forEach(x=>x.classList.toggle('on',x===b));pad.hidden=mode!=='draw';document.getElementById('typed').hidden=mode!=='type';update()});
+  document.getElementById('sig-slot').onclick=()=>document.getElementById('sig-box').scrollIntoView({behavior:'smooth',block:'center'});
+  function update(){const ok=mode==='type'||hasInk;document.getElementById('submit-sign').disabled=!ok;document.getElementById('submit-hint').hidden=ok;document.getElementById('field-count').textContent=ok?'All your fields are filled':'1 of 3 fields left';const s=document.getElementById('sig-slot');s.textContent=ok?'Maya Chen':'Sign here';s.style.fontSize=ok?'24px':'18px'}
+  addEventListener('resize',()=>{if(!document.querySelector('[data-view=sign-doc]').hidden)sizePad()});
+
+  // landing sphere (Astra-like node sphere, no custom cursor)
+  const cv=document.getElementById('sphere'),sx=cv.getContext('2d');const N=64,pts=[];
+  for(let i=0;i<N;i++){const y=1-(i/(N-1))*2,r=Math.sqrt(1-y*y),th=i*2.39996;pts.push([Math.cos(th)*r,y,Math.sin(th)*r,Math.random()*1.6+1])}
+  const links=[];for(let i=0;i<N;i++)for(let k=0;k<2;k++)links.push([i,(i*7+k*13+5)%N]);
+  const still=matchMedia('(prefers-reduced-motion: reduce)').matches;let a=0;
+  function draw(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;if(cv.width!==Math.round(r.width*d)){cv.width=r.width*d;cv.height=r.height*d}
+    const W=cv.width,H=cv.height,R=Math.min(W,H)*.42;sx.clearRect(0,0,W,H);const c=Math.cos(a),s=Math.sin(a);
+    const P=pts.map(p=>{const x=p[0]*c-p[2]*s,z=p[0]*s+p[2]*c;return[W/2+x*R,H/2+p[1]*R,z,p[3]]});
+    sx.lineWidth=d*.6;links.forEach(([i,j])=>{sx.strokeStyle=`rgba(255,255,255,${.08+.1*((P[i][2]+P[j][2])/4+.5)})`;sx.beginPath();sx.moveTo(P[i][0],P[i][1]);sx.lineTo(P[j][0],P[j][1]);sx.stroke()});
+    P.forEach(p=>{sx.fillStyle=`rgba(255,255,255,${.45+.55*(p[2]+1)/2})`;sx.beginPath();sx.arc(p[0],p[1],p[3]*d*(1.2+(p[2]+1)*.6),0,7);sx.fill()});
+    sx.fillStyle='rgba(255,255,255,.3)';sx.font=`${9*d}px Inter, sans-serif`;sx.fillText('S I G N A T U R E S   ·   4 1 / 3 3',W*.08,H*.97);
+    if(!still){a+=.0025;requestAnimationFrame(draw)}}
+  draw();
+
+  // design-system dropdowns and date pickers (native controls stay in the DOM, hidden, for values and forms)
+  const chev='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
+  const calIco='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>';
+  const pops=[];
+  function closeAll(except){pops.forEach(p=>{if(p!==except)p.close()})}
+  document.addEventListener('click',e=>{if(!e.target.closest('.dd,.dp'))closeAll()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
+  let ddN=0;
+  function enhanceSelect(sel){
+    const wrap=document.createElement('div');wrap.className='dd';
+    const btn=document.createElement('button');btn.type='button';btn.className='dd-btn';btn.setAttribute('aria-haspopup','listbox');btn.setAttribute('aria-expanded','false');
+    const lab=sel.getAttribute('aria-label');if(lab)btn.setAttribute('aria-label',lab);
+    const lby=sel.getAttribute('aria-labelledby');if(lby)btn.setAttribute('aria-labelledby',lby+' dd-v'+ddN);
+    btn.innerHTML='<span class="v" id="dd-v'+ddN+'"></span>'+chev;
+    const list=document.createElement('ul');list.className='dd-list';list.setAttribute('role','listbox');list.hidden=true;list.id='dd-l'+(ddN++);btn.setAttribute('aria-controls',list.id);
+    const opts=[...sel.options].map((o,i)=>{const li=document.createElement('li');li.className='dd-opt';li.setAttribute('role','option');li.textContent=o.text;li.onclick=e=>{e.preventDefault();pick(i)};list.appendChild(li);return li});
+    let act=0;
+    function sync(){btn.querySelector('.v').textContent=sel.options[sel.selectedIndex]?.text||'';opts.forEach((li,i)=>li.setAttribute('aria-selected',i===sel.selectedIndex))}
+    function setAct(i){act=(i+opts.length)%opts.length;opts.forEach((li,k)=>li.classList.toggle('act',k===act));opts[act].scrollIntoView({block:'nearest'})}
+    function open(){closeAll(api);list.hidden=false;btn.setAttribute('aria-expanded','true');setAct(sel.selectedIndex)}
+    function close(){if(list.hidden)return;list.hidden=true;btn.setAttribute('aria-expanded','false')}
+    function pick(i){sel.selectedIndex=i;sync();close();btn.focus();sel.dispatchEvent(new Event('change',{bubbles:true}))}
+    const api={close};pops.push(api);
+    btn.onclick=e=>{e.preventDefault();list.hidden?open():close()};
+    btn.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(list.hidden)open();else setAct(act+(e.key==='ArrowDown'?1:-1))}else if((e.key==='Enter'||e.key===' ')&&!list.hidden){e.preventDefault();pick(act)}else if(e.key==='Tab')close()};
+    list.addEventListener('click',e=>e.preventDefault());
+    sel.classList.add('dd-native');sel.tabIndex=-1;sel.setAttribute('aria-hidden','true');
+    sel.parentNode.insertBefore(wrap,sel);wrap.append(btn,list);
+    sel._sync=sync;sel.addEventListener('change',sync);sync();
+  }
+  document.querySelectorAll('select').forEach(enhanceSelect);
+
+  const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const nice=v=>v?new Date(v+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
+  const TODAY='2026-11-06';
+  function datePicker(host,{range,inputs,placeholder}){
+    const btn=document.createElement('button');btn.type='button';btn.className='dp-btn';btn.setAttribute('aria-haspopup','dialog');btn.setAttribute('aria-expanded','false');
+    btn.innerHTML='<span class="v"></span>'+calIco;
+    const pop=document.createElement('div');pop.className='dp-pop';pop.setAttribute('role','dialog');pop.setAttribute('aria-label',range?'Choose a date range':'Choose a date');pop.hidden=true;
+    host.append(btn,pop);
+    let view=new Date((inputs[0].value||TODAY)+'T00:00');view.setDate(1);let pending=null;
+    function label(){const v=btn.querySelector('.v');const a=inputs[0].value,b=range?inputs[1].value:'';
+      if(!a&&!b){v.textContent=placeholder;v.classList.add('empty')}else{v.classList.remove('empty');v.textContent=range?(a?nice(a):'…')+' – '+(b?nice(b):'…'):nice(a)}}
+    function render(){
+      const y=view.getFullYear(),m=view.getMonth(),first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();
+      const a=pending||inputs[0].value,b=range&&!pending?inputs[1].value:'';
+      let h='<div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="Previous month">‹</button><span class="m">'+MONTHS[m]+' '+y+'</span><button type="button" class="dp-nav" data-nav="1" aria-label="Next month">›</button></div><div class="dp-grid">';
+      'Su Mo Tu We Th Fr Sa'.split(' ').forEach(d=>h+='<span class="dp-dow">'+d+'</span>');
+      for(let i=0;i<first;i++)h+='<span></span>';
+      for(let d=1;d<=days;d++){const v=iso(new Date(y,m,d));let c='dp-day';if(v===TODAY)c+=' today';if(v===a||v===b)c+=' edge';else if(a&&b&&v>a&&v<b)c+=' in';
+        h+='<button type="button" class="'+c+'" data-d="'+v+'"'+(range&&v>TODAY?' disabled':'')+' aria-label="'+nice(v)+'">'+d+'</button>'}
+      h+='</div><div class="dp-foot"><button type="button" class="link" data-clear>Clear</button><span class="dp-hint">'+(range?(pending?'Pick the end date':'Pick a start date'):'')+'</span></div>';
+      pop.innerHTML=h}
+    function commit(){label();inputs.forEach(i=>i.dispatchEvent(new Event('change',{bubbles:true})))}
+    function open(){closeAll(api);pending=null;view=new Date((inputs[0].value||TODAY)+'T00:00');view.setDate(1);render();pop.hidden=false;btn.setAttribute('aria-expanded','true')}
+    function close(){if(pop.hidden)return;pop.hidden=true;pending=null;btn.setAttribute('aria-expanded','false')}
+    const api={close};pops.push(api);
+    btn.onclick=e=>{e.preventDefault();pop.hidden?open():close()};
+    pop.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();const t=e.target.closest('button');if(!t)return;
+      if(t.dataset.nav){view.setMonth(view.getMonth()+(+t.dataset.nav));render();return}
+      if('clear' in t.dataset){inputs.forEach(i=>i.value='');pending=null;commit();close();btn.focus();return}
+      const v=t.dataset.d;if(!v)return;
+      if(!range){inputs[0].value=v;commit();close();btn.focus();return}
+      if(!pending){pending=v;render();return}
+      const [s1,s2]=[pending,v].sort();inputs[0].value=s1;inputs[1].value=s2;pending=null;commit();close();btn.focus()});
+    host._sync=label;label();
+  }
+  const rangeHost=document.getElementById('f-range');
+  if(rangeHost)datePicker(rangeHost,{range:true,inputs:[document.getElementById(rangeHost.dataset.from),document.getElementById(rangeHost.dataset.to)],placeholder:'Any date'});
+  document.querySelectorAll('input[type=date]').forEach(inp=>{const host=document.createElement('div');host.className='dp';inp.parentNode.insertBefore(host,inp);inp.type='hidden';datePicker(host,{range:false,inputs:[inp],placeholder:'Choose a date'})});
+
+  // project search on the home screen: filters cards by name and description; the New project card always stays
+  (function(){
+    const q=document.getElementById('p-q'),grid=document.getElementById('p-grid');if(!q||!grid)return;
+    const cards=[...grid.querySelectorAll('.pcard:not(.add)')],empty=document.getElementById('p-empty');
+    q.addEventListener('input',()=>{const t=q.value.trim().toLowerCase();let n=0;
+      cards.forEach(c=>{const ok=!t||c.querySelector('div').textContent.toLowerCase().includes(t);c.hidden=!ok;if(ok)n++});
+      empty.hidden=n>0;document.getElementById('p-term').textContent=q.value.trim()});
+  })();
+
+  // envelope filters: search, multi-status, date range, document, waiting-on, sort
+  (function(){
+    const body=document.getElementById('env-rows');if(!body)return;
+    const rows=[...body.querySelectorAll('tr[data-status]')];
+    const q=document.getElementById('f-q'),tog=document.getElementById('f-toggle'),panel=document.getElementById('f-panel'),sortSel=document.getElementById('f-sort');
+    const from=document.getElementById('f-from'),to=document.getElementById('f-to'),doc=document.getElementById('f-doc'),chips=document.getElementById('f-chips'),nEl=document.getElementById('f-n');
+    const stBoxes=[...panel.querySelectorAll('[data-f=status]')],waits=[...panel.querySelectorAll('[name=f-wait]')];
+    const order={sent:1,viewed:2,signed:3,completed:4,declined:5,expired:6};
+    const label={sent:'Sent',viewed:'Viewed',signed:'Signed',completed:'Completed',declined:'Declined',expired:'Expired'};
+    const empty=document.createElement('tr');empty.className='fempty';empty.innerHTML='<td colspan="5">No envelopes match these filters.</td>';
+    const today=new Date('2026-11-06');
+    const fmt=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    function apply(){
+      const term=q.value.trim().toLowerCase(),sts=stBoxes.filter(b=>b.checked).map(b=>b.value),wait=(waits.find(w=>w.checked)||{}).value||'';
+      let shown=0;
+      rows.forEach(r=>{const ok=(!term||r.textContent.toLowerCase().includes(term))&&(!sts.length||sts.includes(r.dataset.status))&&(!from.value||r.dataset.sent>=from.value)&&(!to.value||r.dataset.sent<=to.value)&&(!doc.value||r.cells[0].textContent.includes(doc.value))&&(!wait||r.dataset.wait===wait);r.hidden=!ok;if(ok)shown++});
+      const k=sortSel.value,sorted=rows.slice().sort((a,b)=>k==='sent-asc'?a.dataset.sent.localeCompare(b.dataset.sent):k==='remind'?(+a.dataset.remind||1e9)-(+b.dataset.remind||1e9):k==='status'?order[a.dataset.status]-order[b.dataset.status]:k==='matter'?a.cells[0].querySelector('b').textContent.localeCompare(b.cells[0].querySelector('b').textContent):b.dataset.sent.localeCompare(a.dataset.sent));
+      sorted.forEach(r=>body.appendChild(r));
+      if(!shown)body.appendChild(empty);else empty.remove();
+      const c=[];
+      sts.forEach(v=>c.push(['Status',label[v],()=>{stBoxes.find(b=>b.value===v).checked=false}]));
+      if(from.value||to.value)c.push(['Sent',(from.value?fmt(from.value):'…')+' – '+(to.value?fmt(to.value):'today'),()=>{from.value='';to.value=''}]);
+      if(doc.value)c.push(['Document',doc.value,()=>{doc.value=''}]);
+      if(wait)c.push(['Waiting on',wait==='firm'?'The firm':'A client',()=>{waits[0].checked=true}]);
+      if(term)c.push(['Search','“'+q.value.trim()+'”',()=>{q.value=''}]);
+      chips.replaceChildren();
+      c.forEach(([k2,v,clear])=>{const b=document.createElement('button');b.type='button';b.className='fchip';b.setAttribute('aria-label','Remove filter '+k2+' '+v);b.innerHTML='<span></span>';b.firstChild.textContent=k2;b.append(' '+v+'  ×');b.onclick=()=>{clear();apply()};chips.appendChild(b)});
+      [doc,sortSel].forEach(x=>x._sync&&x._sync());rangeHost&&rangeHost._sync&&rangeHost._sync();
+      const filters=c.filter(x=>x[0]!=='Search').length;nEl.textContent=filters?'· '+filters:'';
+      if(c.length){const n=document.createElement('span');n.className='fcount';n.textContent=shown+' of '+rows.length+' envelopes';const clr=document.createElement('button');clr.type='button';clr.className='link';clr.textContent='Clear all';clr.onclick=reset;chips.append(n,clr)}
+    }
+    function reset(){q.value='';stBoxes.forEach(b=>b.checked=false);from.value='';to.value='';doc.value='';waits[0].checked=true;apply()}
+    tog.onclick=()=>{const open=panel.hidden;panel.hidden=!open;tog.setAttribute('aria-expanded',open)};
+    document.getElementById('f-done').onclick=()=>{panel.hidden=true;tog.setAttribute('aria-expanded','false');tog.focus()};
+    document.getElementById('f-reset').onclick=reset;
+    panel.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>{const d=new Date(today);d.setDate(d.getDate()-(+b.dataset.range));from.value=d.toISOString().slice(0,10);to.value='2026-11-06';apply()});
+    [q,sortSel,from,to,doc,...stBoxes,...waits].forEach(el=>el.addEventListener(el===q?'input':'change',apply));
+    apply();
+  })();
+  // iPhone signer flow
+  (function(){
+    const steps=[...document.querySelectorAll('.ms-step')];if(!steps.length)return;
+    const prog=[...document.querySelectorAll('#ms-prog i')],jump=[...document.querySelectorAll('#ms-jump button')];
+    const sheet=document.getElementById('ms-sheet'),scrim=document.getElementById('ms-scrim'),pad=document.getElementById('ms-pad'),pc=pad.getContext('2d');
+    const slot=document.getElementById('ms-slot'),signBtn=document.getElementById('ms-sign'),apply=document.getElementById('ms-apply'),agree=document.getElementById('ms-agree');
+    let cur=0,signed=false,ink=false,mode='draw',drawing=false;
+    function go(i){cur=i;steps.forEach((s,k)=>s.hidden=k!==i);prog.forEach((p,k)=>p.classList.toggle('on',k<=Math.min(i,2)));
+      document.getElementById('ms-prog').style.visibility=i===3?'hidden':'';jump.forEach(b=>b.classList.toggle('on',+b.dataset.msGo===i));
+      closeSheet();steps[i].querySelector('.ms-body').scrollTop=0;if(i===0)resetAll()}
+    function resetAll(){signed=false;slot.className='ms-slot';slot.textContent='Tap to sign';signBtn.textContent='Sign';document.getElementById('ms-legal').hidden=true;agree.checked=false;document.getElementById('ms-agree-btn').disabled=true;clearPad()}
+    function sizePad(){const r=pad.getBoundingClientRect();if(!r.width)return;const d=devicePixelRatio||1;pad.width=r.width*d;pad.height=r.height*d;pc.setTransform(d,0,0,d,0,0);pc.lineWidth=2.4;pc.lineCap='round';pc.lineJoin='round';pc.strokeStyle='#111';ink=false;upd()}
+    function clearPad(){pc.clearRect(0,0,pad.width,pad.height);ink=false;upd()}
+    function trim(){const w=pad.width,h=pad.height,d=pc.getImageData(0,0,w,h).data;let x0=w,y0=h,x1=0,y1=0;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(d[(y*w+x)*4+3]>0){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+      if(x1<=x0)return pad.toDataURL();const m=6,c=document.createElement('canvas');c.width=x1-x0+m*2;c.height=y1-y0+m*2;c.getContext('2d').drawImage(pad,x0-m,y0-m,c.width,c.height,0,0,c.width,c.height);return c.toDataURL()}
+    function upd(){const ok=mode==='type'||ink;apply.disabled=!ok;document.getElementById('ms-hint').textContent=mode==='type'?'Typed from your name':ok?'Looks good':'Sign with your finger'}
+    function openSheet(){scrim.hidden=false;sheet.classList.add('open');sheet.setAttribute('aria-hidden','false');requestAnimationFrame(sizePad)}
+    function closeSheet(){scrim.hidden=true;sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true')}
+    const pos=e=>{const r=pad.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+    pad.addEventListener('pointerdown',e=>{drawing=true;pad.setPointerCapture(e.pointerId);const[x,y]=pos(e);pc.beginPath();pc.moveTo(x,y)});
+    pad.addEventListener('pointermove',e=>{if(!drawing)return;const[x,y]=pos(e);pc.lineTo(x,y);pc.stroke();if(!ink){ink=true;upd()}});
+    pad.addEventListener('pointerup',()=>drawing=false);
+    document.getElementById('ms-clear').onclick=clearPad;
+    document.getElementById('ms-close').onclick=closeSheet;scrim.onclick=closeSheet;
+    document.querySelectorAll('[data-msmode]').forEach(b=>b.onclick=()=>{mode=b.dataset.msmode;document.querySelectorAll('[data-msmode]').forEach(x=>x.classList.toggle('on',x===b));pad.hidden=mode!=='draw';document.getElementById('ms-typed').hidden=mode!=='type';upd()});
+    apply.onclick=()=>{signed=true;slot.className='ms-slot done';slot.textContent='';
+      if(mode==='draw'){const img=new Image();img.alt='Your signature';img.src=trim();slot.appendChild(img)}else slot.textContent='Maya Chen';
+      signBtn.textContent='Submit signature';document.getElementById('ms-legal').hidden=false;closeSheet()};
+    slot.onclick=openSheet;
+    signBtn.onclick=()=>signed?go(3):openSheet();
+    agree.onchange=()=>document.getElementById('ms-agree-btn').disabled=!agree.checked;
+    document.addEventListener('click',e=>{const g=e.target.closest('[data-ms-go]');if(g){go(+g.dataset.msGo);return}
+      const n=e.target.closest('[data-ms-next]');if(n&&!n.disabled)go(cur+1)});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sheet.classList.contains('open'))closeSheet()});
+  })();
+  show();
+})();
+</script>
+
+
+
+
+</body></html>
