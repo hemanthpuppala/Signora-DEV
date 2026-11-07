@@ -35,6 +35,7 @@ const FALLBACK_TITLES: Record<string, string> = {
   "not-found": "This no longer exists.",
   "rate-limited": "Too many attempts. Please wait a moment.",
   "request-in-progress": "Still working on your previous request.",
+  "http-413": "This is too large to send.",
 };
 
 /** A short, user-facing message; unexpected errors include the request id for support. */

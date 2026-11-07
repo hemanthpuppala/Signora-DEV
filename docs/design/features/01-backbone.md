@@ -932,6 +932,9 @@ another feature's internals; `shared/*` never imports `features/*`; `app/*` comp
   (also in `sessionStorage`), shows "Sending…" / "Connection lost — retrying…", retries on reconnect and on backoff,
   honours `409 Retry-After`, and reuses the key when pressed again.
 - Errors: the problem `code` maps to a user-facing message; unexpected errors show the `request_id`.
+- "No answer" (retried) means only a failed fetch or a proxy's own `502`/`503`/`504` without a problem body. Any
+  other status without a problem body (e.g. Caddy's empty `413` for an oversized upload) is a definite answer and is
+  not retried; it becomes an `ApiError` with code `http-<status>`.
 
 ### 8.6 Phase 1 components
 
