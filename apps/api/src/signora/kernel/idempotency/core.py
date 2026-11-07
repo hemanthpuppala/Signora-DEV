@@ -18,17 +18,13 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from signora.kernel.canonical import canonical_json
 from signora.kernel.errors import IdempotencyKeyInvalid, IdempotencyKeyReused, RequestInProgress
 
 KEY_LOCK_TIMEOUT = "2s"
 RETRY_AFTER_SECONDS = 1
 _KEY_PATTERN = re.compile(r"^[\x20-\x7e]{1,255}$")  # printable ASCII
 _LOCK_NOT_AVAILABLE = "55P03"
-
-
-def canonical_json(value: Any) -> bytes:
-    """Stable bytes for hashing: sorted keys, no insignificant whitespace, UTF-8."""
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
 def fingerprint(value: Any) -> bytes:

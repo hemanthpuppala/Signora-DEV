@@ -11,15 +11,9 @@ from sqlalchemy import Engine
 import signora.models  # noqa: F401  (registers every table)
 from signora.kernel.db import metadata
 
-# Tables created by migrations whose code definitions arrive in later tasks. Remove each entry when
-# its module adds the table definition; the test then compares it too.
-NOT_YET_MODELLED = {"audit_events"}
-
 
 def _include(obj: Any, name: str | None, type_: str, reflected: bool, compare_to: Any) -> bool:
-    if type_ == "table":
-        return name not in NOT_YET_MODELLED and name != "alembic_version"
-    return True
+    return not (type_ == "table" and name == "alembic_version")
 
 
 def test_models_match_migrations(engine: Engine) -> None:

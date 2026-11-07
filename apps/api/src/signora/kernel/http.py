@@ -23,6 +23,7 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from signora.kernel.context import Origin, set_origin
 from signora.kernel.errors import DomainError, FieldError, ValidationFailed
 from signora.kernel.logging import bind_context, clear_context, current_context, get_logger
 
@@ -142,6 +143,7 @@ class RequestContextMiddleware:
 
         clear_context()
         bind_context(request_id=request_id)
+        set_origin(Origin(request_id, state["client_ip"], state["user_agent"]))
         started = time.perf_counter()
         status = 500
         response_started = False
@@ -180,6 +182,7 @@ class RequestContextMiddleware:
                 **{k: v for k, v in current_context().items() if k != "request_id"},
             )
             clear_context()
+            set_origin(None)
 
 
 def _field_path(location: Sequence[int | str]) -> str:

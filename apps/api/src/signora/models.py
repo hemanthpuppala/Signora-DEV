@@ -8,3 +8,4 @@ from __future__ import annotations
 
 from signora.kernel.idempotency import tables as _idempotency_tables  # noqa: F401
 from signora.kernel.jobs import tables as _jobs_tables  # noqa: F401
+from signora.modules.audit import models as _audit_models  # noqa: F401

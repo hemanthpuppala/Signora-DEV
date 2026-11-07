@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import uuid
 from collections.abc import Sequence
 
 from signora.kernel.config import ConfigError, get_settings
@@ -44,6 +45,36 @@ def _worker(_: argparse.Namespace) -> int:
     return run_worker()
 
 
+def _audit_verify(args: argparse.Namespace) -> int:
+    import json
+
+    from signora.kernel.db import Database, create_db_engine
+    from signora.modules.audit import verify
+
+    expected = None
+    if args.expect_seq is not None or args.expect_hash is not None:
+        if args.expect_seq is None or args.expect_hash is None:
+            sys.stderr.write("--expect-seq and --expect-hash must be given together\n")
+            return 2
+        expected = (args.expect_seq, bytes.fromhex(args.expect_hash))
+    engine = create_db_engine(get_settings().db, pool_size=1)
+    try:
+        with Database(engine).unit_of_work() as uow:
+            result = verify(uow.session, args.chain_id, expected_head=expected)
+    finally:
+        engine.dispose()
+    report = {
+        "ok": result.ok,
+        "entries_checked": result.entries_checked,
+        "head_seq": result.head_seq,
+        "head_hash": result.head_hash.hex(),
+        "failed_seq": result.failed_seq,
+        "reason": result.reason,
+    }
+    sys.stdout.write(json.dumps(report, indent=2) + "\n")
+    return 0 if result.ok else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="signora", description="Signora operations")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -53,10 +84,23 @@ def build_parser() -> argparse.ArgumentParser:
     api.add_argument("--port", type=int, default=8100)
     api.add_argument("--reload", action="store_true", help="reload on code changes (development)")
     commands.add_parser("worker", help="run the background job worker")
+    audit = commands.add_parser("audit", help="audit log operations")
+    audit_commands = audit.add_subparsers(dest="audit_command", required=True)
+    verify_cmd = audit_commands.add_parser("verify", help="verify one hash chain")
+    verify_cmd.add_argument(
+        "chain_id", type=uuid.UUID, help="envelope id, workspace id, or the system chain id"
+    )
+    verify_cmd.add_argument("--expect-seq", type=int, help="anchored head sequence number")
+    verify_cmd.add_argument("--expect-hash", help="anchored head hash (hex)")
     return parser
 
 
-_COMMANDS = {"migrate": _migrate, "api": _api, "worker": _worker}
+_COMMANDS = {
+    "migrate": _migrate,
+    "api": _api,
+    "worker": _worker,
+    "audit": _audit_verify,  # the only audit subcommand
+}
 
 
 def main(argv: Sequence[str] | None = None) -> int:
