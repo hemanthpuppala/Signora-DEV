@@ -687,9 +687,10 @@ console — never configuration.
 - **API:** the thread pool is capped at `API_THREADS` (default 20) and the connection pool matches it
   (`pool_size = API_THREADS`, `max_overflow = 0`, `pool_timeout = 5 s`). Every thread can get a connection; if the
   pool is ever exhausted the request fails fast with `503` instead of piling up.
-- **Worker:** `pool_size = WORKER_CONCURRENCY + 2` (one per job slot, one for lease renewal, one for the scheduler),
-  plus one dedicated connection outside the pool for `LISTEN`.
-- **Budget:** with defaults, API 20 + worker 11 + migrate 1 ≈ 32 connections, well under Postgres'
+- **Worker:** `pool_size = WORKER_CONCURRENCY + 3` (one per job slot, one for the main loop's reclaim and claim, one
+  for lease renewal, one for the scheduler), plus one dedicated connection outside the pool for `LISTEN`. A handler
+  holds at most one connection at a time (no nested unit of work).
+- **Budget:** with defaults, API 20 + worker 12 + migrate 1 ≈ 33 connections, well under Postgres'
   `max_connections = 100`, leaving room for a second worker and the test database.
 
 ### 6.4 Interface (sketch)

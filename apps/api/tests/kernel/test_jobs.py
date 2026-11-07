@@ -433,6 +433,11 @@ def test_lease_renewer_survives_a_database_error(
     assert job_rows(committing_db, kind)[0].attempts == 1
 
 
+def test_worker_pool_counts_every_pool_user() -> None:
+    # Job slots, then the main loop, the lease renewer and the scheduler.
+    assert worker_entrypoint.worker_pool_size(4) == 4 + 3
+
+
 def test_watchdog_exits_when_the_loop_stalls(
     committing_db: Database, test_db_settings: DatabaseSettings
 ) -> None:

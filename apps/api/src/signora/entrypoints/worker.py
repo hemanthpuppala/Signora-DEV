@@ -15,8 +15,15 @@ from signora.kernel.migrations import migrations_at_head
 
 # Touched every 10 s; the container healthcheck fails when it is older than 30 s (LLD §7.4).
 HEARTBEAT_FILE = Path("/tmp/signora-worker.heartbeat")  # noqa: S108 - container-local file
-# One connection per job slot, plus lease renewal and the scheduler (LLD §6.3a).
-EXTRA_CONNECTIONS = 2
+# Pool users besides the job slots, each holding at most one connection at a time: the main loop
+# (reclaim and claim), the lease renewer and the scheduler. LISTEN uses its own connection outside
+# the pool (LLD §6.3a).
+NON_JOB_POOL_USERS = 3
+
+
+def worker_pool_size(concurrency: int) -> int:
+    """One connection per job slot plus one per other pool user, so none ever waits for another."""
+    return concurrency + NON_JOB_POOL_USERS
 
 
 def run_worker() -> int:
@@ -24,9 +31,7 @@ def run_worker() -> int:
     configure_logging(settings.app)
     log = get_logger("signora.worker")
 
-    engine = create_db_engine(
-        settings.db, pool_size=settings.worker.concurrency + EXTRA_CONNECTIONS
-    )
+    engine = create_db_engine(settings.db, pool_size=worker_pool_size(settings.worker.concurrency))
     if not migrations_at_head(engine, settings.db):
         log.error("worker.migrations_not_at_head", hint="run `signora migrate` first")
         engine.dispose()
