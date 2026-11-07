@@ -1,8 +1,9 @@
 # Signora — Low-Level Design
 
-Status: draft v2 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
+Status: draft v4 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
 
 Changelog
+- v4: delivery re-planned as vertical feature slices (backend + frontend per feature, LLD per feature), core first; bulk send, ID verification, OCR moved to later.
 - v3: monorepo layout and modular-monolith module map with public interfaces, ownership, communication rules and tool-enforced boundaries (ADR-008).
 - v2: two access levels only (read, read/write); multiple signers and countersigners with role-scoped field keys; dynamic send form and CSV template; deterministic detector as a separate, independently scored module; idempotency and failure recovery; explicit signer-transparency requirements; corrected accuracy metrics; eval harness kept private.
 - v1: initial design.
@@ -512,49 +513,40 @@ checks, NER pre-pass, PAdES cryptographic PDF signatures (stretch), mobile apps,
 
 ---
 
-## Delivery phases
+## Delivery plan (v4: vertical feature slices, core first)
 
-One branch and one pull request per phase; one commit per task (see `CONTRIBUTING.md`).
+**How we build.** One feature at a time, end to end: its own LLD (`docs/design/features/NN-<slug>.md`, brainstormed and agreed before code) → backend module → frontend screens from the design system → tests → one branch and one PR (see `CONTRIBUTING.md`). Each commit is one task inside the feature.
 
-| Phase | Branch | Tasks |
-|---|---|---|
-| 0 Foundation | `phase-0/foundation` | 0, 1a, installer, design system, workflow docs |
-| 1 Detection | `phase-1/detection` | 1b (backend skeleton), 2–6 |
-| 2 Platform core | `phase-2/platform-core` | 7, 8, 9, 11, 22 |
-| 3 Console UI | `phase-3/console-ui` | web scaffold + design system port, 10, 21 |
-| 4 Send and sign | `phase-4/send-and-sign` | 12–17 |
-| 5 Operations | `phase-5/operations` | 18, 19, 20 |
-| 6 Release | `phase-6/release` | 23, 24, Funnel deployment |
-| 7 OCR (deferred) | `phase-7/ocr` | 25 |
+**Order.** The core signing path and its business rules and security come first, then hardening. Nicer features (bulk send, ID verification, OCR, extra-signer addendum, phone-specific signer, landing page) come only after the core is hardened. The modular structure (ADR-008) applies from the first line.
+
+| Phase | Branch | Feature | Backend | Frontend (prototype screens) | Tier |
+|---|---|---|---|---|---|
+| 0 | `phase-0/foundation` | Foundation | design, infra, installer | design system reference | done |
+| 1 | `phase-1/backbone` | Backbone | `kernel` (config, db + Alembic, logging, errors, idempotency, jobs, events, blob store, clock), `audit` module, API + worker entrypoints, import-linter, CI | Next.js scaffold, tokens + base components, app shell | core |
+| 2 | `phase-2/accounts` | Accounts & workspaces | `identity_access`: signup, login, sessions, CSRF, workspaces, members, invites, access policy | 02 sign up, 03 log in, 04 invite, 19 members | core |
+| 3 | `phase-3/projects` | Projects | `projects`: CRUD, settings, grants, countersigners | 05 home, 06 new project, 08 read-only, 09 settings | core |
+| 4 | `phase-4/documents` | Documents & versions | `documents`: upload, Gotenberg conversion, immutable versions, hashes | 10 documents, 11 upload | core |
+| 5 | `phase-5/detection` | Field detection | `detection`: layout, deterministic detector, AI detector, merge, metric; private eval | 12 detecting | core |
+| 6 | `phase-6/review` | Field review & approval | roles/fields/placements, approve, review metrics | 13 review canvas | core |
+| 7 | `phase-7/envelopes` | Envelopes & sending | `envelopes`: send form generation, recipients, role mapping, state machine; `notifications`: outbox + Gmail SMTP | 14 new envelope, 07 envelopes list, 16 envelope detail | core |
+| 8 | `phase-8/signing` | Signing | `signing`: link exchange, OTP, consent, submit validation, decline | 21–27 signer flow | core |
+| 9 | `phase-9/completion` | Countersign & completion | `rendering`: stamp, flatten, certificate; countersign flow; completed copies | 17 countersign, 18 completed | core |
+| 10 | `phase-10/lifecycle` | Reminders, expiry, notifications | scheduler: reminders (+ urgent), expiry, POC notices, email retry | badges, retry notice, 20 audit log | core |
+| 11 | `phase-11/hardening` | Hardening | security review, rate limits, headers, tenant-isolation and concurrency tests, E2E grader path on the Funnel URL | polish, accessibility, empty/error states | hardening |
+| 12+ | `phase-12/…` | Later features | bulk CSV/XLSX; Stripe Identity; extra-signer addendum; OCR / image-only PDFs; phone signer (28); landing page (01) | — | later |
 
 ## Task Tracker
 
+Each feature's detailed task list lives in its LLD file and is copied here as it starts.
+
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 0 | Research + design doc v2 | done | this file |
-| 1a | Infra: Postgres 18.4 + Gotenberg 8.40.0 in `infra/compose.yaml`, `make up` | done | 2026-11-06: both healthy; `select version()` → 18.4, checksums on, scram-sha-256; Gotenberg `/health` up, `/version` 8.40.0, DOCX → 1-page PDF via `POST /forms/libreoffice/convert` (field `files`), text verified with pdftotext |
-| 1b | Monorepo scaffold per ADR-008 (uv + pnpm workspaces, module skeletons, import-linter + eslint boundaries), compose services api, worker, web, caddy, mailpit | todo | — |
-| 2 | Private corpus (10 docs) + ground truth in `eval/` | todo | — |
-| 3 | Detection: normalize, page classify, layout | todo | — |
-| 4 | Deterministic detector + standalone eval score | todo | — |
-| 5 | AI detector (whole + chunked), resolution + standalone eval score | todo | — |
-| 6 | Merge + metric function (§7.6); iterate to NFR-2 | todo | — |
-| 7 | Data model + migrations + triggers | todo | — |
-| 8 | Auth, workspaces, invites, access policy + matrix tests | todo | — |
-| 9 | Projects, documents, versions, blob store, upload API | todo | — |
-| 10 | Review canvas (roles, fields), approve, review metrics | todo | — |
-| 11 | Idempotency keys + guarded transitions + job/outbox dedupe | todo | — |
-| 12 | Envelopes: dynamic send form, multi-doc, multi-signer, addendum signers | todo | — |
-| 13 | Signing security: token exchange, OTP, access code, rate limits, headers | todo | — |
-| 14 | Signer UI: consent, minimal viewer, submit validation, decline, confirmation | todo | — |
-| 15 | PDF finalize: stamp, flatten, addendum, certificate, hashes | todo | — |
-| 16 | Countersign flow (console + link) | todo | — |
-| 17 | Notifications: outbox, Gmail SMTP provider, templates, retry UI | todo | — |
-| 18 | Worker: job queue, reminders (+urgent), expiry | todo | — |
-| 19 | Bulk send: CSV/XLSX template, parse, preview, throttled send | todo | — |
-| 20 | Stripe Identity (test mode) | todo | — |
-| 21 | Console dashboard: statuses, timeline, reminder badge, downloads | todo | — |
-| 22 | Audit log hash chain + verification | todo | — |
-| 23 | E2E Playwright grader path on the Funnel URL with an unseen doc | todo | — |
-| 24 | README (setup, licenses incl. PyMuPDF AGPL), submission description | todo | — |
-| 25 | OCR / image-only PDFs (deferred) | todo | — |
+| P0.1 | Research + design doc | done | this file (v1–v4) |
+| P0.2 | Infra: Postgres 18.4 + Gotenberg 8.40.0 in `infra/compose.yaml`, `make up` | done | 2026-11-06: both healthy; `select version()` → 18.4, checksums on, scram-sha-256; Gotenberg `/health` up, `/version` 8.40.0, DOCX → 1-page PDF via `POST /forms/libreoffice/convert` (field `files`), text verified with pdftotext |
+| P0.3 | Backend Python project + `./install.sh` | done | commit 78102ec; clean-copy install and pip requirements install verified 2026-11-06 |
+| P0.4 | Design system reference | done | `docs/design-system/` |
+| P0.5 | Branch / commit / PR workflow | done | `CONTRIBUTING.md`, PR template |
+| P1 | Backbone | todo — LLD next | — |
+| P2–P10 | Core features | todo | — |
+| P11 | Hardening | todo | — |
+| P12+ | Later: bulk send, Stripe Identity, extra-signer addendum, **OCR / image-only PDFs (reminder)**, phone signer, landing | todo | — |
