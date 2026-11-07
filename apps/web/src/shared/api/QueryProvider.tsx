@@ -5,7 +5,15 @@ import { useState, type ReactNode } from "react";
 
 import { NetworkError } from "./errors";
 
-const MAX_QUERY_RETRIES = 3;
+/**
+ * Retry a read only when no answer arrived, and keep retrying until one does, so the page recovers
+ * by itself when the API returns. The delay is TanStack's default backoff (1 s, 2 s, 4 s … max 30 s,
+ * the same schedule as ``useIdempotentAction``), and TanStack pauses retries while the tab is hidden
+ * or offline. A definite API error is not retried.
+ */
+export function shouldRetryRead(_failureCount: number, error: unknown): boolean {
+  return error instanceof NetworkError;
+}
 
 export function makeQueryClient(): QueryClient {
   return new QueryClient({
@@ -15,8 +23,7 @@ export function makeQueryClient(): QueryClient {
         refetchOnReconnect: true,
         refetchOnWindowFocus: true,
         staleTime: 15_000,
-        // Retry reads only when no answer arrived; a definite API error is not retried.
-        retry: (failureCount, error) => error instanceof NetworkError && failureCount < MAX_QUERY_RETRIES,
+        retry: shouldRetryRead,
       },
     },
   });

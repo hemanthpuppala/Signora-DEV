@@ -917,7 +917,11 @@ another feature's internals; `shared/*` never imports `features/*`; `app/*` comp
 ### 8.5 Talking to the API
 
 - `openapi-fetch` typed with the generated contract types: an API change without a frontend update fails the build.
-- TanStack Query for reads, with `refetchOnReconnect` and `refetchOnWindowFocus` (topic 3.6).
+- TanStack Query for reads, with `refetchOnReconnect` and `refetchOnWindowFocus` (topic 3.6). A read that gets
+  no answer (network error, proxy 502/503/504) keeps retrying on the same backoff as actions (1 s, 2 s, 4 s …
+  max 30 s) until one arrives, so the page recovers by itself when the API returns; TanStack pauses these
+  retries while the tab is hidden or offline. While they run, the page shows "Connection lost — retrying…".
+  A definite API error is not retried.
 - **`useIdempotentAction`** — the one helper every mutating action uses: creates and keeps the idempotency key
   (also in `sessionStorage`), shows "Sending…" / "Connection lost — retrying…", retries on reconnect and on backoff,
   honours `409 Retry-After`, and reuses the key when pressed again.

@@ -17,10 +17,13 @@ export function MetaPanel() {
     queryFn: () => unwrap(api.GET("/api/v1/health/ready")),
   });
 
-  if (meta.isError) {
+  // A network failure keeps retrying (no error state yet), so show the last failure while it does;
+  // a definite API error ends in the error state.
+  const failure = meta.error ?? meta.failureReason;
+  if (failure) {
     return (
       <Notice tone="warning" title="API unreachable">
-        {userMessage(meta.error)}
+        {userMessage(failure)}
       </Notice>
     );
   }
