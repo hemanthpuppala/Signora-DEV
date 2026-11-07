@@ -14,7 +14,7 @@ agreed.
 | 2 | Jobs table schema | **agreed** (2026-11-07) |
 | 3 | Idempotency: server contract, schema, client reconnect behaviour | **agreed** (2026-11-07) |
 | 4 | Audit log: chain scope, system events, schema | **agreed** (2026-11-07) |
-| 5 | File storage | open |
+| 5 | File storage | **agreed** (2026-11-07) |
 | 6 | Configuration and path resolution | open |
 | 7 | Errors, logging, health APIs | open |
 | 8 | Frontend shell | open |
@@ -444,3 +444,103 @@ def verify(uow, chain_id: UUID) -> VerificationResult: ...      # ok, entries ch
 - Appends to different chains do not wait on each other's lock.
 - Action rolled back → its audit entry does not exist.
 - Canonical JSON is byte-identical before insert and after a database round trip.
+
+---
+
+## Topic 5 — File storage
+
+### 5.1 What is stored
+
+Every file in the product: uploaded agreements (PDF/DOCX), PDFs converted from DOCX, signer signature and initials
+images, final signed PDFs with certificate, and later bulk-send spreadsheets. All are **immutable**.
+
+### 5.2 Object keys: one layout for local disk and cloud object storage
+
+Files are addressed by an **object key**, the native naming of S3-compatible storage. The same key is used by every
+backend; only the backend's root differs.
+
+```
+workspaces/<workspace_id>/blobs/sha256/<h[0:2]>/<h[2:4]>/<h>
+e.g. workspaces/0193f1c2-…/blobs/sha256/9f/2c/9f2c88e1…07a1e41a
+```
+
+| Backend | Root | Full location of that key |
+|---|---|---|
+| Local (now) | `BLOB_STORE_DIR` (default `./data/blobs`, repo-root relative) | `./data/blobs/workspaces/<ws>/blobs/sha256/9f/2c/9f2c…` |
+| S3-compatible (cloud) | bucket `BLOB_STORE_BUCKET` (+ optional `BLOB_STORE_PREFIX`) | `s3://<bucket>/workspaces/<ws>/blobs/sha256/9f/2c/9f2c…` |
+
+Why this layout follows common practice:
+- **Tenant first** (`workspaces/<id>/`): per-tenant access policies, lifecycle and retention rules, usage
+  reporting and deleting a tenant's data are all a single prefix operation in object storage.
+- **Typed namespace** (`blobs/sha256/`): leaves room for other object families later without collisions, and states
+  how names are derived.
+- **Content address** (`sha256/<h>`): the name *is* the integrity check; identical content within a workspace is
+  stored once; nothing can be overwritten with different content.
+- **Two hex fan-out levels** (`9f/2c/`): keeps local directories small; in object storage, the random hex spreads
+  keys across partitions.
+
+### 5.3 Rules
+
+1. **Deduplicated per workspace only.** The same file from two workspaces is stored twice: no cross-tenant
+   "this file exists" signal, and a tenant's data can be deleted by prefix.
+2. **Immutable.** Writes are put-if-absent; existing objects are never replaced.
+3. **Atomic writes.** Local: stream into a temporary file under `BLOB_STORE_DIR/.tmp/`, hashing and enforcing the
+   size limit while streaming, `fsync`, then `rename` into place. S3: a single `PUT` (atomic by definition) with
+   `If-None-Match: *` (conditional write) after hashing to a spooled temporary file.
+4. **No public URLs.** Reads go only through API endpoints that check permission and stream the bytes. (A later
+   option for large downloads: short-lived pre-signed URLs issued after the same check.)
+5. **No path tricks.** Keys are built only from a validated UUID and a 64-character lowercase hex digest, never from
+   user input.
+6. **No files table.** The owning module stores `sha256`, size and media type in its own table (e.g. a document
+   version). Unreferenced objects left by rolled-back transactions are removed by a cleanup job in the hardening
+   phase (objects older than 24 h that no module references).
+7. **Limits:** 50 MB per upload, 1 MB per signature image (configuration).
+8. **File type checks** (real PDF / DOCX by content, not by name or declared type) belong to the documents module
+   (Phase 4). The store handles bytes only.
+9. **Encryption at rest:** none for local storage (owner decision for this project); in the cloud, the bucket's
+   default server-side encryption (SSE-S3 or SSE-KMS).
+
+### 5.4 Configuration
+
+```
+BLOB_STORE_BACKEND=local            # local | s3
+BLOB_STORE_DIR=./data/blobs         # local backend root (repo-root relative)
+# s3 backend (later): BLOB_STORE_BUCKET, BLOB_STORE_PREFIX, BLOB_STORE_REGION,
+#                     BLOB_STORE_ENDPOINT_URL (S3-compatible providers / MinIO), credentials from the environment
+```
+
+### 5.5 Interface
+
+```python
+@dataclass(frozen=True)
+class BlobRef:
+    workspace_id: UUID
+    sha256: str            # 64 lowercase hex chars
+    size: int
+
+    @property
+    def key(self) -> str:  # 'workspaces/<ws>/blobs/sha256/<h0:2>/<h2:4>/<h>'
+        ...
+
+class BlobStore(Protocol):
+    def put(self, workspace_id: UUID, data: BinaryIO, *, max_bytes: int) -> BlobRef: ...  # raises TooLarge
+    def open(self, ref: BlobRef) -> BinaryIO: ...                                       # raises NotFound
+    def exists(self, ref: BlobRef) -> bool: ...
+
+def blob_store_from_settings(settings) -> BlobStore: ...   # LocalBlobStore now; S3BlobStore later
+```
+
+Callers depend only on `BlobStore` and `BlobRef`; switching to the cloud is a configuration change plus the S3
+implementation, with no change to modules.
+
+### 5.6 Tests that prove it
+
+One **contract test suite** written against the `BlobStore` interface, run against the local backend now and against
+the S3 backend (MinIO in Docker) when it is added:
+- put then open returns identical bytes; `sha256` and `size` are correct; the key matches the layout.
+- Same bytes twice in one workspace → one object; in two workspaces → two objects.
+- Over `max_bytes` → `TooLarge`, and nothing is left behind.
+- Interrupted write (simulated crash) → no partial object at the final key.
+- Invalid workspace id or digest → rejected before any filesystem or network access.
+
+**Complexity:** put and open are O(size) (one streaming pass with hashing); lookup by key is O(1).
