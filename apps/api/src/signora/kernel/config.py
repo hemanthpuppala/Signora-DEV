@@ -188,11 +188,21 @@ class DatabaseSettings(_Group):
 
     @property
     def url(self) -> str:
-        """SQLAlchemy URL built from the parts; never stored as a separate variable."""
-        return (
-            f"postgresql+psycopg://{self.user}:{self.password.get_secret_value()}"
-            f"@{self.host}:{self.port}/{self.name}"
-        )
+        """SQLAlchemy URL built from the parts; never stored as a separate variable.
+
+        Built with ``URL.create`` so a user or password containing ``@``, ``/``, ``#`` or ``%`` is
+        percent-encoded instead of breaking the URL.
+        """
+        from sqlalchemy import URL
+
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.user,
+            password=self.password.get_secret_value(),
+            host=self.host,
+            port=self.port,
+            database=self.name,
+        ).render_as_string(hide_password=False)
 
     @property
     def conninfo(self) -> str:

@@ -50,6 +50,26 @@ def make_root(tmp_path: Path, values: dict[str, str]) -> Path:
     return tmp_path
 
 
+@pytest.mark.parametrize("password", ["p@ss", "a/b", "x#y", "100%", "c:o?l&on=", "spa ce"])
+def test_database_url_survives_special_characters_in_the_password(
+    tmp_path: Path, password: str
+) -> None:
+    from sqlalchemy.engine import make_url
+
+    from signora.kernel.migrations import alembic_config
+
+    settings = load_settings(make_root(tmp_path, {**BASELINE, "POSTGRES_PASSWORD": password}))
+
+    for url in (
+        settings.db.url,
+        alembic_config(settings.db).get_main_option("sqlalchemy.url"),  # what migrations use
+    ):
+        assert url is not None
+        parsed = make_url(url)
+        assert parsed.password == password
+        assert (parsed.host, parsed.port, parsed.database) == ("127.0.0.1", 55432, "signora")
+
+
 def test_loads_groups_and_resolves_relative_paths_against_root(tmp_path: Path) -> None:
     root = make_root(tmp_path, {**BASELINE, "BLOB_STORE_DIR": "./data/blobs"})
 
