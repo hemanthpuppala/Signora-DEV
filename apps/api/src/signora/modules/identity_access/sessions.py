@@ -40,7 +40,8 @@ def resolve_session(
             SELECT s.user_id, s.last_seen_at < now() - make_interval(secs => :touch) AS due,
                    u.email, u.name, u.workspace_id, w.name AS workspace_name,
                    w.created_by = u.id AS is_creator,
-                   r.id AS role_id, r.key AS role_key, r.name AS role_name, r.permissions
+                   r.id AS role_id, r.key AS role_key, r.name AS role_name,
+                   r.description AS role_description, r.permissions
             FROM sessions s
             JOIN users u ON u.id = s.user_id
             JOIN workspaces w ON w.id = u.workspace_id
@@ -68,6 +69,7 @@ def resolve_session(
         role_id=row.role_id,
         role_key=row.role_key,
         role_name=row.role_name,
+        role_description=row.role_description,
         permissions=effective_permissions(row.permissions, is_creator=row.is_creator),
         is_creator=row.is_creator,
         session_digest=digest,

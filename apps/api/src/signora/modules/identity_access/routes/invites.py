@@ -37,7 +37,7 @@ def view(row: invite_service.InviteRow) -> InviteView:
     return InviteView(
         id=row.id,
         email=row.email,
-        role=RoleRef(id=row.role_id, name=row.role_name),
+        role=RoleRef(id=row.role_id, name=row.role_name, description=row.role_description),
         invited_by_name=row.invited_by_name,
         created_at=row.created_at,
         expires_at=row.expires_at,
@@ -121,6 +121,7 @@ def verify_invite(body: TokenRequest, request: Request) -> InviteDetailsView:
         email=details.email,
         workspace_name=details.workspace_name,
         role_name=details.role_name,
+        role_description=details.role_description,
         inviter_name=details.inviter_name,
     )
 

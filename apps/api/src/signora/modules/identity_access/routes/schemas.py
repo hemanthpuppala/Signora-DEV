@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from signora.modules.identity_access.access import Actor
+from signora.modules.identity_access.domain.permissions import OWNER_DESCRIPTION, OWNER_LABEL
 
 # Long enough for any passphrase; short enough that nobody makes the server hash a megabyte.
 PasswordInput = Annotated[str, StringConstraints(min_length=1, max_length=1024)]
@@ -23,6 +24,20 @@ class _Body(BaseModel):
 class RoleRef(BaseModel):
     id: uuid.UUID
     name: str
+    description: str
+
+
+class DisplayRole(BaseModel):
+    """What people read: "Owner" for the workspace creator, otherwise the role's own words."""
+
+    name: str
+    description: str
+
+    @staticmethod
+    def of(*, is_creator: bool, name: str, description: str) -> DisplayRole:
+        if is_creator:
+            return DisplayRole(name=OWNER_LABEL, description=OWNER_DESCRIPTION)
+        return DisplayRole(name=name, description=description)
 
 
 class SignupRequest(_Body):
@@ -75,6 +90,7 @@ class InviteDetailsView(BaseModel):
     email: str
     workspace_name: str
     role_name: str
+    role_description: str
     inviter_name: str
 
 
@@ -88,6 +104,7 @@ class MemberView(BaseModel):
     name: str
     email: str
     role: RoleRef
+    display_role: DisplayRole
     is_creator: bool
     joined_at: datetime
 
@@ -102,6 +119,7 @@ class RoleDetailView(BaseModel):
     id: uuid.UUID
     key: str
     name: str
+    description: str
     is_system: bool
     permissions: list[str]
 
@@ -134,12 +152,14 @@ class RoleView(BaseModel):
     id: uuid.UUID
     key: str
     name: str
+    description: str
 
 
 class MeResponse(BaseModel):
     user: UserView
     workspace: WorkspaceView
     role: RoleView
+    display_role: DisplayRole
     permissions: list[str] = Field(description="Effective permissions; drives what the UI shows")
     is_creator: bool
 
@@ -148,7 +168,17 @@ class MeResponse(BaseModel):
         return MeResponse(
             user=UserView(id=actor.user_id, email=actor.email, name=actor.name),
             workspace=WorkspaceView(id=actor.workspace_id, name=actor.workspace_name),
-            role=RoleView(id=actor.role_id, key=actor.role_key, name=actor.role_name),
+            role=RoleView(
+                id=actor.role_id,
+                key=actor.role_key,
+                name=actor.role_name,
+                description=actor.role_description,
+            ),
+            display_role=DisplayRole.of(
+                is_creator=actor.is_creator,
+                name=actor.role_name,
+                description=actor.role_description,
+            ),
             permissions=sorted(actor.permissions),
             is_creator=actor.is_creator,
         )

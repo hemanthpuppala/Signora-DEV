@@ -93,7 +93,10 @@ def login(
         raise fail("wrong_password")
     if not user.active:
         security.warning("auth.login_refused_removed", user_id=str(user.id))
-        raise AccessRemoved(f"Your access to {user.workspace_name} was removed")
+        raise AccessRemoved(
+            f"You no longer have access to {user.workspace_name}. "
+            "Ask the workspace owner if you need it back."
+        )
 
     limiter.reset(email_key(normalized))
     if verification.needs_rehash:

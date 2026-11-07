@@ -15,6 +15,7 @@ from signora.modules.identity_access.domain.permissions import Permission
 from signora.modules.identity_access.routes.schemas import (
     ChangeRoleRequest,
     DirectoryEntryView,
+    DisplayRole,
     MemberView,
     MeResponse,
     NameRequest,
@@ -32,7 +33,10 @@ def view(row: member_service.MemberRow) -> MemberView:
         id=row.id,
         name=row.name,
         email=row.email,
-        role=RoleRef(id=row.role_id, name=row.role_name),
+        role=RoleRef(id=row.role_id, name=row.role_name, description=row.role_description),
+        display_role=DisplayRole.of(
+            is_creator=row.is_creator, name=row.role_name, description=row.role_description
+        ),
         is_creator=row.is_creator,
         joined_at=row.joined_at,
     )

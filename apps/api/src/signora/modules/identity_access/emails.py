@@ -4,6 +4,7 @@ module's job; links carry their token after ``#`` so it never reaches a server l
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from signora.modules.notifications import EmailAction, RenderedEmail, render_layout
 
@@ -92,18 +93,42 @@ def password_changed(base_url: str) -> AccountEmail:
     )
 
 
+def with_article(noun: str) -> str:
+    """ "a Viewer", "an Editor" (role names are data, so this works for any of them)."""
+    return f"{'an' if noun[:1].lower() in 'aeiou' else 'a'} {noun}"
+
+
+def role_sentence(role: str, description: str) -> str:
+    """ "As a Viewer, you can see …" from the role's own description ("Can see …")."""
+    if not description:
+        return ""
+    return f"As {with_article(role)}, you {description[0].lower()}{description[1:]}"
+
+
+def day_month(moment: datetime) -> str:
+    return f"{moment.day} {moment:%B}"
+
+
 def invitation(
-    base_url: str, token: str, *, workspace: str, inviter: str, role: str, days: int
+    base_url: str,
+    token: str,
+    *,
+    workspace: str,
+    inviter: str,
+    role: str,
+    role_description: str,
+    expires_at: datetime,
 ) -> AccountEmail:
+    paragraphs = [f"{inviter} invited you to join {workspace} as {with_article(role)}."]
+    if sentence := role_sentence(role, role_description):
+        paragraphs.append(sentence)
+    paragraphs.append(f"This invitation expires on {day_month(expires_at)}.")
     return AccountEmail(
         "auth.invite",
-        f"{inviter} invited you to {workspace} on Signora",
+        f"{inviter} invited you to join {workspace} on Signora",
         render_layout(
             heading=f"Join {workspace}.",
-            paragraphs=[
-                f"{inviter} invited you to {workspace} on Signora with {role} access.",
-                f"The invitation expires in {days} days.",
-            ],
+            paragraphs=paragraphs,
             action=EmailAction("Accept invitation", link(base_url, "/invite", token)),
             footer=FOOTER,
         ),
@@ -113,14 +138,14 @@ def invitation(
 def invitation_blocked(*, workspace: str, inviter: str) -> AccountEmail:
     return AccountEmail(
         "auth.invite_blocked",
-        f"{inviter} invited you to {workspace} on Signora",
+        f"{inviter} invited you to join {workspace} on Signora",
         render_layout(
             heading=f"An invitation to {workspace}.",
             paragraphs=[
-                f"{inviter} invited you to {workspace} on Signora, but this email already belongs "
-                "to another workspace. On Signora each email belongs to one workspace, so you "
-                "cannot join with it.",
-                f"If you need access, ask {inviter} to invite a different email address.",
+                f"{inviter} invited you to join {workspace} on Signora.",
+                "This email is already used for another Signora workspace, and each email can "
+                "belong to only one.",
+                f"Ask {inviter} to invite a different address.",
             ],
             footer=FOOTER,
         ),

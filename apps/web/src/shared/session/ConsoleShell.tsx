@@ -20,6 +20,11 @@ const NAV: readonly { href: string; label: string; requires?: PermissionName }[]
   { href: "/settings", label: "Settings" },
 ];
 
+const NO_ACCESS: Partial<Record<PermissionName, string>> = {
+  "members.manage": "Only the workspace owner can manage people.",
+};
+const NO_ACCESS_DEFAULT = "You don't have access to this page. Ask the workspace owner if you need it.";
+
 /**
  * Signed-in console: loads the session, sends signed-out visitors to /login (keeping the page to
  * return to), builds the navigation from permissions, and renders the page with the user.
@@ -64,7 +69,7 @@ export function ConsoleShell({ requires, children }: ConsoleShellProps) {
   return (
     <AppShell workspace={me.workspace.name} nav={nav} actions={actions}>
       {requires && !can(me, requires) ? (
-        <Notice title="No access">Ask your workspace creator if you need this page.</Notice>
+        <Notice title="No access">{NO_ACCESS[requires] ?? NO_ACCESS_DEFAULT}</Notice>
       ) : (
         children(me)
       )}

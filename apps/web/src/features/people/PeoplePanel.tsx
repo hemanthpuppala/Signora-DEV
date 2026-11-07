@@ -41,6 +41,8 @@ export function PeoplePanel({ me }: { me: Me }) {
   const invites = useQuery({ queryKey: INVITES, queryFn: () => unwrap(api.GET("/api/v1/invites")) });
   const roles = useQuery({ queryKey: ["roles"], queryFn: () => unwrap(api.GET("/api/v1/roles")) });
   const roleOptions = (roles.data ?? []).map((role) => ({ value: role.id, label: role.name }));
+  const roleDescriptions = Object.fromEntries((roles.data ?? []).map((r) => [r.id, r.description]));
+  const defaultRole = roles.data?.find((role) => role.key === "read")?.id ?? null;
   const changed = useCallback(
     (message: string) => {
       toast.show(message);
@@ -53,7 +55,12 @@ export function PeoplePanel({ me }: { me: Me }) {
 
   return (
     <>
-      <InviteForm roleOptions={roleOptions} onInvited={invited} />
+      <InviteForm
+        roleOptions={roleOptions}
+        roleDescriptions={roleDescriptions}
+        defaultRole={defaultRole}
+        onInvited={invited}
+      />
       <Section title="Members">
         {members.isError ? <Notice tone="warning">{formError(members.error)}</Notice> : null}
         <TablePanel>
@@ -102,14 +109,18 @@ export function PeoplePanel({ me }: { me: Me }) {
 
 function InviteForm({
   roleOptions,
+  roleDescriptions,
+  defaultRole,
   onInvited,
 }: {
   roleOptions: { value: string; label: string }[];
+  roleDescriptions: Record<string, string>;
+  defaultRole: string | null;
   onInvited: (email: string) => void;
 }) {
   const [email, setEmail] = useState("");
   const [roleId, setRoleId] = useState<string | null>(null);
-  const chosenRole = roleId ?? roleOptions.find((option) => option.label === "Read")?.value ?? null;
+  const chosenRole = roleId ?? defaultRole;
   const invite = useIdempotentAction<{ email: string; role_id: string }, Invite>(
     "invite-create",
     (input, key) =>
@@ -146,11 +157,14 @@ function InviteForm({
             error={errors.email}
             onChange={(event) => setEmail(event.target.value)}
           />
-          <Select label="Role" options={roleOptions} value={chosenRole} onChange={setRoleId} />
+          <Select label="Invite as" options={roleOptions} value={chosenRole} onChange={setRoleId} />
           <Button type="submit" variant="quiet" loading={invite.isPending} disabled={!chosenRole}>
             Send invite
           </Button>
         </FieldGrid>
+        {chosenRole && roleDescriptions[chosenRole] ? (
+          <SmallText>{roleDescriptions[chosenRole]}</SmallText>
+        ) : null}
       </Section>
     </form>
   );
@@ -189,15 +203,12 @@ function MemberRow({
     <tr>
       <td>
         <b>{member.name}</b>
-        <SmallText>
-          {member.email}
-          {member.is_creator ? " · Creator · cannot be removed" : ""}
-        </SmallText>
+        <SmallText>{member.email}</SmallText>
         {problem ? <SmallText role="alert">{problem}</SmallText> : null}
       </td>
       <td>
         {member.is_creator ? (
-          member.role.name
+          member.display_role.name
         ) : (
           <Select
             label={`Role of ${member.name}`}

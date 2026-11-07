@@ -9,7 +9,15 @@ import { fieldErrors, formError } from "@/shared/api/errors";
 import { usePasswordRules } from "@/shared/api/usePasswordRules";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
 import { fetchSession, useLogIn, useSignOut } from "@/shared/session";
-import { AuthPanel, BodyText, Button, Notice, PasswordField, TextField } from "@/shared/ui";
+import {
+  AuthPanel,
+  BodyText,
+  Button,
+  Notice,
+  PasswordField,
+  SmallText,
+  TextField,
+} from "@/shared/ui";
 
 import { LinkProblem } from "./LinkProblem";
 import { useLinkCheck } from "./useLinkCheck";
@@ -81,8 +89,10 @@ export function AcceptInviteForm() {
       ) : null}
       {problem ? <Notice tone="warning">{problem}</Notice> : null}
       <BodyText>
-        {invite.inviter_name} invited you with <b>{invite.role_name}</b> access.
+        {invite.inviter_name} invited you to join {invite.workspace_name}. Your role:{" "}
+        <b>{invite.role_name}</b>.
       </BodyText>
+      {invite.role_description ? <SmallText>{invite.role_description}</SmallText> : null}
       <TextField label="Email" value={invite.email} readOnly autoComplete="username" />
       <TextField
         label="Your name"

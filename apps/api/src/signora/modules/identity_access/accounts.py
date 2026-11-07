@@ -87,13 +87,14 @@ def create_workspace(
     for template in DEFAULT_ROLES:
         role_ids[template.key] = session.execute(
             text(
-                "INSERT INTO roles (workspace_id, key, name, permissions, is_system) "
-                "VALUES (:w, :key, :name, :permissions, true) RETURNING id"
+                "INSERT INTO roles (workspace_id, key, name, description, permissions, is_system) "
+                "VALUES (:w, :key, :name, :description, :permissions, true) RETURNING id"
             ),
             {
                 "w": workspace_id,
                 "key": template.key,
                 "name": template.name,
+                "description": template.description,
                 "permissions": sorted(template.permissions),
             },
         ).scalar_one()

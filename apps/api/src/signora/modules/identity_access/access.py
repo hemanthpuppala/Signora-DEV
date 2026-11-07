@@ -30,6 +30,7 @@ class Actor:
     role_id: uuid.UUID
     role_key: str
     role_name: str
+    role_description: str
     permissions: frozenset[Permission]
     is_creator: bool
     session_digest: bytes

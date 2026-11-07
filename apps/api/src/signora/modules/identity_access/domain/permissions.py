@@ -36,17 +36,30 @@ def parse_permissions(values: Iterable[str]) -> tuple[frozenset[Permission], fro
 
 @dataclass(frozen=True)
 class RoleTemplate:
-    key: str
+    key: str  # stable identifier; the name and description are what people read
     name: str
+    description: str
     permissions: frozenset[Permission]
 
 
-READ = RoleTemplate("read", "Read", frozenset())
+READ = RoleTemplate(
+    "read",
+    "Viewer",
+    "Can see projects, documents and signed agreements, but can't change anything.",
+    frozenset(),
+)
 READ_WRITE = RoleTemplate(
     "read_write",
-    "Read/write",
+    "Editor",
+    "Can create and send agreements, and rename the workspace.",
     frozenset({Permission.MEMBERS_DIRECTORY, Permission.WORKSPACE_RENAME}),
 )
-# Created with every workspace. The creator gets Read/write and, in code, every permission.
+# Shown for the workspace creator, who holds the Editor role plus every permission in code.
+OWNER_LABEL = "Owner"
+OWNER_DESCRIPTION = (
+    "Set up this workspace. Can invite and remove people, change what they can do, and "
+    "everything editors can do."
+)
+# Created with every workspace. The creator gets Editor and, in code, every permission.
 DEFAULT_ROLES = (READ_WRITE, READ)
 CREATOR_ROLE = READ_WRITE

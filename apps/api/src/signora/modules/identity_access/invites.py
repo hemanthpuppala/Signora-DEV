@@ -42,6 +42,7 @@ class InviteRow:
     email: str
     role_id: uuid.UUID
     role_name: str
+    role_description: str
     invited_by_name: str
     created_at: datetime
     expires_at: datetime
@@ -49,7 +50,8 @@ class InviteRow:
 
 
 _LIST_SQL = """
-    SELECT i.id, i.email, i.role_id, r.name AS role_name, u.name AS invited_by_name,
+    SELECT i.id, i.email, i.role_id, r.name AS role_name, r.description AS role_description,
+           u.name AS invited_by_name,
            i.created_at, i.expires_at, i.expires_at <= now() AS expired
     FROM invites i
     JOIN roles r ON r.id = i.role_id
@@ -83,16 +85,9 @@ def _role_name(session: Session, workspace_id: uuid.UUID, role_id: uuid.UUID) ->
 
 
 def _send_invitation(
-    uow: UnitOfWork,
-    *,
-    actor: Actor,
-    email: str,
-    token: str,
-    role_name: str,
-    settings: AuthSettings,
-    base_url: str,
+    uow: UnitOfWork, *, actor: Actor, invite: InviteRow, token: str, base_url: str
 ) -> None:
-    owner = accounts.find_user_by_email(uow.session, email)
+    owner = accounts.find_user_by_email(uow.session, invite.email)
     if owner is not None and owner.workspace_id != actor.workspace_id:
         message = emails.invitation_blocked(workspace=actor.workspace_name, inviter=actor.name)
     else:
@@ -101,12 +96,13 @@ def _send_invitation(
             token,
             workspace=actor.workspace_name,
             inviter=actor.name,
-            role=role_name,
-            days=settings.invite_days,
+            role=invite.role_name,
+            role_description=invite.role_description,
+            expires_at=invite.expires_at,
         )
     send_email(
         uow,
-        to=email,
+        to=invite.email,
         subject=message.subject,
         text=message.body.text,
         html=message.body.html,
@@ -185,16 +181,9 @@ def create_invite(
             },
         ).scalar_one()
         _audit(uow, actor, "invite.created", invite_id, email=address, role=role_name)
-    _send_invitation(
-        uow,
-        actor=actor,
-        email=address,
-        token=token.value,
-        role_name=role_name,
-        settings=settings,
-        base_url=base_url,
-    )
-    return _pending(uow.session, actor.workspace_id, invite_id)
+    invite = _pending(uow.session, actor.workspace_id, invite_id)
+    _send_invitation(uow, actor=actor, invite=invite, token=token.value, base_url=base_url)
+    return invite
 
 
 def resend_invite(
@@ -223,16 +212,9 @@ def resend_invite(
         },
     )
     _audit(uow, actor, "invite.resent", invite_id, email=invite.email)
-    _send_invitation(
-        uow,
-        actor=actor,
-        email=invite.email,
-        token=token.value,
-        role_name=invite.role_name,
-        settings=settings,
-        base_url=base_url,
-    )
-    return _pending(uow.session, actor.workspace_id, invite_id)
+    refreshed = _pending(uow.session, actor.workspace_id, invite_id)
+    _send_invitation(uow, actor=actor, invite=refreshed, token=token.value, base_url=base_url)
+    return refreshed
 
 
 def revoke_invite(uow: UnitOfWork, *, actor: Actor, invite_id: uuid.UUID) -> None:
@@ -261,12 +243,13 @@ class InviteDetails:
     email: str
     workspace_name: str
     role_name: str
+    role_description: str
     inviter_name: str
 
 
 _LIVE_SQL = """
     SELECT i.id, i.workspace_id, i.email, i.role_id, w.name AS workspace_name,
-           r.name AS role_name, u.name AS inviter_name
+           r.name AS role_name, r.description AS role_description, u.name AS inviter_name
     FROM invites i
     JOIN workspaces w ON w.id = i.workspace_id
     JOIN roles r ON r.id = i.role_id
@@ -287,7 +270,9 @@ def _live(session: Session, token: str, *, lock: bool = False) -> Any:
 
 def verify_invite(uow: UnitOfWork, token: str) -> InviteDetails:
     row = _live(uow.session, token)
-    return InviteDetails(row.email, row.workspace_name, row.role_name, row.inviter_name)
+    return InviteDetails(
+        row.email, row.workspace_name, row.role_name, row.role_description, row.inviter_name
+    )
 
 
 def accept_invite(

@@ -50,9 +50,14 @@ def test_people_lists_active_members_with_roles_creator_first(
     members = manager.get("/api/v1/members").json()
 
     assert [m["is_creator"] for m in members] == [True, False]
-    assert members[0]["role"]["name"] == "Read/write"
-    assert members[1]["role"]["name"] == "Read"
-    assert {"id", "name", "email", "role", "is_creator", "joined_at"} == set(members[0])
+    assert members[0]["role"]["name"] == "Editor"
+    assert members[1]["role"]["name"] == "Viewer"
+    assert members[1]["role"]["description"].startswith("Can see projects")
+    assert members[0]["display_role"]["name"] == "Owner"  # the creator, in people's words
+    assert members[1]["display_role"]["name"] == "Viewer"
+    assert {"id", "name", "email", "role", "display_role", "is_creator", "joined_at"} == set(
+        members[0]
+    )
 
 
 def test_people_and_roles_are_the_creators_by_default(
@@ -110,7 +115,7 @@ def test_a_role_change_applies_on_the_members_next_request(
             {"role_id": str(workspace.role_ids["read_write"])},
         )
 
-        assert changed.json()["role"]["name"] == "Read/write"
+        assert changed.json()["role"]["name"] == "Editor"
         assert theirs.get("/api/v1/members/directory").status_code == 200  # same session
     assert actions(committing_db, workspace)[-1] == "member.role_changed"
 

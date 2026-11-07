@@ -9,11 +9,13 @@ import { usePasswordRules } from "@/shared/api/usePasswordRules";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
 import { can, SESSION_QUERY_KEY, type Me } from "@/shared/session";
 import {
+  BodyText,
   Button,
   FieldGrid,
   Notice,
   PasswordField,
   Section,
+  SmallText,
   TextField,
   useToast,
 } from "@/shared/ui";
@@ -22,6 +24,12 @@ import {
 export function SettingsPanel({ me }: { me: Me }) {
   return (
     <>
+      <Section title="Your role">
+        <BodyText>
+          <b>{me.display_role.name}</b> in {me.workspace.name}
+        </BodyText>
+        <SmallText>{me.display_role.description}</SmallText>
+      </Section>
       <ProfileForm me={me} />
       <PasswordForm />
       {can(me, "workspace.rename") ? <WorkspaceForm me={me} /> : null}

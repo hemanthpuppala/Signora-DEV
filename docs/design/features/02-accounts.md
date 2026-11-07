@@ -369,6 +369,18 @@ enforces every limit in this phase.
 - Changing a company's rules = updating its `roles` rows; no migration, no deploy. A creator-only role editor
   (`roles.manage`) is a later phase.
 
+### 8.1a People-facing wording (owner decision, 2026-11-07)
+
+- Roles are named for the job: **Owner** (the workspace creator, a label shown in place of their role), **Editor**
+  (key `read_write`) and **Viewer** (key `read`). Each role has a one-line `description` stored with it (migration
+  0004 adds the column and renames the default roles of existing workspaces; keys and permissions are unchanged).
+- The API sends `display_role` (name and description: "Owner" for the creator) with `/me` and each member, so the
+  owner wording lives only in `domain/permissions.py`.
+- Invitations state the role and what it allows ("Rosa Hale invited you to join Hale & Ward LLP as a Viewer. As a
+  Viewer, you can see …"), as Google Workspace, Notion and Figma do. Settings shows "Your role". Areas a role never
+  uses are hidden (People); from Phase 3, key actions a role cannot take are shown disabled with the reason ("Only
+  owners and editors can add agreements") rather than failing after a click. The server check stays authoritative.
+
 ### 8.2 Endpoints
 
 | Endpoint | Permission |

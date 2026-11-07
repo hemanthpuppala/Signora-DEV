@@ -58,6 +58,7 @@ roles = Table(
     Column("workspace_id", UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False),
     Column("key", Text, nullable=False),
     Column("name", Text, nullable=False),
+    Column("description", Text, nullable=False, server_default=text("''")),
     Column("permissions", ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")),
     Column("is_system", Boolean, nullable=False, server_default=text("false")),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),

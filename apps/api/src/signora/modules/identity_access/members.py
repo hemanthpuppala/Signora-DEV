@@ -31,13 +31,15 @@ class MemberRow:
     role_id: uuid.UUID
     role_key: str
     role_name: str
+    role_description: str
     is_creator: bool
     joined_at: datetime
 
 
 _MEMBERS_SQL = """
     SELECT u.id, u.name, u.email, r.id AS role_id, r.key AS role_key, r.name AS role_name,
-           w.created_by = u.id AS is_creator, u.created_at AS joined_at
+           r.description AS role_description, w.created_by = u.id AS is_creator,
+           u.created_at AS joined_at
     FROM users u
     JOIN roles r ON r.id = u.role_id
     JOIN workspaces w ON w.id = u.workspace_id
@@ -85,6 +87,7 @@ class RoleRow:
     id: uuid.UUID
     key: str
     name: str
+    description: str
     is_system: bool
     permissions: list[str]
 
@@ -92,7 +95,7 @@ class RoleRow:
 def list_roles(session: Session, workspace_id: uuid.UUID) -> list[RoleRow]:
     rows = session.execute(
         text(
-            "SELECT id, key, name, is_system, permissions FROM roles "
+            "SELECT id, key, name, description, is_system, permissions FROM roles "
             "WHERE workspace_id = :w ORDER BY is_system DESC, name"
         ),
         {"w": workspace_id},

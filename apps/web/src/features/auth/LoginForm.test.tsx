@@ -17,7 +17,8 @@ vi.mock("next/navigation", () => ({
 const me = {
   user: { id: "u", email: "rosa@example.com", name: "Rosa Hale" },
   workspace: { id: "w", name: "Acme" },
-  role: { id: "r", key: "read_write", name: "Read/write" },
+  role: { id: "r", key: "read_write", name: "Editor", description: "Can create and send agreements." },
+  display_role: { name: "Editor", description: "Can create and send agreements." },
   permissions: [],
   is_creator: false,
 };

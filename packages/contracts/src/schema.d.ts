@@ -462,6 +462,16 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * DisplayRole
+         * @description What people read: "Owner" for the workspace creator, otherwise the role's own words.
+         */
+        DisplayRole: {
+            /** Description */
+            description: string;
+            /** Name */
+            name: string;
+        };
         /** EmailResponse */
         EmailResponse: {
             /** Email */
@@ -473,6 +483,8 @@ export interface components {
             email: string;
             /** Inviter Name */
             inviter_name: string;
+            /** Role Description */
+            role_description: string;
             /** Role Name */
             role_name: string;
             /** Workspace Name */
@@ -522,6 +534,7 @@ export interface components {
         };
         /** MeResponse */
         MeResponse: {
+            display_role: components["schemas"]["DisplayRole"];
             /** Is Creator */
             is_creator: boolean;
             /**
@@ -535,6 +548,7 @@ export interface components {
         };
         /** MemberView */
         MemberView: {
+            display_role: components["schemas"]["DisplayRole"];
             /** Email */
             email: string;
             /**
@@ -607,6 +621,8 @@ export interface components {
         };
         /** RoleDetailView */
         RoleDetailView: {
+            /** Description */
+            description: string;
             /**
              * Id
              * Format: uuid
@@ -623,6 +639,8 @@ export interface components {
         };
         /** RoleRef */
         RoleRef: {
+            /** Description */
+            description: string;
             /**
              * Id
              * Format: uuid
@@ -633,6 +651,8 @@ export interface components {
         };
         /** RoleView */
         RoleView: {
+            /** Description */
+            description: string;
             /**
              * Id
              * Format: uuid

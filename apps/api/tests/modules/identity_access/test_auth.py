@@ -61,6 +61,7 @@ def test_log_in_returns_the_user_and_sets_hardened_cookies(
     assert body["workspace"] == {"id": str(account.workspace_id), "name": "Hale & Ward LLP"}
     assert body["role"]["key"] == "read_write"
     assert body["is_creator"] is True
+    assert body["display_role"]["name"] == "Owner"
     assert set(body["permissions"]) == {p.value for p in Permission}
 
     cookies = {c.split("=", 1)[0]: c for c in response.headers.get_list("set-cookie")}
@@ -174,7 +175,9 @@ def test_a_removed_member_with_the_right_password_is_told_access_was_removed(
 
     assert right.status_code == 403
     assert right.json()["code"] == "access-removed"
-    assert right.json()["detail"] == "Your access to Acme Law was removed"
+    assert right.json()["detail"] == (
+        "You no longer have access to Acme Law. Ask the workspace owner if you need it back."
+    )
     assert wrong.status_code == 401
     assert sessions_of(committing_db, member.user_id) == []
 

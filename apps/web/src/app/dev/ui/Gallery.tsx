@@ -32,8 +32,8 @@ import {
 import styles from "./gallery.module.css";
 
 const ACCESS = [
-  { value: "read", label: "Read" },
-  { value: "read_write", label: "Read/write" },
+  { value: "read", label: "Viewer" },
+  { value: "read_write", label: "Editor" },
 ];
 
 /** Every Phase 1 component, for side-by-side comparison with docs/design-system/prototype.html. */

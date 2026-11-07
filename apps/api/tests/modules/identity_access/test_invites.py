@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 import pytest
@@ -67,11 +68,19 @@ def test_an_invitee_joins_with_the_chosen_role_and_is_audited(
     assert created.status_code == 201
     body = created.json()
     assert body["email"] == email
-    assert body["role"]["name"] == "Read"
+    assert body["role"]["name"] == "Viewer"
     assert body["invited_by_name"] == "Rosa Hale"
     message = emails_to(committing_db, email)[-1]
     assert message.category == "auth.invite"
-    assert "Rosa Hale invited you to Hale & Ward LLP" in message.subject
+    assert message.subject == "Rosa Hale invited you to join Hale & Ward LLP on Signora"
+    expires = datetime.fromisoformat(body["expires_at"])
+    for sentence in (
+        "Rosa Hale invited you to join Hale & Ward LLP as a Viewer.",
+        "As a Viewer, you can see projects, documents and signed agreements, "
+        "but can't change anything.",
+        f"This invitation expires on {expires.day} {expires:%B}.",
+    ):
+        assert sentence in message.text_body
     token = newest_token(committing_db, email)
 
     with make_client() as invitee:
@@ -79,7 +88,9 @@ def test_an_invitee_joins_with_the_chosen_role_and_is_audited(
         assert details == {
             "email": email,
             "workspace_name": "Hale & Ward LLP",
-            "role_name": "Read",
+            "role_name": "Viewer",
+            "role_description": "Can see projects, documents and signed agreements, "
+            "but can't change anything.",
             "inviter_name": "Rosa Hale",
         }
         assert accept(invitee, token).status_code == 201
@@ -123,7 +134,7 @@ def test_inviting_again_is_a_resend_that_kills_the_old_link(
     new = newest_token(committing_db, email)
 
     assert first["id"] == second["id"]  # still one pending invite
-    assert second["role"]["name"] == "Read/write"
+    assert second["role"]["name"] == "Editor"
     with make_client() as invitee:
         assert accept(invitee, old).status_code == 410
         assert accept(invitee, new).status_code == 201
