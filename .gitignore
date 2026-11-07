@@ -1,3 +1,6 @@
+# Local-only working agreements (not published)
+CONTRIBUTING.md
+
 # Secrets
 .env
 .env.*

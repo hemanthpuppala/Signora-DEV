@@ -1,8 +1,11 @@
 # Signora — Low-Level Design
 
-Status: draft v2 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
+Status: draft v5 (2026-11-06) · Owner: Hemanth Puppala · Deadline: 2026-11-13 00:34 PST
 
 Changelog
+- v5 (2026-11-07, PR #1 review): Gotenberg isolated on an internal-only `convert` network with outbound features disabled, reached through a `gotenberg-gateway` forwarder; compose networks split into `app` and `convert`; host-first `.env` defaults with one `*_PORT` per service shared by Docker and the app (`POSTGRES_PORT`, `GOTENBERG_HOST`/`GOTENBERG_PORT`; `*_HOST_PORT` and `GOTENBERG_URL` removed); eval tooling merged into the `dev` dependency group; installer pins uv 0.9.17 by verified archive checksum and refuses older uv; blob paths must resolve against the repo root (Phase 1 requirement).
+- v4: delivery re-planned as vertical feature slices (backend + frontend per feature, LLD per feature), core first; bulk send, ID verification, OCR moved to later.
+- v3: monorepo layout and modular-monolith module map with public interfaces, ownership, communication rules and tool-enforced boundaries (ADR-008).
 - v2: two access levels only (read, read/write); multiple signers and countersigners with role-scoped field keys; dynamic send form and CSV template; deterministic detector as a separate, independently scored module; idempotency and failure recovery; explicit signer-transparency requirements; corrected accuracy metrics; eval harness kept private.
 - v1: initial design.
 
@@ -144,26 +147,114 @@ Internet ──TLS──► Tailscale Funnel (hemanth.tail50655e.ts.net:443) ─
 ```
 
 - **Caddy** — reverse proxy: one public port, path routing, headers, body limits.
-- **Gotenberg** (`gotenberg/gotenberg:8.40.0-libreoffice`, pinned) — HTTP wrapper around LibreOffice for DOCX→PDF. Internal network only.
+- **Gotenberg** (`gotenberg/gotenberg:8.40.0-libreoffice`, pinned) — HTTP wrapper around LibreOffice for DOCX→PDF. It converts untrusted uploads, so it sits alone on an internal-only Docker network (`convert`, no egress) with `--api-disable-download-from`, `--webhook-disable` and `--libreoffice-deny-{private,public}-ips` as a second SSRF layer. A `gotenberg-gateway` socat forwarder publishes `127.0.0.1:${GOTENBERG_PORT}` (default 53000) for host processes; in-compose services join `convert` and call `gotenberg:3000`.
 - **ADR-002: Postgres as job queue** (`SELECT … FOR UPDATE SKIP LOCKED`) + transactional outbox instead of Redis/Celery: one less service, enqueue in the same transaction as the business write, durable across restarts.
 - **ADR-003: Build signing in-house** rather than wrap DocuSign: grader finishes in one URL with no third-party accounts; product margin; ESIGN/UETA requirements are implementable (§9).
-- **ADR-004: PyMuPDF** for parsing/stamping/flattening (AGPL-3.0 or Artifex commercial). Fine for a public repo; production sale needs a commercial license or a swap to `pypdfium2` + `pdfplumber` + `pypdf`. Documented in README.
+- **ADR-004: PyMuPDF** for parsing/stamping/flattening (AGPL-3.0 or Artifex commercial). Fine for a public repo; production sale needs a commercial license or a swap to `pypdfium2` + `pdfplumber` + `pypdf`. Documented in README. Note (verified 2026-11-06): `pymupdf` 2.0 hard-depends on `onnxruntime` and absorbs the former `pymupdf-layout` code (1.x was PolyForm Noncommercial; the 2.0 `pymupdf-layout` package is an empty placeholder), so the declared license is PyMuPDF's AGPL/commercial dual license.
 - **ADR-005: AI provider** behind an OpenAI-compatible client (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`). Default `gpt-6-luna` (text+image input, structured outputs, 1.05M context). Chat Completions with `response_format: json_schema`; parse defensively (choose the schema-valid item).
 - **ADR-006: Storage** behind a `BlobStore` interface; local content-addressed filesystem now, S3 later. Blobs are immutable.
 - **ADR-007: Detectors as pluggable modules, not separate services (yet).** Deterministic and AI detectors implement one `Detector` interface (`detect(DocumentLayout, context) -> DetectionResult`) and are scored independently. They run in the worker today; either can be moved to its own container later without changing callers. A separate network service now would add deployment and failure surface with no scaling benefit at this volume.
 
-### Backend modules (`backend/app/`)
-`core` (config, db, security primitives, logging) · `tenancy` (workspaces, members, invites, access policy) · `auth` ·
-`projects` · `documents` (versions, blobs) · `detection` (normalize, layout, `deterministic`, `ai`, `resolve`, `merge`) ·
-`fields` (schema, roles, review, accuracy) · `envelopes` (send, bulk, state machine) ·
-`signing` (tokens, OTP, access code, session, submit validation) · `identity` (Stripe) · `pdf` (stamp, flatten, addendum, certificate) ·
-`notifications` (templates, outbox, SMTP provider) · `scheduler` · `jobs` · `idempotency` · `audit`.
-Dependency rule: routers → services → repositories/domain; domain never imports FastAPI or DB sessions.
+### ADR-008: Monorepo + modular monolith with enforced module boundaries
+**Context.** The product must stay maintainable as it grows into a sellable SaaS, and parts (detection,
+notifications) may later need to scale or deploy independently.
+**Decision.** One repository holding every deployable and shared contract (monorepo). The backend is one
+deployable application split into **business modules**, each owning its data, logic and API, and exposing a
+single public interface. Boundaries are enforced by tooling, not convention.
+**Consequences.** One build, one deploy, one transaction boundary (simple consistency); each module can be read,
+tested and changed alone; a module can later be extracted to a service by replacing in-process calls to its
+public interface with network calls, and its event subscriptions with a broker.
 
-### Frontend (`frontend/`)
-Next.js (App Router, TypeScript strict). Console under `/app/*`, signer under `/s/*`. pdf.js (`react-pdf`) with
-an absolutely-positioned field overlay shared by the review editor and the signer page; `signature_pad` for
-drawing. All validation is re-done server-side.
+#### Repository layout
+```
+signora/                                  (monorepo root)
+├── apps/
+│   ├── api/                              Python backend: one application, two entrypoints (api, worker)
+│   │   ├── pyproject.toml
+│   │   ├── src/signora/
+│   │   │   ├── kernel/                   technical foundation, no business rules
+│   │   │   │   config · db · logging · errors · security (hashing, tokens) · blobstore
+│   │   │   │   jobs (queue) · events (domain-event bus over the queue) · idempotency · ratelimit · clock
+│   │   │   ├── modules/                  business modules (see table below)
+│   │   │   │   └── <module>/
+│   │   │   │       ├── __init__.py       PUBLIC interface: facade functions, DTOs, event types — the only importable surface
+│   │   │   │       ├── domain.py         entities, value objects, rules, state machines (pure Python)
+│   │   │   │       ├── service.py        use cases; transactions; publishes events
+│   │   │   │       ├── repository.py     persistence for this module's tables only
+│   │   │   │       ├── models.py         SQLAlchemy tables owned by this module
+│   │   │   │       ├── router.py         HTTP endpoints (FastAPI)
+│   │   │   │       ├── schemas.py        request/response models
+│   │   │   │       ├── handlers.py       subscriptions to other modules' events / job handlers
+│   │   │   │       └── tests/
+│   │   │   └── entrypoints/              api.py (FastAPI app factory) · worker.py (job loop) · cli.py
+│   │   └── migrations/                   Alembic
+│   └── web/                              Next.js frontend
+│       └── src/
+│           ├── app/                      routes: /(console)/…, /s/… (signer)
+│           ├── features/<module>/        UI per business module, mirrors backend modules
+│           └── shared/                   SSoT primitives: ui/, pdf-canvas/, signature/, api-client/
+├── packages/
+│   └── contracts/                        OpenAPI spec exported from the API + generated TS types (SSoT for the API contract; generated, never hand-edited)
+├── infra/
+│   ├── compose.yaml                      postgres, gotenberg, api, worker, web, caddy, mailpit(dev)
+│   └── caddy/Caddyfile
+├── docs/                                 design/, adr/, agent-memory/
+├── scripts/                              dev helpers (contract generation, seed data)
+├── eval/                                 PRIVATE detection eval — git-ignored
+└── Makefile                              one entry point: make dev | test | lint | contracts | eval
+```
+Tooling: `uv` for Python, `pnpm` workspace for TypeScript (`apps/web`, `packages/contracts`).
+
+#### Business modules
+| Module | Owns (responsibility) | Owns tables | Public interface (examples) | Depends on |
+|---|---|---|---|---|
+| `identity_access` | accounts, sessions, workspaces, members, invites, access policy | users, sessions, workspaces, memberships, invites, project_grants | `current_actor()`, `authorize(actor, action, resource)` | kernel |
+| `projects` | departments, settings, countersigner designations | projects, project_countersigners | `get_project()`, `effective_settings()` | identity_access |
+| `documents` | documents, immutable versions, roles, fields, placements, review & approval, review metrics | documents, document_versions, roles, fields, placements, review_metrics | `get_approved_version()`, `field_schema(versions)` | projects |
+| `detection` | normalize, layout, deterministic + AI detectors, merge, metric function | detection_results | `detect(version_id) -> DetectionResult` (job) | kernel only (receives bytes + context; no knowledge of projects) |
+| `envelopes` | send form generation, envelopes, recipients, role mapping, status machine, bulk, reminders, expiry | envelopes, envelope_documents, recipients, recipient_roles, field_values, bulk_* | `create_envelopes()`, `record_signature()` | documents, projects |
+| `signing` | signer-facing flow: link exchange, OTP, access code, consent, submit validation, countersign | (uses envelopes' interface; owns otp/session columns via envelopes API) | signer HTTP API | envelopes, verification |
+| `verification` | Stripe Identity sessions, webhook | identity_checks | `start_check()`, `check_status()` | kernel |
+| `rendering` | stamp, flatten, addendum page, certificate, hashes | — (writes blobs) | `finalize(envelope_snapshot) -> FinalDocs` | kernel only (pure input → output) |
+| `notifications` | templates, email outbox, SMTP provider, retry | email_outbox | subscribes to events; `retry(outbox_id)` | kernel |
+| `audit` | append-only hash-chained log, verification | audit_events | subscribes to all events; `verify_chain()` | kernel |
+
+Dependency graph is acyclic and points one way:
+`identity_access ← projects ← documents ← envelopes ← signing`; `detection`, `rendering`, `verification`,
+`notifications`, `audit` are leaf modules that depend only on `kernel`.
+
+#### Communication rules
+1. **Synchronous:** a module calls another only through its public `__init__` interface and receives DTOs, never ORM objects.
+2. **Asynchronous:** cross-cutting reactions use **domain events** (`RecipientSigned`, `EnvelopeCompleted`, `EnvelopeDeclined`, `VersionApproved`, …). Events are written to the jobs table **in the same transaction** as the state change (outbox pattern) and dispatched by the worker to subscribers (`notifications`, `audit`, `envelopes`). This keeps `envelopes` unaware of email and makes every reaction retryable.
+3. **Data ownership:** a module reads and writes only its own tables. Foreign keys across modules are allowed for integrity; queries joining another module's tables are not.
+4. **Leaf modules are pure services:** `detection` and `rendering` take inputs and return outputs; they do not read other modules' data. This is what makes them the first candidates for extraction into separate services.
+
+#### Enforcement
+- **Python:** `import-linter` contracts in `make check`: (a) modules may import other modules only via their package root (`signora.modules.x`), never internals (`signora.modules.x.repository`); (b) the layered dependency order above; (c) leaf modules import only `kernel`; (d) `domain.py` imports nothing from FastAPI/SQLAlchemy.
+- **TypeScript:** `eslint-plugin-boundaries`: `features/x` may import `shared/*` and `packages/contracts`, not other features' internals.
+- **Contract SSoT:** the API's OpenAPI schema is exported and the TS types are generated from it (`make contracts`); a check fails if they drift.
+- **Tests per module** live inside the module; cross-module flows are covered by integration tests at the entrypoint level.
+
+### Backend process model
+One codebase, two processes, one database:
+
+| Process | Purpose | Handles |
+|---|---|---|
+| **API** (`entrypoints/api.py`) | fast request/response | HTTP, authentication and sessions, access checks, uploads (store blob + enqueue detection), review/approve, envelope creation, signer link/OTP/consent/submit, status and timeline reads |
+| **Worker** (`entrypoints/worker.py`) | background jobs | AI + deterministic detection, DOCX→PDF via Gotenberg, OCR (deferred), PDF finalization (stamp, flatten, certificate), email delivery from the outbox, reminders and expiry, bulk sends, domain-event dispatch |
+| **PostgreSQL** (shared) | single source of truth | application data, persistent job queue, transactional outbox |
+
+Rules:
+- The API never calls slow or unreliable external services (AI provider, SMTP, Gotenberg) inside a request. It commits the state change and enqueues a job in the same transaction, then returns. Target API p95 ≤ 300 ms excluding uploads.
+- External calls happen only in the worker, with timeouts, retries with backoff, and dedupe keys (§5.7).
+- Both processes are stateless apart from Postgres and the blob store, so either can be restarted at any time without losing work; the worker can be scaled to N replicas because jobs are claimed with `FOR UPDATE SKIP LOCKED`.
+- Stripe Identity is the one exception the API touches: creating a verification session is a fast call the signer is waiting on; the result is confirmed by webhook and re-checked in the worker.
+
+### Frontend
+Next.js (App Router, TypeScript strict). Console under `/(console)/*`, signer under `/s/*`. `shared/pdf-canvas`
+(pdf.js via `react-pdf` + absolutely-positioned field overlay) is the single implementation used by both the
+review editor and the signer page; `shared/signature` wraps `signature_pad`. The frontend holds no business
+rules beyond UX hints; all validation is re-done server-side.
 
 ---
 
@@ -263,6 +354,7 @@ All tenant tables carry `workspace_id` (FK, indexed) and every repository query 
 | `recipient_roles` | recipient_id, version_id, role_id — unique (envelope, version, role) |
 | `field_values` | envelope_id, field_id, recipient_id, value, blob_sha, filled_at — unique (envelope_id, field_id) |
 | `bulk_batches` / `bulk_rows` | batch: id, project_id, blob_sha, status · rows: batch_id, row_no (unique pair), data jsonb, errors jsonb, envelope_id |
+| `identity_checks` | id, workspace_id, recipient_id, provider (`stripe`), provider_session_id, status, last_event_id, verified_at (owned by `verification`) |
 | `idempotency_keys` | scope, key (PK), request_hash, response jsonb, created_at (TTL 24 h) |
 | `jobs` | id, kind, payload jsonb, dedupe_key (unique, nullable), run_at, attempts, max_attempts, locked_by, locked_at, last_error, done_at |
 | `email_outbox` | id, dedupe_key (unique), to, template, payload, status (`queued/sending/sent/failed`), attempts, next_attempt_at, message_id, last_error, sent_at |
@@ -400,7 +492,7 @@ The corpus, ground truth, and eval runner live in `eval/` which is **git-ignored
 
 ## 12. Deployment
 
-`docker compose up -d` → postgres, gotenberg, api, worker, web, caddy (+ mailpit in the `dev` profile).
+`docker compose up -d` → postgres, gotenberg (+ gotenberg-gateway), api, worker, web, caddy (+ mailpit in the `dev` profile).
 Caddy listens on `127.0.0.1:3100`, which the existing Funnel config proxies: `https://hemanth.tail50655e.ts.net` → `127.0.0.1:3100` (verified 2026-11-06; Funnel ports 443/8443/10000 allowed).
 
 ---
@@ -422,33 +514,41 @@ checks, NER pre-pass, PAdES cryptographic PDF signatures (stretch), mobile apps,
 
 ---
 
+## Delivery plan (v4: vertical feature slices, core first)
+
+**How we build.** One feature at a time, end to end: its own LLD (`docs/design/features/NN-<slug>.md`, brainstormed and agreed before code) → backend module → frontend screens from the design system → tests → one branch and one PR. Each commit is one task inside the feature. Before a PR is merged: `make check` passes locally (lint, types, import boundaries, tests, web build) and the feature is tested manually; there is no hosted CI.
+
+**Order.** The core signing path and its business rules and security come first, then hardening. Nicer features (bulk send, ID verification, OCR, extra-signer addendum, phone-specific signer, landing page) come only after the core is hardened. The modular structure (ADR-008) applies from the first line.
+
+| Phase | Branch | Feature | Backend | Frontend (prototype screens) | Tier |
+|---|---|---|---|---|---|
+| 0 | `phase-0/foundation` | Foundation | design, infra, installer | design system reference | done |
+| 1 | `phase-1/backbone` | Backbone | `kernel` (config, db + Alembic, logging, errors, idempotency, jobs, events, blob store, clock), `audit` module, API + worker entrypoints, import-linter, `make check` (local quality gate) | Next.js scaffold, tokens + base components, app shell | core |
+| 2 | `phase-2/accounts` | Accounts & workspaces | `identity_access`: signup, login, sessions, CSRF, workspaces, members, invites, access policy | 02 sign up, 03 log in, 04 invite, 19 members | core |
+| 3 | `phase-3/projects` | Projects | `projects`: CRUD, settings, grants, countersigners | 05 home, 06 new project, 08 read-only, 09 settings | core |
+| 4 | `phase-4/documents` | Documents & versions | `documents`: upload, Gotenberg conversion, immutable versions, hashes | 10 documents, 11 upload | core |
+| 5 | `phase-5/detection` | Field detection | `detection`: layout, deterministic detector, AI detector, merge, metric; private eval | 12 detecting | core |
+| 6 | `phase-6/review` | Field review & approval | roles/fields/placements, approve, review metrics | 13 review canvas | core |
+| 7 | `phase-7/envelopes` | Envelopes & sending | `envelopes`: send form generation, recipients, role mapping, state machine; `notifications`: outbox + Gmail SMTP | 14 new envelope, 07 envelopes list, 16 envelope detail | core |
+| 8 | `phase-8/signing` | Signing | `signing`: link exchange, OTP, consent, submit validation, decline | 21–27 signer flow | core |
+| 9 | `phase-9/completion` | Countersign & completion | `rendering`: stamp, flatten, certificate; countersign flow; completed copies | 17 countersign, 18 completed | core |
+| 10 | `phase-10/lifecycle` | Reminders, expiry, notifications | scheduler: reminders (+ urgent), expiry, POC notices, email retry | badges, retry notice, 20 audit log | core |
+| 11 | `phase-11/hardening` | Hardening | security review, rate limits, headers, tenant-isolation and concurrency tests, E2E grader path on the Funnel URL | polish, accessibility, empty/error states | hardening |
+| 12+ | `phase-12/…` | Later features | bulk CSV/XLSX; Stripe Identity; extra-signer addendum; OCR / image-only PDFs; phone signer (28); landing page (01) | — | later |
+
 ## Task Tracker
+
+Each feature's detailed task list lives in its LLD file and is copied here as it starts.
 
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 0 | Research + design doc v2 | done | this file |
-| 1 | Repo scaffold, `.env`/`.env.example`, `.gitignore`, Docker Compose (postgres, gotenberg, api, worker, web, caddy, mailpit) | in-progress | — |
-| 2 | Private corpus (10 docs) + ground truth in `eval/` | todo | — |
-| 3 | Detection: normalize, page classify, layout | todo | — |
-| 4 | Deterministic detector + standalone eval score | todo | — |
-| 5 | AI detector (whole + chunked), resolution + standalone eval score | todo | — |
-| 6 | Merge + metric function (§7.6); iterate to NFR-2 | todo | — |
-| 7 | Data model + migrations + triggers | todo | — |
-| 8 | Auth, workspaces, invites, access policy + matrix tests | todo | — |
-| 9 | Projects, documents, versions, blob store, upload API | todo | — |
-| 10 | Review canvas (roles, fields), approve, review metrics | todo | — |
-| 11 | Idempotency keys + guarded transitions + job/outbox dedupe | todo | — |
-| 12 | Envelopes: dynamic send form, multi-doc, multi-signer, addendum signers | todo | — |
-| 13 | Signing security: token exchange, OTP, access code, rate limits, headers | todo | — |
-| 14 | Signer UI: consent, minimal viewer, submit validation, decline, confirmation | todo | — |
-| 15 | PDF finalize: stamp, flatten, addendum, certificate, hashes | todo | — |
-| 16 | Countersign flow (console + link) | todo | — |
-| 17 | Notifications: outbox, Gmail SMTP provider, templates, retry UI | todo | — |
-| 18 | Worker: job queue, reminders (+urgent), expiry | todo | — |
-| 19 | Bulk send: CSV/XLSX template, parse, preview, throttled send | todo | — |
-| 20 | Stripe Identity (test mode) | todo | — |
-| 21 | Console dashboard: statuses, timeline, reminder badge, downloads | todo | — |
-| 22 | Audit log hash chain + verification | todo | — |
-| 23 | E2E Playwright grader path on the Funnel URL with an unseen doc | todo | — |
-| 24 | README (setup, licenses incl. PyMuPDF AGPL), submission description | todo | — |
-| 25 | OCR / image-only PDFs (deferred) | todo | — |
+| P0.1 | Research + design doc | done | this file (v1–v4) |
+| P0.2 | Infra: Postgres 18.4 + Gotenberg 8.40.0 in `infra/compose.yaml`, `make up` | done | 2026-11-06: both healthy; `select version()` → 18.4, checksums on, scram-sha-256; Gotenberg `/health` up, `/version` 8.40.0, DOCX → 1-page PDF via `POST /forms/libreoffice/convert` (field `files`), text verified with pdftotext |
+| P0.3 | Backend Python project + `./install.sh` | done | commit 78102ec; clean-copy install and pip requirements install verified 2026-11-06 |
+| P0.4 | Design system reference | done | `docs/design-system/` |
+| P0.5 | Branch / commit / PR workflow | done | PR template (`.github/pull_request_template.md`) |
+| P0.6 | PR #1 review fixes: host-first env defaults, Gotenberg network isolation + gateway, installer hardening, single port variables, pinned/verified uv, Gotenberg log flag | done | commits e0e18d6, 85aaaea, 6f9b4e5 and follow-ups on `phase-0/foundation`; tests in commit messages |
+| P1 | Backbone | todo — LLD next. Carried requirements: config resolves relative paths (e.g. `BLOB_STORE_DIR`) against the repository root, never the working directory, with a test that API and worker started from different directories resolve the same path; `make check` target | — |
+| P2–P10 | Core features | todo | — |
+| P11 | Hardening | todo | — |
+| P12+ | Later: bulk send, Stripe Identity, extra-signer addendum, **OCR / image-only PDFs (reminder)**, phone signer, landing | todo | — |
