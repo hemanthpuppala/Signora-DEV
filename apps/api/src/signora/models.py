@@ -6,4 +6,5 @@ is complete for Alembic and for the "models match migrations" test. Add each new
 
 from __future__ import annotations
 
+from signora.kernel.idempotency import tables as _idempotency_tables  # noqa: F401
 from signora.kernel.jobs import tables as _jobs_tables  # noqa: F401

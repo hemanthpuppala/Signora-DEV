@@ -13,7 +13,7 @@ from signora.kernel.db import metadata
 
 # Tables created by migrations whose code definitions arrive in later tasks. Remove each entry when
 # its module adds the table definition; the test then compares it too.
-NOT_YET_MODELLED = {"idempotency_keys", "audit_events"}
+NOT_YET_MODELLED = {"audit_events"}
 
 
 def _include(obj: Any, name: str | None, type_: str, reflected: bool, compare_to: Any) -> bool:

@@ -97,6 +97,12 @@ class IdempotencyKeyMissing(DomainError):
     title = "An Idempotency-Key header is required for this request"
 
 
+class IdempotencyKeyInvalid(DomainError):
+    code = "idempotency-key-invalid"
+    status = 400
+    title = "The Idempotency-Key header must be 1-255 printable characters"
+
+
 class IdempotencyKeyReused(DomainError):
     code = "idempotency-key-reused"
     status = 422
