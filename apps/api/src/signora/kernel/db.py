@@ -37,6 +37,9 @@ class Base(DeclarativeBase):
 
 
 POOL_TIMEOUT_SECONDS = 5
+# Bounds a connection attempt to an unreachable database (libpq otherwise waits for the OS TCP
+# timeout, minutes), so a request or a readiness check that hangs on connecting ends on its own.
+CONNECT_TIMEOUT_SECONDS = 5
 
 
 def create_db_engine(
@@ -52,7 +55,7 @@ def create_db_engine(
         max_overflow=0,
         pool_timeout=pool_timeout,
         pool_pre_ping=True,
-        connect_args={"application_name": "signora"},
+        connect_args={"application_name": "signora", "connect_timeout": CONNECT_TIMEOUT_SECONDS},
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 
 from sqlalchemy import Engine
 
@@ -45,11 +46,15 @@ def test_slow_check_times_out() -> None:
     def slow() -> None:
         release.wait(timeout=5)
 
+    started = time.monotonic()
     try:
         readiness = run_checks([Check("slow", slow)], timeout=0.2)
+        elapsed = time.monotonic() - started
     finally:
         release.set()
 
+    # The answer arrives at the limit, not when the hung check finally returns (NFR-B3).
+    assert elapsed < 1.0
     assert not readiness.ready
     assert readiness.checks[0].message is not None
     assert "timed out" in readiness.checks[0].message

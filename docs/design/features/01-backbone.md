@@ -815,7 +815,9 @@ entries). A test asserts the counter and the audit entry exist after the error r
 | `GET /internal/health/ready` | Which component is failing? (detail) | Database (`SELECT 1`), migrations at head, blob store writable, Gotenberg `/health`; AI, email and Stripe reported as configured or not | Operators, container healthcheck |
 | `GET /api/v1/meta` | Which build is running? | — | UI footer, bug reports |
 
-- Each readiness check has a 2-second timeout. `200` when every core check passes, otherwise `503`.
+- Each readiness check has a 2-second timeout. `200` when every core check passes, otherwise `503`. The answer is
+  sent at the deadline even if a check hangs (its thread is abandoned, not awaited), and database connections have
+  a 5-second connect timeout so an abandoned check ends on its own.
 - **Detail is never reachable from the internet.** Behind Caddy every request arrives from the Docker network, so
   source addresses cannot tell public from local. Instead, the detailed endpoint lives under `/internal/`, which Caddy
   never forwards (it routes only `/api/*` to the API and explicitly answers `404` for `/internal/*`). It is reachable

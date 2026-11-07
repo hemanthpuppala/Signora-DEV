@@ -52,9 +52,15 @@ class Readiness:
 
 
 def run_checks(checks: Sequence[Check], timeout: float = CHECK_TIMEOUT_SECONDS) -> Readiness:
-    """Run all checks concurrently; a check that exceeds ``timeout`` counts as failed."""
+    """Run all checks concurrently; a check that exceeds ``timeout`` counts as failed.
+
+    Returns within ``timeout`` even when a check hangs: the pool is shut down without waiting (a
+    ``with`` block would wait for every thread on exit), and the hung check's thread ends on its
+    own once its I/O times out (the engine's connect timeout, httpx's timeout).
+    """
     results: list[CheckResult] = []
-    with ThreadPoolExecutor(max_workers=max(len(checks), 1)) as pool:
+    pool = ThreadPoolExecutor(max_workers=max(len(checks), 1), thread_name_prefix="readiness")
+    try:
         started = time.monotonic()
         futures = [(check, pool.submit(check.run)) for check in checks]
         for check, future in futures:
@@ -71,6 +77,7 @@ def run_checks(checks: Sequence[Check], timeout: float = CHECK_TIMEOUT_SECONDS) 
                 status, message = "failed", type(error).__name__
             elapsed = int((time.monotonic() - started) * 1000)
             results.append(CheckResult(check.name, status, check.core, elapsed, message))
+    finally:
         pool.shutdown(wait=False, cancel_futures=True)
     ready = all(r.status == "ok" for r in results if r.core)
     return Readiness(ready=ready, checks=tuple(results))
