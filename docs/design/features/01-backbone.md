@@ -1070,7 +1070,7 @@ the API dev port.
 |---|---|---|---|
 | 1.1 | Backbone LLD (this document) | done | topics 1–10 |
 | 1.2 | `kernel/config`: settings groups, repo-root resolution, validation, `.env.example` sync test | done | 14 tests pass (incl. same root/blob dir from repo root, `apps/api` and a temp dir); ruff, mypy --strict clean; 98 % coverage of `kernel/config.py` |
-| 1.3 | `kernel/db`: engine, unit of work, Alembic setup, naming conventions; migration 0001 (`jobs`, `idempotency_keys`, `audit_events` + triggers) | todo | — |
+| 1.3 | `kernel/db`: engine, unit of work, Alembic setup, naming conventions; migration 0001 (`jobs`, `idempotency_keys`, `audit_events` + triggers) | done | 25 tests pass: tables + UUIDv7 ids, commit / rollback / commit-then-raise, append-only triggers reject UPDATE/DELETE/TRUNCATE, pool fails fast, migration round trip; `signora migrate` works from any folder and exits 2 on bad config. Implementation notes: migration scripts live in the `signora.migrations` package (ship inside the image) rather than `apps/api/migrations`; index names follow the `ix_` naming convention; `idempotency_keys.request_hash` also has a 32-byte check |
 | 1.4 | `kernel/errors`, `kernel/logging`, request id; API app factory; health and meta endpoints | todo | — |
 | 1.5 | `kernel/jobs`: enqueue, worker loop, `JobContext`, guarded completion, lease renewal, backoff, dead jobs, LISTEN/NOTIFY, scheduler thread, housekeeping sweep | todo | — |
 | 1.6 | `kernel/events`: publish/subscribe over jobs | todo | — |

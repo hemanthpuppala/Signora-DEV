@@ -26,6 +26,9 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
 ]
 
+[project.scripts]
+signora = "signora.entrypoints.cli:main"
+
 [dependency-groups]
 # All developer tooling in one group, so `uv sync` never uninstalls part of it.
 # python-docx and reportlab generate the private detection-eval corpus (eval/ is git-ignored).
