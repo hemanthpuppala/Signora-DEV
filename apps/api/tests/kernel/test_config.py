@@ -139,6 +139,50 @@ def test_production_does_not_require_stripe(tmp_path: Path) -> None:
     assert settings.stripe.configured is False
 
 
+def test_production_with_sendgrid_requires_its_key_not_smtp(tmp_path: Path) -> None:
+    sendgrid = {
+        **BASELINE,
+        "APP_ENV": "production",
+        "AI_API_KEY": "sk-test",
+        "EMAIL_PROVIDER": "sendgrid",
+        "EMAIL_FROM_ADDRESS": "sender@example.com",
+    }
+    with pytest.raises(ConfigError) as excinfo:
+        load_settings(make_root(tmp_path, sendgrid))
+    problems = " ".join(excinfo.value.problems)
+    assert "SENDGRID_API_KEY" in problems
+    assert "SMTP_USERNAME" not in problems
+
+    settings = load_settings(make_root(tmp_path, {**sendgrid, "SENDGRID_API_KEY": "SG.test-key"}))
+    assert settings.email.provider == "sendgrid"
+    assert settings.email.configured
+    assert "SG.test-key" not in repr(settings)
+
+
+def test_production_rejects_mailpit(tmp_path: Path) -> None:
+    values = {**BASELINE, **PRODUCTION_EXTRAS, "EMAIL_PROVIDER": "mailpit"}
+
+    with pytest.raises(ConfigError, match="mailpit"):
+        load_settings(make_root(tmp_path, values))
+
+
+def test_auth_and_rate_limit_defaults_match_the_agreed_design(tmp_path: Path) -> None:
+    settings = load_settings(make_root(tmp_path, BASELINE))
+
+    auth = settings.auth
+    assert (auth.session_idle_hours, auth.session_touch_minutes) == (12, 5)
+    assert (auth.signup_link_hours, auth.reset_link_minutes, auth.invite_days) == (24, 30, 7)
+    assert (auth.email_cooldown_seconds, auth.email_hourly_limit, auth.invites_per_hour) == (
+        60,
+        5,
+        50,
+    )
+    assert (auth.login_free_attempts, auth.login_backoff_cap_minutes) == (5, 15)
+    assert (auth.login_ip_limit, auth.login_ip_window_minutes) == (100, 15)
+    assert auth.password_min_length == 12
+    assert (settings.rate_limit.backend, settings.rate_limit.max_keys) == ("memory", 100_000)
+
+
 def test_secrets_never_appear_in_repr_or_str(tmp_path: Path) -> None:
     settings = load_settings(make_root(tmp_path, {**BASELINE, **PRODUCTION_EXTRAS}))
 

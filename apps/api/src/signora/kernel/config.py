@@ -34,6 +34,8 @@ _DERIVED_ROOT_DEPTH = 5
 
 AppEnv = Literal["development", "production"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+EmailProvider = Literal["sendgrid", "smtp", "mailpit"]
+RateLimiterBackend = Literal["memory"]  # "redis" is added together with its implementation
 ReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
 
 
@@ -115,7 +117,10 @@ class _EnvVars(BaseSettings):
     ai_whole_doc_max_tokens: int = Field(default=40_000, ge=1_000)
     ai_max_concurrency: int = Field(default=4, ge=1, le=32)
     # email (integration)
-    email_provider: Literal["smtp", "mailpit"] = "smtp"
+    email_provider: EmailProvider = "smtp"
+    sendgrid_api_key: SecretStr | None = None
+    mailpit_host: str = "127.0.0.1"
+    mailpit_smtp_port: int = Field(default=1025, ge=1, le=65535)
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_starttls: bool = True
@@ -124,6 +129,23 @@ class _EnvVars(BaseSettings):
     email_from_address: EmailStr | None = None
     email_from_name: str = "Signora"
     email_daily_limit: int = Field(default=450, ge=1)
+    # accounts and sessions (Phase 2 LLD)
+    auth_session_idle_hours: int = Field(default=12, ge=1, le=24 * 30)
+    auth_session_touch_minutes: int = Field(default=5, ge=1, le=60)
+    auth_signup_link_hours: int = Field(default=24, ge=1, le=24 * 7)
+    auth_reset_link_minutes: int = Field(default=30, ge=5, le=24 * 60)
+    auth_invite_days: int = Field(default=7, ge=1, le=30)
+    auth_email_cooldown_seconds: int = Field(default=60, ge=0, le=3600)
+    auth_email_hourly_limit: int = Field(default=5, ge=1, le=100)
+    auth_invites_per_hour: int = Field(default=50, ge=1, le=10_000)
+    auth_login_free_attempts: int = Field(default=5, ge=1, le=50)
+    auth_login_backoff_cap_minutes: int = Field(default=15, ge=1, le=24 * 60)
+    auth_login_ip_limit: int = Field(default=100, ge=1, le=100_000)
+    auth_login_ip_window_minutes: int = Field(default=15, ge=1, le=24 * 60)
+    auth_password_min_length: int = Field(default=12, ge=8, le=64)
+    # rate limiting
+    rate_limiter_backend: RateLimiterBackend = "memory"
+    rate_limiter_max_keys: int = Field(default=100_000, ge=1_000, le=10_000_000)
     # stripe (optional; only needed to offer ID verification)
     stripe_secret_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None
@@ -144,9 +166,16 @@ class _EnvVars(BaseSettings):
             problems.append("PUBLIC_BASE_URL: must use https in production")
         if self.ai_api_key is None:
             problems.append("AI_API_KEY: required in production")
-        if self.email_provider != "smtp":
-            problems.append("EMAIL_PROVIDER: must be 'smtp' in production")
-        for name in ("smtp_username", "smtp_password", "email_from_address"):
+        if self.email_provider == "mailpit":
+            problems.append(
+                "EMAIL_PROVIDER: 'mailpit' only captures mail; use 'sendgrid' or 'smtp'"
+            )
+        required = {
+            "sendgrid": ("sendgrid_api_key", "email_from_address"),
+            "smtp": ("smtp_username", "smtp_password", "email_from_address"),
+            "mailpit": (),
+        }[self.email_provider]
+        for name in required:
             if getattr(self, name) is None:
                 problems.append(f"{name.upper()}: required in production")
         if problems:
@@ -260,7 +289,10 @@ class AISettings(_Group):
 
 
 class EmailSettings(_Group):
-    provider: Literal["smtp", "mailpit"]
+    provider: EmailProvider
+    sendgrid_api_key: SecretStr | None
+    mailpit_host: str
+    mailpit_smtp_port: int
     smtp_host: str
     smtp_port: int
     smtp_starttls: bool
@@ -276,7 +308,32 @@ class EmailSettings(_Group):
             return False
         if self.provider == "mailpit":
             return True
+        if self.provider == "sendgrid":
+            return self.sendgrid_api_key is not None
         return self.smtp_username is not None and self.smtp_password is not None
+
+
+class AuthSettings(_Group):
+    """Accounts, sessions and their limits (Phase 2 LLD). Durations are kept in their .env units."""
+
+    session_idle_hours: int
+    session_touch_minutes: int
+    signup_link_hours: int
+    reset_link_minutes: int
+    invite_days: int
+    email_cooldown_seconds: int
+    email_hourly_limit: int
+    invites_per_hour: int
+    login_free_attempts: int
+    login_backoff_cap_minutes: int
+    login_ip_limit: int
+    login_ip_window_minutes: int
+    password_min_length: int
+
+
+class RateLimitSettings(_Group):
+    backend: RateLimiterBackend
+    max_keys: int
 
 
 class StripeSettings(_Group):
@@ -298,6 +355,8 @@ class Settings(_Group):
     worker: WorkerSettings
     ai: AISettings
     email: EmailSettings
+    auth: AuthSettings
+    rate_limit: RateLimitSettings
     stripe: StripeSettings
 
 
@@ -367,6 +426,9 @@ def load_settings(root: Path | None = None) -> Settings:
         ),
         email=EmailSettings(
             provider=env.email_provider,
+            sendgrid_api_key=env.sendgrid_api_key,
+            mailpit_host=env.mailpit_host,
+            mailpit_smtp_port=env.mailpit_smtp_port,
             smtp_host=env.smtp_host,
             smtp_port=env.smtp_port,
             smtp_starttls=env.smtp_starttls,
@@ -375,6 +437,24 @@ def load_settings(root: Path | None = None) -> Settings:
             from_address=env.email_from_address,
             from_name=env.email_from_name,
             daily_limit=env.email_daily_limit,
+        ),
+        auth=AuthSettings(
+            session_idle_hours=env.auth_session_idle_hours,
+            session_touch_minutes=env.auth_session_touch_minutes,
+            signup_link_hours=env.auth_signup_link_hours,
+            reset_link_minutes=env.auth_reset_link_minutes,
+            invite_days=env.auth_invite_days,
+            email_cooldown_seconds=env.auth_email_cooldown_seconds,
+            email_hourly_limit=env.auth_email_hourly_limit,
+            invites_per_hour=env.auth_invites_per_hour,
+            login_free_attempts=env.auth_login_free_attempts,
+            login_backoff_cap_minutes=env.auth_login_backoff_cap_minutes,
+            login_ip_limit=env.auth_login_ip_limit,
+            login_ip_window_minutes=env.auth_login_ip_window_minutes,
+            password_min_length=env.auth_password_min_length,
+        ),
+        rate_limit=RateLimitSettings(
+            backend=env.rate_limiter_backend, max_keys=env.rate_limiter_max_keys
         ),
         stripe=StripeSettings(
             secret_key=env.stripe_secret_key, webhook_secret=env.stripe_webhook_secret
