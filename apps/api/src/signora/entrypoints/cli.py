@@ -38,6 +38,12 @@ def _api(args: argparse.Namespace) -> int:
     return 0
 
 
+def _worker(_: argparse.Namespace) -> int:
+    from signora.entrypoints.worker import run_worker
+
+    return run_worker()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="signora", description="Signora operations")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -46,10 +52,11 @@ def build_parser() -> argparse.ArgumentParser:
     api.add_argument("--host", default="127.0.0.1")
     api.add_argument("--port", type=int, default=8100)
     api.add_argument("--reload", action="store_true", help="reload on code changes (development)")
+    commands.add_parser("worker", help="run the background job worker")
     return parser
 
 
-_COMMANDS = {"migrate": _migrate, "api": _api}
+_COMMANDS = {"migrate": _migrate, "api": _api, "worker": _worker}
 
 
 def main(argv: Sequence[str] | None = None) -> int:

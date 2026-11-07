@@ -5,3 +5,5 @@ is complete for Alembic and for the "models match migrations" test. Add each new
 """
 
 from __future__ import annotations
+
+from signora.kernel.jobs import tables as _jobs_tables  # noqa: F401

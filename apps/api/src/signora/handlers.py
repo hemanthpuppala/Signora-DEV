@@ -1,0 +1,14 @@
+"""Registry of background job kinds and recurring sweeps.
+
+Both the API (which enqueues) and the worker (which runs) call ``register_all`` so they agree on
+the job kinds. Add each module's ``handlers.register`` here as modules arrive.
+"""
+
+from __future__ import annotations
+
+from signora.kernel.jobs import JobRegistry, RecurringJob, housekeeping
+
+
+def register_all(jobs_registry: JobRegistry) -> list[RecurringJob]:
+    """Register every job kind; returns the recurring sweeps the worker schedules."""
+    return [housekeeping.register(jobs_registry)]

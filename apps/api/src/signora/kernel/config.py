@@ -194,6 +194,20 @@ class DatabaseSettings(_Group):
             f"@{self.host}:{self.port}/{self.name}"
         )
 
+    @property
+    def conninfo(self) -> str:
+        """libpq connection string for direct psycopg connections (e.g. LISTEN)."""
+        from psycopg.conninfo import make_conninfo
+
+        return make_conninfo(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password.get_secret_value(),
+            dbname=self.name,
+            application_name="signora",
+        )
+
 
 class BlobStoreSettings(_Group):
     backend: Literal["local"]

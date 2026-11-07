@@ -106,6 +106,8 @@ def configure_logging(settings: AppSettings, *, force_json: bool = False) -> Non
     # Our access middleware logs requests with route templates; uvicorn's own access log would
     # log raw paths (which can contain signing tokens), so it is silenced.
     logging.getLogger("uvicorn.access").disabled = True
+    # Alembic logs its migration context at INFO on every revision check; keep only warnings.
+    logging.getLogger("alembic").setLevel(logging.WARNING)
     for name in ("uvicorn", "uvicorn.error"):
         logging.getLogger(name).handlers.clear()
         logging.getLogger(name).propagate = True
