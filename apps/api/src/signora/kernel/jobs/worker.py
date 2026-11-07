@@ -6,6 +6,10 @@ Threads inside one worker process:
 - listener: ``LISTEN`` on a dedicated connection, wakes the main loop when a job is committed;
 - lease renewer: extends the lease of every running job every lease/3;
 - scheduler: enqueues recurring sweeps once per time slot (deduplicated across workers);
+
+Helper threads never die on an error (a database restart, an exhausted pool): they log it and
+retry on their next tick, so a passing failure cannot silently stop lease renewal or the sweeps
+while the main loop keeps the worker looking healthy.
 - watchdog: exits the process if the main loop stops advancing, so the container restarts.
 """
 
@@ -209,8 +213,13 @@ class Worker:
             with self._lock:
                 due = [r for r in self._running.values() if r.next_renewal <= now]
             for running in due:
-                with self.database.unit_of_work() as uow:
-                    renewed = renew_lease(uow.session, running.job, running.lease)
+                try:
+                    with self.database.unit_of_work() as uow:
+                        renewed = renew_lease(uow.session, running.job, running.lease)
+                except Exception:
+                    # next_renewal is unchanged, so this job is retried on the next tick (1 s).
+                    log.exception("worker.lease_renewal_error", job_id=str(running.job.id))
+                    continue
                 running.next_renewal = now + running.lease.total_seconds() / 3
                 if not renewed:
                     log.warning("job.lease_renewal_lost", job_id=str(running.job.id))
@@ -223,13 +232,18 @@ class Worker:
                 slot = int(now // job.every.total_seconds())
                 if last_slot.get(job.kind) == slot:
                     continue
-                with self.database.unit_of_work() as uow:
-                    enqueue(
-                        uow.session,
-                        job.kind,
-                        dedupe_key=f"{job.kind}:{slot}",
-                        jobs_registry=self.registry,
-                    )
+                try:
+                    with self.database.unit_of_work() as uow:
+                        enqueue(
+                            uow.session,
+                            job.kind,
+                            dedupe_key=f"{job.kind}:{slot}",
+                            jobs_registry=self.registry,
+                        )
+                except Exception:
+                    # The slot is not recorded, so it is retried on the next tick (1 s).
+                    log.exception("worker.schedule_error", job_kind=job.kind)
+                    continue
                 last_slot[job.kind] = slot
             self._stop.wait(timeout=1.0)
 

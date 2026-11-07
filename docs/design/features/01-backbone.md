@@ -832,6 +832,10 @@ nothing. So:
   **watchdog thread** checks the in-process heartbeat; if the loop has not advanced for 60 seconds it logs a fatal
   event and exits the process (`os._exit(1)`), and `restart: unless-stopped` starts a fresh worker. The heartbeat file
   feeds the container healthcheck so `docker ps` shows the state.
+- **Worker helper threads** (listener, lease renewer, scheduler) never die on an error: each logs it and retries on
+  its next tick (a failed renewal or sweep slot is retried a second later). The watchdog only watches the main loop,
+  so a helper thread that silently died would leave a healthy-looking worker that no longer renews leases (long jobs
+  run twice) or schedules sweeps.
 - **Worker readiness:** at startup the worker checks that migrations are at head and refuses to start (exits with an
   error) otherwise.
 - **API:** Uvicorn exits on fatal errors and is restarted by the same policy. A hung-but-running API is not restarted

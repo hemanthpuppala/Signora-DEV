@@ -10,7 +10,8 @@ import threading
 import time
 import uuid
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -366,6 +367,70 @@ def test_recurring_job_is_enqueued_once_per_slot_by_several_workers(
     rows = job_rows(committing_db, kind)
     assert len(rows) == 1
     assert rows[0].dedupe_key.startswith(f"{kind}:")
+
+
+class FlakyDatabase:
+    """Delegates to a real database but fails the first ``failures`` units of work opened by the
+    worker's helper thread named ``thread_suffix`` (as a database restart would)."""
+
+    def __init__(self, database: Database, thread_suffix: str, failures: int = 1) -> None:
+        self._database = database
+        self._thread_suffix = thread_suffix
+        self.remaining = failures
+
+    @contextmanager
+    def unit_of_work(self) -> Iterator[Any]:
+        if threading.current_thread().name.endswith(self._thread_suffix) and self.remaining > 0:
+            self.remaining -= 1
+            raise psycopg.OperationalError("connection refused (simulated database restart)")
+        with self._database.unit_of_work() as uow:
+            yield uow
+
+
+def test_scheduler_survives_a_database_error(
+    committing_db: Database, test_db_settings: DatabaseSettings
+) -> None:
+    reg = JobRegistry()
+    kind = unique_kind("sweep-after-error")
+    register(reg, kind, lambda ctx: None)
+    flaky = FlakyDatabase(committing_db, "-scheduler")
+
+    with running_worker(
+        flaky,  # type: ignore[arg-type]
+        test_db_settings,
+        reg,
+        recurring=[RecurringJob(kind, every=timedelta(hours=1))],
+    ) as worker:
+        wait_until(lambda: len(job_rows(committing_db, kind)) == 1)
+        assert flaky.remaining == 0
+        assert all(t.is_alive() for t in worker._threads)
+
+
+def test_lease_renewer_survives_a_database_error(
+    committing_db: Database, test_db_settings: DatabaseSettings
+) -> None:
+    reg = JobRegistry()
+    kind = unique_kind("renew-after-error")
+    runs = Counter[str]()
+
+    def handler(ctx: JobContext) -> None:
+        runs["calls"] += 1
+        time.sleep(7)  # longer than the 6 s lease: only renewals keep it
+
+    # Renewal is due at lease/3 (2 s) and, after the failure, retried a second later: the lease
+    # still has about 2 s left, so only a renewer that stopped would let it lapse.
+    register(reg, kind, handler, lease=timedelta(seconds=6))
+    with committing_db.unit_of_work() as uow:
+        enqueue(uow.session, kind, jobs_registry=reg)
+    flaky = FlakyDatabase(committing_db, "-lease-renewer")
+
+    # One worker: had its lease lapsed, its own main loop would reclaim the job and run it twice.
+    with running_worker(flaky, test_db_settings, reg):  # type: ignore[arg-type]
+        wait_until(lambda: job_rows(committing_db, kind)[0].status == "succeeded", timeout=20)
+
+    assert flaky.remaining == 0
+    assert runs["calls"] == 1
+    assert job_rows(committing_db, kind)[0].attempts == 1
 
 
 def test_watchdog_exits_when_the_loop_stalls(
