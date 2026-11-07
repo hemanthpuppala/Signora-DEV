@@ -682,8 +682,8 @@ console — never configuration.
 
 - **Route handlers that touch the database are plain `def`**, never `async def`. FastAPI runs `def` handlers in its
   thread pool; an `async def` handler calling synchronous SQLAlchemy would block the event loop for every request.
-  `async def` is allowed only for code that does no blocking I/O. (Checked in code review; a test asserts every route
-  that depends on the unit of work is a plain function.)
+  `async def` is allowed only for code that does no blocking I/O. (Checked in code review, and `tests/test_route_handlers.py`
+  fails on any `async def` route handler that is not on its reviewed allow-list.)
 - **API:** the thread pool is capped at `API_THREADS` (default 20) and the connection pool matches it
   (`pool_size = API_THREADS`, `max_overflow = 0`, `pool_timeout = 5 s`). Every thread can get a connection; if the
   pool is ever exhausted the request fails fast with `503` instead of piling up.
