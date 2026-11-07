@@ -32,6 +32,8 @@ from signora.kernel.http import (
 )
 from signora.kernel.jobs import registry
 from signora.kernel.logging import configure_logging
+from signora.kernel.ratelimit import create_rate_limiter
+from signora.modules import identity_access
 
 API_PREFIX = "/api/v1"
 INTERNAL_PREFIX = "/internal"  # never forwarded by Caddy (LLD §7.3)
@@ -118,6 +120,7 @@ def create_app(
     app.state.engine = app_engine
     app.state.database = Database(app_engine)
     app.state.checks = lambda: checks_factory(settings, app_engine)
+    app.state.rate_limiter = create_rate_limiter(settings.rate_limit)
 
     install_error_handlers(app)
     # Added last = outermost: the request context (request id, access log) wraps the origin check.
@@ -128,6 +131,7 @@ def create_app(
         RequestContextMiddleware, trust_proxy_headers=settings.api.trust_proxy_headers
     )
     app.include_router(_health_router())
+    app.include_router(identity_access.router)
     return app
 
 

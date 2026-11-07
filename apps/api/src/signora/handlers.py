@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from signora.kernel.idempotency import housekeeping as idempotency_housekeeping
 from signora.kernel.jobs import JobRegistry, RecurringJob, housekeeping
+from signora.modules.identity_access import jobs as identity_jobs
 from signora.modules.notifications import service as notifications
 
 
@@ -17,4 +18,5 @@ def register_all(jobs_registry: JobRegistry) -> list[RecurringJob]:
         housekeeping.register(jobs_registry),
         idempotency_housekeeping.register(jobs_registry),
         notifications.register(jobs_registry),
+        *identity_jobs.register(jobs_registry),
     ]

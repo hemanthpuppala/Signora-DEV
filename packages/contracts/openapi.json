@@ -1,6 +1,63 @@
 {
   "components": {
     "schemas": {
+      "LoginRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "MeResponse": {
+        "properties": {
+          "is_creator": {
+            "title": "Is Creator",
+            "type": "boolean"
+          },
+          "permissions": {
+            "description": "Effective permissions; drives what the UI shows",
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "role": {
+            "$ref": "#/components/schemas/RoleView"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserView"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/WorkspaceView"
+          }
+        },
+        "required": [
+          "user",
+          "workspace",
+          "role",
+          "permissions",
+          "is_creator"
+        ],
+        "title": "MeResponse",
+        "type": "object"
+      },
       "MetaResponse": {
         "properties": {
           "commit": {
@@ -108,6 +165,30 @@
         "title": "ProblemFieldError",
         "type": "object"
       },
+      "RoleView": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name"
+        ],
+        "title": "RoleView",
+        "type": "object"
+      },
       "StatusResponse": {
         "properties": {
           "status": {
@@ -124,6 +205,49 @@
         ],
         "title": "StatusResponse",
         "type": "object"
+      },
+      "UserView": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name"
+        ],
+        "title": "UserView",
+        "type": "object"
+      },
+      "WorkspaceView": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "WorkspaceView",
+        "type": "object"
       }
     }
   },
@@ -133,6 +257,142 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "log_in_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Log in",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "Ends the session on the server and clears the cookies; succeeds when already signed out.",
+        "operationId": "log_out_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Log out",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/health/live": {
       "get": {
         "operationId": "live_api_v1_health_live_get",
@@ -272,6 +532,72 @@
         "summary": "Ready",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "operationId": "me_api_v1_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The signed-in user, workspace, role and permissions",
+        "tags": [
+          "auth"
         ]
       }
     },

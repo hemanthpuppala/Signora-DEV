@@ -69,6 +69,7 @@ select = [
 "tests/**" = ["S101", "S603", "S607"]  # assert, subprocess in tests
 # Domain errors are named after the condition (NotFound, Conflict), matching the LLD catalogue.
 "src/signora/kernel/errors.py" = ["N818"]
+"src/signora/modules/*/errors.py" = ["N818"]
 
 [tool.mypy]
 strict = true
@@ -131,6 +132,23 @@ protected_modules = [
     "signora.modules.notifications.transports",
 ]
 allowed_importers = ["signora.modules.notifications", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Public interface only: identity_access internals are imported only by identity_access and composition roots"
+type = "protected"
+protected_modules = [
+    "signora.modules.identity_access.access",
+    "signora.modules.identity_access.accounts",
+    "signora.modules.identity_access.dependencies",
+    "signora.modules.identity_access.domain",
+    "signora.modules.identity_access.errors",
+    "signora.modules.identity_access.jobs",
+    "signora.modules.identity_access.login",
+    "signora.modules.identity_access.models",
+    "signora.modules.identity_access.routes",
+    "signora.modules.identity_access.sessions",
+]
+allowed_importers = ["signora.modules.identity_access", "signora.models", "signora.handlers"]
 
 [[tool.importlinter.contracts]]
 name = "Leaf modules import only the kernel"
