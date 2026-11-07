@@ -146,7 +146,7 @@ Internet ──TLS──► Tailscale Funnel (hemanth.tail50655e.ts.net:443) ─
 ```
 
 - **Caddy** — reverse proxy: one public port, path routing, headers, body limits.
-- **Gotenberg** (`gotenberg/gotenberg:8.40.0-libreoffice`, pinned) — HTTP wrapper around LibreOffice for DOCX→PDF. Internal network only.
+- **Gotenberg** (`gotenberg/gotenberg:8.40.0-libreoffice`, pinned) — HTTP wrapper around LibreOffice for DOCX→PDF. It converts untrusted uploads, so it sits alone on an internal-only Docker network (`convert`, no egress) with `--api-disable-download-from`, `--webhook-disable` and `--libreoffice-deny-{private,public}-ips` as a second SSRF layer. A `gotenberg-gateway` socat forwarder publishes `127.0.0.1:53000` for host processes; in-compose services join `convert` and call `gotenberg:3000`.
 - **ADR-002: Postgres as job queue** (`SELECT … FOR UPDATE SKIP LOCKED`) + transactional outbox instead of Redis/Celery: one less service, enqueue in the same transaction as the business write, durable across restarts.
 - **ADR-003: Build signing in-house** rather than wrap DocuSign: grader finishes in one URL with no third-party accounts; product margin; ESIGN/UETA requirements are implementable (§9).
 - **ADR-004: PyMuPDF** for parsing/stamping/flattening (AGPL-3.0 or Artifex commercial). Fine for a public repo; production sale needs a commercial license or a swap to `pypdfium2` + `pdfplumber` + `pypdf`. Documented in README. Note (verified 2026-11-06): `pymupdf` 2.0 hard-depends on `onnxruntime` and absorbs the former `pymupdf-layout` code (1.x was PolyForm Noncommercial; the 2.0 `pymupdf-layout` package is an empty placeholder), so the declared license is PyMuPDF's AGPL/commercial dual license.
@@ -491,7 +491,7 @@ The corpus, ground truth, and eval runner live in `eval/` which is **git-ignored
 
 ## 12. Deployment
 
-`docker compose up -d` → postgres, gotenberg, api, worker, web, caddy (+ mailpit in the `dev` profile).
+`docker compose up -d` → postgres, gotenberg (+ gotenberg-gateway), api, worker, web, caddy (+ mailpit in the `dev` profile).
 Caddy listens on `127.0.0.1:3100`, which the existing Funnel config proxies: `https://hemanth.tail50655e.ts.net` → `127.0.0.1:3100` (verified 2026-11-06; Funnel ports 443/8443/10000 allowed).
 
 ---

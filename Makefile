@@ -11,7 +11,7 @@ requirements:  ## Re-export pinned pip requirement files from uv.lock
 	uv export --frozen --group dev --no-emit-project -o requirements-dev.txt
 
 up:            ## Start infrastructure services and wait until healthy
-	$(COMPOSE) up -d --wait postgres gotenberg
+	$(COMPOSE) up -d --wait --remove-orphans postgres gotenberg gotenberg-gateway
 
 down:          ## Stop services (data volume kept)
 	$(COMPOSE) down
