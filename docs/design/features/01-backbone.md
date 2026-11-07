@@ -911,6 +911,8 @@ another feature's internals; `shared/*` never imports `features/*`; `app/*` comp
   Source Code Pro, Inter Tight (logo). Body text uses the system UI font, as in the prototype.
 - Dark only (as the prototype). Minimum width 360 px. Visible focus, labelled controls, `prefers-reduced-motion`
   respected.
+- Site icon: `app/icon.svg` (Next.js file convention, which adds the `<link rel="icon">`), a serif "S" on black.
+  It is a placeholder until the product has a logo.
 
 ### 8.5 Talking to the API
 
