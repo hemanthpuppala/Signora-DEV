@@ -1,14 +1,26 @@
 COMPOSE := docker compose -f infra/compose.yaml --env-file .env
+API := apps/api
+UV := cd $(API) && uv run --frozen
+API_DEV_PORT ?= 8100
 
-.PHONY: install requirements up down ps logs
+.PHONY: help install requirements up down ps logs \
+        migrate api worker \
+        format lint typecheck imports test check
+
+help:          ## List targets
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | expand -t 16
+
+# --- setup -------------------------------------------------------------------------------------
 
 install:       ## One-command setup (see install.sh --help)
 	./install.sh
 
 requirements:  ## Re-export pinned pip requirement files from uv.lock
-	cd apps/api && uv lock --check && \
+	cd $(API) && uv lock --check && \
 	uv export --frozen --no-dev --no-emit-project -o requirements.txt && \
 	uv export --frozen --group dev --no-emit-project -o requirements-dev.txt
+
+# --- infrastructure ----------------------------------------------------------------------------
 
 up:            ## Start infrastructure services and wait until healthy
 	$(COMPOSE) up -d --wait --remove-orphans postgres gotenberg gotenberg-gateway
@@ -16,8 +28,41 @@ up:            ## Start infrastructure services and wait until healthy
 down:          ## Stop services (data volume kept)
 	$(COMPOSE) down
 
-ps:
+ps:            ## Show service status
 	$(COMPOSE) ps
 
-logs:
+logs:          ## Follow service logs
 	$(COMPOSE) logs -f --tail=100
+
+# --- run on the host (development) -------------------------------------------------------------
+
+migrate:       ## Apply database migrations
+	$(UV) signora migrate
+
+api:           ## Run the API with reload on API_DEV_PORT (default 8100)
+	$(UV) signora api --reload --port $(API_DEV_PORT)
+
+worker:        ## Run the background worker
+	$(UV) signora worker
+
+# --- quality gate (run before every merge; there is no hosted CI) ------------------------------
+
+format:        ## Format and auto-fix Python code
+	$(UV) ruff format src tests
+	$(UV) ruff check --fix src tests
+
+lint:          ## Check formatting and lint rules
+	$(UV) ruff format --check src tests
+	$(UV) ruff check src tests
+
+typecheck:     ## Strict type checking
+	$(UV) mypy src tests
+
+imports:       ## Module boundary contracts
+	$(UV) lint-imports
+
+test:          ## Tests with coverage gate (>= 85% for kernel and audit); needs `make up`
+	$(UV) pytest --cov=signora.kernel --cov=signora.modules.audit --cov-fail-under=85
+
+check: lint typecheck imports test  ## Everything that must pass before a merge
+	@echo "make check: all gates passed"

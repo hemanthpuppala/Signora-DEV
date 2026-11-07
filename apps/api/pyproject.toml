@@ -94,3 +94,46 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+
+# Module boundaries (backbone LLD §9.2). Each new module adds its own "public interface only"
+# contract and joins the leaf/forbidden lists below as it arrives.
+[tool.importlinter]
+root_packages = ["signora"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layers: entrypoints and composition roots -> modules -> kernel (no upward imports)"
+type = "layers"
+layers = [
+    "signora.entrypoints : signora.handlers : signora.models : signora.migrations",
+    "signora.modules",
+    "signora.kernel",
+]
+containers = []
+
+[[tool.importlinter.contracts]]
+name = "Public interface only: audit internals are imported only by audit and composition roots"
+type = "protected"
+protected_modules = [
+    "signora.modules.audit.domain",
+    "signora.modules.audit.service",
+    "signora.modules.audit.models",
+]
+allowed_importers = ["signora.modules.audit", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Leaf modules import only the kernel"
+type = "forbidden"
+source_modules = ["signora.modules.audit"]
+forbidden_modules = [
+    "signora.entrypoints",
+    "signora.handlers",
+    "signora.models",
+    "signora.migrations",
+]
+
+[[tool.importlinter.contracts]]
+name = "Pure domain: domain modules import no web framework or database library"
+type = "forbidden"
+source_modules = ["signora.modules.audit.domain"]
+forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]
