@@ -33,18 +33,26 @@ SENDER = Sender("noreply@signora.test", "Signora")
 
 
 class FakeTransport:
+    """Scripted outcomes apply only to the test's own message (``target``); any other queued
+    message in the shared test database is simply accepted."""
+
     name = "fake"
 
     def __init__(self, *outcomes: Exception | None) -> None:
         self.outcomes = list(outcomes)
         self.sent: list[OutgoingEmail] = []
+        self.target: str | None = None
 
     def send(self, email: OutgoingEmail) -> str:
-        outcome = self.outcomes.pop(0) if self.outcomes else None
-        if outcome is not None:
-            raise outcome
+        if email.message_id == self.target and self.outcomes:
+            outcome = self.outcomes.pop(0)
+            if outcome is not None:
+                raise outcome
         self.sent.append(email)
-        return f"provider-{len(self.sent)}"
+        return f"provider-{email.message_id}"
+
+    def sent_to_target(self) -> list[OutgoingEmail]:
+        return [email for email in self.sent if email.message_id == self.target]
 
 
 def queue(db: Database, **overrides: Any) -> uuid.UUID:
@@ -75,7 +83,10 @@ def delivering(committing_db: Database, test_db_settings: DatabaseSettings) -> I
 
     workers: list[Any] = []
 
-    def start(transport: FakeTransport, daily_limit: int = 1_000_000) -> None:
+    def start(
+        transport: FakeTransport, message_id: uuid.UUID, daily_limit: int = 1_000_000
+    ) -> None:
+        transport.target = str(message_id)
         reg = JobRegistry()
         notifications.register(
             reg, transport_factory=lambda: transport, daily_limit=lambda: daily_limit
@@ -153,15 +164,18 @@ def test_a_dedupe_key_queues_the_email_once(db: Database) -> None:
 def test_delivery_marks_sent_and_purges_the_body(committing_db: Database, delivering: Any) -> None:
     transport = FakeTransport()
     message_id = queue(committing_db)
-    delivering(transport)
+    delivering(transport, message_id)
 
     wait_until(lambda: message(committing_db, message_id).status == "sent")
 
     row = message(committing_db, message_id)
-    assert (row.provider, row.provider_message_id, row.attempts) == ("fake", "provider-1", 1)
+    assert (row.provider, row.provider_message_id, row.attempts) == (
+        "fake",
+        f"provider-{message_id}",
+        1,
+    )
     assert row.text_body is None and row.html_body is None
-    assert transport.sent[0].text == "Body with a secret link"
-    assert transport.sent[0].message_id == str(message_id)
+    assert [email.text for email in transport.sent_to_target()] == ["Body with a secret link"]
 
 
 def test_permanent_failure_is_recorded_without_retrying(
@@ -169,7 +183,7 @@ def test_permanent_failure_is_recorded_without_retrying(
 ) -> None:
     transport = FakeTransport(PermanentEmailError("sendgrid answered 400: bad address"))
     message_id = queue(committing_db)
-    delivering(transport)
+    delivering(transport, message_id)
 
     wait_until(lambda: message(committing_db, message_id).status == "failed")
 
@@ -177,7 +191,7 @@ def test_permanent_failure_is_recorded_without_retrying(
     assert row.attempts == 1
     assert "400" in row.last_error
     assert row.text_body is None and row.html_body is None
-    assert transport.sent == []
+    assert transport.sent_to_target() == []
 
 
 @pytest.mark.usefixtures("no_backoff")
@@ -186,12 +200,12 @@ def test_transient_failures_are_retried_then_delivered(
 ) -> None:
     transport = FakeTransport(TransientEmailError("timeout"), TransientEmailError("429"))
     message_id = queue(committing_db)
-    delivering(transport)
+    delivering(transport, message_id)
 
     wait_until(lambda: message(committing_db, message_id).status == "sent")
 
     assert message(committing_db, message_id).attempts == 3
-    assert len(transport.sent) == 1
+    assert len(transport.sent_to_target()) == 1
 
 
 @pytest.mark.usefixtures("no_backoff")
@@ -201,7 +215,7 @@ def test_transient_failures_end_as_failed_after_the_last_attempt(
     errors = [TransientEmailError("smtp answered 421")] * notifications.MAX_ATTEMPTS
     transport = FakeTransport(*errors)
     message_id = queue(committing_db)
-    delivering(transport)
+    delivering(transport, message_id)
 
     wait_until(lambda: message(committing_db, message_id).status == "failed", timeout=20)
 
@@ -216,11 +230,11 @@ def test_the_daily_limit_holds_messages_back_and_fails_them_at_the_end(
 ) -> None:
     transport = FakeTransport()
     message_id = queue(committing_db)
-    delivering(transport, daily_limit=0)
+    delivering(transport, message_id, daily_limit=0)
 
     wait_until(lambda: message(committing_db, message_id).status == "failed", timeout=20)
 
-    assert transport.sent == []
+    assert transport.sent_to_target() == []
     assert "daily email limit" in message(committing_db, message_id).last_error
 
 
