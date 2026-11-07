@@ -16,7 +16,7 @@ agreed.
 | 4 | Audit log: chain scope, system events, schema | **agreed** (2026-11-07) |
 | 5 | File storage | **agreed** (2026-11-07) |
 | 6 | Configuration and path resolution | **agreed** (2026-11-07) |
-| 7 | Errors, logging, health APIs | open |
+| 7 | Errors, logging, health APIs | **agreed** (2026-11-07) |
 | 8 | Frontend shell | open |
 | 9 | Quality gate (`make check`) and runtime (compose, Caddy) | open |
 | 10 | Phase 1 FRs, NFRs, ADRs (summary) | open |
@@ -630,3 +630,98 @@ def get_settings() -> Settings: ...           # loaded once, cached, read-only
 - Development with empty `AI_API_KEY` starts; production with it empty fails at startup.
 - `SecretStr` values never appear in `repr`, logs or error output.
 - Every settings field is in `.env.example` and every `.env.example` variable maps to a field.
+
+---
+
+## Topic 7 — Errors, logging and health endpoints
+
+### 7.1 Error responses
+
+Every error uses RFC 9457 problem details (`Content-Type: application/problem+json`):
+
+```json
+{
+  "type": "/problems/validation-failed",
+  "title": "Some fields are invalid",
+  "status": 422,
+  "detail": "2 fields need attention",
+  "code": "validation-failed",
+  "instance": "/api/v1/projects",
+  "request_id": "7f3c…",
+  "errors": [{ "field": "poc_emails[0]", "message": "Not a valid email" }]
+}
+```
+
+- `code` — stable machine-readable name; the frontend switches on it (never on `title` text).
+- `errors` — per-field messages so forms can show each one under its field (validation errors only).
+- `request_id` — links what the user saw to the server logs.
+
+Modules raise domain errors from `kernel/errors`; one exception handler maps them to responses. No module builds
+error responses itself.
+
+| Error | Status | When |
+|---|---|---|
+| `ValidationFailed` | 422 | Invalid input; FastAPI/pydantic validation errors are converted to this shape |
+| `Unauthenticated` | 401 | No session or session expired |
+| `PermissionDenied` | 403 | Authenticated but lacking the required access on this project |
+| `NotFound` | 404 | Does not exist **or belongs to another workspace** |
+| `Conflict` | 409 | Wrong state for the action (e.g. version already approved) |
+| `IdempotencyKeyMissing` | 400 | Topic 3 |
+| `IdempotencyKeyReused` | 422 | Topic 3 |
+| `RequestInProgress` | 409 + `Retry-After` | Topic 3 |
+| `PayloadTooLarge` | 413 | Over the configured size limit |
+| `RateLimited` | 429 + `Retry-After` | Too many attempts (e.g. OTP) |
+| `IntegrationNotConfigured` | 503 | AI, email or Stripe not configured |
+| any unexpected exception | 500 | Generic title and `request_id` only; never stack traces or internal details (those go to the log) |
+
+**Tenant rule:** a resource of another workspace is reported as `404`, never `403`, so its existence is not revealed.
+
+### 7.2 Logging
+
+- Structured JSON, one event per line, to stdout (collected by Docker). With `APP_ENV=development` on a terminal,
+  a readable console format is used instead.
+- Every line: `ts` (UTC), `level`, `event`, `request_id`; plus `workspace_id`, `user_id`, `job_id`, `job_kind` when
+  known (bound through context, not passed by hand).
+- One access line per request: method, **route template** (e.g. `/s/{token}`, never the raw path, because signing
+  links carry secret tokens), status, duration in ms.
+- **Request id:** an incoming `X-Request-ID` is accepted only if it is a well-formed id (Caddy sets one); otherwise a
+  new one is generated. It is returned in the `X-Request-ID` response header, included in error bodies, and stored in
+  the metadata of every job enqueued by that request, so a job's logs link back to the action that caused it.
+- **Never logged:** request or response bodies; passwords, tokens, OTP codes, cookies, `Authorization` headers;
+  signature images. A redaction processor masks any field whose name matches
+  `password|secret|token|otp|code|cookie|authorization` as a safety net.
+- **Personal data minimised:** logs carry ids, not names or email addresses. (The audit log keeps names
+  intentionally, as evidence.)
+- Levels: `INFO` by default (`LOG_LEVEL`), `DEBUG` locally when needed.
+
+### 7.3 Health and metadata endpoints
+
+| Endpoint | Answers | Checks | Used by |
+|---|---|---|---|
+| `GET /api/v1/health/live` | Is the process running? | Nothing external; 200 whenever it can respond | Docker restart policy |
+| `GET /api/v1/health/ready` | Can it serve traffic? | Database (`SELECT 1`), migrations at head, blob store writable, Gotenberg `/health`; AI, email and Stripe reported as configured or not (informational in development) | Docker, Caddy, operators |
+| `GET /api/v1/meta` | Which build is running? | — | UI footer, bug reports |
+
+- Each readiness check has a 2-second timeout. `200` when every core check passes, otherwise `503`.
+- **Public vs local detail:** requests from outside (through Funnel) receive only `{"status":"ok"}` or
+  `{"status":"unavailable"}`. The per-check breakdown (component, status, duration, message) is returned only to
+  requests from the loopback address or the Docker networks.
+- `/meta` returns `{"version": "<package version>", "commit": "<short git sha>"}`; the commit is baked in at build time
+  (`SIGNORA_COMMIT`), falling back to `"dev"`.
+
+### 7.4 Worker health
+
+The worker serves no HTTP. It touches a heartbeat file every 10 seconds; the container healthcheck fails if the
+file is older than 30 seconds, and Docker restarts it. No extra table or port.
+
+### 7.5 Tests that prove it
+
+- Each domain error maps to its status and `code`; FastAPI validation errors come out in the same shape with
+  per-field `errors`.
+- An unexpected exception → 500 with `request_id` only; the log line contains the stack trace.
+- Cross-workspace access → 404.
+- Redaction masks secret-looking keys; the access log uses route templates (a `/s/<token>` request logs `/s/{token}`).
+- A request id appears in the response header, the error body, the logs, and the jobs enqueued by that request.
+- `/health/ready` returns 503 naming the failed check when the database or Gotenberg is down (local request), and
+  only `{"status":"unavailable"}` for a non-local request.
+- Worker heartbeat goes stale when the loop is blocked → healthcheck fails.
