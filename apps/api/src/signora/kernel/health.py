@@ -6,18 +6,17 @@ integration checks are informational ("configured" or "not configured").
 
 from __future__ import annotations
 
-import tempfile
 import time
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Literal
 
 import httpx
 from sqlalchemy import Engine, text
 
+from signora.kernel.blobstore import BlobStore, blob_store_from_settings
 from signora.kernel.config import DatabaseSettings, Settings
 from signora.kernel.migrations import migrations_at_head
 
@@ -93,14 +92,8 @@ def migrations_check(engine: Engine, settings: DatabaseSettings) -> Check:
     return Check("migrations", run)
 
 
-def blob_dir_check(directory: Path) -> Check:
-    def run() -> None:
-        directory.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=directory, prefix=".health-", delete=True) as probe:
-            probe.write(b"ok")
-            probe.flush()
-
-    return Check("blob_store", run)
+def blob_store_check(store: BlobStore) -> Check:
+    return Check("blob_store", store.check)
 
 
 def gotenberg_check(base_url: str) -> Check:
@@ -129,6 +122,6 @@ def core_checks(settings: Settings, engine: Engine) -> list[Check]:
     return [
         database_check(engine),
         migrations_check(engine, settings.db),
-        blob_dir_check(settings.blob_store.dir),
+        blob_store_check(blob_store_from_settings(settings.blob_store)),
         gotenberg_check(settings.gotenberg.base_url),
     ]
