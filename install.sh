@@ -22,7 +22,7 @@ START_SERVICES=1
 for arg in "$@"; do
   case "$arg" in
     --no-services) START_SERVICES=0 ;;
-    -h|--help)     sed -n '2,15p' "$0"; exit 0 ;;
+    -h|--help)     awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -48,10 +48,49 @@ for dir in "${UV_INSTALL_DIR:-}" "${XDG_BIN_HOME:-}" "${XDG_DATA_HOME:+$XDG_DATA
   [[ -n "$dir" ]] && PATH="$dir:$PATH"
 done
 export PATH
-if ! command -v uv >/dev/null 2>&1; then
-  info "Installing uv $UV_VERSION (https://docs.astral.sh/uv/)"
-  curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" | env INSTALLER_NO_MODIFY_PATH=1 sh
+
+# SHA-256 of the official uv $UV_VERSION release archives (github.com/astral-sh/uv/releases).
+uv_archive_sha256() {
+  case "$1" in
+    x86_64-unknown-linux-gnu)  echo 0114d54f9aafd07516cf1cadfe72afa970f5fd293fbe82dd924b8a7b42c984d8 ;;
+    aarch64-unknown-linux-gnu) echo e9eba97b7169e47fd3c926e409f0b714820f0befc23b3ae062780586a793e4cc ;;
+    x86_64-apple-darwin)       echo 249e7fb18d45c06ba283c48f0a8e586ecc5fbb9e8dad0923c4169a7c4db815b2 ;;
+    aarch64-apple-darwin)      echo a1e1464aa1d04d5e5fa700aa2f2e10397d1114e835dbd56be25ba65c9a31bd99 ;;
+  esac
+}
+
+# Downloads the pinned release archive and verifies it before installing. (The uv install
+# script itself carries no checksums, so we do not pipe it to sh.)
+install_uv() {
+  local arch os target expected dest tmp actual
+  case "$(uname -m)" in x86_64|amd64) arch=x86_64 ;; arm64|aarch64) arch=aarch64 ;; *) arch="" ;; esac
+  case "$(uname -s)" in Linux) os=unknown-linux-gnu ;; Darwin) os=apple-darwin ;; *) os="" ;; esac
+  target="$arch-$os"
+  expected="$(uv_archive_sha256 "$target")"
+  [[ -n "$arch" && -n "$os" && -n "$expected" ]] || fail "no pinned uv build for $(uname -s)/$(uname -m); install uv $UV_VERSION manually (https://docs.astral.sh/uv/) and re-run"
+  dest="${UV_INSTALL_DIR:-${XDG_BIN_HOME:-$HOME/.local/bin}}"
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+  info "Installing uv $UV_VERSION ($target) into $dest"
+  curl -fLsS "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-$target.tar.gz" -o "$tmp/uv.tar.gz" \
+    || fail "could not download uv $UV_VERSION"
+  if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$tmp/uv.tar.gz" | awk '{print $1}')"
+  else actual="$(shasum -a 256 "$tmp/uv.tar.gz" | awk '{print $1}')"; fi
+  [[ "$actual" == "$expected" ]] || fail "uv archive checksum mismatch (expected $expected, got $actual); not installing"
+  tar -xzf "$tmp/uv.tar.gz" -C "$tmp"
+  mkdir -p "$dest"
+  install -m 0755 "$tmp/uv-$target/uv" "$tmp/uv-$target/uvx" "$dest/"
   hash -r
+}
+
+version_at_least() { [[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" == "$2" ]]; }
+
+if command -v uv >/dev/null 2>&1; then
+  current="$(uv --version | awk '{print $2}')"
+  version_at_least "$current" "$UV_VERSION" \
+    || fail "uv $current is older than the required $UV_VERSION; run 'uv self update $UV_VERSION' (or remove it so this script installs the pinned version) and re-run"
+else
+  install_uv
   command -v uv >/dev/null 2>&1 || fail "uv was installed but is not on PATH; add its install directory to PATH and re-run"
 fi
 ok "$(uv --version)"
