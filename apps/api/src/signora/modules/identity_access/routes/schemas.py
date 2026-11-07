@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
@@ -17,6 +18,11 @@ EmailInput = Annotated[str, StringConstraints(strip_whitespace=True, min_length=
 
 class _Body(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class RoleRef(BaseModel):
+    id: uuid.UUID
+    name: str
 
 
 class SignupRequest(_Body):
@@ -48,6 +54,33 @@ class AcceptedResponse(BaseModel):
 
 class EmailResponse(BaseModel):
     email: str
+
+
+class InviteRequest(_Body):
+    email: EmailInput
+    role_id: uuid.UUID
+
+
+class InviteView(BaseModel):
+    id: uuid.UUID
+    email: str
+    role: RoleRef
+    invited_by_name: str
+    created_at: datetime
+    expires_at: datetime
+    expired: bool
+
+
+class InviteDetailsView(BaseModel):
+    email: str
+    workspace_name: str
+    role_name: str
+    inviter_name: str
+
+
+class AcceptInviteRequest(TokenRequest):
+    name: NameInput
+    password: PasswordInput
 
 
 class LoginRequest(_Body):
