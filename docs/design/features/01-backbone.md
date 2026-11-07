@@ -379,8 +379,13 @@ changing or deleting any earlier entry breaks every fingerprint after it.
 | Chain | Holds | Who can wait on whom |
 |---|---|---|
 | **Envelope chain** (one per envelope) | Everything about one envelope: sent, link opened, code verified, consent, viewed to end, signed, declined, reminder sent, countersigned, completed | Only people acting on the *same* envelope |
-| **Workspace chain** (one per workspace) | Admin and account actions: member invited/joined, access changed, project created/updated, document uploaded, version approved, settings changed, login succeeded/failed | Admin actions within one workspace |
-| **System chain** (one, fixed system workspace) | Actions with no workspace yet: sign-up, failed login for an unknown email | — |
+| **Workspace chain** (one per workspace) | Admin and account actions: member invited/joined, access changed, project created/updated, document uploaded, version approved, settings changed, successful login | Admin actions within one workspace |
+| **System chain** (one, fixed system workspace) | Actions with no workspace yet: workspace sign-up | Sign-ups only (rate-limited) |
+
+**Not in the audit chains:** failed logins and other high-volume signals an attacker controls. They go to structured
+logs and rate-limit counters. Otherwise an attacker could slow a chain's lock (e.g. password spraying against the
+system or a workspace chain) and flood the evidence record. Failed signing-code attempts are the exception: they are
+bounded (5 per code) and are evidence for that envelope, so they are recorded on its envelope chain.
 
 Why per envelope: hundreds of signers in one company can submit at the same moment without queuing behind one
 workspace-wide lock, and a certificate covers exactly one envelope chain. The audit screen still shows a whole
@@ -394,20 +399,29 @@ has a workspace and the schema has no special NULL case.
 `audit.record(...)` runs **inside the action's own transaction**: if the action commits, so does its entry; if it
 rolls back, neither exists. Request context (request id, IP, user agent) is attached automatically.
 
-1. `pg_advisory_xact_lock(<chain_id>)` — serializes appends to this chain only; released at commit.
+1. `pg_advisory_xact_lock(k)` — serializes appends to this chain only; released at commit. `k` is the **last 8 bytes
+   of `chain_id`** read as a big-endian signed 64-bit integer (the random part of a UUIDv7). Two chains sharing a `k`
+   only wait on each other; correctness is unaffected.
 2. Read the last entry's `seq` and `hash` for the chain (primary-key index, O(log n)); for a new chain use
    `seq = 0` and 32 zero bytes.
 3. `hash = sha256(previous_hash ‖ canonical_json(entry))`, insert with `seq + 1`.
 
-**Canonical JSON** (stable bytes for hashing): keys sorted, UTF-8, no insignificant whitespace, timestamps as UTC
-ISO-8601 with microseconds, in the spirit of RFC 8785. Audit `data` holds only strings, integers, booleans, lists
-and objects — no floating-point numbers — so a database round trip cannot change the bytes.
+**Hashed fields:** every column except `hash` itself — `chain_kind`, `chain_id`, `seq`, `workspace_id`,
+`occurred_at`, `actor_type`, `actor_id`, `actor_label`, `action`, `subject_type`, `subject_id`, `request_id`, `ip`,
+`user_agent`, `data`. A missing value is an explicit `null`.
+
+**Canonical JSON** (stable bytes for hashing), in the spirit of RFC 8785: keys sorted, UTF-8, no insignificant
+whitespace; UUIDs lowercase with hyphens; timestamps as UTC ISO-8601 with microseconds and `Z`; IP addresses in the
+canonical text form produced by Python's `ipaddress` (compressed IPv6, IPv4-mapped IPv6 reduced to IPv4), so a round
+trip through Postgres `inet` cannot change the bytes. Audit `data` holds only strings, integers, booleans, `null`,
+lists and objects — no floating-point numbers.
 
 ### 4.4 Verifying a chain
 
 Walk the chain in `seq` order and recompute every hash from the previous one. The chain is intact when `seq` runs
 1, 2, 3 … with no gaps and every recomputed hash equals the stored one. A changed entry fails at that entry; a
-deleted entry shows as a gap. Cost O(n) for an n-entry chain. Available as `signora audit verify` (CLI) now and as
+deleted entry in the middle shows as a gap. **Deleting the last entries leaves no gap** and is not detectable from the
+chain alone; it is caught only by comparing with an anchored head hash (§4.5). Cost O(n) for an n-entry chain. Available as `signora audit verify` (CLI) now and as
 a console action later.
 
 ### 4.5 Protection and its limits
@@ -415,8 +429,8 @@ a console action later.
 - Database triggers reject `UPDATE`, `DELETE` and `TRUNCATE` on `audit_events`.
 - **Limit:** someone with full database control can drop the triggers and rewrite a whole chain consistently; the
   hash chain detects partial edits, not a complete rewrite. Mitigations:
-  - **Anchoring (Phase 9):** each completion certificate prints its envelope chain's final hash. Signers keep copies,
-    so a later rewrite no longer matches what they hold.
+  - **Anchoring (Phase 9):** each completion certificate prints its envelope chain's final `seq` and hash. Signers
+    keep copies, so a later rewrite or truncation no longer matches what they hold.
   - **Hardening phase:** the app connects as a database role with only `INSERT`/`SELECT` on `audit_events`;
     migrations run as the owner.
 
@@ -490,7 +504,11 @@ def verify(uow, chain_id: UUID) -> VerificationResult: ...      # ok, entries ch
 - 50 concurrent appends to one chain → `seq` 1–50 contiguous, chain verifies.
 - Appends to different chains do not wait on each other's lock.
 - Action rolled back → its audit entry does not exist.
-- Canonical JSON is byte-identical before insert and after a database round trip.
+- Canonical JSON is byte-identical before insert and after a database round trip, including IPv6 and IPv4-mapped
+  addresses.
+- Deleting the last entry (triggers disabled) → `verify` passes on the chain alone, and the comparison with a recorded
+  head (`seq`, hash) reports the truncation.
+- A failed signing-code attempt is committed on the envelope chain while the response is an error (§7.1a).
 
 ---
 
@@ -722,6 +740,23 @@ error responses itself.
 | any unexpected exception | 500 | Generic title and `request_id` only; never stack traces or internal details (those go to the log) |
 
 **Tenant rule:** a resource of another workspace is reported as `404`, never `403`, so its existence is not revealed.
+
+### 7.1a Failures whose outcome must still be saved
+
+Normally an error rolls the request's transaction back. Some failures must still persist state: a failed signing-code
+attempt must increment `otp_attempts` (otherwise the 5-attempt limit never triggers) and be recorded on the envelope
+chain; reaching the limit must persist the lockout. The unit of work therefore has one sanctioned pattern:
+
+```python
+with unit_of_work() as uow:
+    recipients.record_failed_otp(uow, recipient_id)       # increments the counter, audits the attempt
+    uow.commit()                                          # persist the outcome first
+    raise InvalidCode(...)                                # then fail the request (422 / 429)
+```
+
+`uow.commit()` makes the outcome durable; the exception raised afterwards finds nothing left to roll back. Only domain
+services use this, and only for outcomes that are themselves the point (attempt counters, lockouts, their audit
+entries). A test asserts the counter and the audit entry exist after the error response.
 
 ### 7.2 Logging
 
