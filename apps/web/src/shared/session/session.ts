@@ -39,7 +39,9 @@ export function useLogIn() {
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) => logIn(email, password),
     onSuccess: (me) => {
-      queryClient.clear();
+      // Drop cached data nothing is showing (it may belong to a previous user). Queries on screen
+      // stay as they are: refetching them would, e.g., re-check a link that was just used up.
+      queryClient.removeQueries({ type: "inactive" });
       queryClient.setQueryData(SESSION_QUERY_KEY, me);
     },
   });

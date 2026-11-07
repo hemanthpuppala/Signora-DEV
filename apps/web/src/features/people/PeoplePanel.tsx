@@ -143,7 +143,7 @@ function InviteForm({
             onChange={(event) => setEmail(event.target.value)}
           />
           <Select label="Role" options={roleOptions} value={chosenRole} onChange={setRoleId} />
-          <Button type="submit" variant="quiet" loading={invite.isPending}>
+          <Button type="submit" variant="quiet" loading={invite.isPending} disabled={!chosenRole}>
             Send invite
           </Button>
         </FieldGrid>
