@@ -146,5 +146,5 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "Pure domain: domain modules import no web framework or database library"
 type = "forbidden"
-source_modules = ["signora.modules.audit.domain"]
+source_modules = ["signora.modules.audit.domain", "signora.modules.identity_access.domain"]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]
