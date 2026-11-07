@@ -12,6 +12,7 @@ import {
   Button,
   FieldGrid,
   Notice,
+  RowActions,
   Section,
   Select,
   SmallText,
@@ -205,15 +206,19 @@ function MemberRow({
         )}
       </td>
       <td>
-        {protectedRow ? null : confirming ? (
-          <>
-            <TextButton onClick={() => remove.mutate()} disabled={remove.isPending}>
-              Confirm remove
-            </TextButton>{" "}
-            <TextButton onClick={() => setConfirming(false)}>Cancel</TextButton>
-          </>
-        ) : (
-          <TextButton onClick={() => setConfirming(true)}>Remove</TextButton>
+        {protectedRow ? null : (
+          <RowActions label={`Actions for ${member.name}`}>
+            {confirming ? (
+              <>
+                <TextButton data-emphasis="true" onClick={() => remove.mutate()} disabled={remove.isPending}>
+                  Confirm remove
+                </TextButton>
+                <TextButton onClick={() => setConfirming(false)}>Cancel</TextButton>
+              </>
+            ) : (
+              <TextButton onClick={() => setConfirming(true)}>Remove</TextButton>
+            )}
+          </RowActions>
         )}
       </td>
     </tr>
@@ -255,12 +260,14 @@ function InviteRow({ invite, onChanged }: { invite: Invite; onChanged: (message:
         </SmallText>
       </td>
       <td>
-        <TextButton onClick={() => resend.run(invite.id)} disabled={resend.isPending}>
-          Resend
-        </TextButton>{" "}
-        <TextButton onClick={() => revoke.mutate()} disabled={revoke.isPending}>
-          Revoke
-        </TextButton>
+        <RowActions label={`Actions for the invitation to ${invite.email}`}>
+          <TextButton onClick={() => resend.run(invite.id)} disabled={resend.isPending}>
+            Resend
+          </TextButton>
+          <TextButton onClick={() => revoke.mutate()} disabled={revoke.isPending}>
+            Revoke
+          </TextButton>
+        </RowActions>
       </td>
     </tr>
   );
