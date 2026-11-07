@@ -66,3 +66,18 @@ textarea.control {
   background: var(--st-declined);
   vertical-align: 1px;
 }
+
+/* Password field: the Show/Hide toggle sits at the right end of the underline. */
+.passwordWrap {
+  position: relative;
+}
+
+.passwordWrap .control {
+  padding-right: 64px;
+}
+
+.reveal {
+  position: absolute;
+  right: 0;
+  top: 22px;
+}

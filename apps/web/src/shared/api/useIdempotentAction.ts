@@ -54,9 +54,19 @@ function writePending<TInput>(storageKey: string, pending: Pending<TInput> | nul
   }
 }
 
+export type IdempotentActionOptions = {
+  /**
+   * Keep the pending action in ``sessionStorage`` so it resumes after a refresh (default). Set to
+   * ``false`` when the input holds a secret such as a password: the key then lives in memory only
+   * and a refresh simply drops the attempt (the user submits again).
+   */
+  persistInput?: boolean;
+};
+
 export function useIdempotentAction<TInput, TResult>(
   storageKey: string,
   perform: Perform<TInput, TResult>,
+  { persistInput = true }: IdempotentActionOptions = {},
 ) {
   const [state, setState] = useState<ActionState<TResult>>({ status: "idle", data: null, error: null });
   const pending = useRef<Pending<TInput> | null>(null);
@@ -75,6 +85,13 @@ export function useIdempotentAction<TInput, TResult>(
   useEffect(() => {
     performRef.current = perform;
   }, [perform]);
+
+  const store = useCallback(
+    (value: Pending<TInput> | null) => {
+      if (persistInput) writePending(storageKey, value);
+    },
+    [persistInput, storageKey],
+  );
 
   // Retries are scheduled through this ref so they always call the latest ``send``.
   const sendRef = useRef<() => Promise<void>>(() => Promise.resolve());
@@ -96,7 +113,7 @@ export function useIdempotentAction<TInput, TResult>(
       const data = await performRef.current(current.input, current.key);
       if (!stillCurrent()) return;
       pending.current = null;
-      writePending(storageKey, null);
+      store(null);
       attempt.current = 0;
       setState({ status: "success", data, error: null });
     } catch (error) {
@@ -107,7 +124,7 @@ export function useIdempotentAction<TInput, TResult>(
         timer.current = setTimeout(() => void sendRef.current(), delay);
       } else if (error instanceof ApiError) {
         pending.current = null;
-        writePending(storageKey, null);
+        store(null);
         attempt.current = 0;
         setState({ status: "error", data: null, error });
       } else {
@@ -125,7 +142,7 @@ export function useIdempotentAction<TInput, TResult>(
         void sendRef.current();
       }
     }
-  }, [storageKey]);
+  }, [store]);
 
   useEffect(() => {
     sendRef.current = send;
@@ -139,24 +156,24 @@ export function useIdempotentAction<TInput, TResult>(
         return;
       }
       pending.current = { key: crypto.randomUUID(), input };
-      writePending(storageKey, pending.current);
+      store(pending.current);
       attempt.current = 0;
       setState({ status: "pending", data: null, error: null });
       void send();
     },
-    [send, storageKey],
+    [send, store],
   );
 
   const reset = useCallback(() => {
     clearTimer();
     pending.current = null;
-    writePending(storageKey, null);
+    store(null);
     setState({ status: "idle", data: null, error: null });
-  }, [storageKey]);
+  }, [store]);
 
   // Resume an action that was pending when the page was refreshed; retry on reconnect.
   useEffect(() => {
-    const stored = readPending<TInput>(storageKey);
+    const stored = persistInput ? readPending<TInput>(storageKey) : null;
     if (stored && !pending.current) {
       pending.current = stored;
       setState({ status: "retrying", data: null, error: null });
@@ -173,7 +190,7 @@ export function useIdempotentAction<TInput, TResult>(
       window.removeEventListener("online", onOnline);
       clearTimer();
     };
-  }, [send, storageKey]);
+  }, [send, storageKey, persistInput]);
 
   const isPending = state.status === "pending" || state.status === "retrying";
   return { run, reset, state, isPending };

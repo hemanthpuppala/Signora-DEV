@@ -11,10 +11,12 @@ export type AppShellProps = {
   /** Workspace name shown next to the logo (signed-in console). */
   workspace?: string;
   nav?: readonly NavItem[];
+  /** Controls after the navigation (e.g. "Log out"). */
+  actions?: ReactNode;
   children: ReactNode;
 };
 
-export function TopBar({ workspace, nav = [] }: Omit<AppShellProps, "children">) {
+export function TopBar({ workspace, nav = [], actions }: Omit<AppShellProps, "children">) {
   return (
     <header className={styles.topbar}>
       <div className={cx(styles.topbarInner, styles.wrap)}>
@@ -24,7 +26,7 @@ export function TopBar({ workspace, nav = [] }: Omit<AppShellProps, "children">)
           </Link>
           {workspace ? <span className={styles.workspace}>{workspace}</span> : null}
         </div>
-        {nav.length ? (
+        {nav.length || actions ? (
           <nav className={styles.nav} aria-label="Console">
             {nav.map((item) => (
               <Link
@@ -36,6 +38,7 @@ export function TopBar({ workspace, nav = [] }: Omit<AppShellProps, "children">)
                 {item.label}
               </Link>
             ))}
+            {actions}
           </nav>
         ) : null}
       </div>
@@ -44,10 +47,14 @@ export function TopBar({ workspace, nav = [] }: Omit<AppShellProps, "children">)
 }
 
 /** Logged-in console layout: top bar plus a centred main column. */
-export function AppShell({ workspace, nav, children }: AppShellProps) {
+export function AppShell({ workspace, nav, actions, children }: AppShellProps) {
   return (
     <>
-      <TopBar {...(workspace ? { workspace } : {})} {...(nav ? { nav } : {})} />
+      <TopBar
+        {...(workspace ? { workspace } : {})}
+        {...(nav ? { nav } : {})}
+        {...(actions ? { actions } : {})}
+      />
       <div className={styles.wrap}>
         <main className={styles.main}>{children}</main>
       </div>

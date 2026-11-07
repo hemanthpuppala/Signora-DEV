@@ -557,6 +557,8 @@ export interface components {
         MetaResponse: {
             /** Commit */
             commit: string;
+            /** Password Min Length */
+            password_min_length: number;
             /** Version */
             version: string;
         };

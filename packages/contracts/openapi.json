@@ -318,6 +318,10 @@
             "title": "Commit",
             "type": "string"
           },
+          "password_min_length": {
+            "title": "Password Min Length",
+            "type": "integer"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -325,7 +329,8 @@
         },
         "required": [
           "version",
-          "commit"
+          "commit",
+          "password_min_length"
         ],
         "title": "MetaResponse",
         "type": "object"

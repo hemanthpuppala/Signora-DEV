@@ -261,6 +261,7 @@ def test_live_and_meta(client: TestClient) -> None:
     meta = client.get("/api/v1/meta").json()
     assert meta["version"] == "0.1.0"
     assert meta["commit"]
+    assert meta["password_min_length"] == 12
 
 
 def test_public_readiness_is_summary_only(settings: Settings, engine: Engine) -> None:

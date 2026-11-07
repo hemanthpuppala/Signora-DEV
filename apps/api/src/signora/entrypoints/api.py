@@ -48,6 +48,7 @@ class StatusResponse(BaseModel):
 class MetaResponse(BaseModel):
     version: str
     commit: str
+    password_min_length: int  # so forms can state the rule the server enforces
 
 
 def _health_router() -> APIRouter:
@@ -82,7 +83,11 @@ def _health_router() -> APIRouter:
     @router.get(f"{API_PREFIX}/meta", tags=["meta"])
     def meta(request: Request) -> MetaResponse:
         settings: Settings = request.app.state.settings
-        return MetaResponse(version=version("signora"), commit=settings.app.commit)
+        return MetaResponse(
+            version=version("signora"),
+            commit=settings.app.commit,
+            password_min_length=settings.auth.password_min_length,
+        )
 
     return router
 

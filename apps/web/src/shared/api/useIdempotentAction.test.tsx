@@ -204,4 +204,24 @@ describe("useIdempotentAction", () => {
     // The action stays stored, so a remount resumes it with the same key.
     expect(window.sessionStorage.getItem("signora:action:create-project")).not.toBeNull();
   });
+  it("keeps a secret input out of sessionStorage when persistInput is false", async () => {
+    const perform = vi
+      .fn<Perform<{ password: string }, string>>()
+      .mockRejectedValueOnce(new NetworkError())
+      .mockResolvedValue("done");
+    const { result } = renderHook(() =>
+      useIdempotentAction("accept-invite", perform, { persistInput: false }),
+    );
+
+    act(() => result.current.run({ password: "a secret passphrase" }));
+    await flush();
+    expect(result.current.state.status).toBe("retrying");
+    expect(window.sessionStorage.length).toBe(0); // nothing written, even while retrying
+
+    await act(async () => vi.advanceTimersByTime(1_000));
+    await flush();
+    expect(result.current.state.status).toBe("success");
+    expect(new Set(perform.mock.calls.map(([, key]) => key)).size).toBe(1); // same key in memory
+    expect(window.sessionStorage.length).toBe(0);
+  });
 });

@@ -1,10 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+const SESSION_COOKIE = "__Host-signora_session";
+const CONSOLE_PATHS = new Set(["/", "/people", "/settings"]);
+
 /**
  * Next.js 16 request proxy (formerly middleware): sets a per-request nonce-based Content Security
- * Policy for HTML pages (backbone LLD §9.6). No business logic belongs here.
+ * Policy for HTML pages (backbone LLD §9.6) and sends visitors without a session cookie from console
+ * pages to /login (Phase 2 LLD). Only the cookie's presence is checked; whether the session is valid
+ * is the API's decision. No business logic belongs here.
  */
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  if (CONSOLE_PATHS.has(pathname) && !request.cookies.has(SESSION_COOKIE)) {
+    const login = request.nextUrl.clone();
+    login.pathname = "/login";
+    login.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname)}`;
+    return NextResponse.redirect(login);
+  }
+
   const nonce = btoa(crypto.randomUUID());
   const isDev = process.env.NODE_ENV === "development";
   const policy = [
