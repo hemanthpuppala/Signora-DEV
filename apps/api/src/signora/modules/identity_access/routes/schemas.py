@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -17,6 +17,28 @@ EmailInput = Annotated[str, StringConstraints(strip_whitespace=True, min_length=
 
 class _Body(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class SignupRequest(_Body):
+    email: EmailInput
+
+
+class TokenRequest(_Body):
+    token: Annotated[str, StringConstraints(min_length=16, max_length=128)]
+
+
+class SignupCompleteRequest(TokenRequest):
+    workspace_name: NameInput
+    name: NameInput
+    password: PasswordInput
+
+
+class AcceptedResponse(BaseModel):
+    status: Literal["check_email"] = "check_email"
+
+
+class EmailResponse(BaseModel):
+    email: str
 
 
 class LoginRequest(_Body):

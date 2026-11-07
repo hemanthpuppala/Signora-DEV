@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
@@ -15,9 +16,12 @@ from signora.entrypoints.api import create_app
 from signora.kernel.config import DatabaseSettings, Settings, load_settings
 from signora.kernel.db import Database
 from signora.kernel.health import Check
+from signora.kernel.jobs import JobRegistry
 from signora.modules.identity_access import accounts
+from signora.modules.identity_access import jobs as identity_jobs
 from signora.modules.identity_access.dependencies import CSRF_COOKIE, CSRF_HEADER
 from signora.modules.identity_access.domain.passwords import hash_password
+from tests.support.workers import running_worker, wait_until
 
 PASSWORD = "correct horse battery staple"  # noqa: S105 - test value
 _HASH = hash_password(PASSWORD)  # hashed once: Argon2id is deliberately slow
@@ -103,6 +107,52 @@ def add_member(committing_db: Database) -> Callable[..., Account]:
         return Account(address, user_id, workspace.workspace_id, workspace.role_ids)
 
     return add
+
+
+@pytest.fixture
+def identity_worker(committing_db: Database, test_db_settings: DatabaseSettings) -> Iterator[None]:
+    """A worker running the identity jobs (sign-up and reset requests); emails stay queued."""
+    reg = JobRegistry()
+    identity_jobs.register(reg)
+    with running_worker(committing_db, test_db_settings, reg):
+        yield
+
+
+def latest_email(db: Database, address: str, timeout: float = 10.0) -> Any:
+    """The newest email queued for ``address``, waiting for the job to queue it."""
+
+    def find() -> Any:
+        with db.unit_of_work() as uow:
+            return uow.session.execute(
+                text(
+                    "SELECT * FROM email_messages WHERE to_address = :a "
+                    "ORDER BY created_at DESC LIMIT 1"
+                ),
+                {"a": address},
+            ).one_or_none()
+
+    wait_until(lambda: find() is not None, timeout=timeout)
+    return find()
+
+
+def emails_to(db: Database, address: str) -> list[Any]:
+    with db.unit_of_work() as uow:
+        return list(
+            uow.session.execute(
+                text("SELECT * FROM email_messages WHERE to_address = :a ORDER BY created_at"),
+                {"a": address},
+            ).all()
+        )
+
+
+def link_token(email_row: Any, path: str) -> str:
+    match = re.search(rf"{re.escape(path)}#([A-Za-z0-9_-]+)", email_row.text_body)
+    assert match, email_row.text_body
+    return match.group(1)
+
+
+def idempotency_key() -> dict[str, str]:
+    return {"Idempotency-Key": str(uuid.uuid4())}
 
 
 def log_in(client: TestClient, email: str, password: str = PASSWORD) -> Any:

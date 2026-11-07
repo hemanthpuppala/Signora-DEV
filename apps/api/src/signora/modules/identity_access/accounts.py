@@ -50,6 +50,15 @@ def find_user_by_email(session: Session, email: str) -> UserRow | None:
     return UserRow(**row._mapping) if row else None
 
 
+def lock_email(session: Session, email: str) -> None:
+    """Serialise account creation for one address until the transaction ends (sign-up and invite
+    acceptance), so two concurrent attempts cannot both pass the "no account yet" check."""
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"account-email:{email}"},
+    )
+
+
 def audit_actor(user_id: uuid.UUID, email: str) -> AuditActor:
     return AuditActor("user", user_id, email)
 

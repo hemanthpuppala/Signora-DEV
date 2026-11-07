@@ -1,4 +1,4 @@
-"""Background work of the identity module: the retention sweep (Phase 2 LLD §4.1, §8.3)."""
+"""Background work of the identity module: link emails and the retention sweep (Phase 2 LLD)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 from signora.kernel.config import get_settings
 from signora.kernel.jobs import JobContext, JobKind, JobRegistry, RecurringJob
+from signora.modules.identity_access import signup
 from signora.modules.identity_access.sessions import purge_idle_sessions
 
 SWEEP = "sweep.identity"
@@ -27,6 +28,17 @@ def sweep(context: JobContext) -> None:
         )
 
 
+def signup_request(context: JobContext) -> None:
+    settings = get_settings()
+    signup.handle_signup_request(
+        context, base_url=str(settings.app.public_base_url), settings=settings.auth
+    )
+
+
 def register(jobs_registry: JobRegistry) -> list[RecurringJob]:
-    jobs_registry.register(JobKind(SWEEP, sweep, max_attempts=3, lease=timedelta(minutes=2)))
+    lease = timedelta(minutes=2)
+    jobs_registry.register(JobKind(SWEEP, sweep, max_attempts=3, lease=lease))
+    jobs_registry.register(
+        JobKind(signup.SIGNUP_REQUEST, signup_request, max_attempts=8, lease=lease)
+    )
     return [RecurringJob(SWEEP, every=timedelta(hours=1))]
