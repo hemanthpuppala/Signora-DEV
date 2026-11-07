@@ -1,0 +1,75 @@
+/* Square checkbox and round radio (prototype controls). */
+.choice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 15px;
+  color: var(--t75);
+  cursor: pointer;
+}
+
+.input {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 3px 0 0;
+  flex: none;
+  border: 1px solid var(--r40);
+  background: transparent;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.input:hover {
+  border-color: var(--ink);
+}
+
+.input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.checkbox::before {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border: solid #000;
+  border-width: 0 0 1.5px 1.5px;
+  transform: translate(0, -1px) rotate(-45deg);
+  opacity: 0;
+}
+
+.checkbox:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.checkbox:checked::before {
+  opacity: 1;
+}
+
+.radio {
+  border-radius: 50%;
+}
+
+.radio::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+  transform: scale(0);
+  transition: transform 0.12s;
+}
+
+.radio:checked {
+  border-color: var(--ink);
+}
+
+.radio:checked::before {
+  transform: scale(1);
+}

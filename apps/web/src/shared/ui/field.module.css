@@ -1,0 +1,68 @@
+/* Underline-only fields (prototype .field). */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  position: relative;
+}
+
+.label {
+  font: 400 10px/1.4 var(--sans);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.control {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--r25);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font: 300 16px/1.4 var(--sans);
+  padding: 9px 0;
+  width: 100%;
+}
+
+.control:focus {
+  outline: none;
+  border-bottom-color: var(--ink);
+}
+
+.control[aria-invalid="true"] {
+  border-bottom-color: var(--st-declined);
+}
+
+.control:disabled,
+.control:read-only {
+  color: var(--t55);
+}
+
+textarea.control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--t55);
+}
+
+.error {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.error::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--st-declined);
+  vertical-align: 1px;
+}

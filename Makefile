@@ -4,7 +4,8 @@ UV := cd $(API) && uv run --frozen
 API_DEV_PORT ?= 8100
 
 .PHONY: help install requirements up down ps logs \
-        migrate api worker \
+        migrate api worker web \
+        web-lint web-typecheck web-test web-build \
         contracts contracts-check format lint typecheck imports test check
 
 help:          ## List targets
@@ -45,6 +46,9 @@ api:           ## Run the API with reload on API_DEV_PORT (default 8100)
 worker:        ## Run the background worker
 	$(UV) signora worker
 
+web:           ## Run the web app (next dev) on WEB_DEV_PORT (default 3200); /api goes to API_DEV_PORT
+	API_DEV_PORT=$(API_DEV_PORT) pnpm --filter web dev
+
 # --- API contract (single source of truth: the FastAPI app) -----------------------------------
 
 contracts:     ## Regenerate packages/contracts from the API's OpenAPI document
@@ -74,5 +78,17 @@ imports:       ## Module boundary contracts
 test:          ## Tests with coverage gate (>= 85% for kernel and audit); needs `make up`
 	$(UV) pytest --cov=signora.kernel --cov=signora.modules.audit --cov-fail-under=85
 
-check: lint typecheck imports test contracts-check  ## Everything that must pass before a merge
+web-lint:      ## ESLint, including frontend module boundaries
+	pnpm --filter web lint
+
+web-typecheck: ## Strict TypeScript
+	pnpm --filter web typecheck
+
+web-test:      ## Frontend unit tests (Vitest)
+	pnpm --filter web test
+
+web-build:     ## Production build of the web app
+	pnpm --filter web build
+
+check: lint typecheck imports test contracts-check web-lint web-typecheck web-test web-build  ## Everything that must pass before a merge
 	@echo "make check: all gates passed"
