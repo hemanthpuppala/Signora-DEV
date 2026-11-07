@@ -4,6 +4,8 @@ export { AuthPanel, type AuthPanelProps } from "./AuthPanel";
 export { Button, TextButton, type ButtonProps, type ButtonVariant } from "./Button";
 export { Checkbox, Radio } from "./Choice";
 export {
+  ActionCell,
+  ActionHeader,
   MetricGrid,
   MetricTile,
   Notice,

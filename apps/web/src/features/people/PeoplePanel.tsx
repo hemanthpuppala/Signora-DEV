@@ -9,6 +9,8 @@ import { fieldErrors, formError } from "@/shared/api/errors";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
 import type { Me } from "@/shared/session";
 import {
+  ActionCell,
+  ActionHeader,
   Button,
   FieldGrid,
   Notice,
@@ -60,7 +62,7 @@ export function PeoplePanel({ me }: { me: Me }) {
               <tr>
                 <th>Member</th>
                 <th>Role</th>
-                <th aria-label="Actions" />
+                <ActionHeader label="Remove" />
               </tr>
             </thead>
             <tbody>
@@ -81,7 +83,8 @@ export function PeoplePanel({ me }: { me: Me }) {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Invited</th>
-                  <th aria-label="Actions" />
+                  <ActionHeader label="Resend" />
+                  <ActionHeader label="Revoke" />
                 </tr>
               </thead>
               <tbody>
@@ -205,7 +208,7 @@ function MemberRow({
           />
         )}
       </td>
-      <td>
+      <ActionCell>
         {protectedRow ? null : (
           <RowActions label={`Actions for ${member.name}`}>
             {confirming ? (
@@ -220,7 +223,7 @@ function MemberRow({
             )}
           </RowActions>
         )}
-      </td>
+      </ActionCell>
     </tr>
   );
 }
@@ -259,16 +262,16 @@ function InviteRow({ invite, onChanged }: { invite: Invite; onChanged: (message:
           {date(invite.created_at)} · {invite.expired ? "expired" : `expires ${date(invite.expires_at)}`}
         </SmallText>
       </td>
-      <td>
-        <RowActions label={`Actions for the invitation to ${invite.email}`}>
-          <TextButton onClick={() => resend.run(invite.id)} disabled={resend.isPending}>
-            Resend
-          </TextButton>
-          <TextButton onClick={() => revoke.mutate()} disabled={revoke.isPending}>
-            Revoke
-          </TextButton>
-        </RowActions>
-      </td>
+      <ActionCell>
+        <TextButton onClick={() => resend.run(invite.id)} disabled={resend.isPending}>
+          Resend
+        </TextButton>
+      </ActionCell>
+      <ActionCell>
+        <TextButton onClick={() => revoke.mutate()} disabled={revoke.isPending}>
+          Revoke
+        </TextButton>
+      </ActionCell>
     </tr>
   );
 }

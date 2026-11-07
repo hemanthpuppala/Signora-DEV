@@ -9,6 +9,23 @@ export function TablePanel({ children, className }: { children: ReactNode; class
   return <div className={cx(styles.tablePanel, className)}>{children}</div>;
 }
 
+/**
+ * A table cell holding one row action ("Resend"). It is only as wide as its content, so the data
+ * columns share the table's width and each action gets a column of its own at the row's end.
+ */
+export function ActionCell({ children }: { children: ReactNode }) {
+  return <td className={styles.actionCell}>{children}</td>;
+}
+
+/** The header of an ``ActionCell`` column (no visible title; named for screen readers). */
+export function ActionHeader({ label }: { label: string }) {
+  return (
+    <th className={styles.actionCell} aria-label={label}>
+      <span className={styles.visuallyHidden}>{label}</span>
+    </th>
+  );
+}
+
 export const STATUSES = [
   "draft",
   "pending",
