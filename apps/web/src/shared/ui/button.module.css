@@ -77,17 +77,3 @@
   cursor: not-allowed;
 }
 
-/* UnavailableAction: the disabled action and its reason, side by side (wrapping on phones). */
-.unavailable {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-}
-
-.reason {
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--t55);
-  max-width: 280px;
-}

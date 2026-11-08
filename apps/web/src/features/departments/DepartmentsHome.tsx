@@ -14,7 +14,6 @@ import {
   Notice,
   StatCard,
   Tabs,
-  UnavailableAction,
 } from "@/shared/ui";
 
 import { useDepartments, type DepartmentStatus } from "./api";
@@ -25,13 +24,12 @@ export function DepartmentsHome({ me }: { me: Me }) {
   const departments = useDepartments(status);
   const canCreate = can(me, "departments.create");
 
+  // Actions a person cannot take are not shown at all (design-system principle 5).
   const action = canCreate ? (
     <LinkButton href="/departments/new" arrow>
       New department
     </LinkButton>
-  ) : (
-    <UnavailableAction reason="Only owners and editors can create departments.">New department</UnavailableAction>
-  );
+  ) : null;
 
   const list = departments.data ?? [];
   return (

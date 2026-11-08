@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useId, type ButtonHTMLAttributes, type ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cx } from "@/shared/lib/cx";
 
@@ -88,20 +88,3 @@ export function LinkButton({
   );
 }
 
-/**
- * An action this person cannot take, shown disabled with the reason beside it (design-system
- * principle 5: explain a key action a role cannot take instead of failing after a click).
- */
-export function UnavailableAction({ children, reason }: { children: ReactNode; reason: string }) {
-  const reasonId = useId();
-  return (
-    <span className={styles.unavailable}>
-      <button type="button" className={styles.button} disabled aria-describedby={reasonId}>
-        {children}
-      </button>
-      <span id={reasonId} className={styles.reason}>
-        {reason}
-      </span>
-    </span>
-  );
-}

@@ -52,8 +52,8 @@ archived, and who creates and manages it.
 | `departments.create` | Create departments | Owner, Editor |
 | `departments.manage` | Rename, describe, archive, restore | Owner, Editor |
 
-Everyone in the company can list and open departments (what they see inside is topic 2). Viewers see "New
-department" disabled with "Only owners and editors can create departments." A data migration adds both permissions
+Everyone in the company can list and open departments (what they see inside is topic 2). People without
+`departments.create` do not see "New department" at all (owner decision, design-system principle 5). A data migration adds both permissions
 to existing Editor roles (only where the role still has its default permissions).
 
 ### 1.4 Schema (migration 0007)
@@ -130,7 +130,7 @@ O(log n). Archive and restore: one guarded `UPDATE`.
   refused.
 - Permission matrix (Owner, Editor, Viewer) on every endpoint; another company's id answers `404` everywhere.
 - Every change writes its audit entry.
-- Web: Viewers see "New department" disabled with the reason.
+- Web: people without `departments.create` see no "New department" action.
 
 ---
 
@@ -363,8 +363,7 @@ Built on prototype screens 05, 06, 08 and 09, following the design-system writin
 - Navigation: **Departments, People, Settings**. Home is the departments page (the greeting placeholder goes).
 - Grid of department cards (prototype 05): name, description, footer with Sent / Signed / Pending counts; sorted
   by name; "Active" and "Archived" tabs.
-- "New department" for Owners and Editors; Viewers see it disabled with "Only owners and editors can create
-  departments."
+- "New department" for Owners and Editors only; others do not see it (owner decision: hide, never disable).
 - Empty: Owners and Editors see "Create your first department, for example Finance or Client Intake." with the
   button; Viewers see "No departments yet."
 

@@ -5,7 +5,6 @@ export {
   Button,
   LinkButton,
   TextButton,
-  UnavailableAction,
   type ButtonProps,
   type ButtonVariant,
 } from "./Button";

@@ -85,16 +85,14 @@ describe("departments screens", () => {
     expect(screen.getAllByRole("link", { name: /New department/ })).toHaveLength(2);
   });
 
-  it("shows viewers the action disabled with the reason, and the empty state", async () => {
+  it("shows viewers no create action at all, and the empty state", async () => {
     fetchMock.mockImplementation(() => reply(200, []));
     wrap(<DepartmentsHome me={me([])} />);
 
     expect(await screen.findByText("No departments yet.")).toBeTruthy();
-    const action = screen.getByRole("button", { name: "New department" }) as HTMLButtonElement;
-    expect(action.disabled).toBe(true);
-    const reason = document.getElementById(action.getAttribute("aria-describedby") ?? "");
-    expect(reason?.textContent).toBe("Only owners and editors can create departments.");
     expect(screen.queryByRole("link", { name: /New department/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /New department/ })).toBeNull();
+    expect(screen.queryByText(/Only owners and editors/)).toBeNull();
   });
 
   it("points a taken name at the name field", async () => {
