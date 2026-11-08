@@ -424,3 +424,8 @@ def test_transport_follows_the_configured_provider() -> None:
 def test_unconfigured_email_is_a_permanent_failure(settings: dict[str, Any]) -> None:
     with pytest.raises(PermanentEmailError, match="not configured"):
         transport_from_settings(email_settings(**settings))
+
+
+def test_the_default_transport_is_built_once_per_process() -> None:
+    first = notifications._default_transport()
+    assert notifications._default_transport() is first  # one client, one connection pool

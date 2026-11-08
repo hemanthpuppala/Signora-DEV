@@ -10,6 +10,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from datetime import timedelta
+from functools import cache
 
 from sqlalchemy import text as sql
 from sqlalchemy.orm import Session
@@ -40,7 +41,10 @@ TransportFactory = Callable[[], Transport]
 DailyLimit = Callable[[], int]
 
 
+@cache
 def _default_transport() -> Transport:
+    """Built once per process and shared: the SendGrid HTTP client is thread-safe and keeps its
+    connection pool, instead of one unclosed client per email."""
     return transport_from_settings(get_settings().email)
 
 
