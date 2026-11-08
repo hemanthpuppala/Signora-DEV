@@ -384,9 +384,17 @@ setting up front. After creating, the new department's page opens.
 ### 6.4 Department settings (`/departments/{id}/settings`, Owners and Editors)
 
 Sections, each saving on its own: **About** (name, description) · **Timing** (remind every, max reminders, expires
-after) · **Also notify** (up to 5 emails) · **Countersigners** (ordered: add from the colleague directory, remove,
+after) · **Also notify** (an email field with Add, a list with Remove, Save; the add field disappears at 5) · **Countersigners** (ordered: add from the colleague directory, remove,
 move up or down; empty shows "No countersigner. Choose one.") · **People with edit access** (the grants, Owner
 only) · **Archive department** at the bottom with a confirmation (an archived department shows "Restore").
+
+### 6.4a Owner review changes (2026-11-07)
+
+- Actions a person cannot take are hidden, never disabled (also design-system principle 5).
+- Every table of people scrolls inside its panel past `--table-max-height` (480 px) with the header row kept
+  visible; panels are named, keyboard-focusable regions.
+- "People with edit access" offers only people a grant would help (not the creator, not roles that edit
+  everywhere); the server refuses such grants too (`GET /departments/{id}/grants/candidates`).
 
 ### 6.5 Unchanged
 

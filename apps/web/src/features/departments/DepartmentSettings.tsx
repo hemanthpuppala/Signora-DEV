@@ -208,30 +208,91 @@ function TimingForm({ department }: { department: Department }) {
   );
 }
 
+const NOTIFY_MAX = 5;
+
 function NotifyForm({ department }: { department: Department }) {
-  const [emails, setEmails] = useState(department.settings.notify_emails.join("\n"));
+  const [emails, setEmails] = useState<string[]>(department.settings.notify_emails);
+  const [draft, setDraft] = useState("");
   const save = usePatch(department.id, "Notifications saved");
-  const errors = Object.entries(fieldErrors(save.error)).filter(([field]) => field.includes("notify_emails"));
+  const errors = fieldErrors(save.error);
+  const add = () => {
+    const email = draft.trim();
+    // The server normalises and validates on save (one definition of an email); here we only
+    // skip blanks and exact repeats.
+    if (email && !emails.some((existing) => existing.toLowerCase() === email.toLowerCase())) {
+      setEmails((list) => [...list, email]);
+    }
+    setDraft("");
+  };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const list = emails.split(/[\n,]/).map((value) => value.trim()).filter(Boolean);
-    save.mutate({ settings: { notify_emails: list } });
+    save.mutate({ settings: { notify_emails: emails } });
   };
   return (
     <form onSubmit={submit} noValidate>
       <Section title="Also notify">
-        <TextArea
-          label="Emails"
-          hint="Up to 5 emails, one per line. The sender is always notified."
-          value={emails}
-          error={errors.length ? errors.map(([, message]) => message).join(" ") : undefined}
-          onChange={(event) => setEmails(event.target.value)}
-        />
-        <div>
-          <Button type="submit" variant="quiet" loading={save.isPending} loadingLabel="Saving…">
-            Save notifications
-          </Button>
-        </div>
+        <SmallText>The sender is always notified. Add up to {NOTIFY_MAX} more people.</SmallText>
+        {emails.length > 0 ? (
+          <TablePanel label="Also notify list">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <ActionHeader label="Remove" />
+                </tr>
+              </thead>
+              <tbody>
+                {emails.map((email, index) => (
+                  <tr key={email}>
+                    <td>
+                      {email}
+                      {errors[`notify_emails[${index}]`] ? (
+                        <SmallText role="alert">{errors[`notify_emails[${index}]`]}</SmallText>
+                      ) : null}
+                    </td>
+                    <ActionCell>
+                      <TextButton onClick={() => setEmails((list) => list.filter((e) => e !== email))}>
+                        Remove
+                      </TextButton>
+                    </ActionCell>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TablePanel>
+        ) : null}
+        <FieldGrid>
+          {emails.length < NOTIFY_MAX ? (
+            <>
+              <TextField
+                label="Email"
+                type="email"
+                autoComplete="off"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault(); // Enter adds the address; Save sends the list
+                    add();
+                  }
+                }}
+              />
+              <FieldAction>
+                <Button variant="quiet" disabled={!draft.trim()} onClick={add}>
+                  Add
+                </Button>
+              </FieldAction>
+            </>
+          ) : null}
+          <FieldAction>
+            <Button type="submit" loading={save.isPending} loadingLabel="Saving…">
+              Save notifications
+            </Button>
+          </FieldAction>
+        </FieldGrid>
+        {errors.notify_emails || errors["settings.notify_emails"] ? (
+          <Notice tone="warning">{errors.notify_emails ?? errors["settings.notify_emails"]}</Notice>
+        ) : null}
       </Section>
     </form>
   );

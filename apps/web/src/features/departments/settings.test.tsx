@@ -168,4 +168,33 @@ describe("department settings", () => {
     const options = await screen.findAllByRole("option");
     expect(options.map((o) => o.textContent)).toEqual(["Ben Ito · ben@firm.com"]);
   });
+
+  it("adds notify emails one at a time, removes them, and saves the list", async () => {
+    serve(department({ settings: { reminder_interval_hours: 24, max_reminders: 5, expiry_days: 14, notify_emails: ["desk@firm.com"] } }));
+    open(EDITOR);
+    const section = await screen.findByRole("region", { name: "Also notify" });
+    const user = userEvent.setup();
+
+    await user.type(within(section).getByLabelText("Email"), "ops@firm.com{Enter}");
+    await user.type(within(section).getByLabelText("Email"), "OPS@firm.com");
+    await user.click(within(section).getByRole("button", { name: "Add" })); // an exact repeat
+    const desk = within(section).getByText("desk@firm.com").closest("tr") as HTMLElement;
+    await user.click(within(desk).getByRole("button", { name: "Remove" }));
+    await user.click(within(section).getByRole("button", { name: "Save notifications" }));
+
+    await vi.waitFor(() =>
+      expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({
+        settings: { notify_emails: ["ops@firm.com"] },
+      }),
+    );
+  });
+
+  it("hides the add field once five people are listed", async () => {
+    const five = ["a", "b", "c", "d", "e"].map((x) => `${x}@firm.com`);
+    serve(department({ settings: { reminder_interval_hours: 24, max_reminders: 5, expiry_days: 14, notify_emails: five } }));
+    open(EDITOR);
+    const section = await screen.findByRole("region", { name: "Also notify" });
+    expect(within(section).queryByLabelText("Email")).toBeNull();
+    expect(within(section).queryByRole("button", { name: "Add" })).toBeNull();
+  });
 });
