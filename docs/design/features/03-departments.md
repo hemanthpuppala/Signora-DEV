@@ -19,7 +19,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 | 1 | Departments: what they are and who manages them | **agreed** (2026-11-07) |
 | 2 | Who can see and do what inside a department | **agreed** (2026-11-07) |
 | 3 | Department settings and defaults | **agreed** (2026-11-07) |
-| 4 | Countersigners | open |
+| 4 | Countersigners | **agreed** (2026-11-07) |
 | 5 | Signer checks | open |
 | 6 | Screens and behaviour | open |
 
@@ -262,4 +262,67 @@ Emails are normalised with the shared `normalize_email` (Phase 2), de-duplicated
 - Each range is enforced at both ends (API 422 and database check); 6 notify emails refused; duplicates and case
   merged.
 - A grant holder cannot change settings; an Editor can; changes are audited with old and new values.
+
+---
+
+## Topic 4 — Countersigners
+
+### 4.1 Two separate things
+
+- **How many firm signatures a file needs belongs to the file.** The AI extraction finds the firm-side signature
+  blocks (e.g. two partners); in review the user adds or removes those signer slots (Phases 5-6). No fixed number.
+- **Who may fill them belongs to the department.** A department keeps an ordered list of company people allowed to
+  countersign for it. When a file is sent (Phase 7), its firm slots are filled from that list in order as defaults,
+  and the sender can change any of them for that send. The list has no size limit (owner decision).
+
+Countersigning itself (emailed link with a one-time code, or the console) is Phase 9.
+
+### 4.2 Rules
+
+- Any active member can be on the list, Viewers included: a countersigner sees and signs only the sends assigned to
+  them, so no edit access to the department is needed.
+- Owners and Editors manage the list (`departments.manage`), choosing people from the colleague directory.
+- **Removed member** (carried from Phase 2): removing a member takes them off every department's list in the same
+  transaction; removal is never blocked. A department with an empty list shows "No countersigner. Choose one in
+  settings." **Carried to Phase 9:** sends already waiting for a removed person's signature must be reassigned.
+
+### 4.3 Schema (migration 0006)
+
+```sql
+CREATE TABLE department_countersigners (
+  department_id uuid NOT NULL,
+  workspace_id  uuid NOT NULL,              -- the company: lets the keys below check both rows are its own
+  user_id       uuid NOT NULL,
+  position      int  NOT NULL CHECK (position >= 1),   -- 1 = first default
+  added_by      uuid NOT NULL REFERENCES users(id),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (department_id, user_id),
+  UNIQUE (department_id, position),
+  FOREIGN KEY (department_id, workspace_id) REFERENCES departments (id, workspace_id),
+  FOREIGN KEY (user_id, workspace_id) REFERENCES users (id, workspace_id)
+);
+```
+
+`workspace_id` is the company's id (the code keeps "workspace"; people read "company"). It exists so the composite
+keys guarantee the department and the person belong to the same company.
+
+Member removal (Phase 2 `remove_member`) deletes the person's rows through a hook the departments module registers
+with the identity module (a callback list in its public interface), so identity never imports departments.
+
+### 4.4 API
+
+| Method and path | Permission | Request | Responses |
+|---|---|---|---|
+| `GET /departments/{id}` | signed in | — | adds `countersigners: [{id, name, email}]` in order |
+| `PUT /departments/{id}/countersigners` | `departments.manage` | `{user_ids: [...]}` (ordered, any length) | `200` the new list; `422` inactive/unknown person or duplicate; `409 department-archived` |
+
+The list is replaced in one transaction (repeat-safe, no `Idempotency-Key`). Audit: `department.countersigner_added`,
+`department.countersigner_removed`, `department.countersigners_reordered`.
+
+### 4.5 Tests
+
+- Order kept and replaced exactly; duplicates, inactive people and other companies' people refused.
+- A Viewer can be designated; a grant holder cannot change the list.
+- Removing a member removes them from every list in the same transaction; the department then reports no
+  countersigner.
 
