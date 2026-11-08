@@ -9,6 +9,7 @@ from signora.modules.departments.access import (
     revoke_removed_member,
 )
 from signora.modules.departments.countersigners import drop_removed_member
+from signora.modules.departments.domain import normalize_name
 from signora.modules.departments.routes import router
 from signora.modules.departments.service import DepartmentRow, get_department, require_active
 
@@ -18,6 +19,7 @@ __all__ = [
     "drop_removed_member",
     "get_department",
     "load_access",
+    "normalize_name",
     "require_active",
     "revoke_removed_member",
     "router",

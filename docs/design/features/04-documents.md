@@ -150,13 +150,17 @@ note pointing here.
 An upload is split so the bytes travel once, whatever the person decides next (the duplicate question, the name and
 instructions typed while the bytes are still travelling):
 
-1. **`POST /api/v1/uploads`** (multipart, one file, `Idempotency-Key`). The API streams the body to a temporary file,
-   refusing it the moment it passes 50 MB (the declared length is not trusted), computes SHA-256 while streaming,
-   checks the type, and stores the bytes in the blob store under their hash (identical bytes are stored once). It
-   answers `201 {upload_id, filename, bytes, sha256, kind: "pdf" | "docx", duplicate}` where `duplicate` is set when
-   the same bytes already exist in the target department (§2.3). An upload belongs to the person and the department
-   it was sent for and expires after 24 hours if unused (a cleanup job removes the record; the blob is removed only
-   if nothing else references it, the hardening rule carried in the platform tracker).
+1. **`POST /api/v1/departments/{id}/uploads?filename=…`**, the raw file as the body
+   (`application/octet-stream`). The API streams the body to a temporary file, refusing it the moment it passes
+   50 MB (a larger declared length is refused before reading), checks the type, and stores the bytes in the blob
+   store under their SHA-256 (identical bytes are stored once). It answers `201 {id, filename, kind: "pdf" |
+   "docx", bytes, suggested_name, expires_at, duplicate}`, where `duplicate` is set when the same bytes already
+   exist in the department (§2.3). An upload belongs to the person and the department it was sent for and is
+   forgotten after 24 hours (hourly sweep), used or not; its blob stays (a version may share the bytes; blob
+   clean-up is the hardening phase's locked pass, platform tracker P11).
+   *Implementation change:* a raw body instead of multipart, because multipart parsers spool the whole file before
+   any limit applies, while a raw body is counted as it arrives. No `Idempotency-Key`: a retried upload stores the
+   same bytes under the same hash and only leaves an unused upload row, which the sweep removes.
 2. **Use it**, once:
    - `POST /api/v1/departments/{id}/documents` `{name, ai_instructions, upload_id, allow_duplicate}` creates a
      document with its first version, or
@@ -527,7 +531,7 @@ holds until something changes), and short polling.
 |---|------|--------|------------------------|
 | 4.1 | Phase 4 LLD (this file), topics 1-6 | done | topics 1-6 agreed and recorded |
 | 4.2 | Rename `files.*` permissions to `documents.*` (data migration), screen text | done | migration 0012 renames them in every role (customised ones too) and rewords the Viewer description where still default; test on a throwaway database upgrades and downgrades; enum, tests, contracts and "No documents yet." updated |
-| 4.3 | Uploads: streaming to the blob store, type check, size limit, rate limit, `uploads` table, cleanup job | todo | — |
+| 4.3 | Uploads: streaming to the blob store, type check, size limit, rate limit, `uploads` table, cleanup job | done | migration 0013; kernel `spool_body` (3 tests: within the limit, chunked body stopped at the limit with no file left, declared length refused); 15 upload tests: PDF stored by hash and recorded, .docx recognised whatever its name, PNG/text/ZIP/.docm/.doc/empty refused, password-protected Word asks to remove the password, over the limit 413, base file name kept, Viewer 403, archived 409, unknown and other company 404, 60-per-hour limit, sweep after a day. Raw body instead of multipart (§2.2) |
 | 4.4 | Documents and versions: schema, create with an upload, add a version, numbering, duplicate rule, rename, description, email code, archive and restore, audit | todo | — |
 | 4.5 | Processing job: Gotenberg conversion, PyMuPDF checks, working copy, text check, statuses, retries, Try again, unlock | todo | — |
 | 4.6 | Current version rules, make current, immutability trigger | todo | — |

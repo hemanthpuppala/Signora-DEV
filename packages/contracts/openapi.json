@@ -1123,6 +1123,50 @@
         "title": "UpdateDepartment",
         "type": "object"
       },
+      "UploadView": {
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "pdf",
+              "docx"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "suggested_name": {
+            "title": "Suggested Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "kind",
+          "bytes",
+          "suggested_name",
+          "expires_at"
+        ],
+        "title": "UploadView",
+        "type": "object"
+      },
       "UserView": {
         "properties": {
           "email": {
@@ -2593,6 +2637,107 @@
         "summary": "Restore an archived department (repeat-safe)",
         "tags": [
           "departments"
+        ]
+      }
+    },
+    "/api/v1/departments/{department_id}/uploads": {
+      "post": {
+        "description": "Streams the body to disk (never into memory) and refuses it past the size limit. A retry\nstores the same bytes under the same hash, so no ``Idempotency-Key`` is needed.",
+        "operationId": "create_upload_api_v1_departments__department_id__uploads_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "department_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Department Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Upload one PDF or .docx file (the raw bytes as the body)",
+        "tags": [
+          "documents"
         ]
       }
     },

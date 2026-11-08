@@ -1,0 +1,47 @@
+"""Tables of the documents module (Phase 4 LLD). Must match the migrations."""
+
+from __future__ import annotations
+
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    Table,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import UUID
+
+from signora.kernel.db import metadata
+
+# Bytes received and checked, waiting to become a document or a version (topic 2, ADR-DOC1).
+uploads = Table(
+    "uploads",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, server_default=text("uuidv7()")),
+    Column("workspace_id", UUID(as_uuid=True), nullable=False),
+    Column("department_id", UUID(as_uuid=True), nullable=False),
+    Column("uploaded_by", UUID(as_uuid=True), nullable=False),
+    Column("filename", Text, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("bytes", BigInteger, nullable=False),
+    Column("sha256", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True)),
+    CheckConstraint("kind IN ('pdf', 'docx')", name="kind_known"),
+    CheckConstraint("char_length(filename) BETWEEN 1 AND 255", name="filename_length"),
+    CheckConstraint("bytes > 0", name="bytes_positive"),
+    CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name="sha256_hex"),
+    UniqueConstraint("id", "workspace_id"),
+    ForeignKeyConstraint(
+        ["department_id", "workspace_id"], ["departments.id", "departments.workspace_id"]
+    ),
+    ForeignKeyConstraint(["uploaded_by", "workspace_id"], ["users.id", "users.workspace_id"]),
+    Index("ix_uploads_expires_at", "expires_at"),
+)

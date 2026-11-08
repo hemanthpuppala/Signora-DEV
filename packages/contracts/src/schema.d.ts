@@ -277,6 +277,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/departments/{department_id}/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload one PDF or .docx file (the raw bytes as the body)
+         * @description Streams the body to disk (never into memory) and refuses it past the size limit. A retry
+         *     stores the same bytes under the same hash, so no ``Idempotency-Key`` is needed.
+         */
+        post: operations["create_upload_api_v1_departments__department_id__uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/live": {
         parameters: {
             query?: never;
@@ -993,6 +1014,30 @@ export interface components {
             /** Name */
             name?: string | null;
             settings?: components["schemas"]["SettingsInput"] | null;
+        };
+        /** UploadView */
+        UploadView: {
+            /** Bytes */
+            bytes: number;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pdf" | "docx";
+            /** Suggested Name */
+            suggested_name: string;
         };
         /** UserView */
         UserView: {
@@ -1951,6 +1996,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Department"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    create_upload_api_v1_departments__department_id__uploads_post: {
+        parameters: {
+            query: {
+                filename: string;
+            };
+            header?: never;
+            path: {
+                department_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadView"];
                 };
             };
             /** @description Validation failed (problem details) */
