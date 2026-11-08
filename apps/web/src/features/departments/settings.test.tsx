@@ -262,4 +262,68 @@ describe("department settings", () => {
 
     expect(await within(section).findByText("Ben Ito")).toBeTruthy();
   });
+
+  it("sends only the fields this person changed and shows a colleague's change", async () => {
+    let current = department({ description: "Old" });
+    const patches: unknown[] = [];
+    fetchMock.mockImplementation(async (request) => {
+      const req = request as Request;
+      const path = new URL(req.url).pathname;
+      if (path.endsWith("/directory")) return reply(200, people);
+      if (path.includes("/grants")) return reply(200, []);
+      if (req.method === "PATCH") patches.push(await req.clone().json());
+      return reply(200, current);
+    });
+    const client = makeQueryClient();
+    open(EDITOR, client);
+    const user = userEvent.setup();
+    const name = await screen.findByLabelText("Name");
+    const expiry = screen.getByLabelText("Expires after (days)");
+
+    current = department({ description: "Set by a colleague", settings: { ...department().settings, max_reminders: 3 } });
+    await client.invalidateQueries({ queryKey: ["department", "d-1"] });
+    expect(await screen.findByDisplayValue("Set by a colleague")).toBeTruthy(); // untouched field follows
+    expect((screen.getByLabelText("Max reminders") as HTMLInputElement).value).toBe("3");
+
+    await user.clear(name);
+    await user.type(name, "Accounts");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.clear(expiry);
+    await user.type(expiry, "30");
+    await user.click(screen.getByRole("button", { name: "Save timing" }));
+
+    await vi.waitFor(() =>
+      expect(patches).toEqual([{ name: "Accounts" }, { settings: { expiry_days: 30 } }]),
+    );
+  });
+
+  it("adds a notify email to the latest saved list", async () => {
+    const withEmails = (notify_emails: string[]) =>
+      department({ settings: { ...department().settings, notify_emails } });
+    let current = withEmails(["desk@firm.com"]);
+    const patches: unknown[] = [];
+    fetchMock.mockImplementation(async (request) => {
+      const req = request as Request;
+      const path = new URL(req.url).pathname;
+      if (path.endsWith("/directory")) return reply(200, people);
+      if (path.includes("/grants")) return reply(200, []);
+      if (req.method === "PATCH") patches.push(await req.clone().json());
+      return reply(200, current);
+    });
+    const client = makeQueryClient();
+    open(EDITOR, client);
+    const section = await screen.findByRole("region", { name: "Also notify" });
+
+    current = withEmails(["desk@firm.com", "audit@firm.com"]); // a colleague adds one
+    await client.invalidateQueries({ queryKey: ["department", "d-1"] });
+    expect(await within(section).findByText("audit@firm.com")).toBeTruthy();
+
+    await userEvent.setup().type(within(section).getByLabelText("Email"), "ops@firm.com{Enter}");
+
+    await vi.waitFor(() =>
+      expect(patches).toEqual([
+        { settings: { notify_emails: ["desk@firm.com", "audit@firm.com", "ops@firm.com"] } },
+      ]),
+    );
+  });
 });

@@ -72,6 +72,17 @@ function Countersigners({ department }: { department: Department }) {
   );
 }
 
+/**
+ * A form field over a saved value: it shows the saved value until edited, so a refetch (another
+ * manager's change) shows in untouched fields, and ``changed`` is set only when the edit differs.
+ * ``reset`` drops the draft once a save has put the server's answer in the cache.
+ */
+function useDraft<T>(saved: T) {
+  const [draft, setDraft] = useState<T | null>(null);
+  const value = draft ?? saved;
+  return { value, set: setDraft, changed: draft !== null && draft !== saved, reset: () => setDraft(null) };
+}
+
 function usePatch(id: string, done: string) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -92,15 +103,25 @@ function usePatch(id: string, done: string) {
 }
 
 function AboutForm({ department }: { department: Department }) {
-  const [name, setName] = useState(department.name);
-  const [description, setDescription] = useState(department.description);
+  const name = useDraft(department.name);
+  const description = useDraft(department.description);
   const save = usePatch(department.id, "Saved");
   const error = save.error;
   const nameTaken = error instanceof ApiError && error.code === "department-name-taken";
   const errors = fieldErrors(error);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    save.mutate({ name, description });
+    // Only what this person changed, so a colleague's change to the other field is kept.
+    const body = {
+      ...(name.changed ? { name: name.value } : {}),
+      ...(description.changed ? { description: description.value } : {}),
+    };
+    save.mutate(body, {
+      onSuccess: () => {
+        name.reset();
+        description.reset();
+      },
+    });
   };
   return (
     <form onSubmit={submit} noValidate>
@@ -110,16 +131,16 @@ function AboutForm({ department }: { department: Department }) {
           label="Name"
           required
           maxLength={80}
-          value={name}
+          value={name.value}
           error={nameTaken ? "Another department already has this name." : errors.name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => name.set(event.target.value)}
         />
         <TextArea
           label="Description"
           maxLength={500}
-          value={description}
+          value={description.value}
           error={errors.description}
-          onChange={(event) => setDescription(event.target.value)}
+          onChange={(event) => description.set(event.target.value)}
         />
         <div>
           <Button type="submit" variant="quiet" loading={save.isPending} loadingLabel="Saving…">
@@ -133,20 +154,29 @@ function AboutForm({ department }: { department: Department }) {
 
 function TimingForm({ department }: { department: Department }) {
   const settings = department.settings;
-  const [interval, setReminderInterval] = useState(String(settings.reminder_interval_hours));
-  const [reminders, setReminders] = useState(String(settings.max_reminders));
-  const [expiry, setExpiry] = useState(String(settings.expiry_days));
+  const interval = useDraft(String(settings.reminder_interval_hours));
+  const reminders = useDraft(String(settings.max_reminders));
+  const expiry = useDraft(String(settings.expiry_days));
   const save = usePatch(department.id, "Timing saved");
   const errors = fieldErrors(save.error);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    save.mutate({
-      settings: {
-        reminder_interval_hours: Number(interval),
-        max_reminders: Number(reminders),
-        expiry_days: Number(expiry),
+    // Only what this person changed, so a colleague's change to another field is kept.
+    const changed = {
+      ...(interval.changed ? { reminder_interval_hours: Number(interval.value) } : {}),
+      ...(reminders.changed ? { max_reminders: Number(reminders.value) } : {}),
+      ...(expiry.changed ? { expiry_days: Number(expiry.value) } : {}),
+    };
+    save.mutate(
+      { settings: changed },
+      {
+        onSuccess: () => {
+          interval.reset();
+          reminders.reset();
+          expiry.reset();
+        },
       },
-    });
+    );
   };
   return (
     <form onSubmit={submit} noValidate>
@@ -158,9 +188,9 @@ function TimingForm({ department }: { department: Department }) {
             inputMode="numeric"
             min={1}
             max={720}
-            value={interval}
+            value={interval.value}
             error={errors["settings.reminder_interval_hours"] ?? errors.reminder_interval_hours}
-            onChange={(event) => setReminderInterval(event.target.value)}
+            onChange={(event) => interval.set(event.target.value)}
           />
           <TextField
             label="Max reminders"
@@ -168,9 +198,9 @@ function TimingForm({ department }: { department: Department }) {
             inputMode="numeric"
             min={0}
             max={20}
-            value={reminders}
+            value={reminders.value}
             error={errors["settings.max_reminders"] ?? errors.max_reminders}
-            onChange={(event) => setReminders(event.target.value)}
+            onChange={(event) => reminders.set(event.target.value)}
           />
           <TextField
             label="Expires after (days)"
@@ -178,9 +208,9 @@ function TimingForm({ department }: { department: Department }) {
             inputMode="numeric"
             min={1}
             max={365}
-            value={expiry}
+            value={expiry.value}
             error={errors["settings.expiry_days"] ?? errors.expiry_days}
-            onChange={(event) => setExpiry(event.target.value)}
+            onChange={(event) => expiry.set(event.target.value)}
           />
           <FieldAction>
             <Button type="submit" variant="quiet" loading={save.isPending} loadingLabel="Saving…">
@@ -199,7 +229,8 @@ const NOTIFY_MAX = 5;
 function NotifyForm({ department }: { department: Department }) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [emails, setEmails] = useState<string[]>(department.settings.notify_emails);
+  // The saved list, never a copy: a refetch shows a colleague's change, and Add/Remove apply to it.
+  const emails = department.settings.notify_emails;
   const [draft, setDraft] = useState("");
   const [draftError, setDraftError] = useState<string | undefined>(undefined);
   const save = useMutation({
@@ -211,8 +242,7 @@ function NotifyForm({ department }: { department: Department }) {
         }),
       ),
     onSuccess: (updated, next) => {
-      queryClient.setQueryData(departmentKey(department.id), updated);
-      setEmails(updated.settings.notify_emails); // as the server stored them (normalised)
+      queryClient.setQueryData(departmentKey(department.id), updated); // as stored (normalised)
       toast.show(next.length > emails.length ? "Added" : "Removed");
     },
   });
