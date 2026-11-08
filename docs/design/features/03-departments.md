@@ -18,7 +18,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 |---|---|---|
 | 1 | Departments: what they are and who manages them | **agreed** (2026-11-07) |
 | 2 | Who can see and do what inside a department | **agreed** (2026-11-07) |
-| 3 | Department settings and defaults | open |
+| 3 | Department settings and defaults | **agreed** (2026-11-07) |
 | 4 | Countersigners | open |
 | 5 | Signer checks | open |
 | 6 | Screens and behaviour | open |
@@ -208,4 +208,58 @@ Audit (company chain): `department.access_granted` and `department.access_revoke
 - Only `members.manage` reads or changes grants; a user or department of another company is refused (422/404).
 - Replacing the list adds and removes exactly the difference and audits each change; a removed member's grant has no
   effect.
+
+---
+
+## Topic 3 — Department settings and defaults
+
+Settings decide how sends from a department behave. They take effect once sends exist (reminders and expiry in
+Phases 7 and 10), but the department owns them, so they are designed now.
+
+### 3.1 Settings
+
+| Setting | Meaning | Default | Allowed |
+|---|---|---|---|
+| Remind every | How often a client who has not signed is reminded | **24 hours** | 1 hour – 30 days |
+| Max reminders | Reminders before stopping | **5** | 0 – 20 (0 = never) |
+| Expires after | When an unsigned send closes | **14 days** | 1 – 365 days |
+| Also notify | Extra people emailed when a send is signed, declined or expires | none | up to 5 emails |
+
+The person who sent a file is always notified; "Also notify" adds others (e.g. a department inbox). Defaults come
+from `.env` (`DEFAULT_REMINDER_INTERVAL_HOURS`, `DEFAULT_MAX_REMINDERS`, `DEFAULT_EXPIRY_DAYS`).
+
+### 3.2 How defaults flow (option A, owner decision)
+
+A new department is created with the company defaults copied in; from then on its values are simply its values
+(what you see is what applies). A send can override them for that one send (Phase 7). Rejected: live inheritance,
+where a changed company default silently changes every department that never customised it, and which would need a
+company-settings screen.
+
+### 3.3 Schema (columns on `departments`, migration 0006)
+
+```sql
+reminder_interval_hours int    NOT NULL CHECK (reminder_interval_hours BETWEEN 1 AND 720),
+max_reminders           int    NOT NULL CHECK (max_reminders BETWEEN 0 AND 20),
+expiry_days             int    NOT NULL CHECK (expiry_days BETWEEN 1 AND 365),
+notify_emails           text[] NOT NULL DEFAULT '{}' CHECK (cardinality(notify_emails) <= 5)
+```
+
+Emails are normalised with the shared `normalize_email` (Phase 2), de-duplicated, order kept.
+
+### 3.4 API
+
+- `GET /departments/{id}` adds `settings: {reminder_interval_hours, max_reminders, expiry_days, notify_emails}`.
+- `PATCH /departments/{id}` also accepts any of those fields (`departments.manage`: Owner and Editor; a department
+  grant does not include it); `409 department-archived` for an archived department.
+- `POST /departments` creates with the company defaults; its body may override any of them.
+- Validation errors name the field (`notify_emails[2]`: "Enter a valid email address").
+- Audit: `department.updated` lists changed settings with old and new values.
+
+### 3.5 Tests
+
+- A new department carries the company defaults; creation overrides apply; changing `.env` later does not change an
+  existing department.
+- Each range is enforced at both ends (API 422 and database check); 6 notify emails refused; duplicates and case
+  merged.
+- A grant holder cannot change settings; an Editor can; changes are audited with old and new values.
 
