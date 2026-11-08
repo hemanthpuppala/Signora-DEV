@@ -437,7 +437,7 @@ building blocks (`Section`, `FieldGrid`, `FieldAction`, `ActionCell`).
 |---|------|--------|------------------------|
 | 3.1 | Phase 3 LLD (this file), topics 1-6 | done | this file |
 | 3.2 | Permissions `departments.create`, `departments.manage`, `files.view_sends`, `files.send`; Editor role data migration; `users (id, workspace_id)` key | done | migration 0006 (only Editor roles still on their default permissions are extended); default-role, `/me` and roles tests updated; contract regenerated |
-| 3.3 | `departments` module: schema (migration 0006), create, list, get, update, archive, restore, audit | todo | — |
+| 3.3 | `departments` module: schema (migration 0007), create, list, get, update, archive, restore, audit | done | 13 tests: normalised names, length checks, unique per company ignoring case among active (archived frees it; other companies independent), two simultaneous creations give 201 and 409, sorted lists by status, update audited with old/new, archived refuses changes, archive/restore repeat-safe and audited once, restore onto a taken name 409, Viewer reads only and Editor manages, another company's id 404 everywhere, creation replays with its key |
 | 3.4 | Department settings (validation, defaults copied at creation) | todo | — |
 | 3.5 | Department grants: table, API, `can(actor, permission, department)`, `/me` grants | todo | — |
 | 3.6 | Countersigners: table, API, member-removal hook | todo | — |
