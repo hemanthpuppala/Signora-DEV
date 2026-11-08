@@ -21,7 +21,7 @@ async function fetchReadiness() {
   return unwrap(Promise.resolve(result));
 }
 
-/** Reads /api/v1/meta and /api/v1/health/ready: proves browser -> Caddy -> API works end to end. */
+/** Development only (component gallery): reads /api/v1/meta and /api/v1/health/ready: proves browser -> Caddy -> API works end to end. */
 export function MetaPanel() {
   const meta = useQuery({
     queryKey: ["meta"],

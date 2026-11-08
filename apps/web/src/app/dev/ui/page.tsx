@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AppShell, Eyebrow, Heading1 } from "@/shared/ui";
 
 import { Gallery } from "./Gallery";
+import { MetaPanel } from "./MetaPanel";
 
 export const metadata: Metadata = { title: "Component gallery", robots: { index: false } };
 
@@ -16,6 +17,7 @@ export default function ComponentGalleryPage() {
         <Eyebrow>Design system</Eyebrow>
         <Heading1>Components</Heading1>
       </div>
+      <MetaPanel />
       <Gallery />
     </AppShell>
   );

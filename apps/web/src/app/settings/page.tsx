@@ -10,7 +10,7 @@ export default function SettingsPage() {
       {(me) => (
         <>
           <div>
-            <Eyebrow>{me.workspace.name}</Eyebrow>
+            <Eyebrow>Account</Eyebrow>
             <Heading1>Settings</Heading1>
           </div>
           <SettingsPanel me={me} />
