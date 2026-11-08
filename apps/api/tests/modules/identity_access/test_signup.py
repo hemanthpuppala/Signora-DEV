@@ -159,7 +159,7 @@ def test_a_weak_password_is_refused_and_the_link_still_works(
 
     assert weak.status_code == 422
     assert weak.json()["errors"] == [
-        {"field": "password", "message": "This password is too common; choose another"}
+        {"field": "password", "message": "This password is too common. Choose another."}
     ]
     assert complete(client, token).status_code == 201
 

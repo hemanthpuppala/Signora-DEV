@@ -90,7 +90,7 @@ export function SignupCompleteForm() {
         autoComplete="new-password"
         required
         {...(rules.minLength ? { minLength: rules.minLength } : {})}
-        hint={rules.hint}
+        {...(rules.hint ? { hint: rules.hint } : {})}
         value={password}
         error={errors.password}
         onChange={(event) => setPassword(event.target.value)}

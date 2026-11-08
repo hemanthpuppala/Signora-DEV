@@ -43,11 +43,11 @@ class PasswordPolicy:
         """A user-facing reason the password is not allowed, or ``None`` when it is fine."""
         normalized = normalize_password(password)
         if len(normalized) < self.min_length:
-            return f"Use at least {self.min_length} characters"
+            return f"Use {self.min_length} or more characters."
         if len(normalized) > self.max_length:
-            return f"Use at most {self.max_length} characters"
+            return f"Use {self.max_length} or fewer characters."
         if normalized.casefold() in _common_passwords():
-            return "This password is too common; choose another"
+            return "This password is too common. Choose another."
         return None
 
 

@@ -69,17 +69,17 @@ def test_email_domain() -> None:
 
 
 def test_length_is_counted_after_normalisation() -> None:
-    assert POLICY.problem("a" * 11) == "Use at least 12 characters"
+    assert POLICY.problem("a" * 11) == "Use 12 or more characters."
     assert POLICY.problem("correct horse battery") is None  # spaces allowed, no composition rules
     # Full-width letters normalise (NFKC) to ASCII letters: the length is unchanged.
     assert POLICY.problem(full_width("qwertyuiopasd")) is None
-    assert POLICY.problem("x" * 129) == "Use at most 128 characters"
+    assert POLICY.problem("x" * 129) == "Use 128 or fewer characters."
     assert POLICY.problem("😀" * 12) is None  # any characters
 
 
 @pytest.mark.parametrize("common", ["password1234", "PASSWORD1234", "qwertyuiop123"])
 def test_common_passwords_are_rejected_case_insensitively(common: str) -> None:
-    assert POLICY.problem(common) == "This password is too common; choose another"
+    assert POLICY.problem(common) == "This password is too common. Choose another."
 
 
 def test_the_common_list_is_bundled_and_complete() -> None:
@@ -90,7 +90,7 @@ def test_the_common_list_is_bundled_and_complete() -> None:
 
 def test_minimum_length_is_configurable() -> None:
     assert PasswordPolicy(min_length=15).problem("a much longer pw") is None
-    assert PasswordPolicy(min_length=15).problem("short but fine") == "Use at least 15 characters"
+    assert PasswordPolicy(min_length=15).problem("short but fine") == "Use 15 or more characters."
 
 
 # --- hashing -----------------------------------------------------------------------------------

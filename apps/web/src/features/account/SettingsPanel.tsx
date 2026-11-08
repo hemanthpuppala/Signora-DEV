@@ -128,7 +128,7 @@ function PasswordForm() {
             autoComplete="new-password"
             required
             {...(rules.minLength ? { minLength: rules.minLength } : {})}
-            hint={rules.hint}
+            {...(rules.hint ? { hint: rules.hint } : {})}
             value={next}
             error={errors.new_password}
             onChange={(event) => setNext(event.target.value)}

@@ -7,7 +7,7 @@ import { api, unwrap } from "@/shared/api/client";
 import { fieldErrors, formError } from "@/shared/api/errors";
 import { usePasswordRules } from "@/shared/api/usePasswordRules";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
-import { AuthPanel, Button, Notice, PasswordField, TextField } from "@/shared/ui";
+import { AuthPanel, BodyText, Button, Notice, PasswordField, TextField } from "@/shared/ui";
 
 import { LinkProblem } from "./LinkProblem";
 import { useLinkCheck } from "./useLinkCheck";
@@ -54,6 +54,7 @@ export function ResetPasswordForm() {
   return (
     <AuthPanel eyebrow="Password" heading="Choose a new one." onSubmit={submit}>
       {problem ? <Notice tone="warning">{problem}</Notice> : null}
+      <BodyText>Choosing a new password signs you out on every device.</BodyText>
       <TextField label="Email" value={check.data.email} readOnly autoComplete="username" />
       <PasswordField
         label="New password"
@@ -61,7 +62,7 @@ export function ResetPasswordForm() {
         autoComplete="new-password"
         required
         {...(rules.minLength ? { minLength: rules.minLength } : {})}
-        hint={`${rules.hint} This signs you out everywhere.`}
+        {...(rules.hint ? { hint: rules.hint } : {})}
         value={password}
         error={fieldErrors(reset.state.error).password}
         onChange={(event) => setPassword(event.target.value)}

@@ -42,7 +42,6 @@ export function PeoplePanel({ me }: { me: Me }) {
   const invites = useQuery({ queryKey: INVITES, queryFn: () => unwrap(api.GET("/api/v1/invites")) });
   const roles = useQuery({ queryKey: ["roles"], queryFn: () => unwrap(api.GET("/api/v1/roles")) });
   const roleOptions = (roles.data ?? []).map((role) => ({ value: role.id, label: role.name }));
-  const roleDescriptions = Object.fromEntries((roles.data ?? []).map((r) => [r.id, r.description]));
   const defaultRole = roles.data?.find((role) => role.key === "read")?.id ?? null;
   const changed = useCallback(
     (message: string) => {
@@ -58,7 +57,6 @@ export function PeoplePanel({ me }: { me: Me }) {
     <>
       <InviteForm
         roleOptions={roleOptions}
-        roleDescriptions={roleDescriptions}
         defaultRole={defaultRole}
         onInvited={invited}
       />
@@ -110,12 +108,10 @@ export function PeoplePanel({ me }: { me: Me }) {
 
 function InviteForm({
   roleOptions,
-  roleDescriptions,
   defaultRole,
   onInvited,
 }: {
   roleOptions: { value: string; label: string }[];
-  roleDescriptions: Record<string, string>;
   defaultRole: string | null;
   onInvited: (email: string) => void;
 }) {
@@ -165,9 +161,6 @@ function InviteForm({
             </Button>
           </FieldAction>
         </FieldGrid>
-        {chosenRole && roleDescriptions[chosenRole] ? (
-          <SmallText>{roleDescriptions[chosenRole]}</SmallText>
-        ) : null}
       </Section>
     </form>
   );
