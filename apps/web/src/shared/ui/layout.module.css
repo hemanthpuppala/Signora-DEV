@@ -1,0 +1,37 @@
+/* Prototype .section and .fields. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Fields line up by their top, so labels and inputs share a line even when one field has a hint
+   or an error underneath (aligning by the bottom pushed that field's input up). */
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 20px 28px;
+  align-items: start;
+}
+
+/* A button beside fields: the label line is reserved, and the button's bottom edge sits on the
+   inputs' underline (a taller button grows upward into the gap, as in the prototype). */
+.action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--field-gap);
+}
+
+.actionLabel {
+  height: var(--field-label-height);
+}
+
+.actionSlot {
+  height: var(--field-control-height);
+  display: flex;
+  align-items: flex-end;
+}
+
+.actionSlot > * {
+  width: 100%;
+}

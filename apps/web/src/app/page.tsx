@@ -1,16 +1,11 @@
-import { AppShell, Eyebrow, Heading1, Sub } from "@/shared/ui";
+"use client";
 
-import { MetaPanel } from "./MetaPanel";
+import { ConsoleShell } from "@/shared/session";
+import { Heading1 } from "@/shared/ui";
 
+/** Console home. Projects (Phase 3) will live here. */
 export default function HomePage() {
   return (
-    <AppShell>
-      <div>
-        <Eyebrow>Agreements · signed before work begins</Eyebrow>
-        <Heading1>Signora</Heading1>
-        <Sub>The backbone is running.</Sub>
-      </div>
-      <MetaPanel />
-    </AppShell>
+    <ConsoleShell>{(me) => <Heading1>Welcome, {me.user.name.split(" ")[0]}.</Heading1>}</ConsoleShell>
   );
 }

@@ -3,6 +3,8 @@
 - ``RequestContextMiddleware`` assigns the request id, binds log context, records the client IP and
   user agent, writes one access line per request with the *route template* (never the raw path,
   which may contain signing tokens), and turns any unhandled exception into a generic 500 problem.
+- ``OriginCheckMiddleware`` rejects state-changing API requests that a browser marks as coming from
+  another site (CSRF layer 1, Phase 2 LLD §4.3).
 - ``install_error_handlers`` maps domain errors, validation errors and routing errors to RFC 9457
   problem details with a stable ``code``.
 """
@@ -16,6 +18,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -232,6 +235,61 @@ class RequestContextMiddleware:
             )
             clear_context()
             set_origin(None)
+
+
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+# Sec-Fetch-Site values a browser sends for our own pages ("none": the user typed or bookmarked it).
+_TRUSTED_FETCH_SITES = frozenset({"same-origin", "none"})
+
+
+def origin_of(url: str) -> str:
+    """``scheme://host[:port]`` of a URL, as browsers send it in the ``Origin`` header."""
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}".lower()
+
+
+class OriginCheckMiddleware:
+    """Refuse cross-site state-changing requests to ``/api/`` with ``403 cross-site-request``.
+
+    Browsers set ``Sec-Fetch-Site`` themselves (page scripts cannot), so it decides when present:
+    only ``same-origin`` and ``none`` pass. Older browsers without it are checked by ``Origin``
+    against the public origin. Requests with neither header come from non-browser clients, which
+    CSRF cannot target, and pass. Applies before authentication, so log-in CSRF is blocked too.
+    """
+
+    def __init__(self, app: ASGIApp, *, public_origin: str) -> None:
+        self.app = app
+        self.public_origin = public_origin.lower()
+
+    def _allowed(self, headers: Headers) -> bool:
+        fetch_site = headers.get("sec-fetch-site")
+        if fetch_site is not None:
+            return fetch_site.lower() in _TRUSTED_FETCH_SITES
+        origin = headers.get("origin")
+        return origin is None or origin.lower() == self.public_origin
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] != "http"
+            or scope["method"] in _SAFE_METHODS
+            or not scope["path"].startswith("/api/")
+            or self._allowed(Headers(scope=scope))
+        ):
+            await self.app(scope, receive, send)
+            return
+        state = scope.get("state", {})
+        # The raw path may carry a token, and no route is matched yet: log the method only.
+        log.warning("http.cross_site_request_refused", method=scope["method"])
+        body = problem_body(
+            code="cross-site-request",
+            title="This request did not come from Signora",
+            status=403,
+            detail=None,
+            instance="<unmatched>",
+            request_id=state.get("request_id"),
+        )
+        response = JSONResponse(body, status_code=403, media_type=PROBLEM_MEDIA_TYPE)
+        await response(scope, receive, send)
 
 
 def _field_path(location: Sequence[int | str]) -> str:

@@ -19,11 +19,26 @@ cd signora
 2. creates `.env` from `.env.example` with generated secrets (mode 600; an existing `.env` is never overwritten) and checks required secrets are set;
 3. creates `apps/api/.venv` from the lockfile (`uv sync --frozen`);
 4. installs frontend packages (`pnpm install --frozen-lockfile` for `apps/web` and `packages/contracts`);
-5. pulls and starts Postgres and Gotenberg (behind its gateway) and waits until they are healthy.
+5. pulls and starts Postgres, Gotenberg (behind its gateway) and Mailpit, and waits until they are healthy.
 
 Options: `--no-services` (skip Docker).
 
-Then fill in the external credentials in `.env`: `AI_API_KEY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
+Then fill in the external credentials in `.env`: `AI_API_KEY`, the email settings below, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
+
+### Email
+
+Account emails (sign-up links, password resets, invitations) go through one of three providers, chosen by
+`EMAIL_PROVIDER` in `.env`; changing provider needs no code change.
+
+| `EMAIL_PROVIDER` | Use | Also set |
+|---|---|---|
+| `mailpit` | Development: every email is captured, nothing leaves the machine. Read them at http://127.0.0.1:8025. Never allowed in production. | `EMAIL_FROM_ADDRESS` (any address) |
+| `smtp` | Gmail: turn on 2-Step Verification, create an app password at https://myaccount.google.com/apppasswords | `SMTP_USERNAME` (the Gmail address), `SMTP_PASSWORD` (the 16-character app password), `EMAIL_FROM_ADDRESS` (the same Gmail address) |
+| `sendgrid` | SendGrid's API (link tracking is switched off so sign-in links are never rewritten) | `SENDGRID_API_KEY` (Mail Send permission), `EMAIL_FROM_ADDRESS` (a verified sender) |
+
+`EMAIL_DAILY_LIMIT` (default 450) holds mail back before Gmail's daily cap. A `@gmail.com` sender sent through
+SendGrid may land in spam, because it cannot pass Gmail's domain authentication; Gmail SMTP does not have that
+problem.
 
 ### Without uv
 
@@ -43,7 +58,7 @@ Regenerate them after changing dependencies with `make requirements`.
 ### Development (code on the host, infrastructure in Docker)
 
 ```bash
-make up        # Postgres + Gotenberg
+make up        # Postgres, Gotenberg and Mailpit (inbox at http://127.0.0.1:8025)
 make migrate   # apply database migrations
 make api       # API with reload on 127.0.0.1:8100
 make worker    # background worker

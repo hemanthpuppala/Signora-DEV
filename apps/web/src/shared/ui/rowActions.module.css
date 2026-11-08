@@ -1,0 +1,12 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 4px 28px;
+}
+
+/* The deliberate choice in a confirmation ("Confirm remove") stands out from "Cancel". */
+.actions [data-emphasis="true"] {
+  color: var(--ink);
+}

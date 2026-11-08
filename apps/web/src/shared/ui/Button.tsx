@@ -8,7 +8,7 @@ export type ButtonVariant = "primary" | "quiet" | "destructive";
 
 export type ButtonProps = {
   variant?: ButtonVariant;
-  /** Adds the trailing arrow used on primary actions ("Create workspace →"). */
+  /** Adds the trailing arrow used on primary actions ("Create account →"). */
   arrow?: boolean;
   /** Shows ``loadingLabel`` and disables the button while an action is in flight. */
   loading?: boolean;

@@ -18,6 +18,10 @@ export class ApiError extends Error {
   get code(): string {
     return this.problem.code;
   }
+
+  get detail(): string | null {
+    return this.problem.detail ?? null;
+  }
 }
 
 /** No answer arrived (offline, connection reset, proxy timeout); the server may have acted. */
@@ -49,4 +53,22 @@ export function userMessage(error: unknown): string {
   }
   if (error instanceof NetworkError) return "Connection lost — retrying…";
   return "Something went wrong.";
+}
+
+/** Field errors of a validation problem, keyed by field name ("password", "role_id"…). */
+export function fieldErrors(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiError) || !error.problem.errors) return {};
+  return Object.fromEntries(error.problem.errors.map((item) => [item.field, item.message]));
+}
+
+/** A request error worth showing above a form (field errors are shown on their fields). */
+export function formError(error: unknown): string | null {
+  if (error === null || error === undefined) return null;
+  if (error instanceof ApiError && error.code === "validation-failed") return null;
+  if (error instanceof ApiError && error.status === 429) {
+    const minutes = error.retryAfterSeconds ? Math.ceil(error.retryAfterSeconds / 60) : null;
+    return minutes ? `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.` : "Too many attempts. Please wait a moment.";
+  }
+  if (error instanceof ApiError && error.detail) return error.detail;
+  return userMessage(error);
 }

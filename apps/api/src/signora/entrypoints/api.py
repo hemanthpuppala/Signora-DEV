@@ -19,15 +19,21 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import Engine
 
+from signora.handlers import register_all
 from signora.kernel.config import Settings, get_settings
 from signora.kernel.db import Database, create_db_engine
 from signora.kernel.health import Check, core_checks, integration_results, run_checks
 from signora.kernel.http import (
     PROBLEM_RESPONSES,
+    OriginCheckMiddleware,
     RequestContextMiddleware,
     install_error_handlers,
+    origin_of,
 )
+from signora.kernel.jobs import registry
 from signora.kernel.logging import configure_logging
+from signora.kernel.ratelimit import create_rate_limiter
+from signora.modules import identity_access
 
 API_PREFIX = "/api/v1"
 INTERNAL_PREFIX = "/internal"  # never forwarded by Caddy (LLD §7.3)
@@ -42,6 +48,8 @@ class StatusResponse(BaseModel):
 class MetaResponse(BaseModel):
     version: str
     commit: str
+    password_min_length: int
+    password_rule: str  # the server's own wording of the rule, shown as the form hint
 
 
 def _health_router() -> APIRouter:
@@ -76,7 +84,12 @@ def _health_router() -> APIRouter:
     @router.get(f"{API_PREFIX}/meta", tags=["meta"])
     def meta(request: Request) -> MetaResponse:
         settings: Settings = request.app.state.settings
-        return MetaResponse(version=version("signora"), commit=settings.app.commit)
+        return MetaResponse(
+            version=version("signora"),
+            commit=settings.app.commit,
+            password_min_length=settings.auth.password_min_length,
+            password_rule=identity_access.PasswordPolicy(settings.auth.password_min_length).rule,
+        )
 
     return router
 
@@ -88,6 +101,8 @@ def create_app(
     checks_factory: ChecksFactory = core_checks,
 ) -> FastAPI:
     """Build the application. Tests pass their own engine and readiness checks."""
+    # The API enqueues jobs, so it knows the same job kinds as the worker (handlers.py).
+    register_all(registry)
     owns_engine = engine is None
     app_engine = engine or create_db_engine(settings.db, pool_size=settings.api.threads)
 
@@ -112,12 +127,18 @@ def create_app(
     app.state.engine = app_engine
     app.state.database = Database(app_engine)
     app.state.checks = lambda: checks_factory(settings, app_engine)
+    app.state.rate_limiter = create_rate_limiter(settings.rate_limit)
 
     install_error_handlers(app)
+    # Added last = outermost: the request context (request id, access log) wraps the origin check.
+    app.add_middleware(
+        OriginCheckMiddleware, public_origin=origin_of(str(settings.app.public_base_url))
+    )
     app.add_middleware(
         RequestContextMiddleware, trust_proxy_headers=settings.api.trust_proxy_headers
     )
     app.include_router(_health_router())
+    app.include_router(identity_access.router)
     return app
 
 

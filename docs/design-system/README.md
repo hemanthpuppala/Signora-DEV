@@ -34,8 +34,37 @@ Console: 05 Projects home · 06 New project · 07 Project envelopes (search, fil
 Sending: 14 New envelope (generated form, extra signers) · 15 Bulk send · 16 Envelope detail (recipients, email failure retry, timeline) · 17 Countersign · 18 Completed (certificate) · 19 Members · 20 Audit log.
 Signer: 21 Request email · 22 Email code · 23 Consent · 24 Read and sign · 25 Confirmation · 26 Decline · 27 Link closed · 28 Phone signer (bottom-sheet signature pad).
 
+## Writing and interaction principles (owner decisions, 2026-11-07)
+
+Every screen and email follows these; they come from reviewing Phase 2 with the owner.
+
+1. **Say only what the person needs here.** No text that repeats what the page already shows (the workspace
+   name is in the top bar; do not repeat it in a heading), no taglines inside the console, nothing technical
+   (versions, builds, health) in front of users.
+2. **Explain where a decision is made, not on pages people revisit.** A role's description belongs in the
+   invitation and on the accept page; Settings and People show only the role name.
+3. **Plain words, named for the job.** Owner, Editor, Viewer; "Invite as", not "Workspace access"; messages say
+   what to do next ("Ask the workspace owner if you need it back").
+4. **State rules up front, as rules.** A hint under a field is the requirement in the industry's wording
+   ("Use 12 or more characters."), not advice. Validate when the person leaves the field, never while they type;
+   the server stays the authority and its messages use the same words.
+5. **Hide what a role never uses; explain a key action it cannot take.** Whole areas (People) are absent from
+   navigation; from Phase 3, a primary action a person might expect is shown disabled with the reason ("Only
+   owners and editors can add agreements").
+6. **Keep the geometry calm.** Fields in a row line up by their labels (`FieldGrid`), buttons sit on the input line
+   (`FieldAction`), each table action has its own column (`ActionCell`), navigation items share one baseline,
+   and browser autofill keeps the black fields.
+
 ## Porting rules
 - Tokens live once in `apps/web/src/shared/ui/tokens.css`; components in `apps/web/src/shared/ui/*` import them (SSoT). Feature code never hard-codes colors or fonts.
 - Fonts load with `next/font/google` (self-hosted at build time) instead of the Google Fonts stylesheet link.
 - Accessibility kept from the prototype: visible focus ring, labelled controls, keyboard dropdowns, `prefers-reduced-motion`.
 - Prototype-only scaffolding is not ported: the "All screens" index, `Prototype:` toasts, sample data.
+
+## Deliberate deviations
+| Screen | Deviation | Reason | Recorded |
+|---|---|---|---|
+| 02 Sign up | Asks only for the email. Firm name, your name and password move to a new "verify" page opened from the emailed link. | Sign-up must not reveal whether an email is registered, so the account is created only after the email is verified ([Phase 2 LLD](../design/features/02-accounts.md), topic 1). | 2026-11-07 |
+| 04 Accept invite | Shows the role name chosen by the inviter instead of workspace plus per-project access. | Roles are data per workspace (Phase 2 LLD, ADR-A1); per-project grants arrive in Phase 3. | 2026-11-07 |
+| 04, 19 Role wording | Roles read **Owner / Editor / Viewer** with a one-line description (invite page, invite form, People, Settings) instead of Read and Read/write. | People-facing wording (Phase 2 LLD §8.1a). | 2026-11-07 |
+| 19 Members | Named **People** in navigation; visible only with the `members.manage` permission (by default the creator). No saved-signature block yet (Phase 9). | Owner decision 2026-11-07 (Phase 2 LLD, topic 8). | 2026-11-07 |

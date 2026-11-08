@@ -1,0 +1,18 @@
+/* Prototype .auth: one narrow column, generous vertical rhythm. */
+.wrap {
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+
+.auth {
+  max-width: 400px;
+  margin: 0 auto;
+  padding-block: 80px 112px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.auth > button[type="submit"] {
+  margin-top: 8px;
+}

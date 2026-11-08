@@ -59,6 +59,23 @@ services:
       - "127.0.0.1:${GOTENBERG_PORT:?set in .env}:3000"
     networks: [app, convert]
 
+  mailpit:
+    # Development mail capture (EMAIL_PROVIDER=mailpit): accepts any message over SMTP and shows it
+    # in a web inbox. Both ports are published on loopback only.
+    image: axllent/mailpit:v1.32.0
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: "1000"
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"  # SMTP
+      - "127.0.0.1:8025:8025"  # web inbox and API
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [app]
+
   # --- Application (profile "app": `make up-app`). Served publicly through Caddy + Funnel. -----
 
   migrate:
@@ -76,6 +93,8 @@ services:
       POSTGRES_PORT: "5432"
       GOTENBERG_HOST: gotenberg
       GOTENBERG_PORT: "3000"
+      MAILPIT_HOST: mailpit
+      MAILPIT_SMTP_PORT: "1025"
       BLOB_STORE_DIR: /app/data/blobs
     depends_on:
       postgres:

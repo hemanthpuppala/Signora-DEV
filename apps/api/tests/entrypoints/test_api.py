@@ -214,11 +214,55 @@ def test_client_ip_that_is_not_an_ip_is_stored_as_unknown(
     assert response.json() == {"ip": None}
 
 
+VALID_BODY = {"name": "x", "emails": ["a@example.com"]}
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Sec-Fetch-Site": "cross-site"},
+        {"Sec-Fetch-Site": "same-site"},  # a sibling subdomain is still another site's page
+        {"Sec-Fetch-Site": "cross-site", "Origin": "https://hemanth.tail50655e.ts.net"},
+        {"Origin": "https://evil.example"},  # an older browser without fetch metadata
+    ],
+)
+def test_cross_site_state_changes_are_refused(
+    client: TestClient, settings: Settings, headers: dict[str, str]
+) -> None:
+    response = client.post("/api/v1/test/validate", json=VALID_BODY, headers=headers)
+
+    assert response.status_code == 403
+    body = response.json()
+    assert body["code"] == "cross-site-request"
+    assert body["instance"] == "<unmatched>"
+    assert body["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_same_origin_and_non_browser_requests_pass(client: TestClient, settings: Settings) -> None:
+    public_origin = str(settings.app.public_base_url).rstrip("/")
+    for headers in (
+        {"Sec-Fetch-Site": "same-origin"},
+        {"Sec-Fetch-Site": "none"},
+        {"Origin": public_origin},
+        {},  # curl, server-to-server: no browser, no CSRF
+    ):
+        response = client.post("/api/v1/test/validate", json=VALID_BODY, headers=headers)
+        assert response.status_code != 403, headers
+
+
+def test_safe_methods_and_non_api_paths_are_not_checked(client: TestClient) -> None:
+    cross = {"Sec-Fetch-Site": "cross-site"}
+    assert client.get("/api/v1/health/live", headers=cross).status_code == 200
+    assert client.get("/s/some-token", headers=cross).status_code == 200
+
+
 def test_live_and_meta(client: TestClient) -> None:
     assert client.get("/api/v1/health/live").json() == {"status": "ok"}
     meta = client.get("/api/v1/meta").json()
     assert meta["version"] == "0.1.0"
     assert meta["commit"]
+    assert meta["password_min_length"] == 12
+    assert meta["password_rule"] == "Use 12 or more characters."  # noqa: S105 - wording, not a secret
 
 
 def test_public_readiness_is_summary_only(settings: Settings, engine: Engine) -> None:

@@ -39,7 +39,9 @@ def _count_jobs(uow_db: Database, kind: str) -> int:
 
 
 def test_migrations_are_at_head(engine: Engine, test_db_settings: DatabaseSettings) -> None:
-    assert current_revisions(engine) == head_revisions(test_db_settings) == {"0001"}
+    heads = head_revisions(test_db_settings)
+    assert len(heads) == 1  # one linear history: no unmerged migration branches
+    assert current_revisions(engine) == heads
     assert migrations_at_head(engine, test_db_settings)
 
 

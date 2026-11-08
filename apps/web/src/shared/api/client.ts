@@ -1,13 +1,35 @@
 import type { paths, ProblemDetails } from "@signora/contracts";
 import createClient from "openapi-fetch";
 
+import { readCookie } from "@/shared/lib/cookies";
+
 import { ApiError, NetworkError } from "./errors";
 
 /**
  * Typed API client. Same origin: Caddy routes /api/* to the API in production; `next dev` rewrites
  * it in development. Types come from the generated contract, so API drift fails the build.
  */
-export const api = createClient<paths>({ baseUrl: "" });
+export const api = createClient<paths>({
+  // The page's own origin (an absolute base works for both browser and Node Request; on the
+  // server, where client components only render, no request is made).
+  baseUrl: typeof window === "undefined" ? "" : window.location.origin,
+  // Looked up per call (not captured at import), so tests can stub fetch.
+  fetch: (request) => globalThis.fetch(request),
+});
+
+/** Signed double-submit CSRF token (Phase 2 LLD §4.3): readable cookie echoed in a header. */
+export const CSRF_COOKIE = "__Host-signora_csrf";
+export const CSRF_HEADER = "X-CSRF-Token";
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+api.use({
+  onRequest({ request }) {
+    if (!UNSAFE_METHODS.has(request.method)) return undefined;
+    const token = readCookie(CSRF_COOKIE);
+    if (token) request.headers.set(CSRF_HEADER, token);
+    return request;
+  },
+});
 
 type ClientResult<T> = { data?: T; error?: unknown; response: Response };
 
