@@ -143,3 +143,11 @@ def test_files_are_not_world_readable(tmp_path: Path) -> None:
     ref = store.put(uuid.uuid4(), io.BytesIO(b"private"), max_bytes=100)
 
     assert (tmp_path / "blobs" / ref.key).stat().st_mode & 0o007 == 0
+
+
+def test_path_points_at_the_stored_file_and_refuses_a_missing_one(store: BlobStore) -> None:
+    workspace = uuid.uuid4()
+    ref = store.put(workspace, io.BytesIO(b"hello"), max_bytes=100)
+    assert store.path(ref).read_bytes() == b"hello"
+    with pytest.raises(BlobNotFoundError):
+        store.path(BlobRef(workspace, "0" * 64, 1))

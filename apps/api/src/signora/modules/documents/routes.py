@@ -8,12 +8,12 @@ from typing import Annotated, Literal
 
 import anyio
 from fastapi import APIRouter, Depends, Query, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from signora.kernel.blobstore import BlobStore
+from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.config import Settings
 from signora.kernel.db import Database
 from signora.kernel.errors import RateLimited
@@ -29,6 +29,7 @@ from signora.modules.documents.domain import (
     name_from_filename,
     scanned_message,
 )
+from signora.modules.documents.errors import VersionNotReady
 from signora.modules.identity_access import Actor, current_actor
 
 router = APIRouter(prefix="/api/v1", tags=["documents"])
@@ -482,3 +483,60 @@ def make_current(
         service.make_current(uow, actor=actor, document_id=document_id, version_id=body.version_id)
         row = service.get_document(uow.session, actor.workspace_id, document_id)
         return detail(request, uow.session, actor, row)
+
+
+# --- files ---------------------------------------------------------------------------------
+
+_DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_NO_STORE = {"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"}
+
+
+def _served_version(
+    request: Request, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+) -> tuple[service.DocumentRow, service.VersionRow]:
+    with _db(request).unit_of_work() as uow:
+        document = service.get_document(uow.session, actor.workspace_id, document_id)
+        version = service.get_version(uow.session, actor.workspace_id, document_id, version_id)
+    return document, version
+
+
+@router.get(
+    "/documents/{document_id}/versions/{version_id}/pdf",
+    summary="The version's working copy, for the viewer (supports HTTP ranges)",
+    response_class=FileResponse,
+)
+def version_pdf(
+    document_id: uuid.UUID, version_id: uuid.UUID, request: Request, actor: Member
+) -> FileResponse:
+    """Only the cleaned working copy is ever shown in the page (topic 5 §5.2)."""
+    document, version = _served_version(request, actor, document_id, version_id)
+    if version.pdf_sha256 is None or version.pdf_bytes is None:
+        raise VersionNotReady("This version isn't ready to view yet")
+    ref = BlobRef(actor.workspace_id, version.pdf_sha256, version.pdf_bytes)
+    return FileResponse(
+        _store(request).path(ref),
+        media_type="application/pdf",
+        filename=f"{document.name} v{version.version_no}.pdf",
+        content_disposition_type="inline",
+        headers=_NO_STORE,
+    )
+
+
+@router.get(
+    "/documents/{document_id}/versions/{version_id}/original",
+    summary="The file exactly as uploaded, as a download",
+    response_class=FileResponse,
+)
+def version_original(
+    document_id: uuid.UUID, version_id: uuid.UUID, request: Request, actor: Member
+) -> FileResponse:
+    """Always an attachment, never shown in the page: it may still hold scripts (§5.2)."""
+    _, version = _served_version(request, actor, document_id, version_id)
+    ref = BlobRef(actor.workspace_id, version.source_sha256, version.source_bytes)
+    return FileResponse(
+        _store(request).path(ref),
+        media_type="application/pdf" if version.source_kind == "pdf" else _DOCX_TYPE,
+        filename=version.source_filename,
+        content_disposition_type="attachment",
+        headers=_NO_STORE,
+    )
