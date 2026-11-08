@@ -20,7 +20,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 | 1 | What a document is | **agreed** (2026-11-07) |
 | 2 | Uploading | **agreed** (2026-11-07) |
 | 3 | Processing (DOCX to PDF, page facts, needs-OCR check, failures) | **agreed** (2026-11-07) |
-| 4 | Versions. Owner input so far: the latest version is current by default; any version can be made current | open |
+| 4 | Versions | **agreed** (2026-11-07) |
 | 5 | Viewing. Owner input so far: inline viewing for staff and signers; pdf.js (or similar) for now, a richer viewer later | open |
 | 6 | Screens and behaviour (including the dropzones carried from Phase 3) | open |
 
@@ -281,8 +281,81 @@ transaction; the request returns at once. The worker:
 
 ---
 
+## Topic 4 — Versions
+
+### 4.1 Numbering
+
+Versions of a document are numbered 1, 2, 3… in upload order. The number is assigned under the document row's lock
+(as in Phase 3's list fix), so two uploads at once never share or skip a number: `UNIQUE (document_id, version_no)`.
+
+### 4.2 Current version (owner decisions)
+
+The current version is the one new sends use.
+
+- **Only a ready version can be current.** Ready means the AI processing is done: from Phase 5, field detection
+  and the name and description have finished; in this phase, before AI exists, it means **Processed**. A version
+  that is processing, failed, or needs a password or OCR can never be current. (Sending additionally needs the
+  version approved, Phase 6.)
+- **The latest becomes current automatically when it is ready.** When a version becomes ready it is made current
+  unless a higher-numbered version is already current, so a slow version 3 finishing after version 4 never takes
+  over. This applies to version 1 too: a document has no current version until its first version is ready, and the
+  document page shows that version's status instead.
+- **Any ready version can be made current by hand**, after a confirmation: "Make version 2 current? New sends will
+  use it." `POST /api/v1/documents/{id}/current-version` `{version_id}` (edit access; `409 version-not-ready`
+  otherwise; repeat-safe).
+- A later upload that becomes ready takes over again, even after a person chose an older version.
+- Sends keep the version they were sent with (Phase 7); changing the current version only affects new sends.
+
+### 4.3 Immutability
+
+A version's original file, working copy, hashes and page facts never change once recorded. A database trigger
+refuses updates to those columns once the version leaves Processing, and refuses deleting versions, so the rule holds
+even outside the application code (platform §9). Status, failure details and the AI description may still change.
+
+### 4.4 Schema
+
+```sql
+CREATE TABLE document_versions (
+  id                  uuid PRIMARY KEY DEFAULT uuidv7(),
+  workspace_id        uuid NOT NULL,
+  document_id         uuid NOT NULL,
+  version_no          integer NOT NULL CHECK (version_no >= 1),
+  status              text NOT NULL DEFAULT 'processing'
+                      CHECK (status IN ('processing', 'needs_password', 'needs_ocr', 'failed', 'processed')),
+  failure_code        text,               -- e.g. too_many_pages, damaged, conversion_failed, unavailable
+  failure_temporary   boolean NOT NULL DEFAULT false,
+  source_sha256       text NOT NULL,      -- the upload as received
+  source_kind         text NOT NULL CHECK (source_kind IN ('pdf', 'docx')),
+  source_filename     text NOT NULL,
+  source_bytes        bigint NOT NULL,
+  pdf_sha256          text,               -- the working copy (§3.1), set when processed
+  page_count          integer,
+  pages               jsonb,              -- [{width, height, rotation}] in PDF points
+  pages_without_text  integer[] NOT NULL DEFAULT '{}',
+  ai_instructions     text NOT NULL DEFAULT '' CHECK (char_length(ai_instructions) <= 1000),
+  ai_description      text,               -- Phase 5
+  uploaded_by         uuid NOT NULL,
+  created_at          timestamptz NOT NULL DEFAULT now(),
+  processed_at        timestamptz,
+  UNIQUE (id, workspace_id),
+  UNIQUE (document_id, version_no),
+  FOREIGN KEY (document_id, workspace_id) REFERENCES documents (id, workspace_id),
+  FOREIGN KEY (uploaded_by, workspace_id) REFERENCES users (id, workspace_id)
+);
+CREATE INDEX ix_document_versions_source ON document_versions (workspace_id, source_sha256);  -- duplicate check
+```
+
+`documents.current_version_id` references `document_versions (id, workspace_id)` with the document's company.
+
+### 4.5 Audit (company chain)
+
+`document.version_added` (number, file name, hash), `document.version_unlocked`, `document.version_failed`
+(reason), `document.version_retried`, `document.current_version_changed` (old and new, and whether automatic).
+
+---
+
 ## Task tracker
 
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-3 recorded |
+| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-4 recorded |
