@@ -19,7 +19,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 |---|---|---|
 | 1 | What a document is | **agreed** (2026-11-07) |
 | 2 | Uploading | **agreed** (2026-11-07) |
-| 3 | Processing (DOCX to PDF, page facts, needs-OCR check, failures) | open |
+| 3 | Processing (DOCX to PDF, page facts, needs-OCR check, failures) | **agreed** (2026-11-07) |
 | 4 | Versions. Owner input so far: the latest version is current by default; any version can be made current | open |
 | 5 | Viewing. Owner input so far: inline viewing for staff and signers; pdf.js (or similar) for now, a richer viewer later | open |
 | 6 | Screens and behaviour (including the dropzones carried from Phase 3) | open |
@@ -217,8 +217,72 @@ them with PyMuPDF and Gotenberg (isolated, topic 3), and viewers render them wit
 
 ---
 
+## Topic 3 — Processing
+
+### 3.1 One job per version
+
+Using an upload (topic 2) creates the version in **Processing** and enqueues a `document.process` job in the same
+transaction; the request returns at once. The worker:
+
+1. **.docx to PDF** through Gotenberg (`POST /forms/libreoffice/convert`), which runs without network access behind
+   its gateway (platform P0.6). A conversion taking over 2 minutes is a timeout.
+2. **Open** the PDF with PyMuPDF. If it needs a password, the version moves to **Needs password** and the job ends;
+   unlocking (§2.6) enqueues the job again. A PDF with only edit restrictions (owner password) is saved without them.
+3. **Pages**: more than 200 fails the version ("This document has N pages…"). Records the page count and, per page,
+   width, height (PDF points) and rotation, which Phase 6 needs to draw fields in place.
+4. **Working copy** (owner decision): a copy without JavaScript, embedded files, and launch or other actions that
+   run or open something. Form fields are kept (Phase 5 reads AcroForm widgets). The working copy is what people
+   view, what signers see, and what the final signed PDF is built from; the original upload is kept untouched,
+   identified by its SHA-256. Both are stored in the blob store by hash.
+5. **Text check** (§3.2).
+6. **Processed**: the version is done and the job publishes `document.version_processed` (kernel events). Phase 5
+   subscribes to it to detect fields and to write the name and description (topic 1).
+
+### 3.2 Pages without text: blocked until OCR (owner decision)
+
+- A page **lacks text** when it shows content (images or drawings) but has fewer than 20 characters of extractable
+  text: a scanned page, including a scan with a typed page number. A page with no content at all (a blank page) is
+  not counted; there is nothing to read on it.
+- **If any page lacks text, the version is blocked as Needs OCR.** Nothing is detected or sent from it until OCR
+  exists (a later phase). The version records which pages lack text (`pages_without_text`), so the OCR phase can
+  handle every case: all pages scanned, some scanned among text pages, a scanned signature page.
+- The person sees: "Page 4 is a scanned image. Scanned pages can't be read yet." (or "Pages 1-12 are scanned
+  images…"), and may upload a text-based PDF as a new version.
+
+### 3.3 Statuses
+
+| Status | Meaning | Next |
+|---|---|---|
+| Processing | the job is running or waiting to retry | Processed, Needs password, Needs OCR, Failed |
+| Needs password | the PDF needs a password to open (§2.6) | Processing (after unlock) |
+| Needs OCR | at least one page lacks text (§3.2) | final in this phase |
+| Failed | a permanent problem, or a temporary one after the last retry | Processing (after "Try again", temporary only) |
+| Processed | ready for field detection | Phase 5 and 6 add their statuses after this |
+
+### 3.4 Failures
+
+- **Temporary** (Gotenberg unavailable, timeout, blob store error): retried with the job backoff (backbone LLD
+  §1.4: 30 s doubling to 1 hour, 8 attempts). After the last attempt the version is **Failed** with
+  `failure_temporary = true`.
+- **"Try again"** (owner decision): shown only on such a version, to people with edit access.
+  `POST /api/v1/documents/{id}/versions/{version_id}/retry` moves it back to Processing and enqueues the job
+  (repeat-safe: a version already processing is left alone).
+- **Permanent** (damaged PDF, over 200 pages, a .docx Gotenberg cannot convert): **Failed** at once with the
+  message from §2.5; no retry, the fix is a new upload.
+- The job is idempotent: running it again for a version that is already past Processing does nothing.
+
+### 3.5 Targets and tests
+
+- A 200-page text PDF is processed in under 30 s; a .docx converts in under 60 s (Gotenberg's own time).
+- Tests use generated files: a 200-page PDF, a 201-page PDF, a .docx, a password-protected PDF, an
+  owner-password-only PDF, a PDF with JavaScript and an embedded file (both gone from the working copy, form fields
+  kept), a damaged PDF, a scanned page among text pages, a blank page (not counted), and Gotenberg unavailable
+  (retries, then Failed with "Try again").
+
+---
+
 ## Task tracker
 
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-2 recorded |
+| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-3 recorded |
