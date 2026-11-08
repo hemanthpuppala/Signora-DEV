@@ -14,6 +14,12 @@ vi.mock("@/shared/api/client", async (importOriginal) => {
 
 const GET = vi.mocked(api.GET);
 
+/** Paths the panel requested. (The client's overloads type mocked call arguments too narrowly to
+ * read, now that the contract has many paths.) */
+function requestedPaths(): string[] {
+  return (GET.mock.calls as unknown as [string, ...unknown[]][]).map(([path]) => path);
+}
+
 function answer(path: string) {
   const data = path === "/api/v1/meta" ? { version: "0.1.0", commit: "abc1234" } : { status: "ok" };
   return Promise.resolve({ data, response: new Response(null, { status: 200 }) });
@@ -47,7 +53,7 @@ describe("MetaPanel", () => {
 
     // Well past the old three-retry limit (1 + 2 + 4 + 8 + 16 s): still retrying, still saying so.
     await act(() => vi.advanceTimersByTimeAsync(31_000));
-    const metaCalls = GET.mock.calls.filter(([path]) => path === "/api/v1/meta").length;
+    const metaCalls = requestedPaths().filter((path) => path === "/api/v1/meta").length;
     expect(metaCalls).toBeGreaterThan(4);
     expect(screen.getByText("Connection lost — retrying…")).toBeTruthy();
 
@@ -72,7 +78,7 @@ describe("MetaPanel", () => {
     renderPanel();
     await act(() => vi.advanceTimersByTimeAsync(100));
     expect(screen.getByText("Not ready")).toBeTruthy();
-    expect(GET.mock.calls.filter(([path]) => path === "/api/v1/health/ready")).toHaveLength(1);
+    expect(requestedPaths().filter((path) => path === "/api/v1/health/ready")).toHaveLength(1);
   });
 
   it("does not retry a definite API error", async () => {
@@ -92,6 +98,6 @@ describe("MetaPanel", () => {
     renderPanel();
     await act(() => vi.advanceTimersByTimeAsync(10_000));
     expect(screen.getByText("Something went wrong on our side (reference r-9).")).toBeTruthy();
-    expect(GET.mock.calls.filter(([path]) => path === "/api/v1/meta")).toHaveLength(1);
+    expect(requestedPaths().filter((path) => path === "/api/v1/meta")).toHaveLength(1);
   });
 });
