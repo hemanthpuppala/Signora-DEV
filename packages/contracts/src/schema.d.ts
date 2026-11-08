@@ -1113,14 +1113,22 @@ export interface components {
         /** LatestVersion */
         LatestVersion: {
             /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
              * Id
              * Format: uuid
              */
             id: string;
             /** Number */
             number: number;
-            /** Status */
-            status: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "processed";
         };
         /** LoginRequest */
         LoginRequest: {
@@ -1176,6 +1184,10 @@ export interface components {
         MetaResponse: {
             /** Commit */
             commit: string;
+            /** Document Max Bytes */
+            document_max_bytes: number;
+            /** Document Max Pages */
+            document_max_pages: number;
             /** Password Min Length */
             password_min_length: number;
             /** Password Rule */

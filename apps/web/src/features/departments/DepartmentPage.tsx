@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError, formError } from "@/shared/api/errors";
@@ -15,14 +16,21 @@ import {
   MetricGrid,
   MetricTile,
   Notice,
-  Section,
-  SmallText,
 } from "@/shared/ui";
 
-import { dayMonth, departmentKey, useDepartment } from "./api";
+import { dayMonth, departmentKey, useDepartment, type Department } from "./api";
 
-/** Screens 07/08: one department. Files arrive in Phase 4 (until then: "No documents yet."). */
-export function DepartmentPage({ me, id }: { me: Me; id: string }) {
+/** Screens 07/08: one department. Its documents come from the documents feature, through the
+ * route (a feature never imports another), as ``documents``. */
+export function DepartmentPage({
+  me,
+  id,
+  documents,
+}: {
+  me: Me;
+  id: string;
+  documents?: (department: Department) => ReactNode;
+}) {
   const queryClient = useQueryClient();
   const department = useDepartment(id);
   const restore = useMutation({
@@ -86,9 +94,7 @@ export function DepartmentPage({ me, id }: { me: Me; id: string }) {
         <MetricTile value={data.counts.signed} label="Signed" />
         <MetricTile value={data.counts.pending} label="Pending" />
       </MetricGrid>
-      <Section title="Files">
-        <SmallText>No documents yet.</SmallText>
-      </Section>
+      {documents?.(data)}
     </>
   );
 }

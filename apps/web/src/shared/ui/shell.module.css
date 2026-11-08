@@ -78,7 +78,7 @@
   padding-block: 48px 96px;
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: var(--page-gap);
   min-width: 0;
 }
 

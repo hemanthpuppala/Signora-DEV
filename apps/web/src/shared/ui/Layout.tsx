@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FormHTMLAttributes, ReactNode } from "react";
 
 import styles from "./layout.module.css";
 import { Eyebrow } from "./Typography";
@@ -11,6 +11,11 @@ export function HeadRow({ children, actions }: { children: ReactNode; actions?: 
       {actions ? <div className={styles.headActions}>{actions}</div> : null}
     </div>
   );
+}
+
+/** A form that is a whole page (head row, sections, submit): spaced like the page itself. */
+export function PageForm(form: Omit<FormHTMLAttributes<HTMLFormElement>, "className">) {
+  return <form className={styles.pageForm} {...form} />;
 }
 
 /** A titled block of a console page (prototype .section). */

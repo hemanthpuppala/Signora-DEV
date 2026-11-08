@@ -168,7 +168,8 @@ class VersionRef(BaseModel):
 
 
 class LatestVersion(VersionRef):
-    status: str
+    status: Literal["processing", "needs_password", "needs_ocr", "failed", "processed"]
+    created_at: datetime
 
 
 class DocumentSummary(BaseModel):
@@ -228,7 +229,10 @@ def summary(row: service.DocumentRow) -> DocumentSummary:
         if row.current_version_id is None or row.current_version_no is None
         else VersionRef(id=row.current_version_id, number=row.current_version_no),
         latest_version=LatestVersion(
-            id=row.latest_version_id, number=row.latest_version_no, status=row.latest_status
+            id=row.latest_version_id,
+            number=row.latest_version_no,
+            status=row.latest_status,  # type: ignore[arg-type]  # the database checks the values
+            created_at=row.latest_created_at,
         ),
         updated_at=row.updated_at,
         archived_at=row.archived_at,

@@ -441,8 +441,14 @@ words, and consequential actions (make current, archive) ask first.
 - Each file gets a row at once: a progress bar while the bytes travel, the **name** (prefilled, editable),
   **Instructions for the AI** (optional) and **Add document**. Problems and the duplicate dialog (§2.3) appear on
   that row. The person can drop the next file while earlier rows are still uploading or processing.
-- After "Add document" the row shows the version's status (Processing, then Processed or what needs doing), linking
+- After "Add document" the row shows the version's status (Processing, then Ready or what needs doing), linking
   to the document page.
+- *Implementation details:* the duplicate question (§2.3) is asked as soon as that file's upload finishes, so
+  nobody types a name for a file they will cancel. When "Upload anyway" meets a taken name, the row's name field
+  says so and the person renames it there. Statuses read Processing, Needs password, Scanned pages, Failed and
+  Ready. Files are handed from one page to the next in memory (a reload forgets them). A file over the size limit
+  is refused before it is sent; the limits come from `/api/v1/meta`, never hard-coded. Routes compose the
+  departments and documents features (a feature never imports another).
 
 ### 6.3 New department page (carried from Phase 3, owner decision)
 
@@ -546,6 +552,6 @@ holds until something changes), and short polling.
 | 4.6 | Current version rules, make current, immutability trigger | done | migration 0015 (trigger refuses changing a version's source, its processed facts or its unlocked copy, and deleting versions); `current.py` decides under the document lock; 5 tests: the first ready version becomes current (audited as automatic), the latest takes over when ready and a slower older one never does, a version needing OCR never becomes current and cannot be made current (409), any ready version can be made current (repeat-safe; Viewers 403) until a newer one is ready, the database refuses changes and deletes while the AI description may still change |
 | 4.7 | Serving: working copy inline with ranges, original as download | done | `BlobStore.path` for serving local files; 5 tests: the working copy inline (`private, no-store`, `nosniff`, `Accept-Ranges`), a byte range answered 206 with its `Content-Range`, the cleaned copy rather than the upload; a version not processed yet answers 409; the original is the exact upload as an attachment with its type; Viewers download, other companies 404 |
 | 4.8 | Web: shared `PdfViewer` (pdf.js, overlay slot, zoom, lazy pages) | done | `shared/ui/pdf`: pure layout maths (5 tests: fit, zoom steps, wheel factor, sharp canvas sizes, page in view) and the component (4 tests with pdf.js mocked: every page laid out from the page facts and the file loaded by ranges with assets from our origin, zoom buttons and fit width, the overlay on every page at the live scale, a message when the file cannot be shown); asset copy script; CSP `worker-src 'self'`; checked in a real browser in task 4.11 |
-| 4.9 | Web: documents on the department page, upload page, new-department dropzone, polling hook | todo | — |
+| 4.9 | Web: documents on the department page, upload page, new-department dropzone, polling hook | done | design system gains `Dropzone` (one file; several say "Drop one file at a time"), `Dialog` (native `<dialog>`) and `PageForm` with a `--page-gap` token; `/meta` publishes the upload limits; 12 Vitest tests: polling intervals, the list with versions and plain statuses and no dropzone for read access, a dropped file opens the upload page, upload then name from the file then add with instructions and an idempotency key then live status, handed-over files upload at once, two uploads at the same time, the duplicate question cancelled (nothing added) or confirmed (`allow_duplicate`), a taken name on the field, the server's reason for a refused file, a file over the limit never sent, an archived department explains; 3 department tests updated for the documents slot and the new-department dropzone (files held until the department exists) |
 | 4.10 | Web: document page (viewer, versions, password, Try again, make current, new version, archive) | todo | — |
 | 4.11 | Deploy and live end-to-end check | todo | — |

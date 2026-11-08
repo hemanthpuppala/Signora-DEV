@@ -51,6 +51,8 @@ class MetaResponse(BaseModel):
     commit: str
     password_min_length: int
     password_rule: str  # the server's own wording of the rule, shown as the form hint
+    document_max_bytes: int  # upload limits (Phase 4 LLD §2.1), shown before uploading
+    document_max_pages: int
 
 
 def _health_router() -> APIRouter:
@@ -90,6 +92,8 @@ def _health_router() -> APIRouter:
             commit=settings.app.commit,
             password_min_length=settings.auth.password_min_length,
             password_rule=identity_access.PasswordPolicy(settings.auth.password_min_length).rule,
+            document_max_bytes=settings.documents.max_bytes,
+            document_max_pages=settings.documents.max_pages,
         )
 
     return router

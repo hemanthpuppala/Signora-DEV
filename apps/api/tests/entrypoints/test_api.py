@@ -263,6 +263,7 @@ def test_live_and_meta(client: TestClient) -> None:
     assert meta["commit"]
     assert meta["password_min_length"] == 12
     assert meta["password_rule"] == "Use 12 or more characters."  # noqa: S105 - wording, not a secret
+    assert (meta["document_max_bytes"], meta["document_max_pages"]) == (50 * 1024 * 1024, 200)
 
 
 def test_public_readiness_is_summary_only(settings: Settings, engine: Engine) -> None:

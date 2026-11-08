@@ -1,0 +1,70 @@
+/* The upload page's rows: one per file, each with its own progress and next step. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
+  border: 1px solid var(--sep);
+  background: var(--surface);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.file {
+  font-size: 14px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--t55);
+}
+
+.progress {
+  width: 100%;
+  height: 2px;
+  appearance: none;
+  border: 0;
+  background: var(--r08);
+}
+
+.progress::-webkit-progress-bar {
+  background: var(--r08);
+}
+
+.progress::-webkit-progress-value {
+  background: var(--ink);
+}
+
+.progress::-moz-progress-bar {
+  background: var(--ink);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.message {
+  font-size: 14px;
+  color: var(--t75);
+}

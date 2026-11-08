@@ -68,4 +68,5 @@
   --field-control-height: calc(16px * 1.4 + 18px + 1px); /* line + 9px padding twice + underline */
   --gutter: 16px;
   --content-max: 1120px;
+  --page-gap: 36px; /* between a console page's blocks */
 }

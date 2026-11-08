@@ -847,6 +847,11 @@
       },
       "LatestVersion": {
         "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -857,6 +862,13 @@
             "type": "integer"
           },
           "status": {
+            "enum": [
+              "processing",
+              "needs_password",
+              "needs_ocr",
+              "failed",
+              "processed"
+            ],
             "title": "Status",
             "type": "string"
           }
@@ -864,7 +876,8 @@
         "required": [
           "id",
           "number",
-          "status"
+          "status",
+          "created_at"
         ],
         "title": "LatestVersion",
         "type": "object"
@@ -994,6 +1007,14 @@
             "title": "Commit",
             "type": "string"
           },
+          "document_max_bytes": {
+            "title": "Document Max Bytes",
+            "type": "integer"
+          },
+          "document_max_pages": {
+            "title": "Document Max Pages",
+            "type": "integer"
+          },
           "password_min_length": {
             "title": "Password Min Length",
             "type": "integer"
@@ -1011,7 +1032,9 @@
           "version",
           "commit",
           "password_min_length",
-          "password_rule"
+          "password_rule",
+          "document_max_bytes",
+          "document_max_pages"
         ],
         "title": "MetaResponse",
         "type": "object"

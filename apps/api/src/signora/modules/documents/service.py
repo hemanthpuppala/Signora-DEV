@@ -65,6 +65,7 @@ class DocumentRow:
     latest_version_id: uuid.UUID
     latest_version_no: int
     latest_status: str
+    latest_created_at: datetime
 
 
 @dataclass(frozen=True)
@@ -104,12 +105,13 @@ _DOCUMENT_SELECT = """
            d.created_at, d.updated_at, d.archived_at,
            c.version_no AS current_version_no, c.source_kind AS current_kind,
            c.page_count AS current_page_count,
-           l.id AS latest_version_id, l.version_no AS latest_version_no, l.status AS latest_status
+           l.id AS latest_version_id, l.version_no AS latest_version_no, l.status AS latest_status,
+           l.created_at AS latest_created_at
     FROM documents d
     JOIN users u ON u.id = d.created_by
     LEFT JOIN document_versions c ON c.id = d.current_version_id
     JOIN LATERAL (
-        SELECT id, version_no, status FROM document_versions
+        SELECT id, version_no, status, created_at FROM document_versions
         WHERE document_id = d.id ORDER BY version_no DESC LIMIT 1
     ) l ON true
     WHERE d.workspace_id = :w
