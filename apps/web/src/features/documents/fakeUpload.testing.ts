@@ -28,7 +28,11 @@ export class FakeUpload {
     this.body = body;
     FakeUpload.sent.push(this);
   }
-  abort() {}
+  aborted = false;
+  abort() {
+    this.aborted = true;
+    this.onabort?.();
+  }
   answer(status: number, body: unknown, headers: Record<string, string> = {}, statusText = "") {
     this.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 1 } as ProgressEvent);
     this.status = status;

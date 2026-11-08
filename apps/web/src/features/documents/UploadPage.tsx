@@ -98,8 +98,11 @@ function uploadFailure(error: unknown, maxBytes: number | undefined): Pick<Row, 
  * earlier ones are still uploading or processing. Each row has its own progress, name,
  * instructions for the AI, duplicate question and, once added, its live processing status.
  */
+const isAbort = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
+
 export function UploadPage({ department }: { department: DepartmentRef }) {
   const departmentId = department.id;
+  const canUpload = department.status !== "archived" && department.access === "edit";
   const queryClient = useQueryClient();
   const limits = useDocumentLimits();
   const { maxBytes } = limits;
@@ -110,10 +113,15 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   }, []);
 
+  // Transfers still running, so cancelling a row or leaving the page stops them.
+  const running = useRef(new Map<string, AbortController>());
+
   // Starts the transfer; its progress and result arrive later, as events.
   const transfer = useCallback(
     (key: string, file: File) => {
-      uploadFile(departmentId, file, (progress) => update(key, { progress }))
+      const controller = new AbortController();
+      running.current.set(key, controller);
+      uploadFile(departmentId, file, (progress) => update(key, { progress }), controller.signal)
         .then((upload) =>
           setRows((current) =>
             current.map((row) =>
@@ -129,22 +137,45 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
             ),
           ),
         )
-        .catch((error: unknown) => update(key, { phase: "failed", ...uploadFailure(error, maxBytes) }));
+        .catch((error: unknown) => {
+          if (!isAbort(error)) update(key, { phase: "failed", ...uploadFailure(error, maxBytes) });
+        })
+        .finally(() => {
+          if (running.current.get(key) === controller) running.current.delete(key);
+        });
     },
     [departmentId, maxBytes, update],
   );
 
-  // Transfers for the handed-over rows, once each (effects may run twice in development).
+  // Transfers for the handed-over rows, once each (effects may run twice in development). Nothing
+  // is sent where the person can't add documents: the page explains that instead.
   const started = useRef(new Set<string>());
   useEffect(() => {
     clearHandOff(departmentId);
+    if (!canUpload) return;
     for (const row of rows) {
       if (row.phase === "uploading" && !started.current.has(row.key)) {
         started.current.add(row.key);
         transfer(row.key, row.file);
       }
     }
-  }, [departmentId, rows, transfer]);
+  }, [canUpload, departmentId, rows, transfer]);
+
+  // Leaving the page stops what is still uploading (a development remount starts it again).
+  useEffect(() => {
+    const transfers = running.current;
+    const startedKeys = started.current;
+    return () => {
+      for (const controller of transfers.values()) controller.abort();
+      transfers.clear();
+      startedKeys.clear();
+    };
+  }, []);
+
+  const remove = (row: Row) => {
+    running.current.get(row.key)?.abort();
+    setRows((current) => current.filter((other) => other.key !== row.key));
+  };
 
   const addFile = (file: File) => {
     const tooLarge = maxBytes !== undefined && file.size > maxBytes;
@@ -216,7 +247,7 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
   const question = rows.find((row) => row.phase === "question");
   const data = department;
   const back = `/departments/${departmentId}`;
-  if (data.status === "archived" || data.access !== "edit") {
+  if (!canUpload) {
     return (
       <Notice action={<LinkButton href={back} variant="quiet">Back</LinkButton>}>
         {data.status === "archived"
@@ -243,7 +274,7 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
                 onChange={(patch) => update(row.key, patch)}
                 onAdd={() => create(row)}
                 onRetry={() => retry(row)}
-                onRemove={() => setRows((current) => current.filter((other) => other.key !== row.key))}
+                onRemove={() => remove(row)}
               />
             ))}
           </ol>
@@ -296,12 +327,15 @@ function UploadRow({
         <span className={styles.meta}>{formatBytes(row.file.size)}</span>
       </div>
       {row.phase === "uploading" ? (
-        <progress
-          className={styles.progress}
-          value={row.progress}
-          max={1}
-          aria-label={`Uploading ${row.file.name}`}
-        />
+        <div className={styles.transfer}>
+          <progress
+            className={styles.progress}
+            value={row.progress}
+            max={1}
+            aria-label={`Uploading ${row.file.name}`}
+          />
+          <TextButton onClick={onRemove}>Cancel</TextButton>
+        </div>
       ) : null}
       {editable ? (
         <form

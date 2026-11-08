@@ -1,7 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { StrictMode, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeQueryClient } from "@/shared/api/QueryProvider";
@@ -182,6 +182,20 @@ describe("documents", () => {
     expect(FakeUpload.sent[0]?.url).toContain("filename=Handed%20over.pdf");
   });
 
+  it("still uploads a handed-over file under development's double mount", async () => {
+    serve({});
+    handOff("d-1", [pdf("Handed over.pdf")]);
+    wrap(
+      <StrictMode>
+        <UploadPage department={FINANCE} />
+      </StrictMode>,
+    );
+    await vi.waitFor(() => expect(FakeUpload.sent.filter((transfer) => !transfer.aborted)).toHaveLength(1));
+    FakeUpload.sent.find((transfer) => !transfer.aborted)?.answer(201, uploaded());
+
+    expect(((await screen.findByLabelText("Name")) as HTMLInputElement).value).toBe("Engagement letter v3");
+  });
+
   it("lets the next file upload while the first is still uploading", async () => {
     serve({});
     wrap(<UploadPage department={FINANCE} />);
@@ -315,10 +329,33 @@ describe("documents", () => {
     expect(((await screen.findByLabelText("Name")) as HTMLInputElement).value).toBe("Client letter");
   });
 
-  it("explains instead of uploading in an archived department", () => {
+  it("explains instead of uploading in an archived department, and sends nothing handed over", async () => {
     serve({});
+    handOff("d-1", [pdf("Handed over.pdf")]);
     wrap(<UploadPage department={{ ...FINANCE, status: "archived" }} />);
     expect(screen.getByText("This department is archived. Restore it to add documents.")).toBeTruthy();
     expect(screen.queryByLabelText(/Drop a PDF or Word file/)).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(FakeUpload.sent).toHaveLength(0);
+  });
+
+  it("stops an upload when its row is cancelled, and every upload when the page is left", async () => {
+    serve({});
+    const { unmount } = render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <UploadPage department={FINANCE} />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await user.upload(await screen.findByLabelText(/Drop a PDF or Word file/), pdf("One.pdf"));
+    await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), pdf("Two.pdf"));
+
+    await user.click(screen.getAllByRole("button", { name: "Cancel" })[0] as HTMLElement);
+    expect(FakeUpload.sent[0]?.aborted).toBe(true);
+    expect(screen.queryByText("One.pdf")).toBeNull();
+    expect(FakeUpload.sent[1]?.aborted).toBe(false);
+
+    unmount();
+    expect(FakeUpload.sent[1]?.aborted).toBe(true);
   });
 });

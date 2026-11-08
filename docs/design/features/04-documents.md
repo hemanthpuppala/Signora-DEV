@@ -449,6 +449,9 @@ words, and consequential actions (make current, archive) ask first.
   that row. The person can drop the next file while earlier rows are still uploading or processing.
 - After "Add document" the row shows the version's status (Processing, then Ready or what needs doing), linking
   to the document page.
+- A row still uploading has **Cancel**, which stops the transfer and drops the row; leaving the page stops every
+  transfer still running. Nothing is sent from a department that is archived or that the person cannot edit: the
+  page explains that instead (review fix, 4.19).
 - *Implementation details:* the duplicate question (§2.3) is asked as soon as that file's upload finishes, so
   nobody types a name for a file they will cancel. When "Upload anyway" meets a taken name, the row's name field
   says so and the person renames it there. Statuses read Processing, Needs password, Scanned pages, Failed and
@@ -568,3 +571,4 @@ holds until something changes), and short polling.
 | 4.16 | Review fix: the too-large message states the configured limit | done | `UploadPage` builds both size refusals (before sending, and the server's or proxy's 413) from `DOCUMENT_MAX_BYTES` via /meta instead of a written "50 MB". Test: with the limit at 20 MB a 413 says "Upload a file of 20 MB or less" (said 50 MB without the fix) |
 | 4.17 | Review fix: uploads map error answers through the shared client rule | done | `shared/api/client.answerError` is the one mapping from an error answer to `ApiError` (with Retry-After) or `NetworkError` (a proxy's bare 502/503/504); `unwrap` and `uploadFile` both use it instead of the upload's own copy. Tests: a proxy's 502 reads "The upload didn't finish. Try again" with Try again (showed "Bad Gateway"), the hourly limit states "Try again in 10 minutes" (showed the raw title); the client's own tests still pass |
 | 4.18 | Review fix: Try again decided by the kind of failure, and offered for an expired upload | done | Upload rows carry `canRetry`, set where the failure is classified (no answer, the hourly limit, a server fault, an expired upload) instead of matching message text. Try again sends the file again with a new idempotency key and keeps a typed name. Test: an upload expired before Add document offers Try again, sends the file again and keeps "Client letter" (no Try again without the fix); a refused file still gets none |
+| 4.19 | Review fix: uploads only where the person can add documents, and they can be stopped | done | Transfers start only when the department is active and editable; each has an AbortController, aborted by the row's new Cancel and when the page is left (a development remount starts them again). Tests: files handed to an archived department send nothing, Cancel aborts that transfer only and leaving aborts the rest (both fail without the fix), and a handed-over file still uploads under StrictMode's double mount |
