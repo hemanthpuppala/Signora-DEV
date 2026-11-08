@@ -473,8 +473,66 @@ holds until something changes), and short polling.
 
 ---
 
+## Functional requirements
+
+| # | Requirement |
+|---|---|
+| FR-DOC1 | People with edit access in a department create documents by uploading one PDF or .docx file; the name is unique per department among active documents. |
+| FR-DOC2 | Each upload is one file; uploads may overlap, and their processing runs in parallel. |
+| FR-DOC3 | The file type comes from the contents; files over 50 MB or 200 pages, damaged PDFs and password-protected .docx files are refused with a message. |
+| FR-DOC4 | The same file twice in a department never becomes a version; the person may add it as a separate document or cancel. |
+| FR-DOC5 | A PDF that needs a password waits until someone with edit access enters it; the password is never stored. |
+| FR-DOC6 | Each version is converted (from .docx), measured, cleaned into a working copy and checked for text; any page without text blocks it as Needs OCR. |
+| FR-DOC7 | Temporary processing failures retry automatically, then offer Try again; permanent ones fail with a message. |
+| FR-DOC8 | Only ready versions are current; the latest ready version becomes current automatically; any ready version can be made current after a confirmation. |
+| FR-DOC9 | Versions never change once stored, enforced by the database. |
+| FR-DOC10 | Everyone in the company views documents in the shared viewer and downloads originals; documents are archived and restored, never deleted. |
+| FR-DOC11 | Statuses update on screen without a reload while something is processing. |
+
+## Non-functional requirements
+
+| # | Requirement | Threshold |
+|---|---|---|
+| NFR-DOC1 | Upload memory | streamed to disk; API memory does not grow with file size (checked with a 50 MB upload) |
+| NFR-DOC2 | Processing time | 200-page text PDF under 30 s; .docx conversion under 60 s |
+| NFR-DOC3 | Viewer | first page visible within 2 s for a 200-page, 50 MB PDF on the live URL (range loading, lazy pages) |
+| NFR-DOC4 | Isolation | every document, version, upload and blob read is scoped to the caller's company; another company's ids answer 404 |
+| NFR-DOC5 | Safety | the working copy has no scripts, embedded files or launch actions; PDF scripting never runs in the viewer; originals only as downloads |
+
+## Decisions (ADRs)
+
+- **ADR-DOC1 — Two-step uploads (topic 2).** Bytes are sent once to `/uploads`, then used to create a document or a
+  version, so the duplicate question and editing while uploading never resend 50 MB. Consequence: an `uploads`
+  table and a cleanup job for unused uploads.
+- **ADR-DOC2 — Working copy beside the original (topic 3).** Viewing, signing and the final PDF use a cleaned working
+  copy; the original is kept byte for byte for integrity and download. Consequence: two blobs per version.
+- **ADR-DOC3 — Polling, not push, for live status (topic 6).** Push would need `LISTEN/NOTIFY`, async streaming and
+  proxy changes for a status that settles in under a minute. Consequence: one hook to replace if push is needed.
+- **ADR-DOC4 — One shared PDF viewer modelled on ScoutBoard (topic 5)**, with lazy page rendering for 200 pages,
+  reused by review (Phase 6) and signing (Phase 8).
+
+## Carried to later phases
+
+- Phase 5: on `document.version_processed`, detect fields and write the name and description once (topic 1); "ready"
+  then means AI processing done (topic 4).
+- Phase 6: field boxes in the viewer's overlay; approval before sending.
+- Phase 7: sends pin a version and copy "Require email code".
+- Phase 8: the signer's PDF endpoint and click-to-sign in the same viewer.
+- Later: OCR for versions marked Needs OCR (all page mixes, `pages_without_text`); text search and thumbnails in the
+  viewer; virus scanning (hardening).
+
 ## Task tracker
 
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-6 recorded |
+| 4.1 | Phase 4 LLD (this file), topics 1-6 | done | topics 1-6 agreed and recorded |
+| 4.2 | Rename `files.*` permissions to `documents.*` (data migration), screen text | todo | — |
+| 4.3 | Uploads: streaming to the blob store, type check, size limit, rate limit, `uploads` table, cleanup job | todo | — |
+| 4.4 | Documents and versions: schema, create with an upload, add a version, numbering, duplicate rule, rename, description, email code, archive and restore, audit | todo | — |
+| 4.5 | Processing job: Gotenberg conversion, PyMuPDF checks, working copy, text check, statuses, retries, Try again, unlock | todo | — |
+| 4.6 | Current version rules, make current, immutability trigger | todo | — |
+| 4.7 | Serving: working copy inline with ranges, original as download | todo | — |
+| 4.8 | Web: shared `PdfViewer` (pdf.js, overlay slot, zoom, lazy pages) | todo | — |
+| 4.9 | Web: documents on the department page, upload page, new-department dropzone, polling hook | todo | — |
+| 4.10 | Web: document page (viewer, versions, password, Try again, make current, new version, archive) | todo | — |
+| 4.11 | Deploy and live end-to-end check | todo | — |
