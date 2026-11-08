@@ -127,7 +127,7 @@ describe("departments screens", () => {
 
     expect(await screen.findByText(/Archived on .*Restore it to make changes\./)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Restore" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Department settings" })).toBeNull();
     expect(screen.getByText("No files yet.")).toBeTruthy();
   });
 
@@ -136,7 +136,7 @@ describe("departments screens", () => {
     wrap(<DepartmentPage me={me([])} id="d-1" />);
 
     expect(await screen.findByRole("heading", { name: "Finance" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Department settings" })).toBeNull();
   });
 
   it("says when a department does not exist", async () => {

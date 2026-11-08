@@ -57,7 +57,7 @@ export function DepartmentPage({ me, id }: { me: Me; id: string }) {
         actions={
           manages && !archived ? (
             <LinkButton href={`/departments/${id}/settings`} variant="quiet">
-              Settings
+              Department settings
             </LinkButton>
           ) : null
         }
