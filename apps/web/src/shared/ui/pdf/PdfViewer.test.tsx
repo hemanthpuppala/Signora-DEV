@@ -77,6 +77,15 @@ describe("PdfViewer", () => {
     expect(screen.getByText("field on 2 at 1")).toBeTruthy();
   });
 
+  it("opens nothing when it is left before pdf.js has arrived", async () => {
+    loads();
+    const { unmount } = render(<PdfViewer url="/x.pdf" pages={[A4]} label="Letter" />);
+    unmount(); // pdf.js is imported on first use, so it has not arrived yet
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(getDocument).not.toHaveBeenCalled();
+  });
+
   it("says so when the document cannot be shown", async () => {
     loads(false);
     render(<PdfViewer url="/x.pdf" pages={[A4]} label="Letter" />);

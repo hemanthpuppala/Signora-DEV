@@ -98,6 +98,8 @@ export function PdfViewer({ url, pages, label, renderOverlay }: PdfViewerProps) 
     let task: PDFDocumentLoadingTask | null = null;
     import("pdfjs-dist")
       .then((pdfjs) => {
+        // Left (or switched files) before pdf.js arrived: open nothing, so nothing is left open.
+        if (cancelled) return null;
         const base = `/pdfjs/${pdfjs.version}`;
         pdfjs.GlobalWorkerOptions.workerSrc = `${base}/pdf.worker.min.mjs`;
         task = pdfjs.getDocument({
@@ -113,7 +115,7 @@ export function PdfViewer({ url, pages, label, renderOverlay }: PdfViewerProps) 
         return task.promise;
       })
       .then((opened) => {
-        if (!cancelled) setLoaded({ url, document: opened });
+        if (opened && !cancelled) setLoaded({ url, document: opened });
       })
       .catch(() => {
         if (!cancelled) setFailedUrl(url);
