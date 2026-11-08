@@ -160,6 +160,7 @@ allowed_importers = ["signora.modules.identity_access", "signora.models", "signo
 name = "Public interface only: departments internals are imported only by departments and composition roots"
 type = "protected"
 protected_modules = [
+    "signora.modules.departments.access",
     "signora.modules.departments.domain",
     "signora.modules.departments.errors",
     "signora.modules.departments.models",

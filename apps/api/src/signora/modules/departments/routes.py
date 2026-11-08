@@ -12,7 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from signora.kernel.db import Database
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
+from signora.modules.departments import access as grants
 from signora.modules.departments import service
+from signora.modules.departments.access import DepartmentAccess, GrantRow, load_access
 from signora.modules.identity_access import Actor, Permission, current_actor, require
 
 router = APIRouter(prefix="/api/v1/departments", tags=["departments"])
@@ -77,6 +79,7 @@ class DepartmentSummary(BaseModel):
     status: Literal["active", "archived"]
     created_at: datetime
     counts: Counts  # counts of sends; zeros until sends exist (Phase 7)
+    access: Literal["edit", "read"]  # the caller's access in this department (topic 2)
 
 
 class Department(DepartmentSummary):
@@ -86,7 +89,7 @@ class Department(DepartmentSummary):
     settings: DepartmentSettings
 
 
-def summary(row: service.DepartmentRow) -> DepartmentSummary:
+def summary(row: service.DepartmentRow, rights: DepartmentAccess) -> DepartmentSummary:
     return DepartmentSummary(
         id=row.id,
         name=row.name,
@@ -94,12 +97,13 @@ def summary(row: service.DepartmentRow) -> DepartmentSummary:
         status=row.status,
         created_at=row.created_at,
         counts=Counts(),
+        access=rights.level(row.id),
     )
 
 
-def detail(row: service.DepartmentRow) -> Department:
+def detail(row: service.DepartmentRow, rights: DepartmentAccess) -> Department:
     return Department(
-        **summary(row).model_dump(),
+        **summary(row, rights).model_dump(),
         updated_at=row.updated_at,
         archived_at=row.archived_at,
         created_by=PersonRef(id=row.created_by_id, name=row.created_by_name),
@@ -136,7 +140,8 @@ def list_departments(
 ) -> list[DepartmentSummary]:
     with _db(request).unit_of_work() as uow:
         rows = service.list_departments(uow.session, actor.workspace_id, status_filter)
-    return [summary(row) for row in rows]
+        rights = load_access(uow.session, actor)
+    return [summary(row, rights) for row in rows]
 
 
 @router.post(
@@ -162,13 +167,15 @@ def create_department(
             defaults=company_defaults(request),
             overrides=body.settings.change() if body.settings else None,
         )
-        return guard.finish(uow, status.HTTP_201_CREATED, detail(row).model_dump(mode="json"))
+        created = detail(row, load_access(uow.session, actor)).model_dump(mode="json")
+        return guard.finish(uow, status.HTTP_201_CREATED, created)
 
 
 @router.get("/{department_id}", summary="One department")
 def get_department(department_id: uuid.UUID, request: Request, actor: Member) -> Department:
     with _db(request).unit_of_work() as uow:
-        return detail(service.get_department(uow.session, actor.workspace_id, department_id))
+        row = service.get_department(uow.session, actor.workspace_id, department_id)
+        return detail(row, load_access(uow.session, actor))
 
 
 @router.patch("/{department_id}", summary="Rename or describe a department")
@@ -184,16 +191,64 @@ def update_department(
             description=body.description,
             settings=body.settings.change() if body.settings else None,
         )
-    return detail(row)
+        return detail(row, load_access(uow.session, actor))
 
 
 @router.post("/{department_id}/archive", summary="Archive a department (repeat-safe)")
 def archive_department(department_id: uuid.UUID, request: Request, actor: Manager) -> Department:
     with _db(request).unit_of_work() as uow:
-        return detail(service.archive_department(uow, actor=actor, department_id=department_id))
+        row = service.archive_department(uow, actor=actor, department_id=department_id)
+        return detail(row, load_access(uow.session, actor))
 
 
 @router.post("/{department_id}/restore", summary="Restore an archived department (repeat-safe)")
 def restore_department(department_id: uuid.UUID, request: Request, actor: Manager) -> Department:
     with _db(request).unit_of_work() as uow:
-        return detail(service.restore_department(uow, actor=actor, department_id=department_id))
+        row = service.restore_department(uow, actor=actor, department_id=department_id)
+        return detail(row, load_access(uow.session, actor))
+
+
+class GrantsInput(_Body):
+    user_ids: Annotated[list[uuid.UUID], Field(max_length=1000)]
+
+
+class Grant(BaseModel):
+    user: PersonRef
+    email: str
+    granted_by: PersonRef
+    created_at: datetime
+
+
+def grant_views(rows: list[GrantRow]) -> list[Grant]:
+    return [
+        Grant(
+            user=PersonRef(id=row.user_id, name=row.user_name),
+            email=row.user_email,
+            granted_by=PersonRef(id=row.granted_by_id, name=row.granted_by_name),
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
+
+
+PeopleManager = Annotated[Actor, Depends(require(Permission.MEMBERS_MANAGE))]
+
+
+@router.get("/{department_id}/grants", summary="People with edit access in this department")
+def list_grants(department_id: uuid.UUID, request: Request, actor: PeopleManager) -> list[Grant]:
+    with _db(request).unit_of_work() as uow:
+        return grant_views(grants.list_grants(uow.session, actor.workspace_id, department_id))
+
+
+@router.put(
+    "/{department_id}/grants",
+    summary="Replace who has edit access in this department (repeat-safe)",
+)
+def set_grants(
+    department_id: uuid.UUID, body: GrantsInput, request: Request, actor: PeopleManager
+) -> list[Grant]:
+    with _db(request).unit_of_work() as uow:
+        rows = grants.set_grants(
+            uow, actor=actor, department_id=department_id, user_ids=body.user_ids
+        )
+    return grant_views(rows)

@@ -138,6 +138,14 @@
       },
       "Department": {
         "properties": {
+          "access": {
+            "enum": [
+              "edit",
+              "read"
+            ],
+            "title": "Access",
+            "type": "string"
+          },
           "archived_at": {
             "anyOf": [
               {
@@ -198,6 +206,7 @@
           "status",
           "created_at",
           "counts",
+          "access",
           "updated_at",
           "archived_at",
           "created_by",
@@ -239,6 +248,14 @@
       },
       "DepartmentSummary": {
         "properties": {
+          "access": {
+            "enum": [
+              "edit",
+              "read"
+            ],
+            "title": "Access",
+            "type": "string"
+          },
           "counts": {
             "$ref": "#/components/schemas/Counts"
           },
@@ -275,7 +292,8 @@
           "description",
           "status",
           "created_at",
-          "counts"
+          "counts",
+          "access"
         ],
         "title": "DepartmentSummary",
         "type": "object"
@@ -334,6 +352,52 @@
           "email"
         ],
         "title": "EmailResponse",
+        "type": "object"
+      },
+      "Grant": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "granted_by": {
+            "$ref": "#/components/schemas/PersonRef"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PersonRef"
+          }
+        },
+        "required": [
+          "user",
+          "email",
+          "granted_by",
+          "created_at"
+        ],
+        "title": "Grant",
+        "type": "object"
+      },
+      "GrantsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "user_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "user_ids"
+        ],
+        "title": "GrantsInput",
         "type": "object"
       },
       "InviteDetailsView": {
@@ -2051,6 +2115,178 @@
           }
         },
         "summary": "Archive a department (repeat-safe)",
+        "tags": [
+          "departments"
+        ]
+      }
+    },
+    "/api/v1/departments/{department_id}/grants": {
+      "get": {
+        "operationId": "list_grants_api_v1_departments__department_id__grants_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "department_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Department Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Grant"
+                  },
+                  "title": "Response List Grants Api V1 Departments  Department Id  Grants Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "People with edit access in this department",
+        "tags": [
+          "departments"
+        ]
+      },
+      "put": {
+        "operationId": "set_grants_api_v1_departments__department_id__grants_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "department_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Department Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantsInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Grant"
+                  },
+                  "title": "Response Set Grants Api V1 Departments  Department Id  Grants Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Replace who has edit access in this department (repeat-safe)",
         "tags": [
           "departments"
         ]

@@ -7,6 +7,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Table,
@@ -55,4 +56,20 @@ departments = Table(
         postgresql_where=text("archived_at IS NULL"),
     ),
     Index("ix_departments_workspace_created", "workspace_id", text("created_at DESC")),
+)
+
+# Edit access in one department (topic 2): only raises access, never lowers it.
+department_grants = Table(
+    "department_grants",
+    metadata,
+    Column("department_id", UUID(as_uuid=True), primary_key=True),
+    Column("workspace_id", UUID(as_uuid=True), nullable=False),
+    Column("user_id", UUID(as_uuid=True), primary_key=True),
+    Column("granted_by", UUID(as_uuid=True), ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    ForeignKeyConstraint(
+        ["department_id", "workspace_id"], ["departments.id", "departments.workspace_id"]
+    ),
+    ForeignKeyConstraint(["user_id", "workspace_id"], ["users.id", "users.workspace_id"]),
+    Index("ix_department_grants_user_id", "user_id"),
 )

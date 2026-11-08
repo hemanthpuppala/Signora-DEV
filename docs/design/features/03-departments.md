@@ -196,7 +196,10 @@ has no effect.
 | `PUT /departments/{id}/grants` | `members.manage` | `{user_ids: [...]}` (the full list) | `200` the new list; `422` for a user not in the company; `409 department-archived` |
 
 `PUT` replaces the list in one transaction (idempotent by nature: the same list twice gives the same state), so no
-`Idempotency-Key`. `/me` gains `department_grants: [department ids]` so the interface can show or hide actions.
+`Idempotency-Key`. Each department in the list and detail responses carries the caller's `access: "edit" | "read"`
+so the interface can show or hide actions. (Implementation change: the design first put a grant list on `/me`, but
+`/me` belongs to the identity module, which must not depend on departments; the per-department field is also what
+the screens need.)
 
 Audit (company chain): `department.access_granted` and `department.access_revoked`, one entry per person changed.
 
@@ -439,7 +442,7 @@ building blocks (`Section`, `FieldGrid`, `FieldAction`, `ActionCell`).
 | 3.2 | Permissions `departments.create`, `departments.manage`, `files.view_sends`, `files.send`; Editor role data migration; `users (id, workspace_id)` key | done | migration 0006 (only Editor roles still on their default permissions are extended); default-role, `/me` and roles tests updated; contract regenerated |
 | 3.3 | `departments` module: schema (migration 0007), create, list, get, update, archive, restore, audit | done | 13 tests: normalised names, length checks, unique per company ignoring case among active (archived frees it; other companies independent), two simultaneous creations give 201 and 409, sorted lists by status, update audited with old/new, archived refuses changes, archive/restore repeat-safe and audited once, restore onto a taken name 409, Viewer reads only and Editor manages, another company's id 404 everywhere, creation replays with its key |
 | 3.4 | Department settings (validation, defaults copied at creation) | done | migration 0008; 15 tests: company defaults copied at creation, creation overrides, later default changes leave existing departments alone, every range enforced by the API (both ends) and the database, notify emails normalised/merged/capped with indexed field errors, changes audited with old and new, Viewers refused. `DEFAULT_MAX_REMINDERS` now capped at 20 to match |
-| 3.5 | Department grants: table, API, `can(actor, permission, department)`, `/me` grants | todo | — |
+| 3.5 | Department grants: table, API, `can(actor, permission, department)`, `/me` grants | done | migration 0009; `DepartmentAccess.can/level/require` in the public interface; 6 tests: a grant gives edit in that department only and never `departments.manage`, each department reports the caller's access (Viewer with grant, Editor, Owner), replacing the list adds/removes exactly the difference with one audit entry each and repeats safely, only people managers read or change grants, inactive/unknown/other-company people refused with indexed field errors, archived department 409 and foreign department 404. Deviation: per-department `access` field instead of `/me` grants (see §2.5) |
 | 3.6 | Countersigners: table, API, member-removal hook | todo | — |
 | 3.7 | Contracts; web: departments home, new department, department page, archived banner | todo | — |
 | 3.8 | Web: department settings (about, timing, notify, countersigners, edit access, archive) | todo | — |

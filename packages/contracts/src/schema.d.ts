@@ -208,6 +208,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/departments/{department_id}/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** People with edit access in this department */
+        get: operations["list_grants_api_v1_departments__department_id__grants_get"];
+        /** Replace who has edit access in this department (repeat-safe) */
+        put: operations["set_grants_api_v1_departments__department_id__grants_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/departments/{department_id}/restore": {
         parameters: {
             query?: never;
@@ -551,6 +569,11 @@ export interface components {
         };
         /** Department */
         Department: {
+            /**
+             * Access
+             * @enum {string}
+             */
+            access: "edit" | "read";
             /** Archived At */
             archived_at: string | null;
             counts: components["schemas"]["Counts"];
@@ -594,6 +617,11 @@ export interface components {
         };
         /** DepartmentSummary */
         DepartmentSummary: {
+            /**
+             * Access
+             * @enum {string}
+             */
+            access: "edit" | "read";
             counts: components["schemas"]["Counts"];
             /**
              * Created At
@@ -641,6 +669,23 @@ export interface components {
         EmailResponse: {
             /** Email */
             email: string;
+        };
+        /** Grant */
+        Grant: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email: string;
+            granted_by: components["schemas"]["PersonRef"];
+            user: components["schemas"]["PersonRef"];
+        };
+        /** GrantsInput */
+        GrantsInput: {
+            /** User Ids */
+            user_ids: string[];
         };
         /** InviteDetailsView */
         InviteDetailsView: {
@@ -1582,6 +1627,114 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Department"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    list_grants_api_v1_departments__department_id__grants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                department_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    set_grants_api_v1_departments__department_id__grants_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                department_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantsInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
                 };
             };
             /** @description Validation failed (problem details) */
