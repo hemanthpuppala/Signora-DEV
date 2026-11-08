@@ -7,7 +7,7 @@ import { api, unwrap } from "@/shared/api/client";
 import { formError } from "@/shared/api/errors";
 import { Button, Dialog, Notice, StatusPill, TextButton } from "@/shared/ui";
 
-import { documentKey, formatBytes, type DocumentDetail, type Version } from "./api";
+import { documentKey, formatBytes, hasWorkingCopy, type DocumentDetail, type Version } from "./api";
 import styles from "./document.module.css";
 import { VERSION_STATUS } from "./status";
 
@@ -60,7 +60,7 @@ export function Versions({
               </span>
               <span className={styles.detail}>{`${version.uploaded_by.name} · ${dateTime(version.created_at)}`}</span>
               <div className={styles.links}>
-                {version.status === "processed" && version.id !== viewing ? (
+                {hasWorkingCopy(version.status) && version.id !== viewing ? (
                   <TextButton onClick={() => onOpen(version.id)}>Open</TextButton>
                 ) : null}
                 <a
@@ -70,7 +70,7 @@ export function Versions({
                 >
                   Download original
                 </a>
-                {canEdit && version.status === "processed" && !version.is_current ? (
+                {canEdit && version.status === "ready" && !version.is_current ? (
                   <TextButton onClick={() => setConfirming(version)}>Make current</TextButton>
                 ) : null}
               </div>

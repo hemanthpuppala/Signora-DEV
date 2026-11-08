@@ -62,3 +62,8 @@ class WrongPassword(DomainError):
 class VersionNotReady(Conflict):
     code = "version-not-ready"
     title = "Only a ready version can be made current"
+
+
+class VersionNotProcessed(Conflict):
+    code = "version-not-processed"
+    title = "Fields can be found once processing has finished"

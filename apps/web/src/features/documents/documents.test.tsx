@@ -29,7 +29,7 @@ const summary = (overrides: Record<string, unknown> = {}) => ({
   kind: "pdf",
   page_count: 7,
   current_version: { id: "v-1", number: 2 },
-  latest_version: { id: "v-1", number: 2, status: "processed", created_at: "2026-11-07T10:00:00Z" },
+  latest_version: { id: "v-1", number: 2, status: "ready", created_at: "2026-11-07T10:00:00Z" },
   updated_at: "2026-11-07T10:00:00Z",
   archived_at: null,
   ...overrides,

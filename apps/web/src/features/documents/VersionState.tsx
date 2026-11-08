@@ -35,6 +35,9 @@ export function VersionState({
   if (version.status === "processing") {
     return <Notice title={label}>Processing… This page updates by itself.</Notice>;
   }
+  if (version.status === "detecting") {
+    return <Notice title={label}>Finding fields… This page updates by itself.</Notice>;
+  }
   if (version.status === "needs_password") {
     return (
       <Notice title={label}>

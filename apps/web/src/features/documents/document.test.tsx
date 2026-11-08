@@ -22,7 +22,7 @@ const A4 = { width: 595, height: 842, rotation: 0 };
 const version = (number: number, overrides: Record<string, unknown> = {}) => ({
   id: `v-${number}`,
   number,
-  status: "processed",
+  status: "ready",
   problem: null,
   kind: "pdf",
   filename: `Letter v${number}.pdf`,
@@ -45,7 +45,7 @@ const documentWith = (versions: unknown[], overrides: Record<string, unknown> = 
   kind: "pdf",
   page_count: 2,
   current_version: { id: "v-2", number: 2 },
-  latest_version: { id: "v-2", number: 2, status: "processed", created_at: "2026-11-07T10:00:00Z" },
+  latest_version: { id: "v-2", number: 2, status: "ready", created_at: "2026-11-07T10:00:00Z" },
   updated_at: "2026-11-07T10:00:00Z",
   archived_at: null,
   department_id: "d-1",

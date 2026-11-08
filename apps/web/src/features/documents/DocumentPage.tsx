@@ -23,7 +23,7 @@ import {
   TextField,
 } from "@/shared/ui";
 
-import { documentKey, useDocument, type DocumentDetail } from "./api";
+import { documentKey, hasWorkingCopy, useDocument, type DocumentDetail } from "./api";
 import styles from "./document.module.css";
 import { NewVersion } from "./NewVersion";
 import { Versions } from "./Versions";
@@ -77,7 +77,7 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
   const canEdit = data.access === "edit" && !archived;
   const newest = data.versions[0];
   const shownId = viewing ?? data.current_version?.id ?? null;
-  const shown = data.versions.find((version) => version.id === shownId && version.status === "processed");
+  const shown = data.versions.find((version) => version.id === shownId && hasWorkingCopy(version.status));
   const back = `/departments/${departmentId}`;
 
   return (
@@ -117,7 +117,7 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
       ) : null}
       <div className={styles.layout}>
         <div className={styles.main}>
-          {newest && newest.status !== "processed" ? (
+          {newest && newest.status !== "ready" ? (
             <VersionState document={data} version={newest} canEdit={canEdit} />
           ) : null}
           {shown ? (

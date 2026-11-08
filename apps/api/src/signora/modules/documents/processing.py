@@ -24,7 +24,6 @@ from signora.kernel.jobs import JobContext, JsonDict, enqueue
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.documents.conversion import ConversionRefusedError, docx_to_pdf
-from signora.modules.documents.current import promote_if_newest
 from signora.modules.documents.pdf import (
     DamagedPdfError,
     PasswordRequiredError,
@@ -39,10 +38,22 @@ LEASE = timedelta(minutes=3)  # renewed while running; a conversion may wait 120
 
 
 class DocumentVersionProcessed(DomainEvent):
-    """A version is ready for field detection (Phase 5 subscribes)."""
+    """A version's working copy exists and it waits for field detection (Phase 5 subscribes).
+    Published again by Try again after a detection failure, so detection resumes."""
 
     document_id: uuid.UUID
     version_id: uuid.UUID
+
+
+def publish_processed(
+    session: Session, workspace_id: uuid.UUID, document_id: uuid.UUID, version_id: uuid.UUID
+) -> None:
+    bus.publish(
+        session,
+        DocumentVersionProcessed(
+            workspace_id=workspace_id, document_id=document_id, version_id=version_id
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -142,7 +153,8 @@ def _needs_password(context: JobContext, work: _Work) -> None:
 
 def _done(context: JobContext, work: _Work, prepared: Prepared, store: BlobStore) -> None:
     ref = store.put(work.workspace_id, BytesIO(prepared.pdf), max_bytes=len(prepared.pdf))
-    status = "needs_ocr" if prepared.pages_without_text else "processed"
+    # Processed: detection finds its fields next (Phase 5); a scanned page stops it here.
+    status = "needs_ocr" if prepared.pages_without_text else "detecting"
     with context.complete() as uow:
         changed = uow.session.execute(
             text(
@@ -162,24 +174,9 @@ def _done(context: JobContext, work: _Work, prepared: Prepared, store: BlobStore
         ).one_or_none()
         if changed is None:
             return
-        if status == "processed":
-            # Ready in this phase means processed; Phase 5 moves this to "AI processing done".
-            promotion = promote_if_newest(uow.session, work.document_id, work.id, work.version_no)
-            if promotion.promoted:
-                _audit(
-                    uow,
-                    work,
-                    "document.current_version_changed",
-                    old=promotion.previous,
-                    new=work.version_no,
-                    automatic=True,
-                )
-            bus.publish(
-                uow.session,
-                DocumentVersionProcessed(
-                    workspace_id=work.workspace_id, document_id=work.document_id, version_id=work.id
-                ),
-            )
+        if status == "detecting":
+            # Ready, and current when newest, once detection has finished (lifecycle.py).
+            publish_processed(uow.session, work.workspace_id, work.document_id, work.id)
 
 
 def process_version(

@@ -24,7 +24,13 @@ from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, load_access, normalize_name, require_active
 from signora.modules.documents.current import current_number, set_current
-from signora.modules.documents.domain import AI_INSTRUCTIONS_MAX, DESCRIPTION_MAX, NAME_MAX, Kind
+from signora.modules.documents.domain import (
+    AI_INSTRUCTIONS_MAX,
+    DESCRIPTION_MAX,
+    DETECTION_FAILURE_CODES,
+    NAME_MAX,
+    Kind,
+)
 from signora.modules.documents.errors import (
     CannotRetry,
     DocumentArchived,
@@ -37,7 +43,7 @@ from signora.modules.documents.errors import (
     WrongPassword,
 )
 from signora.modules.documents.pdf import unlock
-from signora.modules.documents.processing import enqueue_processing
+from signora.modules.documents.processing import enqueue_processing, publish_processed
 from signora.modules.identity_access import Actor, Permission
 
 ACTIVE_NAME_INDEX = "uq_documents_active_name"
@@ -66,6 +72,7 @@ class DocumentRow:
     latest_version_no: int
     latest_status: str
     latest_created_at: datetime
+    latest_field_count: int | None
 
 
 @dataclass(frozen=True)
@@ -90,6 +97,7 @@ class VersionRow:
     uploaded_by_name: str
     created_at: datetime
     processed_at: datetime | None
+    field_count: int | None
 
 
 @dataclass(frozen=True)
@@ -107,12 +115,12 @@ _DOCUMENT_SELECT = """
            c.version_no AS current_version_no, c.source_kind AS current_kind,
            c.page_count AS current_page_count,
            l.id AS latest_version_id, l.version_no AS latest_version_no, l.status AS latest_status,
-           l.created_at AS latest_created_at
+           l.created_at AS latest_created_at, l.field_count AS latest_field_count
     FROM documents d
     JOIN users u ON u.id = d.created_by
     LEFT JOIN document_versions c ON c.id = d.current_version_id
     JOIN LATERAL (
-        SELECT id, version_no, status, created_at FROM document_versions
+        SELECT id, version_no, status, created_at, field_count FROM document_versions
         WHERE document_id = d.id ORDER BY version_no DESC LIMIT 1
     ) l ON true
     WHERE d.workspace_id = :w
@@ -123,7 +131,7 @@ _VERSION_SELECT = """
            v.source_kind, v.source_filename, v.source_bytes, v.source_sha256, v.pdf_sha256,
            v.pdf_bytes, v.page_count, v.pages, v.pages_without_text, v.ai_instructions,
            v.uploaded_by AS uploaded_by_id, u.name AS uploaded_by_name, v.created_at,
-           v.processed_at
+           v.processed_at, v.field_count
     FROM document_versions v JOIN users u ON u.id = v.uploaded_by
     WHERE v.workspace_id = :w
 """
@@ -492,7 +500,7 @@ def restore_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -
     return get_document(session, actor.workspace_id, document_id)
 
 
-def _changeable_version(
+def changeable_version(
     session: Session, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> VersionRow:
     document = _lock_document(session, actor, document_id)
@@ -504,13 +512,25 @@ def _changeable_version(
 def retry_version(
     uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> None:
-    """ "Try again" after a passing failure outlasted its retries (§3.4). Repeat-safe."""
+    """ "Try again" after a passing failure outlasted its retries (§3.4). Repeat-safe. A detection
+    failure goes back to detecting and detection resumes where it stopped (Phase 5 §1.2)."""
     session = uow.session
-    version = _changeable_version(session, actor, document_id, version_id)
-    if version.status == "processing":
+    version = changeable_version(session, actor, document_id, version_id)
+    if version.status in ("processing", "detecting"):
         return
     if version.status != "failed" or not version.failure_temporary:
         raise CannotRetry
+    if version.failure_code in DETECTION_FAILURE_CODES:
+        session.execute(
+            text(
+                "UPDATE document_versions SET status = 'detecting', failure_code = NULL, "
+                "failure_temporary = false WHERE id = :id"
+            ),
+            {"id": version_id},
+        )
+        publish_processed(session, actor.workspace_id, document_id, version_id)
+        audit(uow, actor, "document.version_retried", document_id, version_no=version.version_no)
+        return
     session.execute(
         text(
             "UPDATE document_versions SET status = 'processing', failure_code = NULL, "
@@ -535,7 +555,7 @@ def unlock_version(
     """Open a password-protected PDF (§2.6). The password is tried once and never stored, logged
     or audited; an unlocked copy becomes the source processing continues from."""
     session = uow.session
-    version = _changeable_version(session, actor, document_id, version_id)
+    version = changeable_version(session, actor, document_id, version_id)
     if version.status != "needs_password":
         raise NotLocked
     key = f"documents.unlock:{version_id}"
@@ -565,8 +585,8 @@ def make_current(
     """A person chooses which ready version new sends use (§4.2; the screen asks first).
     Repeat-safe. A later upload that becomes ready takes over again."""
     session = uow.session
-    version = _changeable_version(session, actor, document_id, version_id)
-    if version.status != "processed":
+    version = changeable_version(session, actor, document_id, version_id)
+    if version.status != "ready":
         raise VersionNotReady
     previous = current_number(session, document_id)
     if previous == version.version_no:

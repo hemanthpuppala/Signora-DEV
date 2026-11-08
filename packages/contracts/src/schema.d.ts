@@ -1117,6 +1117,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Field Count */
+            field_count: number | null;
             /**
              * Id
              * Format: uuid
@@ -1128,7 +1130,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "processed";
+            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready";
         };
         /** LoginRequest */
         LoginRequest: {
@@ -1442,6 +1444,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Field Count */
+            field_count: number | null;
             /** Filename */
             filename: string;
             /**
@@ -1471,7 +1475,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "processed";
+            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready";
             uploaded_by: components["schemas"]["PersonRef"];
         };
         /** WorkspaceView */
