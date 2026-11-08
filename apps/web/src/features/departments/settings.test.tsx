@@ -60,6 +60,7 @@ describe("department settings", () => {
       const body = req.method === "GET" ? undefined : await req.clone().json().catch(() => undefined);
       sent.push({ method: req.method, path, body });
       if (path.endsWith("/directory")) return reply(200, people);
+      if (path.endsWith("/grants/candidates")) return reply(200, [people[1]]);
       if (path.endsWith("/grants")) return reply(200, []);
       if (path.endsWith("/countersigners")) return reply(200, []);
       if (path.endsWith("/archive")) return reply(200, { ...current, status: "archived" });
@@ -155,5 +156,16 @@ describe("department settings", () => {
     open(EDITOR);
     expect(await screen.findByText("Restore this department to change its settings.")).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Timing" })).toBeNull();
+  });
+
+  it("offers only people a grant would help when giving edit access", async () => {
+    serve(department());
+    open(OWNER);
+    const section = await screen.findByRole("region", { name: "People with edit access" });
+
+    await userEvent.setup().click(within(section).getByRole("combobox", { name: "Add a person" }));
+
+    const options = await screen.findAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual(["Ben Ito · ben@firm.com"]);
   });
 });

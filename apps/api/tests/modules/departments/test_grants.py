@@ -211,3 +211,20 @@ def test_grants_on_an_archived_or_foreign_department_are_refused(
         foreign = create(theirs, "Theirs")
     assert owner.get(f"{URL}/{foreign['id']}/grants").status_code == 404
     assert put_grants(owner, foreign["id"], []).status_code == 404
+
+
+def test_candidates_leave_out_people_who_already_edit_everywhere(
+    owner: TestClient, company: Account, add_member: Callable[..., Account]
+) -> None:
+    department = create(owner, "Finance")
+    viewer = add_member(company, role="read")
+    editor = add_member(company, role="read_write")
+
+    candidates = owner.get(f"{URL}/{department['id']}/grants/candidates").json()
+
+    assert [c["id"] for c in candidates] == [str(viewer.user_id)]  # not the creator, not editors
+    refused = put_grants(owner, department["id"], [company.user_id, editor.user_id])
+    assert refused.status_code == 422
+    assert {e["message"] for e in refused.json()["errors"]} == {
+        "Already has edit access through their role"
+    }

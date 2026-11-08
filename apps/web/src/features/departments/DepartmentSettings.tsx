@@ -56,10 +56,22 @@ export function DepartmentSettings({ me, id }: { me: Me; id: string }) {
       <AboutForm department={data} />
       <TimingForm department={data} />
       <NotifyForm department={data} />
-      <PeopleList
+      <Countersigners department={data} />
+      {can(me, "members.manage") ? <EditAccess departmentId={id} /> : null}
+      <ArchiveSection departmentId={id} />
+    </>
+  );
+}
+
+function Countersigners({ department }: { department: Department }) {
+  const directory = useDirectory();
+  const id = department.id;
+  return (
+    <PeopleList
         title="Countersigners"
         empty="No countersigner. Choose one."
-        initial={data.countersigners}
+        initial={department.countersigners}
+        candidates={directory.data}
         ordered
         departmentId={id}
         save={(ids) =>
@@ -72,9 +84,6 @@ export function DepartmentSettings({ me, id }: { me: Me; id: string }) {
         }
         saved="Countersigners saved"
       />
-      {can(me, "members.manage") ? <EditAccess departmentId={id} /> : null}
-      <ArchiveSection departmentId={id} />
-    </>
   );
 }
 
@@ -235,11 +244,12 @@ function useDirectory() {
   });
 }
 
-/** An editable list of people: add from the colleague directory, remove, and (if ordered) move. */
+/** An editable list of people: add from ``candidates``, remove, and (if ordered) move. */
 function PeopleList({
   title,
   empty,
   initial,
+  candidates,
   ordered,
   departmentId,
   save,
@@ -248,6 +258,8 @@ function PeopleList({
   title: string;
   empty: string;
   initial: Person[];
+  /** Who may be added (the server decides; e.g. edit access excludes people who edit everywhere). */
+  candidates: Person[] | undefined;
   ordered: boolean;
   departmentId: string;
   save: (ids: string[]) => Promise<unknown>;
@@ -255,7 +267,6 @@ function PeopleList({
 }) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const directory = useDirectory();
   const [people, setPeople] = useState<Person[]>(initial);
   const [adding, setAdding] = useState<string | null>(null);
   const mutation = useMutation({
@@ -265,11 +276,11 @@ function PeopleList({
       toast.show(saved);
     },
   });
-  const options = (directory.data ?? [])
+  const options = (candidates ?? [])
     .filter((person) => !people.some((p) => p.id === person.id))
     .map((person) => ({ value: person.id, label: `${person.name} · ${person.email}` }));
   const add = () => {
-    const person = directory.data?.find((p) => p.id === adding);
+    const person = candidates?.find((p) => p.id === adding);
     if (person) setPeople((list) => [...list, person]);
     setAdding(null);
   };
@@ -355,12 +366,22 @@ function EditAccess({ departmentId }: { departmentId: string }) {
         }),
       ),
   });
+  const candidates = useQuery({
+    queryKey: ["grant-candidates", departmentId],
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/departments/{department_id}/grants/candidates", {
+          params: { path: { department_id: departmentId } },
+        }),
+      ),
+  });
   if (!grants.data) return null;
   return (
     <PeopleList
       title="People with edit access"
       empty="Only owners and editors can edit here."
       initial={grants.data.map((grant) => ({ id: grant.user.id, name: grant.user.name, email: grant.email }))}
+      candidates={candidates.data}
       ordered={false}
       departmentId={departmentId}
       save={(ids) =>

@@ -275,6 +275,18 @@ def list_grants(department_id: uuid.UUID, request: Request, actor: PeopleManager
         return grant_views(grants.list_grants(uow.session, actor.workspace_id, department_id))
 
 
+@router.get(
+    "/{department_id}/grants/candidates",
+    summary="Members a grant would help: not the creator, not roles that edit everywhere",
+)
+def list_grant_candidates(
+    department_id: uuid.UUID, request: Request, actor: PeopleManager
+) -> list[CountersignerView]:
+    with _db(request).unit_of_work() as uow:
+        people = grants.grant_candidates(uow.session, actor.workspace_id, department_id)
+    return [CountersignerView(id=p.id, name=p.name, email=p.email) for p in people]
+
+
 @router.put(
     "/{department_id}/grants",
     summary="Replace who has edit access in this department (repeat-safe)",

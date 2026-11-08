@@ -84,6 +84,37 @@ def list_grants(
     return [GrantRow(**row._mapping) for row in rows]
 
 
+# Active members whose role already gives edit access in every department (the creator holds every
+# permission in code; a role holding files.send edits everywhere). A grant adds nothing for them.
+_EDITS_EVERYWHERE = "(u.id = w.created_by OR CAST(:send AS text) = ANY(r.permissions))"
+_MEMBERS = (
+    "FROM users u JOIN roles r ON r.id = u.role_id JOIN workspaces w ON w.id = u.workspace_id "
+    "WHERE u.workspace_id = :w AND u.deactivated_at IS NULL"
+)
+
+
+@dataclass(frozen=True)
+class Candidate:
+    id: uuid.UUID
+    name: str
+    email: str
+
+
+def grant_candidates(
+    session: Session, workspace_id: uuid.UUID, department_id: uuid.UUID
+) -> list[Candidate]:
+    """Active members a grant would help: not the creator, not roles that edit everywhere."""
+    get_department(session, workspace_id, department_id)
+    rows = session.execute(
+        text(
+            f"SELECT u.id, u.name, u.email {_MEMBERS} AND NOT {_EDITS_EVERYWHERE} "
+            "ORDER BY lower(u.name), u.id"
+        ),
+        {"w": workspace_id, "send": Permission.FILES_SEND.value},
+    )
+    return [Candidate(**row._mapping) for row in rows]
+
+
 def set_grants(
     uow: UnitOfWork, *, actor: Actor, department_id: uuid.UUID, user_ids: list[uuid.UUID]
 ) -> list[GrantRow]:
@@ -99,14 +130,23 @@ def set_grants(
             {"w": actor.workspace_id, "ids": wanted},
         ).scalars()
     )
-    unknown = [i for i, user_id in enumerate(wanted) if user_id not in active]
-    if unknown:
-        raise ValidationFailed(
-            [
-                FieldError(f"user_ids[{i}]", "Choose an active member of this company")
-                for i in unknown
-            ]
-        )
+    edits_everywhere = set(
+        uow.session.execute(
+            text(f"SELECT u.id {_MEMBERS} AND u.id = ANY(:ids) AND {_EDITS_EVERYWHERE}"),
+            {"w": actor.workspace_id, "ids": wanted, "send": Permission.FILES_SEND.value},
+        ).scalars()
+    )
+    errors = [
+        FieldError(f"user_ids[{i}]", "Choose an active member of this company")
+        for i, user_id in enumerate(wanted)
+        if user_id not in active
+    ] + [
+        FieldError(f"user_ids[{i}]", "Already has edit access through their role")
+        for i, user_id in enumerate(wanted)
+        if user_id in edits_everywhere
+    ]
+    if errors:
+        raise ValidationFailed(errors)
     current = set(
         uow.session.execute(
             text("SELECT user_id FROM department_grants WHERE department_id = :d FOR UPDATE"),
