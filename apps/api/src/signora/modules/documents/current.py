@@ -1,8 +1,10 @@
 """Which version is current (Phase 4 LLD §4.2).
 
-Only a ready version can be current. When a version becomes ready it becomes current unless a
-higher-numbered version already is, so a slow version 3 never takes over from version 4. Decided
-under the document's row lock, so two versions finishing at once cannot both win.
+Only a ready version can be current. When a version becomes ready it becomes current only if it is
+the newest ready version: no higher-numbered version is ready. So a slow version 3 never takes over
+from version 4, and an older version that becomes ready late (Try again) never overrides a version a
+person chose by hand. Decided under the document's row lock, so two versions finishing at once
+cannot both win.
 """
 
 from __future__ import annotations
@@ -45,9 +47,16 @@ class Promotion:
 def promote_if_newest(
     session: Session, document_id: uuid.UUID, version_id: uuid.UUID, version_no: int
 ) -> Promotion:
-    """Make a newly ready version current unless a higher-numbered one already is."""
+    """Make a newly ready version current unless a higher-numbered version is ready too."""
     previous = current_number(session, document_id)
-    if previous is not None and previous > version_no:
+    newer_ready = session.execute(
+        text(
+            "SELECT EXISTS (SELECT 1 FROM document_versions WHERE document_id = :d "
+            "AND version_no > :n AND status = 'processed')"
+        ),
+        {"d": document_id, "n": version_no},
+    ).scalar_one()
+    if newer_ready:
         return Promotion(promoted=False, previous=previous)
     set_current(session, document_id, version_id)
     return Promotion(promoted=True, previous=previous)

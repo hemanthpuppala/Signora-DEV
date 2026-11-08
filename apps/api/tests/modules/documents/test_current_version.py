@@ -11,6 +11,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from signora.kernel.db import Database
+from signora.modules.documents import processing
+from signora.modules.documents.conversion import ConversionUnavailableError
 from tests.modules.documents.conftest import (
     Account,
     add_version,
@@ -19,9 +21,10 @@ from tests.modules.documents.conftest import (
     log_in,
     new_document,
 )
-from tests.support.files import pdf_bytes, pdf_with_scan
+from tests.support.files import docx_bytes, pdf_bytes, pdf_with_scan
 
 DOCUMENTS = "/api/v1/documents"
+UNREACHABLE = "http://127.0.0.1:9"  # nothing listens: a passing outage
 
 
 def _document(api: TestClient, document_id: str) -> Any:
@@ -92,6 +95,31 @@ def test_a_version_that_is_not_ready_never_becomes_current(
     assert after["current_version"]["number"] == 1
     refused = _make_current(owner, document["id"], _version_id(added, 2))
     assert (refused.status_code, refused.json()["code"]) == (409, "version-not-ready")
+
+
+def test_an_older_version_ready_after_try_again_never_overrides_a_choice(
+    owner: TestClient, run: Callable[..., None]
+) -> None:
+    department = create_department(owner)
+    document = new_document(owner, department["id"], pdf_bytes(1)).json()
+    run(_version_id(document, 1))
+    add_version(owner, document["id"], docx_bytes(), department["id"])
+    added = add_version(owner, document["id"], pdf_bytes(3), department["id"]).json()
+    second = _version_id(added, 2)
+    with pytest.raises(ConversionUnavailableError):  # version 2 fails for good: Try again offered
+        run(second, attempt=processing.MAX_ATTEMPTS, gotenberg_url=UNREACHABLE)
+    run(_version_id(added, 3))
+    _make_current(owner, document["id"], _version_id(added, 1))  # a person picks version 1
+
+    retried = owner.post(
+        f"{DOCUMENTS}/{document['id']}/versions/{second}/retry", headers=csrf_headers(owner)
+    )
+    assert retried.status_code == 200, retried.text
+    run(second)
+
+    after = _document(owner, document["id"])
+    assert next(v for v in after["versions"] if v["number"] == 2)["status"] == "processed"
+    assert after["current_version"]["number"] == 1
 
 
 def test_any_ready_version_can_be_made_current_until_a_newer_one_is_ready(
