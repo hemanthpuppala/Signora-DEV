@@ -32,7 +32,8 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 
 One agreement inside one department. It has:
 
-- **Name**: what people call it ("Engagement letter").
+- **Name**: what people call it ("Engagement letter"). It starts as what the uploader typed (by default the file
+  name without its extension); the AI may propose a better one from the first version (§1.3).
 - **Description**: what the document is, **written by the AI** from the first version (Phase 5 gives the AI the whole
   first page as context), and editable by people.
 - **Versions**: each upload is a new, immutable version (topic 4). Each version carries the uploader's
@@ -52,9 +53,9 @@ One agreement inside one department. It has:
   description or the email-code setting, uploading and archiving need edit access in that department
   (`documents.send`, §1.6).
 
-### 1.3 Description and instructions for the AI (owner decision)
+### 1.3 Name, description and instructions for the AI (owner decisions)
 
-Two separate things, never mixed:
+Instructions are input; the name and description are what the AI may write. Never mixed:
 
 | | Instructions for the AI | Description |
 |---|---|---|
@@ -68,6 +69,18 @@ Two separate things, never mixed:
 - A person may edit the description at any time. Once a person has written it, the AI never writes it again.
 - The screen labels an AI-written description "Written by AI" until a person edits it (`description_source`).
 - If the AI cannot write one (failure, needs OCR), the description stays empty and a person may write it.
+
+**The AI also names the document** (owner addition), in the same request as the description:
+
+- It is given the current name as context and returns a name; when the current name is already apt it returns the
+  same name, and nothing changes.
+- It renames **once**, from the first version that processes successfully, and only while the name is still the
+  one given at upload (`name_source = 'upload'`). If a person renamed the document before then, the AI's name is
+  not used. Later versions never rename.
+- The AI's name passes the same checks as a typed one (normalised, 1-120 characters). If it is invalid or already
+  taken in the department, the current name is kept.
+- The screen shows an AI rename as an updated name: "Renamed by AI · was *scan_final_v2*", until a person renames
+  it (`name_source = 'person'`). Recorded as `document.renamed` with the AI as the actor.
 - The instructions are the uploader's own text, passed to the AI as context inside a clearly delimited block. They
   can steer detection but never bypass validation of the AI's output (Phase 5).
 
@@ -79,6 +92,9 @@ CREATE TABLE documents (
   workspace_id        uuid NOT NULL,
   department_id       uuid NOT NULL,
   name                text NOT NULL,
+  name_source         text NOT NULL DEFAULT 'upload'
+                      CHECK (name_source IN ('upload', 'ai', 'person')),
+  name_before_ai      text,                -- shown as "was …" after an AI rename
   description         text NOT NULL DEFAULT '',
   description_source  text NOT NULL DEFAULT 'none'
                       CHECK (description_source IN ('none', 'ai', 'person')),
@@ -104,7 +120,7 @@ CREATE INDEX ix_documents_department ON documents (department_id, archived_at);
 
 ### 1.5 Audit (company chain)
 
-`document.created`, `document.renamed`, `document.description_changed` (with who: AI or person),
+`document.created`, `document.renamed` and `document.description_changed` (each with who: AI or person),
 `document.email_code_changed`, `document.archived`, `document.restored`. Version events come with topic 4.
 
 ### 1.6 Renaming "files" to "documents" (owner decision)
