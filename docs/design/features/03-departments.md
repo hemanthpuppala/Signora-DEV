@@ -21,7 +21,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 | 3 | Department settings and defaults | **agreed** (2026-11-07) |
 | 4 | Countersigners | **agreed** (2026-11-07) |
 | 5 | Signer checks | **agreed** (2026-11-07): nothing at department level |
-| 6 | Screens and behaviour | open |
+| 6 | Screens and behaviour | **agreed** (2026-11-07) |
 
 ---
 
@@ -348,4 +348,100 @@ How a client proves who they are before signing. The checks run in Phase 8 (sign
 ### 5.2 Effect on Phase 3
 
 No signer-check fields, endpoints or screens in departments.
+
+---
+
+## Topic 6 — Screens and behaviour
+
+Built on prototype screens 05, 06, 08 and 09, following the design-system writing and interaction principles.
+
+### 6.1 Home is the departments list (`/`)
+
+- Navigation: **Departments, People, Settings**. Home is the departments page (the greeting placeholder goes).
+- Grid of department cards (prototype 05): name, description, footer with Sent / Signed / Pending counts; sorted
+  by name; "Active" and "Archived" tabs.
+- "New department" for Owners and Editors; Viewers see it disabled with "Only owners and editors can create
+  departments."
+- Empty: Owners and Editors see "Create your first department, for example Finance or Client Intake." with the
+  button; Viewers see "No departments yet."
+
+### 6.2 New department (`/departments/new`)
+
+Name and description only; settings start from the company defaults (topic 3) and countersigners are added in
+settings. **Owner decision:** the page also gets a dropzone to add files while creating; it arrives in **Phase 4**
+with uploading (a dropzone that cannot upload is not shown). Design-system deviation: prototype 06 asked for every
+setting up front. After creating, the new department's page opens.
+
+### 6.3 Department page (`/departments/{id}`)
+
+- Header: name, description, the three counts. "Settings" link for Owners and Editors.
+- Files section: "No files yet." until Phase 4 adds uploading and the department-page dropzone. Read access shows
+  files and counts only (prototype 08); edit access will also show sends and client details (topic 2).
+- Archived: banner "Archived on 7 November. Restore it to make changes."; everything read-only.
+
+### 6.4 Department settings (`/departments/{id}/settings`, Owners and Editors)
+
+Sections, each saving on its own: **About** (name, description) · **Timing** (remind every, max reminders, expires
+after) · **Also notify** (up to 5 emails) · **Countersigners** (ordered: add from the colleague directory, remove,
+move up or down; empty shows "No countersigner. Choose one.") · **People with edit access** (the grants, Owner
+only) · **Archive department** at the bottom with a confirmation (an archived department shows "Restore").
+
+### 6.5 Unchanged
+
+People gets no per-department column: edit access is managed in each department's settings. Layout uses the Phase 2
+building blocks (`Section`, `FieldGrid`, `FieldAction`, `ActionCell`).
+
+---
+
+## Functional requirements
+
+| # | Requirement |
+|---|---|
+| FR-D1 | Owners and Editors create departments with a name (unique in the company among active ones, ignoring case) and an optional description; settings start from the company defaults. |
+| FR-D2 | Owners and Editors rename, describe, change settings, archive and restore; archived departments are read-only and hidden from the default list. |
+| FR-D3 | Everyone in the company lists and opens departments, seeing files and counts; client details of sends need edit access in that department. |
+| FR-D4 | The Owner grants a person edit access in one department; grants only raise access. |
+| FR-D5 | Owners and Editors keep an ordered countersigner list per department (any active member, no size limit); removing a member takes them off every list. |
+| FR-D6 | Department settings: remind every (1 h-30 days), max reminders (0-20), expires after (1-365 days), up to 5 extra notify emails. |
+| FR-D7 | Every change is audited in the company chain; another company's ids answer 404. |
+
+## Non-functional requirements
+
+| # | Requirement | Threshold |
+|---|---|---|
+| NFR-D1 | Tenant isolation | Every query scoped by the session's company; composite keys make cross-company rows impossible; one 404 test per endpoint with an id. |
+| NFR-D2 | Access check cost | One indexed query per request for the actor's grants; each check O(1). |
+| NFR-D3 | Concurrency | Same-name creations: one 201, one 409, never 500; archive/restore and list replacements repeat-safe. |
+| NFR-D4 | List latency | `GET /departments` p95 ≤ 100 ms locally for 500 departments. |
+
+## Decisions (ADRs)
+
+- **ADR-D1 — "Projects" renamed "departments"** in the interface and the code: what firms call these groups; one
+  name, no translation layer (unlike Phase 2's workspace/company, whose code predated the decision).
+- **ADR-D2 — Company role plus per-department grants (topic 2, option B)**: covers "an intake clerk sends only from
+  Intake" with one table, without hiding departments from anyone.
+- **ADR-D3 — Defaults copied at creation (topic 3, option A)**: what a department shows is what applies.
+- **ADR-D4 — Countersigner count from the file, people from the department (topic 4)**.
+
+## Carried to later phases
+
+- Files phases (4-6): per-file "Require email code" (default on); the new-department and department-page dropzones.
+- Phase 7: sends copy the department settings and the file's email-code setting; firm slots filled from the
+  countersigner list in order.
+- Phase 9: reassign sends waiting for a removed countersigner.
+- Future: department access code (each send keeps its code); Stripe Identity.
+
+## Task tracker
+
+| # | Task | Status | Evidence of completion |
+|---|------|--------|------------------------|
+| 3.1 | Phase 3 LLD (this file), topics 1-6 | done | this file |
+| 3.2 | Permissions `departments.create`, `departments.manage`, `files.view_sends`, `files.send`; Editor role data migration; `users (id, workspace_id)` key | todo | — |
+| 3.3 | `departments` module: schema (migration 0006), create, list, get, update, archive, restore, audit | todo | — |
+| 3.4 | Department settings (validation, defaults copied at creation) | todo | — |
+| 3.5 | Department grants: table, API, `can(actor, permission, department)`, `/me` grants | todo | — |
+| 3.6 | Countersigners: table, API, member-removal hook | todo | — |
+| 3.7 | Contracts; web: departments home, new department, department page, archived banner | todo | — |
+| 3.8 | Web: department settings (about, timing, notify, countersigners, edit access, archive) | todo | — |
+| 3.9 | Deploy and live end-to-end check | todo | — |
 
