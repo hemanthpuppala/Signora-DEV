@@ -22,7 +22,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 | 3 | Processing (DOCX to PDF, page facts, needs-OCR check, failures) | **agreed** (2026-11-07) |
 | 4 | Versions | **agreed** (2026-11-07) |
 | 5 | Viewing | **agreed** (2026-11-07) |
-| 6 | Screens and behaviour (including the dropzones carried from Phase 3) | open |
+| 6 | Screens and behaviour (including the dropzones carried from Phase 3) | **agreed** (2026-11-07) |
 
 ---
 
@@ -67,7 +67,8 @@ Instructions are input; the name and description are what the AI may write. Neve
 - The AI writes the description **once**, from the first version that processes successfully, and only while the
   description is empty. Later versions never rewrite it; they have their own instructions only.
 - A person may edit the description at any time. Once a person has written it, the AI never writes it again.
-- The screen labels an AI-written description "Written by AI" until a person edits it (`description_source`).
+- The screen shows the description like any other, with no AI label (owner decision). `description_source` is kept
+  only to apply the rule above.
 - If the AI cannot write one (failure, needs OCR), the description stays empty and a person may write it.
 
 **The AI also names the document** (owner addition), in the same request as the description:
@@ -79,8 +80,9 @@ Instructions are input; the name and description are what the AI may write. Neve
   not used. Later versions never rename.
 - The AI's name passes the same checks as a typed one (normalised, 1-120 characters). If it is invalid or already
   taken in the department, the current name is kept.
-- The screen shows an AI rename as an updated name: "Renamed by AI · was *scan_final_v2*", until a person renames
-  it (`name_source = 'person'`). Recorded as `document.renamed` with the AI as the actor.
+- The screen shows the new name like any other, with no AI label (owner decision). A person renaming sets
+  `name_source = 'person'`. The audit log records the AI rename as `document.renamed` with the old name and the AI
+  as the actor.
 - The instructions are the uploader's own text, passed to the AI as context inside a clearly delimited block. They
   can steer detection but never bypass validation of the AI's output (Phase 5).
 
@@ -94,7 +96,6 @@ CREATE TABLE documents (
   name                text NOT NULL,
   name_source         text NOT NULL DEFAULT 'upload'
                       CHECK (name_source IN ('upload', 'ai', 'person')),
-  name_before_ai      text,                -- shown as "was …" after an AI rename
   description         text NOT NULL DEFAULT '',
   description_source  text NOT NULL DEFAULT 'none'
                       CHECK (description_source IN ('none', 'ai', 'person')),
@@ -146,8 +147,8 @@ note pointing here.
 
 ### 2.2 Two steps: send the bytes, then decide
 
-An upload is split so the bytes travel once, whatever the person decides next (the duplicate question, a list of
-several files, a name change):
+An upload is split so the bytes travel once, whatever the person decides next (the duplicate question, the name and
+instructions typed while the bytes are still travelling):
 
 1. **`POST /api/v1/uploads`** (multipart, one file, `Idempotency-Key`). The API streams the body to a temporary file,
    refusing it the moment it passes 50 MB (the declared length is not trusted), computes SHA-256 while streaming,
@@ -180,11 +181,16 @@ The same bytes (same SHA-256) never silently become a second copy or a new versi
   answers `409 duplicate-file` with the existing document and version.
 - Other departments are not checked; the same file may be used independently in each.
 
-### 2.4 Several files at once (owner decision)
+### 2.4 One file per upload, many uploads at once (owner decision)
 
-Dropping several files makes **one document per file**. Each file is uploaded (step 1) and listed before anything
-is created, with its name (from the file name without the extension, editable), its instructions for the AI, and any
-problem or duplicate question for that file. "Create N documents" then creates the ones without problems.
+- **Each upload is one file**, making one document (or one version). A dropzone takes one file; dropping several at
+  once says "Drop one file at a time".
+- **Uploads do not wait for each other.** The bytes start travelling the moment a file is chosen (step 1), while the
+  person types its name (prefilled from the file name without the extension) and instructions for the AI; "Add
+  document" then creates it. Meanwhile the person may drop the next file. Each upload has its own row with its
+  progress, status and any problem or duplicate question.
+- **Processing runs in parallel** (topic 3): each version is its own job, and the worker runs up to
+  `WORKER_CONCURRENCY` jobs at once (default 8), so ten uploads are processed side by side, not one after another.
 
 ### 2.5 Problems shown to the person
 
@@ -222,7 +228,10 @@ them with PyMuPDF and Gotenberg (isolated, topic 3), and viewers render them wit
 ### 3.1 One job per version
 
 Using an upload (topic 2) creates the version in **Processing** and enqueues a `document.process` job in the same
-transaction; the request returns at once. The worker:
+transaction; the request returns at once. **Versions are processed in parallel** (owner question): each is its own
+job, and the worker runs up to `WORKER_CONCURRENCY` jobs at once (default 8), so uploads never queue behind one
+another unless more than that are running. Word conversions also share Gotenberg; how many it converts at once is
+checked against its documentation at implementation and recorded here. The worker, for each version:
 
 1. **.docx to PDF** through Gotenberg (`POST /forms/libreoffice/convert`), which runs without network access behind
    its gateway (platform P0.6). A conversion taking over 2 minutes is a timeout.
@@ -398,8 +407,74 @@ Text search and page thumbnails are not in this phase; they extend the same `Pdf
 
 ---
 
+## Topic 6 — Screens and behaviour
+
+Built from the design system and the writing principles (`docs/design-system/README.md`): actions a person cannot
+take are hidden. The owner asked for the ease and conventions of established e-signature products such as
+DocuSign: the document is the largest thing on its page, there is one primary action per screen, statuses are plain
+words, and consequential actions (make current, archive) ask first.
+
+### 6.1 Department page: documents (prototype 10)
+
+- A table: document (name, with "PDF · 7 pages" under it), current version ("v2"), status. Roles and detection
+  columns arrive with Phases 5-6. Rows open the document page.
+- Edit access: an **Upload document** button and a dropzone. With no documents, the empty state is the dropzone.
+  Dropping a file there opens the upload page with that file already uploading (owner decision).
+- Viewers: the table only.
+
+### 6.2 Upload page `/departments/{id}/upload` (prototype 11)
+
+- A dropzone: "Drop a PDF or Word file · up to 50 MB · up to 200 pages", one file at a time (§2.4).
+- Each file gets a row at once: a progress bar while the bytes travel, the **name** (prefilled, editable),
+  **Instructions for the AI** (optional) and **Add document**. Problems and the duplicate dialog (§2.3) appear on
+  that row. The person can drop the next file while earlier rows are still uploading or processing.
+- After "Add document" the row shows the version's status (Processing, then Processed or what needs doing), linking
+  to the document page.
+
+### 6.3 New department page (carried from Phase 3, owner decision)
+
+- The same dropzone on `/departments/new`. Files dropped there are listed and held in the browser (they cannot be
+  uploaded before the department exists).
+- On **Create department**, the department is created and the page moves to its upload page, where each held file
+  uploads and shows its status until it is done.
+
+### 6.4 Document page `/departments/{id}/documents/{documentId}`
+
+- **Header**: the name and description (no AI labels, owner decision), Edit for people with edit access, Back.
+- **Main area (left, large)**: the viewer (topic 5) on the current version. When the newest version is not ready,
+  its state is shown above the viewer of the current one (or alone, for a first version):
+  - Processing: "Processing version 3…";
+  - Needs password: the password field, only in this state (§2.6);
+  - Failed: the message, and **Try again** for temporary failures (§3.4);
+  - Needs OCR: which pages are scanned images (§3.2).
+- **Side panel (right; below the viewer on phones)**:
+  - **Require email code** switch (edit access);
+  - **Versions**: number, file name, pages, uploaded by and when, status, a *Current* badge; Open, Download
+    original, and **Make current** for ready versions, with the confirmation from §4.2;
+  - **Upload new version**: a dropzone with instructions for the AI (edit access);
+  - **Archive document**, behind a confirmation (edit access); an archived document shows a banner with Restore.
+- **Viewers**: the viewer, the versions list, Open and Download original.
+
+### 6.5 Live status: polling while something is processing (owner question: push or poll?)
+
+Considered: Server-Sent Events (one long HTTP response the server writes to), long polling (a request the server
+holds until something changes), and short polling.
+
+- Push needs a path from the worker (a separate process) to the API, such as Postgres `LISTEN/NOTIFY`, an
+  async streaming endpoint (handlers here are sync, so each held request would occupy a thread), proxy settings so
+  Caddy and the Funnel do not buffer it, and reconnect handling. That is a lot of moving parts for a status that
+  changes a few times in under a minute.
+- **Decision: short polling, only while something is processing.** A page asks for its versions' statuses every
+  1 s for the first 10 s, then every 2 s, then every 5 s after a minute, and stops as soon as nothing is processing.
+  TanStack Query pauses it in background tabs. Each poll is one small indexed query. Updates appear within about
+  2 s, without a reload.
+- The polling lives in one hook, so it can be swapped for Server-Sent Events later (Phase 7 dashboards with many
+  sends may justify it) without touching the screens.
+
+---
+
 ## Task tracker
 
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-5 recorded |
+| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-6 recorded |
