@@ -3,6 +3,16 @@ import type { ReactNode } from "react";
 import styles from "./layout.module.css";
 import { Eyebrow } from "./Typography";
 
+/** A page's title block with its actions at the end (prototype .headrow / .actions). */
+export function HeadRow({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className={styles.headRow}>
+      <div className={styles.headTitle}>{children}</div>
+      {actions ? <div className={styles.headActions}>{actions}</div> : null}
+    </div>
+  );
+}
+
 /** A titled block of a console page (prototype .section). */
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (

@@ -1,11 +1,19 @@
 "use client";
 
-import { ConsoleShell } from "@/shared/session";
-import { Heading1 } from "@/shared/ui";
+import { Suspense } from "react";
 
-/** Console home. Projects (Phase 3) will live here. */
+import { DepartmentsHome } from "@/features/departments/DepartmentsHome";
+import { ConsoleShell } from "@/shared/session";
+
+/** Console home: the company's departments. */
 export default function HomePage() {
   return (
-    <ConsoleShell>{(me) => <Heading1>Welcome, {me.user.name.split(" ")[0]}.</Heading1>}</ConsoleShell>
+    <ConsoleShell>
+      {(me) => (
+        <Suspense>
+          <DepartmentsHome me={me} />
+        </Suspense>
+      )}
+    </ConsoleShell>
   );
 }

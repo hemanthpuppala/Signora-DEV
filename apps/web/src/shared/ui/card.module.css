@@ -1,0 +1,122 @@
+/* Prototype .pgrid / .pcard / .pstats / .pmeta. */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 12px;
+}
+
+.item {
+  display: flex;
+}
+
+.card {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: var(--ink);
+  transition: border-color 0.15s;
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: var(--r40);
+  color: var(--ink);
+}
+
+.title {
+  font: 400 26px/1.1 var(--serif);
+  margin: 0;
+}
+
+.description {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--t55);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--sep);
+  padding-top: 16px;
+  margin: auto 0 0;
+}
+
+.stats > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+}
+
+.stats > div + div {
+  border-left: 1px solid var(--r15);
+  padding-left: 14px;
+}
+
+.stats dd {
+  margin: 0;
+  font: 300 30px/1 var(--serif);
+  font-variant-numeric: lining-nums;
+  color: var(--ink);
+}
+
+.stats dt {
+  font: 400 9px/1.4 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--t55);
+}
+
+.go {
+  font: 400 10px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t75);
+}
+
+.card:hover .go {
+  color: var(--ink);
+}
+
+.add {
+  flex: 1;
+  border: 1px dashed var(--r25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--t75);
+  min-height: 200px;
+  gap: 10px;
+  font: 400 11px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.add:hover,
+.add:focus-visible {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.plus {
+  font: 300 40px/1 var(--serif);
+  letter-spacing: 0;
+}

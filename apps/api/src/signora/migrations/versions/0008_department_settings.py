@@ -54,6 +54,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     for name in CHECKS:
-        op.drop_constraint(f"ck_departments_{name}", "departments", type_="check")
+        # op.f: the name is already final; without it the naming convention prefixes it again.
+        op.drop_constraint(op.f(f"ck_departments_{name}"), "departments", type_="check")
     for column in ("notify_emails", "expiry_days", "max_reminders", "reminder_interval_hours"):
         op.drop_column("departments", column)

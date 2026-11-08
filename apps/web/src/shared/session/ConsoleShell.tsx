@@ -14,14 +14,21 @@ type ConsoleShellProps = {
   children: (me: Me) => ReactNode;
 };
 
-const NAV: readonly { href: string; label: string; requires?: PermissionName }[] = [
-  { href: "/", label: "Home" },
-  { href: "/people", label: "People", requires: "members.manage" },
-  { href: "/settings", label: "Settings" },
+const NAV: readonly {
+  href: string;
+  label: string;
+  requires?: PermissionName;
+  matches: (path: string) => boolean;
+}[] = [
+  { href: "/", label: "Departments", matches: (p) => p === "/" || p.startsWith("/departments") },
+  { href: "/people", label: "People", requires: "members.manage", matches: (p) => p === "/people" },
+  { href: "/settings", label: "Settings", matches: (p) => p === "/settings" },
 ];
 
 const NO_ACCESS: Partial<Record<PermissionName, string>> = {
   "members.manage": "Only the owner can manage people.",
+  "departments.create": "Only owners and editors can create departments.",
+  "departments.manage": "Only owners and editors can change departments.",
 };
 const NO_ACCESS_DEFAULT = "You don't have access to this page. Ask the owner if you need it.";
 
@@ -56,7 +63,7 @@ export function ConsoleShell({ requires, children }: ConsoleShellProps) {
   if (!me) return <TopBar />; // loading, or about to redirect
 
   const nav: NavItem[] = NAV.filter((item) => !item.requires || can(me, item.requires)).map(
-    (item) => ({ href: item.href, label: item.label, active: item.href === pathname }),
+    (item) => ({ href: item.href, label: item.label, active: item.matches(pathname) }),
   );
   const actions = (
     <TextButton
