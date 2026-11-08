@@ -312,3 +312,33 @@ def test_removing_a_member_ends_their_edit_access_everywhere(
     shown = [g["user"]["id"] for g in owner.get(f"{URL}/{finance['id']}/grants").json()]
     assert shown == [str(staying.user_id)]
     assert put_grants(owner, finance["id"], shown).status_code == 200
+
+
+def test_a_promoted_person_leaves_the_list_and_it_still_saves(
+    owner: TestClient,
+    committing_db: Database,
+    company: Account,
+    add_member: Callable[..., Account],
+) -> None:
+    department = create(owner, "Finance")
+    bob, carol = add_member(company, role="read"), add_member(company, role="read")
+    put_grants(owner, department["id"], [bob.user_id])
+
+    def set_role(role: str) -> None:
+        with committing_db.unit_of_work() as uow:
+            uow.session.execute(
+                text("UPDATE users SET role_id = :r WHERE id = :u"),
+                {"r": company.role_ids[role], "u": bob.user_id},
+            )
+
+    set_role("read_write")  # Bob now edits everywhere; his grant adds nothing
+    shown = [g["user"]["id"] for g in owner.get(f"{URL}/{department['id']}/grants").json()]
+    assert shown == []
+    saved = put_grants(owner, department["id"], [*shown, carol.user_id])
+    assert saved.status_code == 200
+    assert [g["user"]["id"] for g in saved.json()] == [str(carol.user_id)]
+
+    set_role("read")  # the dormant grant was left alone, so it applies again
+    with committing_db.unit_of_work() as uow:
+        access = load_access(uow.session, actor_for(committing_db, bob))
+    assert access.level(uuid.UUID(department["id"])) == "edit"

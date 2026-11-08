@@ -197,6 +197,12 @@ so every later save was refused.)
 | `GET /departments/{id}/grants` | `members.manage` | — | `200 [{user: {id, name, email}, granted_by, created_at}]` |
 | `PUT /departments/{id}/grants` | `members.manage` | `{user_ids: [...]}` (the full list) | `200` the new list; `422` for a user not in the company; `409 department-archived` |
 
+The list holds only grants that add something: active people whose role does not already edit everywhere. A grant
+kept by someone later promoted (or the creator) is dormant: `GET` leaves it out and `PUT` leaves it in place, so it
+applies again if their role goes back, and a list saved as shown never sends an id the server refuses. (Changed in
+the PR review: the list first showed every row, so after a promotion every save was refused with "Already has edit
+access through their role".)
+
 `PUT` replaces the list in one transaction (idempotent by nature: the same list twice gives the same state), so no
 `Idempotency-Key`. Each department in the list and detail responses carries the caller's `access: "edit" | "read"`
 so the interface can show or hide actions. (Implementation change: the design first put a grant list on `/me`, but
@@ -465,3 +471,4 @@ building blocks (`Section`, `FieldGrid`, `FieldAction`, `ActionCell`).
 | R1 | Two first saves of edit access at once failed with a duplicate key (500): an empty list has no rows to lock | Lock the department row (`FOR NO KEY UPDATE`) while a list is replaced | two-thread test fails without the lock |
 | R2 | The same race for countersigners | The same lock | two-thread test fails without the lock |
 | R3 | A removed member kept their grants, so the list showed them and every save was refused | Member-removal hook deletes their grants (§2.4) | test fails without the hook |
+| R4 | After a promotion, the person stayed in the list and every save was refused; the list also showed removed people and people a grant does not help | The list and `PUT` cover only grants that add something; a promoted person's grant is dormant, left in place (§2.5) | test: promote, list and save, demote, edit access applies again (fails on the old code) |

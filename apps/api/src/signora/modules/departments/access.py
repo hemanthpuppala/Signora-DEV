@@ -63,27 +63,6 @@ class GrantRow:
     created_at: Any
 
 
-def list_grants(
-    session: Session, workspace_id: uuid.UUID, department_id: uuid.UUID
-) -> list[GrantRow]:
-    get_department(session, workspace_id, department_id)  # 404 for another company's id
-    rows = session.execute(
-        text(
-            """
-            SELECT g.user_id, u.name AS user_name, u.email AS user_email,
-                   g.granted_by AS granted_by_id, b.name AS granted_by_name, g.created_at
-            FROM department_grants g
-            JOIN users u ON u.id = g.user_id
-            JOIN users b ON b.id = g.granted_by
-            WHERE g.department_id = :d AND g.workspace_id = :w
-            ORDER BY lower(u.name), u.id
-            """
-        ),
-        {"d": department_id, "w": workspace_id},
-    )
-    return [GrantRow(**row._mapping) for row in rows]
-
-
 # Active members whose role already gives edit access in every department (the creator holds every
 # permission in code; a role holding files.send edits everywhere). A grant adds nothing for them.
 _EDITS_EVERYWHERE = "(u.id = w.created_by OR CAST(:send AS text) = ANY(r.permissions))"
@@ -91,6 +70,33 @@ _MEMBERS = (
     "FROM users u JOIN roles r ON r.id = u.role_id JOIN workspaces w ON w.id = u.workspace_id "
     "WHERE u.workspace_id = :w AND u.deactivated_at IS NULL"
 )
+# The grants the list shows and changes: those that add something. A grant held by someone whose
+# role now edits everywhere (promoted after the grant) is dormant: neither shown nor touched, so it
+# applies again if their role goes back.
+_GRANT_PEOPLE = (
+    "FROM department_grants g JOIN users u ON u.id = g.user_id "
+    "JOIN roles r ON r.id = u.role_id JOIN workspaces w ON w.id = u.workspace_id"
+)
+_EFFECTIVE = (
+    "g.department_id = :d AND g.workspace_id = :w AND u.deactivated_at IS NULL "
+    f"AND NOT {_EDITS_EVERYWHERE}"
+)
+
+
+def list_grants(
+    session: Session, workspace_id: uuid.UUID, department_id: uuid.UUID
+) -> list[GrantRow]:
+    get_department(session, workspace_id, department_id)  # 404 for another company's id
+    rows = session.execute(
+        text(
+            "SELECT g.user_id, u.name AS user_name, u.email AS user_email, "
+            "g.granted_by AS granted_by_id, b.name AS granted_by_name, g.created_at "
+            f"{_GRANT_PEOPLE} JOIN users b ON b.id = g.granted_by "
+            f"WHERE {_EFFECTIVE} ORDER BY lower(u.name), u.id"
+        ),
+        {"d": department_id, "w": workspace_id, "send": Permission.FILES_SEND.value},
+    )
+    return [GrantRow(**row._mapping) for row in rows]
 
 
 @dataclass(frozen=True)
@@ -149,8 +155,8 @@ def set_grants(
         raise ValidationFailed(errors)
     current = set(
         uow.session.execute(
-            text("SELECT user_id FROM department_grants WHERE department_id = :d"),
-            {"d": department_id},
+            text(f"SELECT g.user_id {_GRANT_PEOPLE} WHERE {_EFFECTIVE}"),
+            {"d": department_id, "w": actor.workspace_id, "send": Permission.FILES_SEND.value},
         ).scalars()
     )
     added = [u for u in wanted if u not in current]
