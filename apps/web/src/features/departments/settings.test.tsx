@@ -96,24 +96,22 @@ describe("department settings", () => {
     expect(screen.queryByRole("region", { name: "People with edit access" })).toBeNull();
   });
 
-  it("adds, reorders and saves countersigners in order", async () => {
+  it("saves countersigners as they are added and reordered", async () => {
     serve(department());
     open(OWNER);
     const section = await screen.findByRole("region", { name: "Countersigners" });
     const user = userEvent.setup();
+    const lastPut = () => sent.filter((r) => r.path.endsWith("/countersigners")).at(-1)?.body;
 
     await user.click(within(section).getByRole("combobox", { name: "Add a person" }));
     await user.click(await screen.findByRole("option", { name: /Ben Ito/ }));
     await user.click(within(section).getByRole("button", { name: "Add" }));
-    const benRow = within(section).getByText("Ben Ito").closest("tr") as HTMLElement;
-    await user.click(within(benRow).getByRole("button", { name: "Up" }));
-    await user.click(within(section).getByRole("button", { name: "Save countersigners" }));
+    await vi.waitFor(() => expect(lastPut()).toEqual({ user_ids: ["p-1", "p-2"] }));
 
-    await vi.waitFor(() =>
-      expect(sent.find((r) => r.method === "PUT" && r.path.endsWith("/countersigners"))?.body).toEqual({
-        user_ids: ["p-2", "p-1"],
-      }),
-    );
+    const benRow = (await within(section).findByText("Ben Ito")).closest("tr") as HTMLElement;
+    await user.click(within(benRow).getByRole("button", { name: "Up" }));
+    await vi.waitFor(() => expect(lastPut()).toEqual({ user_ids: ["p-2", "p-1"] }));
+    expect(within(section).queryByRole("button", { name: /save/i })).toBeNull();
   });
 
   it("shows the server's range error on the timing field", async () => {

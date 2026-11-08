@@ -64,7 +64,7 @@ function Countersigners({ department }: { department: Department }) {
             }),
           )
         }
-        saved="Countersigners saved"
+        saved="Countersigners updated"
       />
   );
 }
@@ -324,28 +324,30 @@ function PeopleList({
   const toast = useToast();
   const [people, setPeople] = useState<Person[]>(initial);
   const [adding, setAdding] = useState<string | null>(null);
+  // Every change saves straight away, like "Also notify".
   const mutation = useMutation({
-    mutationFn: () => save(people.map((p) => p.id)),
-    onSuccess: () => {
+    mutationFn: (next: Person[]) => save(next.map((p) => p.id)),
+    onSuccess: (_, next) => {
+      setPeople(next);
       void queryClient.invalidateQueries({ queryKey: departmentKey(departmentId) });
       toast.show(saved);
     },
   });
+  const commit = (next: Person[]) => mutation.mutate(next);
   const options = (candidates ?? [])
     .filter((person) => !people.some((p) => p.id === person.id))
     .map((person) => ({ value: person.id, label: `${person.name} · ${person.email}` }));
   const add = () => {
     const person = candidates?.find((p) => p.id === adding);
-    if (person) setPeople((list) => [...list, person]);
+    if (person) commit([...people, person]);
     setAdding(null);
   };
-  const move = (index: number, by: number) =>
-    setPeople((list) => {
-      const next = [...list];
-      const [item] = next.splice(index, 1);
-      if (item) next.splice(index + by, 0, item);
-      return next;
-    });
+  const move = (index: number, by: number) => {
+    const next = [...people];
+    const [item] = next.splice(index, 1);
+    if (item) next.splice(index + by, 0, item);
+    commit(next);
+  };
 
   return (
     <Section title={title}>
@@ -370,20 +372,26 @@ function PeopleList({
                   </td>
                   {ordered ? (
                     <ActionCell>
-                      <TextButton disabled={index === 0} onClick={() => move(index, -1)}>
+                      <TextButton disabled={index === 0 || mutation.isPending} onClick={() => move(index, -1)}>
                         Up
                       </TextButton>
                     </ActionCell>
                   ) : null}
                   {ordered ? (
                     <ActionCell>
-                      <TextButton disabled={index === people.length - 1} onClick={() => move(index, 1)}>
+                      <TextButton
+                        disabled={index === people.length - 1 || mutation.isPending}
+                        onClick={() => move(index, 1)}
+                      >
                         Down
                       </TextButton>
                     </ActionCell>
                   ) : null}
                   <ActionCell>
-                    <TextButton onClick={() => setPeople((list) => list.filter((p) => p.id !== person.id))}>
+                    <TextButton
+                      disabled={mutation.isPending}
+                      onClick={() => commit(people.filter((p) => p.id !== person.id))}
+                    >
                       Remove
                     </TextButton>
                   </ActionCell>
@@ -396,13 +404,8 @@ function PeopleList({
       <FieldGrid>
         <Select label="Add a person" options={options} value={adding} onChange={setAdding} />
         <FieldAction>
-          <Button variant="quiet" disabled={!adding} onClick={add}>
+          <Button variant="quiet" disabled={!adding} loading={mutation.isPending} loadingLabel="Saving…" onClick={add}>
             Add
-          </Button>
-        </FieldAction>
-        <FieldAction>
-          <Button loading={mutation.isPending} loadingLabel="Saving…" onClick={() => mutation.mutate()}>
-            Save {title.toLowerCase()}
           </Button>
         </FieldAction>
       </FieldGrid>
@@ -447,7 +450,7 @@ function EditAccess({ departmentId }: { departmentId: string }) {
           }),
         )
       }
-      saved="Edit access saved"
+      saved="Edit access updated"
     />
   );
 }
