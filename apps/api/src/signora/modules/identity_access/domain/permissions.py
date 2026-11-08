@@ -51,14 +51,14 @@ READ = RoleTemplate(
 READ_WRITE = RoleTemplate(
     "read_write",
     "Editor",
-    "Can create and send agreements, and rename the workspace.",
+    "Can create and send agreements, and rename the company.",
     frozenset({Permission.MEMBERS_DIRECTORY, Permission.WORKSPACE_RENAME}),
 )
 # Shown for the workspace creator, who holds the Editor role plus every permission in code.
 OWNER_LABEL = "Owner"
 OWNER_DESCRIPTION = (
-    "Set up this workspace. Can invite and remove people, change what they can do, and "
-    "everything editors can do."
+    "Created this company's account. Can invite and remove people, change what they can do, "
+    "and everything editors can do."
 )
 # Created with every workspace. The creator gets Editor and, in code, every permission.
 DEFAULT_ROLES = (READ_WRITE, READ)

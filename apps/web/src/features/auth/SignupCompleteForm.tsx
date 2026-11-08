@@ -48,9 +48,9 @@ export function SignupCompleteForm() {
     }
   }, [created, email, logIn, password, router]);
 
-  if (token === null) return <LinkProblem eyebrow="New workspace" missing again={{ href: "/signup", label: "Start again" }} />;
-  if (check.isError) return <LinkProblem eyebrow="New workspace" error={check.error} again={{ href: "/signup", label: "Start again" }} />;
-  if (!check.data) return <AuthPanel eyebrow="New workspace" heading="Checking your link…">{null}</AuthPanel>;
+  if (token === null) return <LinkProblem eyebrow="New account" missing again={{ href: "/signup", label: "Start again" }} />;
+  if (check.isError) return <LinkProblem eyebrow="New account" error={check.error} again={{ href: "/signup", label: "Start again" }} />;
+  if (!check.data) return <AuthPanel eyebrow="New account" heading="Checking your link…">{null}</AuthPanel>;
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,11 +61,12 @@ export function SignupCompleteForm() {
   const problem = complete.state.status === "retrying" ? "Connection lost — retrying…" : formError(complete.state.error ?? logIn.error);
   const busy = complete.isPending || created;
   return (
-    <AuthPanel eyebrow="New workspace" heading="Begin." onSubmit={submit}>
+    <AuthPanel eyebrow="New account" heading="Begin." onSubmit={submit}>
       {problem ? <Notice tone="warning">{problem}</Notice> : null}
       <TextField label="Work email" value={check.data.email} readOnly autoComplete="username" />
       <TextField
-        label="Firm name"
+        label="Company name"
+        hint="Your team and clients will see this name."
         name="organization"
         autoComplete="organization"
         required
@@ -96,7 +97,7 @@ export function SignupCompleteForm() {
         onChange={(event) => setPassword(event.target.value)}
       />
       <Button type="submit" arrow loading={busy} loadingLabel="Creating…">
-        Create workspace
+        Create account
       </Button>
     </AuthPanel>
   );

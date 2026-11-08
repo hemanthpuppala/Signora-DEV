@@ -145,7 +145,7 @@ function WorkspaceForm({ me }: { me: Me }) {
       unwrap(api.PATCH("/api/v1/workspace", { body: { name: value } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
-      toast.show("Workspace renamed");
+      toast.show("Company renamed");
     },
   });
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -154,11 +154,11 @@ function WorkspaceForm({ me }: { me: Me }) {
   };
   return (
     <form onSubmit={submit} noValidate>
-      <Section title="Workspace">
+      <Section title="Company">
         {formError(save.error) ? <Notice tone="warning">{formError(save.error)}</Notice> : null}
         <FieldGrid>
           <TextField
-            label="Workspace name"
+            label="Company name"
             autoComplete="organization"
             required
             maxLength={120}

@@ -26,9 +26,9 @@ export function SignupStartForm() {
 
   if (start.isSuccess) {
     return (
-      <AuthPanel eyebrow="New workspace" heading="Check your email.">
+      <AuthPanel eyebrow="New account" heading="Check your email.">
         <BodyText>
-          We sent a link to <b>{email}</b>. Open it to name your workspace and choose a password.
+          We sent a link to <b>{email}</b>. Open it to add your company name and choose a password.
           If you already have an account, the email tells you how to log in.
         </BodyText>
         <SmallText>Nothing after a few minutes? Check your spam folder.</SmallText>
@@ -43,7 +43,7 @@ export function SignupStartForm() {
   };
   const problem = formError(start.error);
   return (
-    <AuthPanel eyebrow="New workspace" heading="Begin." onSubmit={submit}>
+    <AuthPanel eyebrow="New account" heading="Begin." onSubmit={submit}>
       {problem ? <Notice tone="warning">{problem}</Notice> : null}
       <TextField
         label="Work email"

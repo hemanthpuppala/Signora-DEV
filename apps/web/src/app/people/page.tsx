@@ -10,7 +10,7 @@ export default function PeoplePage() {
       {(me) => (
         <>
           <div>
-            <Eyebrow>Workspace</Eyebrow>
+            <Eyebrow>Company</Eyebrow>
             <Heading1>People</Heading1>
           </div>
           <PeoplePanel me={me} />

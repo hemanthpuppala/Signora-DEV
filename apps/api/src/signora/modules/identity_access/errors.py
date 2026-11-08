@@ -15,7 +15,7 @@ class InvalidCredentials(DomainError):
 
 class AccessRemoved(PermissionDenied):
     code = "access-removed"
-    title = "You no longer have access to this workspace"
+    title = "You no longer have access to this company"
 
 
 class CsrfFailed(PermissionDenied):
@@ -38,19 +38,19 @@ class AccountExists(Conflict):
 
 class AlreadyMember(Conflict):
     code = "already-member"
-    title = "This person is already a member of the workspace"
+    title = "This person is already a member"
 
 
 class EmailInOtherWorkspace(Conflict):
     code = "email-in-other-workspace"
-    title = "This email is already used for another Signora workspace"
+    title = "This email is already used for another company on Signora"
 
 
 class CreatorProtected(Conflict):
     code = "creator-protected"
-    title = "The workspace owner cannot be changed or removed"
+    title = "The owner cannot be changed or removed"
 
 
 class CannotRemoveSelf(Conflict):
     code = "cannot-remove-self"
-    title = "You cannot remove yourself; ask the workspace owner"
+    title = "You cannot remove yourself; ask the owner"

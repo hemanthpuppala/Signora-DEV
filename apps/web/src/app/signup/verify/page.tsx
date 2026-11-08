@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { SignupCompleteForm } from "@/features/auth/SignupCompleteForm";
 
-export const metadata: Metadata = { title: "Create your workspace", robots: { index: false } };
+export const metadata: Metadata = { title: "Create your account", robots: { index: false } };
 
 export default function Page() {
   return (

@@ -25,15 +25,15 @@ def link(base_url: str, path: str, token: str) -> str:
 def verify_signup(base_url: str, token: str, hours: int) -> AccountEmail:
     return AccountEmail(
         "auth.signup_verify",
-        "Confirm your email to create your Signora workspace",
+        "Confirm your email to create your Signora account",
         render_layout(
             heading="Confirm your email.",
             paragraphs=[
-                "Use the link below to name your workspace and choose a password.",
+                "Use the link below to add your company name and choose a password.",
                 f"The link works once and expires in {hours} hours. If you did not ask to join "
                 "Signora, ignore this email.",
             ],
-            action=EmailAction("Create workspace", link(base_url, "/signup/verify", token)),
+            action=EmailAction("Create account", link(base_url, "/signup/verify", token)),
             footer=FOOTER,
         ),
     )
@@ -47,8 +47,8 @@ def already_registered(base_url: str) -> AccountEmail:
         render_layout(
             heading="You already have an account.",
             paragraphs=[
-                "Someone tried to create a Signora workspace with this email, which already has "
-                "an account. Log in instead, or reset your password if you have forgotten it.",
+                "Someone tried to create a Signora account with this email, which already has "
+                "one. Log in instead, or reset your password if you have forgotten it.",
                 f"Forgot your password? {root}/forgot-password",
                 "If this was not you, you can ignore this email; nothing has changed.",
             ],
@@ -143,8 +143,8 @@ def invitation_blocked(*, workspace: str, inviter: str) -> AccountEmail:
             heading=f"An invitation to {workspace}.",
             paragraphs=[
                 f"{inviter} invited you to join {workspace} on Signora.",
-                "This email is already used for another Signora workspace, and each email can "
-                "belong to only one.",
+                "This email is already used for another company on Signora, and each email can "
+                "belong to only one company.",
                 f"Ask {inviter} to invite a different address.",
             ],
             footer=FOOTER,

@@ -95,7 +95,7 @@ def login(
         security.warning("auth.login_refused_removed", user_id=str(user.id))
         raise AccessRemoved(
             f"You no longer have access to {user.workspace_name}. "
-            "Ask the workspace owner if you need it back."
+            "Ask the owner if you need it back."
         )
 
     limiter.reset(email_key(normalized))

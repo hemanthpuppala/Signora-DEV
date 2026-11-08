@@ -54,7 +54,7 @@ export function LoginForm() {
         <Link href="/forgot-password">Forgot your password?</Link>
       </SmallText>
       <SmallText>
-        No workspace yet? <Link href="/signup">Create one</Link>
+        No account yet? <Link href="/signup">Create one</Link>
       </SmallText>
     </AuthPanel>
   );

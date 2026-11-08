@@ -21,9 +21,9 @@ const NAV: readonly { href: string; label: string; requires?: PermissionName }[]
 ];
 
 const NO_ACCESS: Partial<Record<PermissionName, string>> = {
-  "members.manage": "Only the workspace owner can manage people.",
+  "members.manage": "Only the owner can manage people.",
 };
-const NO_ACCESS_DEFAULT = "You don't have access to this page. Ask the workspace owner if you need it.";
+const NO_ACCESS_DEFAULT = "You don't have access to this page. Ask the owner if you need it.";
 
 /**
  * Signed-in console: loads the session, sends signed-out visitors to /login (keeping the page to

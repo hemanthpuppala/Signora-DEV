@@ -176,7 +176,7 @@ def test_a_removed_member_with_the_right_password_is_told_access_was_removed(
     assert right.status_code == 403
     assert right.json()["code"] == "access-removed"
     assert right.json()["detail"] == (
-        "You no longer have access to Acme Law. Ask the workspace owner if you need it back."
+        "You no longer have access to Acme Law. Ask the owner if you need it back."
     )
     assert wrong.status_code == 401
     assert sessions_of(committing_db, member.user_id) == []

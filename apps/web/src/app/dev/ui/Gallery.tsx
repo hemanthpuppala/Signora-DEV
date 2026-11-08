@@ -63,7 +63,7 @@ export function Gallery() {
       <section className={styles.section}>
         <Eyebrow>Buttons</Eyebrow>
         <div className={styles.row}>
-          <Button arrow>Create workspace</Button>
+          <Button arrow>Create account</Button>
           <Button variant="quiet">Review and sign</Button>
           <Button variant="destructive">Cancel envelope</Button>
           <Button loading={loading} onClick={() => setLoading(true)}>
@@ -79,7 +79,7 @@ export function Gallery() {
         <TextField label="Work email" type="email" placeholder="name@example.com" hint="We send a code here." />
         <TextField label="Password" type="password" error="At least 12 characters." />
         <TextArea label="Description for the detector (optional)" />
-        <Select label="Workspace access" options={ACCESS} value={access} onChange={setAccess} />
+        <Select label="Invite as" options={ACCESS} value={access} onChange={setAccess} />
         <Checkbox defaultChecked>I agree to use electronic records and signatures.</Checkbox>
         <Radio name="wait" defaultChecked>
           Anyone

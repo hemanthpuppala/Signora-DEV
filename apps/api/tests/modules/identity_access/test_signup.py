@@ -81,7 +81,7 @@ def test_a_registered_email_gets_a_log_in_reminder_not_a_link(
     message = latest_email(committing_db, registered)
 
     assert message.category == "auth.signup_existing"
-    assert "already has an account" in message.text_body
+    assert "You already have an account." in message.text_body
     assert "#" not in message.text_body  # no token of any kind
 
 

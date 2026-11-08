@@ -19,8 +19,8 @@ describe("Button", () => {
   });
 
   it("renders the trailing arrow and is a non-submit button by default", () => {
-    render(<Button arrow>Create workspace</Button>);
-    const button = screen.getByRole("button", { name: /Create workspace/ });
+    render(<Button arrow>Create account</Button>);
+    const button = screen.getByRole("button", { name: /Create account/ });
     expect(button).toHaveAttribute("type", "button");
     expect(button).toHaveTextContent("→");
   });
