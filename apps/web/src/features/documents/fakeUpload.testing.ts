@@ -20,17 +20,20 @@ export class FakeUpload {
   setRequestHeader(name: string, value: string) {
     this.headers[name] = value;
   }
-  getResponseHeader() {
-    return null;
+  responseHeaders: Record<string, string> = {};
+  getResponseHeader(name: string) {
+    return this.responseHeaders[name] ?? null;
   }
   send(body: unknown) {
     this.body = body;
     FakeUpload.sent.push(this);
   }
   abort() {}
-  answer(status: number, body: unknown) {
+  answer(status: number, body: unknown, headers: Record<string, string> = {}, statusText = "") {
     this.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 1 } as ProgressEvent);
     this.status = status;
+    this.statusText = statusText;
+    this.responseHeaders = headers;
     this.response = body;
     this.onload?.();
   }

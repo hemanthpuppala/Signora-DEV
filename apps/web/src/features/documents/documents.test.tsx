@@ -269,6 +269,30 @@ describe("documents", () => {
     expect(await screen.findByText("Upload a file of 20 MB or less")).toBeTruthy();
   });
 
+  it("treats a proxy's 502 as no answer, and offers to try again", async () => {
+    serve({});
+    wrap(<UploadPage department={FINANCE} />);
+    await userEvent.setup().upload(await screen.findByLabelText(/Drop a PDF or Word file/), pdf());
+    FakeUpload.sent[0]?.answer(502, null, {}, "Bad Gateway");
+
+    expect(await screen.findByText("The upload didn't finish. Try again")).toBeTruthy();
+    expect(screen.queryByText("Bad Gateway")).toBeNull();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  it("states how long to wait after too many uploads", async () => {
+    serve({});
+    wrap(<UploadPage department={FINANCE} />);
+    await userEvent.setup().upload(await screen.findByLabelText(/Drop a PDF or Word file/), pdf());
+    FakeUpload.sent[0]?.answer(
+      429,
+      { type: "/problems/rate-limited", title: "Too many attempts; try again later", status: 429, code: "rate-limited", instance: "/x", request_id: "r" },
+      { "Retry-After": "600" },
+    );
+
+    expect(await screen.findByText("Too many attempts. Try again in 10 minutes.")).toBeTruthy();
+  });
+
   it("explains instead of uploading in an archived department", () => {
     serve({});
     wrap(<UploadPage department={{ ...FINANCE, status: "archived" }} />);

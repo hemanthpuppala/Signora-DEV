@@ -49,16 +49,39 @@ function isProblem(value: unknown): value is ProblemDetails {
  */
 const NO_ANSWER_STATUSES = new Set([502, 503, 504]);
 
+/** An answer that is not a success, as fetch or XMLHttpRequest delivers it. */
+export type ErrorAnswer = {
+  status: number;
+  statusText: string;
+  url: string;
+  body: unknown;
+  header: (name: string) => string | null;
+};
+
 /** A definite answer that carries no problem document (e.g. Caddy's empty 413 for a large upload). */
-function problemFromBareStatus(response: Response): ProblemDetails {
+function problemFromBareStatus(answer: ErrorAnswer): ProblemDetails {
   return {
     type: "about:blank",
-    title: response.statusText || `HTTP ${response.status}`,
-    status: response.status,
-    code: `http-${response.status}`,
-    instance: new URL(response.url || "/", "http://unknown").pathname,
-    request_id: response.headers.get("X-Request-ID"),
+    title: answer.statusText || `HTTP ${answer.status}`,
+    status: answer.status,
+    code: `http-${answer.status}`,
+    instance: new URL(answer.url || "/", "http://unknown").pathname,
+    request_id: answer.header("X-Request-ID"),
   };
+}
+
+/**
+ * The error for an answer that is not a success, whatever sent the request: ``ApiError`` when the
+ * server answered (with its Retry-After), ``NetworkError`` when only a proxy did.
+ */
+export function answerError(answer: ErrorAnswer): ApiError | NetworkError {
+  const retryAfter = Number(answer.header("Retry-After"));
+  const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null;
+  if (isProblem(answer.body)) return new ApiError(answer.body, retryAfterSeconds);
+  // A proxy's own 502/503/504: the API never answered, so the action may not have happened.
+  if (NO_ANSWER_STATUSES.has(answer.status)) return new NetworkError(`HTTP ${answer.status}`);
+  // Any other status is a definite answer: retrying the same request would get it again.
+  return new ApiError(problemFromBareStatus(answer), retryAfterSeconds);
 }
 
 /**
@@ -74,11 +97,11 @@ export async function unwrap<T>(call: Promise<ClientResult<T>>): Promise<T> {
   }
   const { data, error, response } = result;
   if (response.ok) return data as T;
-  const retryAfter = Number(response.headers.get("Retry-After"));
-  const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null;
-  if (isProblem(error)) throw new ApiError(error, retryAfterSeconds);
-  // A proxy's own 502/503/504: the API never answered, so the action may not have happened.
-  if (NO_ANSWER_STATUSES.has(response.status)) throw new NetworkError(`HTTP ${response.status}`);
-  // Any other status is a definite answer: retrying the same request would get it again.
-  throw new ApiError(problemFromBareStatus(response), retryAfterSeconds);
+  throw answerError({
+    status: response.status,
+    statusText: response.statusText,
+    url: response.url,
+    body: error,
+    header: (name) => response.headers.get(name),
+  });
 }

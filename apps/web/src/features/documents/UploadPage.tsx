@@ -79,12 +79,12 @@ function tooLargeMessage(maxBytes: number | undefined): string {
 }
 
 function uploadProblem(error: unknown, maxBytes: number | undefined): string {
-  if (error instanceof ApiError) {
-    // The API's 413, or the proxy's bare one when a body passes its own limit.
-    if (error.status === 413) return tooLargeMessage(maxBytes);
-    return error.problem.title;
-  }
-  return formError(error) ?? "The upload didn't finish. Try again";
+  if (!(error instanceof ApiError)) return "The upload didn't finish. Try again"; // no answer
+  // The API's 413, or the proxy's bare one when a body passes its own limit.
+  if (error.status === 413) return tooLargeMessage(maxBytes);
+  // The hourly limit states its wait; a server fault gives its reference.
+  if (error.status === 429 || error.status >= 500) return formError(error) ?? error.problem.title;
+  return error.problem.title;
 }
 
 /**

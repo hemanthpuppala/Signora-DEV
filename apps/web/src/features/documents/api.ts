@@ -1,10 +1,10 @@
 "use client";
 
-import type { components, ProblemDetails } from "@signora/contracts";
+import type { components } from "@signora/contracts";
 import { useQuery } from "@tanstack/react-query";
 
-import { api, CSRF_COOKIE, CSRF_HEADER, unwrap } from "@/shared/api/client";
-import { ApiError, NetworkError } from "@/shared/api/errors";
+import { answerError, api, CSRF_COOKIE, CSRF_HEADER, unwrap } from "@/shared/api/client";
+import { NetworkError } from "@/shared/api/errors";
 import { readCookie } from "@/shared/lib/cookies";
 
 export type DocumentSummary = components["schemas"]["DocumentSummary"];
@@ -67,7 +67,8 @@ export function useDocument(id: string | null) {
 
 /**
  * Send one file as the raw body (Phase 4 LLD §2.2). XMLHttpRequest, not fetch, because only it
- * reports upload progress. Throws ``ApiError`` for an answer, ``NetworkError`` for none.
+ * reports upload progress. Fails as the typed client does (``answerError``): ``ApiError`` for an
+ * answer, ``NetworkError`` for none, a proxy's 502/503/504 included.
  */
 export function uploadFile(
   departmentId: string,
@@ -91,20 +92,15 @@ export function uploadFile(
         resolve(request.response as Upload);
         return;
       }
-      const body = request.response as Partial<ProblemDetails> | null;
-      const problem: ProblemDetails =
-        body && typeof body.code === "string"
-          ? (body as ProblemDetails)
-          : {
-              type: "about:blank",
-              title: request.statusText || `HTTP ${request.status}`,
-              status: request.status,
-              // Caddy refuses bodies over its own limit with a bare 413.
-              code: request.status === 413 ? "payload-too-large" : `http-${request.status}`,
-              instance: url,
-              request_id: request.getResponseHeader("X-Request-ID"),
-            };
-      reject(new ApiError(problem));
+      reject(
+        answerError({
+          status: request.status,
+          statusText: request.statusText,
+          url: request.responseURL || url,
+          body: request.response,
+          header: (name) => request.getResponseHeader(name),
+        }),
+      );
     };
     request.onerror = () => reject(new NetworkError());
     request.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"));
