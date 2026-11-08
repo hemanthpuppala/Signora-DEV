@@ -18,7 +18,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 | # | Topic | Status |
 |---|---|---|
 | 1 | What a document is | **agreed** (2026-11-07) |
-| 2 | Uploading | open. Owner input so far: 200-page limit question answered below; password-protected PDFs are unlocked with a password the uploader enters |
+| 2 | Uploading | **agreed** (2026-11-07) |
 | 3 | Processing (DOCX to PDF, page facts, needs-OCR check, failures) | open |
 | 4 | Versions. Owner input so far: the latest version is current by default; any version can be made current | open |
 | 5 | Viewing. Owner input so far: inline viewing for staff and signers; pdf.js (or similar) for now, a richer viewer later | open |
@@ -116,8 +116,93 @@ note pointing here.
 
 ---
 
+## Topic 2 — Uploading
+
+### 2.1 Accepted files and limits (owner decisions)
+
+- **PDF and Word (.docx) only**, recognised from the contents, never the file name or the browser's type:
+  PDF starts with `%PDF-` within the first 1,024 bytes; .docx is a ZIP holding `[Content_Types].xml` and
+  `word/document.xml`. Old .doc, .odt and .rtf are refused (they convert less faithfully; the brief names PDF and DOCX).
+- **50 MB** per file and **200 pages** per document (a .docx is counted after conversion, topic 3). Both are settings
+  (`DOCUMENT_MAX_BYTES`, `DOCUMENT_MAX_PAGES`), so raising them is an `.env` change. The platform requirement to
+  handle documents of 100+ pages is why the page limit is 200, not 100.
+- **60 uploads per person per hour** (kernel rate limiter). No storage quota for now.
+
+### 2.2 Two steps: send the bytes, then decide
+
+An upload is split so the bytes travel once, whatever the person decides next (the duplicate question, a list of
+several files, a name change):
+
+1. **`POST /api/v1/uploads`** (multipart, one file, `Idempotency-Key`). The API streams the body to a temporary file,
+   refusing it the moment it passes 50 MB (the declared length is not trusted), computes SHA-256 while streaming,
+   checks the type, and stores the bytes in the blob store under their hash (identical bytes are stored once). It
+   answers `201 {upload_id, filename, bytes, sha256, kind: "pdf" | "docx", duplicate}` where `duplicate` is set when
+   the same bytes already exist in the target department (§2.3). An upload belongs to the person and the department
+   it was sent for and expires after 24 hours if unused (a cleanup job removes the record; the blob is removed only
+   if nothing else references it, the hardening rule carried in the platform tracker).
+2. **Use it**, once:
+   - `POST /api/v1/departments/{id}/documents` `{name, ai_instructions, upload_id, allow_duplicate}` creates a
+     document with its first version, or
+   - `POST /api/v1/documents/{id}/versions` `{ai_instructions, upload_id}` adds a version (topic 4).
+
+Both need edit access in the department; an upload used once cannot be used again (`409 upload-used`).
+
+### 2.3 The same file twice in a department (owner decision: a hard rule)
+
+The same bytes (same SHA-256) never silently become a second copy or a new version within one department.
+
+- When an upload matches any version of any document in the department (archived documents included, marked as
+  such), the screen shows a dialog: **"This file is already in Finance as Engagement letter, version 2. Upload it
+  anyway as a separate document?"**
+  - **Upload anyway**: it becomes its **own new document**, never a version of the existing one. Its name is the
+    file name; if that name is taken in the department, the dialog asks for another name before creating.
+  - **Cancel**: nothing is created, and the screen says "Upload cancelled. Nothing was added."
+- This applies when creating a document and when adding a version: a file identical to an existing version can only
+  ever become a separate document. The add-version request refuses it (`409 duplicate-file`), so the rule holds on
+  the server, not only in the dialog.
+- The server enforces the question too: creating a document from a duplicate upload without `allow_duplicate: true`
+  answers `409 duplicate-file` with the existing document and version.
+- Other departments are not checked; the same file may be used independently in each.
+
+### 2.4 Several files at once (owner decision)
+
+Dropping several files makes **one document per file**. Each file is uploaded (step 1) and listed before anything
+is created, with its name (from the file name without the extension, editable), its instructions for the AI, and any
+problem or duplicate question for that file. "Create N documents" then creates the ones without problems.
+
+### 2.5 Problems shown to the person
+
+| Case | Message (on that file) |
+|---|---|
+| Not a PDF or .docx | "Upload a PDF or Word (.docx) file" |
+| Over 50 MB | "Upload a file of 50 MB or less" |
+| Over 200 pages (found during processing, topic 3) | "This document has N pages. Upload one with 200 or fewer" |
+| Damaged PDF | "This PDF can't be opened. Save it again and upload it" |
+| Password-protected .docx | "Remove the password in Word and upload it again" |
+| PDF that needs a password to open | the version waits as **Needs password** (§2.6) |
+
+### 2.6 PDFs that need a password (owner decision)
+
+- PyMuPDF reports whether a PDF needs a password to open (`needs_pass`). Such a version is stored as uploaded and
+  waits in **Needs password**. The password field is shown **only** for a version in that state, on the document
+  page, to people with edit access in the department.
+- `POST /api/v1/documents/{id}/versions/{version_id}/unlock` `{password}`: the password is tried once
+  (`authenticate`). Right: an unlocked copy is saved as the working PDF (signing writes on the pages) and processing
+  continues (topic 3). Wrong: `422` "Wrong password".
+- 5 wrong tries per version per 15 minutes, then `429` with the wait. The password is never stored, logged or
+  audited (the audit records only that the version was unlocked, by whom).
+- A PDF that opens without a password but carries edit restrictions (an owner password only) is handled
+  automatically; nothing is asked.
+
+### 2.7 Out of scope
+
+Virus scanning (a hardening follow-up). Uploaded files are never executed: the bytes are stored, processing reads
+them with PyMuPDF and Gotenberg (isolated, topic 3), and viewers render them with scripts disabled (topic 5).
+
+---
+
 ## Task tracker
 
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topic 1 recorded |
+| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-2 recorded |
