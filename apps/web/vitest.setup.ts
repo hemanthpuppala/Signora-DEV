@@ -7,3 +7,12 @@ afterEach(() => {
   cleanup();
   window.sessionStorage.clear();
 });
+
+// jsdom has no ResizeObserver (every supported browser does); components that re-measure on resize
+// get a stand-in that measures nothing further.
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;

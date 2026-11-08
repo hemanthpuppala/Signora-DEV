@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   Button,
+  ClampedText,
   EmailField,
   Select,
   StatusPill,
@@ -184,5 +185,31 @@ describe("EmailField", () => {
 
     await user.type(input, "@firm.com");
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("ClampedText", () => {
+  function overflow(scrollWidth: number) {
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", { configurable: true, value: scrollWidth });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, value: 300 });
+  }
+
+  it("shows More only when the text does not fit, and opens it in a scrollable box", async () => {
+    overflow(900);
+    render(<ClampedText>{"A long description. ".repeat(40)}</ClampedText>);
+
+    const more = screen.getByRole("button", { name: "More" });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.setup().click(more);
+    const less = screen.getByRole("button", { name: "Less" });
+    expect(less.getAttribute("aria-expanded")).toBe("true");
+    const text = document.getElementById(less.getAttribute("aria-controls") ?? "");
+    expect(text?.getAttribute("tabindex")).toBe("0");
+  });
+
+  it("shows no button when the text fits", () => {
+    overflow(200);
+    render(<ClampedText>Short.</ClampedText>);
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });

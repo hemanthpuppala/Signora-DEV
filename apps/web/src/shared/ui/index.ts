@@ -26,6 +26,7 @@ export { EmailField, type EmailFieldProps } from "./EmailField";
 export { TextArea, TextField } from "./Field";
 export { FieldAction, FieldGrid, HeadRow, Section } from "./Layout";
 export { AddCard, CardGrid, StatCard, type CardStat } from "./Card";
+export { ClampedText } from "./ClampedText";
 export { RowActions } from "./RowActions";
 export { PasswordField, type PasswordFieldProps } from "./PasswordField";
 export { Select, type SelectOption } from "./Select";

@@ -40,6 +40,13 @@
   font-size: 13px;
   line-height: 20px;
   color: var(--t55);
+  /* A card is a link, so it cannot hold a "More" button: two lines, then an ellipsis. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .stats {

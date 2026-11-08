@@ -7,6 +7,7 @@ import { ApiError, formError } from "@/shared/api/errors";
 import { can, type Me } from "@/shared/session";
 import {
   Button,
+  ClampedText,
   Eyebrow,
   HeadRow,
   Heading1,
@@ -16,7 +17,6 @@ import {
   Notice,
   Section,
   SmallText,
-  Sub,
 } from "@/shared/ui";
 
 import { dayMonth, departmentKey, useDepartment } from "./api";
@@ -64,7 +64,7 @@ export function DepartmentPage({ me, id }: { me: Me; id: string }) {
       >
         <Eyebrow>Department</Eyebrow>
         <Heading1>{data.name}</Heading1>
-        {data.description ? <Sub>{data.description}</Sub> : null}
+        {data.description ? <ClampedText>{data.description}</ClampedText> : null}
       </HeadRow>
       {archived && data.archived_at ? (
         <Notice
