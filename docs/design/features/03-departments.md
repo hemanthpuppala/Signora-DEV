@@ -185,8 +185,10 @@ CREATE INDEX ix_department_grants_user ON department_grants (user_id);
 ```
 
 The composite keys make a grant to another company's person or department impossible (`users` gains
-`UNIQUE (id, workspace_id)`). A removed member keeps their grant rows for history but cannot sign in, so the grant
-has no effect.
+`UNIQUE (id, workspace_id)`). Removing a member deletes their grants in every department, in the removal's own
+transaction (the same hook as countersigners, §4.3); the audit log keeps the history. (Changed in the PR review: the
+rows were first kept "for history", but a kept row made the list show, and send back, a person who no longer exists,
+so every later save was refused.)
 
 ### 2.5 API
 
@@ -209,8 +211,9 @@ Audit (company chain): `department.access_granted` and `department.access_revoke
   cannot in HR.
 - Editor and Owner: can in every department; a grant changes nothing for them.
 - Only `members.manage` reads or changes grants; a user or department of another company is refused (422/404).
-- Replacing the list adds and removes exactly the difference and audits each change; a removed member's grant has no
-  effect.
+- Replacing the list adds and removes exactly the difference and audits each change; removing a member deletes their
+  grants everywhere.
+- Two first saves at once both succeed (the department row is locked while a list is replaced).
 
 ---
 
@@ -455,3 +458,10 @@ building blocks (`Section`, `FieldGrid`, `FieldAction`, `ActionCell`).
 | 3.8 | Web: department settings (about, timing, notify, countersigners, edit access, archive) | done | /departments/{id}/settings with sections saving on their own; people picked from the colleague directory; ordered countersigners with Up/Down/Remove in `ActionCell` columns; edit access shown to the Owner only; archive behind a confirmation (`RowActions`). 5 Vitest tests: edit access owner-only, countersigners added/reordered/saved in order, server range error on the field, archive only after confirming, archived department asks to restore first |
 | 3.9 | Deploy and live end-to-end check | done | Deployed; migrations 0006-0010 applied on the live database (every company's default Editor role gained the four permissions; Viewer unchanged). Headless run on https://hemanth.tail50655e.ts.net, all 6 steps passing: new company lands on Departments with the empty state, create (name normalised) opens the department, a taken name refused on the field, settings timing and countersigners saved, a Viewer sees departments read-only with the disabled action and its reason, archive after confirming and restore. Found and fixed: two links named "Settings" on the department page (now "Department settings") |
 
+### PR #4 review fixes
+
+| # | Finding | Fix | Evidence |
+|---|---------|-----|----------|
+| R1 | Two first saves of edit access at once failed with a duplicate key (500): an empty list has no rows to lock | Lock the department row (`FOR NO KEY UPDATE`) while a list is replaced | two-thread test fails without the lock |
+| R2 | The same race for countersigners | The same lock | two-thread test fails without the lock |
+| R3 | A removed member kept their grants, so the list showed them and every save was refused | Member-removal hook deletes their grants (§2.4) | test fails without the hook |

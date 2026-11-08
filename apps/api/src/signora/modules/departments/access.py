@@ -182,3 +182,11 @@ def set_grants(
                 data={"user_id": str(user_id)},
             )
     return list_grants(uow.session, actor.workspace_id, department_id)
+
+
+def revoke_removed_member(uow: UnitOfWork, workspace_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    """Member-removal hook: the person's edit access ends in every department."""
+    uow.session.execute(
+        text("DELETE FROM department_grants WHERE workspace_id = :w AND user_id = :u"),
+        {"w": workspace_id, "u": user_id},
+    )

@@ -286,3 +286,29 @@ def test_two_first_grants_at_once_both_succeed(
             {"w": company.workspace_id},
         ).scalar_one()
     assert granted == 1  # the second request found Carol already granted
+
+
+def test_removing_a_member_ends_their_edit_access_everywhere(
+    owner: TestClient,
+    committing_db: Database,
+    company: Account,
+    add_member: Callable[..., Account],
+) -> None:
+    finance, hr = create(owner, "Finance"), create(owner, "HR")
+    leaving, staying = add_member(company), add_member(company)
+    put_grants(owner, finance["id"], [leaving.user_id, staying.user_id])
+    put_grants(owner, hr["id"], [leaving.user_id])
+
+    removed = owner.delete(f"/api/v1/members/{leaving.user_id}", headers=csrf_headers(owner))
+
+    assert removed.status_code == 204
+    with committing_db.unit_of_work() as uow:  # the rows are gone, not merely hidden
+        rows = uow.session.execute(
+            text("SELECT count(*) FROM department_grants WHERE user_id = :u"),
+            {"u": leaving.user_id},
+        ).scalar_one()
+    assert rows == 0
+    # The list saves again as shown: it no longer carries the removed person.
+    shown = [g["user"]["id"] for g in owner.get(f"{URL}/{finance['id']}/grants").json()]
+    assert shown == [str(staying.user_id)]
+    assert put_grants(owner, finance["id"], shown).status_code == 200
