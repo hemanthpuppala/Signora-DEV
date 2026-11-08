@@ -10,6 +10,7 @@ import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
 import { useLogIn } from "@/shared/session";
 import { AuthPanel, Button, Notice, PasswordField, TextField } from "@/shared/ui";
 
+import { AccountReady } from "./AccountReady";
 import { LinkProblem } from "./LinkProblem";
 import { useLinkCheck } from "./useLinkCheck";
 
@@ -48,6 +49,7 @@ export function SignupCompleteForm() {
     }
   }, [created, email, logIn, password, router]);
 
+  if (created && email && logIn.isError) return <AccountReady eyebrow="New account" email={email} />;
   if (token === null) return <LinkProblem eyebrow="New account" missing again={{ href: "/signup", label: "Start again" }} />;
   if (check.isError) return <LinkProblem eyebrow="New account" error={check.error} again={{ href: "/signup", label: "Start again" }} />;
   if (!check.data) return <AuthPanel eyebrow="New account" heading="Checking your link…">{null}</AuthPanel>;

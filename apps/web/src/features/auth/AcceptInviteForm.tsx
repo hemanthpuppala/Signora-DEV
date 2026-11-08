@@ -19,6 +19,7 @@ import {
   TextField,
 } from "@/shared/ui";
 
+import { AccountReady } from "./AccountReady";
 import { LinkProblem } from "./LinkProblem";
 import { useLinkCheck } from "./useLinkCheck";
 
@@ -69,6 +70,7 @@ export function AcceptInviteForm() {
     }
   }, [accepted, email, logIn, password, router]);
 
+  if (accepted && email && logIn.isError) return <AccountReady eyebrow="Invitation" email={email} />;
   if (token === null) return <LinkProblem eyebrow="Invitation" missing again={AGAIN} />;
   if (check.isError) return <LinkProblem eyebrow="Invitation" error={check.error} again={AGAIN} />;
   if (!check.data) return <AuthPanel eyebrow="Invitation" heading="Checking your invitation…">{null}</AuthPanel>;
