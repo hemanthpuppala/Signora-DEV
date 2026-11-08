@@ -49,8 +49,20 @@ function reply(status: number, body: unknown) {
   );
 }
 
+const grantOf = (id: string) => {
+  const person = people.find((p) => p.id === id) as (typeof people)[number];
+  return {
+    user: { id: person.id, name: person.name },
+    email: person.email,
+    granted_by: { id: "u", name: "Rosa Hale" },
+    created_at: "2026-11-07T10:00:00Z",
+  };
+};
+
 describe("department settings", () => {
   const fetchMock = vi.fn<typeof fetch>();
+  /** What the server holds now; tests change it to play another manager's edits. */
+  const server: { grants: string[] } = { grants: [] };
   const sent: { method: string; path: string; body: unknown }[] = [];
 
   function serve(current: Record<string, unknown>, onPatch?: () => Promise<Response>) {
@@ -61,8 +73,14 @@ describe("department settings", () => {
       sent.push({ method: req.method, path, body });
       if (path.endsWith("/directory")) return reply(200, people);
       if (path.endsWith("/grants/candidates")) return reply(200, [people[1]]);
-      if (path.endsWith("/grants")) return reply(200, []);
-      if (path.endsWith("/countersigners")) return reply(200, []);
+      if (path.endsWith("/grants")) {
+        if (req.method === "PUT") server.grants = (body as { user_ids: string[] }).user_ids;
+        return reply(200, server.grants.map(grantOf));
+      }
+      if (path.endsWith("/countersigners")) {
+        const ids = (body as { user_ids: string[] }).user_ids;
+        return reply(200, ids.map((id) => people.find((p) => p.id === id)));
+      }
       if (path.endsWith("/archive")) return reply(200, { ...current, status: "archived" });
       if (req.method === "PATCH" && onPatch) return onPatch();
       return reply(200, current);
@@ -73,15 +91,16 @@ describe("department settings", () => {
     vi.stubGlobal("fetch", fetchMock);
     replace.mockReset();
     sent.length = 0;
+    server.grants = [];
   });
   afterEach(() => {
     vi.unstubAllGlobals();
     fetchMock.mockReset();
   });
 
-  function open(permissions: string[]) {
-    render(
-      <QueryClientProvider client={makeQueryClient()}>
+  function open(permissions: string[], client = makeQueryClient()) {
+    return render(
+      <QueryClientProvider client={client}>
         <ToastProvider>
           <DepartmentSettings me={me(permissions)} id="d-1" />
         </ToastProvider>
@@ -205,5 +224,42 @@ describe("department settings", () => {
     const section = await screen.findByRole("region", { name: "Also notify" });
     expect(within(section).queryByLabelText("Email")).toBeNull();
     expect(within(section).queryByRole("button", { name: "Add" })).toBeNull();
+  });
+
+  it("shows saved edit access when the page is opened again", async () => {
+    serve(department());
+    const client = makeQueryClient();
+    const first = open(OWNER, client);
+    const user = userEvent.setup();
+    const section = await screen.findByRole("region", { name: "People with edit access" });
+    await user.click(within(section).getByRole("combobox", { name: "Add a person" }));
+    await user.click(await screen.findByRole("option", { name: /Ben Ito/ }));
+    await user.click(within(section).getByRole("button", { name: "Add" }));
+    await vi.waitFor(() => expect(server.grants).toEqual(["p-2"]));
+    first.unmount();
+
+    open(OWNER, client); // same cache, as when coming back to the page
+
+    const again = await screen.findByRole("region", { name: "People with edit access" });
+    expect(within(again).getByText("Ben Ito")).toBeTruthy();
+  });
+
+  it("shows another manager's countersigner change without a reload", async () => {
+    let current = department();
+    fetchMock.mockImplementation(async (request) => {
+      const path = new URL((request as Request).url).pathname;
+      if (path.endsWith("/directory")) return reply(200, people);
+      if (path.includes("/grants")) return reply(200, []);
+      return reply(200, current);
+    });
+    const client = makeQueryClient();
+    open(EDITOR, client);
+    const section = await screen.findByRole("region", { name: "Countersigners" });
+    expect(within(section).queryByText("Ben Ito")).toBeNull();
+
+    current = department({ countersigners: people }); // another manager adds Ben
+    await client.invalidateQueries({ queryKey: ["department", "d-1"] }); // e.g. window focus
+
+    expect(await within(section).findByText("Ben Ito")).toBeTruthy();
   });
 });

@@ -46,26 +46,29 @@ export function DepartmentSettings({ me, id }: { me: Me; id: string }) {
 }
 
 function Countersigners({ department }: { department: Department }) {
+  const queryClient = useQueryClient();
   const directory = useDirectory();
   const id = department.id;
   return (
     <PeopleList
-        title="Countersigners"
-        empty="No countersigner. Choose one."
-        initial={department.countersigners}
-        candidates={directory.data}
-        ordered
-        departmentId={id}
-        save={(ids) =>
-          unwrap(
-            api.PUT("/api/v1/departments/{department_id}/countersigners", {
-              params: { path: { department_id: id } },
-              body: { user_ids: ids },
-            }),
-          )
-        }
-        saved="Countersigners updated"
-      />
+      title="Countersigners"
+      empty="No countersigner. Choose one."
+      people={department.countersigners}
+      candidates={directory.data}
+      ordered
+      save={async (ids) => {
+        const saved = await unwrap(
+          api.PUT("/api/v1/departments/{department_id}/countersigners", {
+            params: { path: { department_id: id } },
+            body: { user_ids: ids },
+          }),
+        );
+        queryClient.setQueryData<Department>(departmentKey(id), (current) =>
+          current ? { ...current, countersigners: saved } : current,
+        );
+      }}
+      saved="Countersigners updated"
+    />
   );
 }
 
@@ -299,39 +302,36 @@ function useDirectory() {
   });
 }
 
-/** An editable list of people: add from ``candidates``, remove, and (if ordered) move. */
+/**
+ * An editable list of people: add from ``candidates``, remove, and (if ordered) move. It shows
+ * ``people`` as the server last returned them and keeps no copy, so a refetch (another manager's
+ * change, a return to the page) shows at once and a change is never made to an old list. ``save``
+ * stores the full list and writes the server's answer into the query that ``people`` comes from.
+ */
 function PeopleList({
   title,
   empty,
-  initial,
+  people,
   candidates,
   ordered,
-  departmentId,
   save,
   saved,
 }: {
   title: string;
   empty: string;
-  initial: Person[];
+  people: Person[];
   /** Who may be added (the server decides; e.g. edit access excludes people who edit everywhere). */
   candidates: Person[] | undefined;
   ordered: boolean;
-  departmentId: string;
-  save: (ids: string[]) => Promise<unknown>;
+  save: (ids: string[]) => Promise<void>;
   saved: string;
 }) {
-  const queryClient = useQueryClient();
   const toast = useToast();
-  const [people, setPeople] = useState<Person[]>(initial);
   const [adding, setAdding] = useState<string | null>(null);
   // Every change saves straight away, like "Also notify".
   const mutation = useMutation({
     mutationFn: (next: Person[]) => save(next.map((p) => p.id)),
-    onSuccess: (_, next) => {
-      setPeople(next);
-      void queryClient.invalidateQueries({ queryKey: departmentKey(departmentId) });
-      toast.show(saved);
-    },
+    onSuccess: () => toast.show(saved),
   });
   const commit = (next: Person[]) => mutation.mutate(next);
   const options = (candidates ?? [])
@@ -415,8 +415,10 @@ function PeopleList({
 }
 
 function EditAccess({ departmentId }: { departmentId: string }) {
+  const queryClient = useQueryClient();
+  const grantsKey = ["grants", departmentId];
   const grants = useQuery({
-    queryKey: ["grants", departmentId],
+    queryKey: grantsKey,
     queryFn: () =>
       unwrap(
         api.GET("/api/v1/departments/{department_id}/grants", {
@@ -438,18 +440,18 @@ function EditAccess({ departmentId }: { departmentId: string }) {
     <PeopleList
       title="People with edit access"
       empty="Only owners and editors can edit here."
-      initial={grants.data.map((grant) => ({ id: grant.user.id, name: grant.user.name, email: grant.email }))}
+      people={grants.data.map((grant) => ({ id: grant.user.id, name: grant.user.name, email: grant.email }))}
       candidates={candidates.data}
       ordered={false}
-      departmentId={departmentId}
-      save={(ids) =>
-        unwrap(
+      save={async (ids) => {
+        const saved = await unwrap(
           api.PUT("/api/v1/departments/{department_id}/grants", {
             params: { path: { department_id: departmentId } },
             body: { user_ids: ids },
           }),
-        )
-      }
+        );
+        queryClient.setQueryData(grantsKey, saved);
+      }}
       saved="Edit access updated"
     />
   );
