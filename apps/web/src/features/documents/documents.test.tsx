@@ -91,6 +91,7 @@ describe("documents", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("XMLHttpRequest", FakeUpload);
     FakeUpload.sent = [];
+    META.document_max_bytes = 50 * 1024 * 1024;
     posted.length = 0;
     clearHandOff("d-1");
     push.mockReset();
@@ -254,6 +255,18 @@ describe("documents", () => {
 
     expect(await screen.findByText("Upload a file of 50 MB or less")).toBeTruthy();
     expect(FakeUpload.sent).toHaveLength(0);
+  });
+
+  it("states the limit the server enforces when it refuses a file as too large", async () => {
+    META.document_max_bytes = 20 * 1024 * 1024;
+    serve({});
+    wrap(<UploadPage department={FINANCE} />);
+    await screen.findByText(/up to 20 MB/);
+
+    await userEvent.setup().upload(screen.getByLabelText(/Drop a PDF or Word file/), pdf());
+    FakeUpload.sent[0]?.answer(413, { type: "/problems/payload-too-large", title: "The upload is too large", status: 413, code: "payload-too-large", instance: "/x", request_id: "r" });
+
+    expect(await screen.findByText("Upload a file of 20 MB or less")).toBeTruthy();
   });
 
   it("explains instead of uploading in an archived department", () => {

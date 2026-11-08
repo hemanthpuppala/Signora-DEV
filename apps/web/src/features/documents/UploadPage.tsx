@@ -73,9 +73,15 @@ function newRow(file: File, tooLargeMessage: string | null): Row {
   };
 }
 
-function uploadProblem(error: unknown): string {
+/** The size refusal, stating the limit the server enforces (from /meta, never written here). */
+function tooLargeMessage(maxBytes: number | undefined): string {
+  return maxBytes ? `Upload a file of ${formatBytes(maxBytes)} or less` : "This file is too large. Upload a smaller one";
+}
+
+function uploadProblem(error: unknown, maxBytes: number | undefined): string {
   if (error instanceof ApiError) {
-    if (error.code === "payload-too-large") return "Upload a file of 50 MB or less";
+    // The API's 413, or the proxy's bare one when a body passes its own limit.
+    if (error.status === 413) return tooLargeMessage(maxBytes);
     return error.problem.title;
   }
   return formError(error) ?? "The upload didn't finish. Try again";
@@ -90,6 +96,7 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
   const departmentId = department.id;
   const queryClient = useQueryClient();
   const limits = useDocumentLimits();
+  const { maxBytes } = limits;
   // Files handed over from the department or new-department page start as rows at once.
   const [rows, setRows] = useState<Row[]>(() => handedOffFiles(departmentId).map((file) => newRow(file, null)));
 
@@ -108,9 +115,9 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
             phase: upload.duplicate ? "question" : "ready",
           }),
         )
-        .catch((error: unknown) => update(key, { phase: "failed", message: uploadProblem(error) }));
+        .catch((error: unknown) => update(key, { phase: "failed", message: uploadProblem(error, maxBytes) }));
     },
-    [departmentId, update],
+    [departmentId, maxBytes, update],
   );
 
   // Transfers for the handed-over rows, once each (effects may run twice in development).
@@ -126,8 +133,8 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
   }, [departmentId, rows, transfer]);
 
   const addFile = (file: File) => {
-    const tooLarge = limits.maxBytes !== undefined && file.size > limits.maxBytes;
-    const row = newRow(file, tooLarge ? `Upload a file of ${formatBytes(limits.maxBytes ?? 0)} or less` : null);
+    const tooLarge = maxBytes !== undefined && file.size > maxBytes;
+    const row = newRow(file, tooLarge ? tooLargeMessage(maxBytes) : null);
     setRows((current) => [...current, row]); // the effect above starts its transfer
   };
 
