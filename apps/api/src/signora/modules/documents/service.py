@@ -23,6 +23,7 @@ from signora.kernel.ratelimit import RateLimiter
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, load_access, normalize_name, require_active
+from signora.modules.documents.current import current_number, set_current
 from signora.modules.documents.domain import AI_INSTRUCTIONS_MAX, DESCRIPTION_MAX, NAME_MAX, Kind
 from signora.modules.documents.errors import (
     CannotRetry,
@@ -32,6 +33,7 @@ from signora.modules.documents.errors import (
     NotLocked,
     UploadNotFound,
     UploadUsed,
+    VersionNotReady,
     WrongPassword,
 )
 from signora.modules.documents.pdf import unlock
@@ -552,3 +554,27 @@ def unlock_version(
     )
     enqueue_processing(session, version_id)
     audit(uow, actor, "document.version_unlocked", document_id, version_no=version.version_no)
+
+
+def make_current(
+    uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+) -> None:
+    """A person chooses which ready version new sends use (§4.2; the screen asks first).
+    Repeat-safe. A later upload that becomes ready takes over again."""
+    session = uow.session
+    version = _changeable_version(session, actor, document_id, version_id)
+    if version.status != "processed":
+        raise VersionNotReady
+    previous = current_number(session, document_id)
+    if previous == version.version_no:
+        return
+    set_current(session, document_id, version_id)
+    audit(
+        uow,
+        actor,
+        "document.current_version_changed",
+        document_id,
+        old=previous,
+        new=version.version_no,
+        automatic=False,
+    )

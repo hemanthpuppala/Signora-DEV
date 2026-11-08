@@ -178,6 +178,7 @@ name = "Public interface only: documents internals are imported only by document
 type = "protected"
 protected_modules = [
     "signora.modules.documents.conversion",
+    "signora.modules.documents.current",
     "signora.modules.documents.domain",
     "signora.modules.documents.errors",
     "signora.modules.documents.jobs",

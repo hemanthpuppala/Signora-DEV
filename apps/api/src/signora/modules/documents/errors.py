@@ -57,3 +57,8 @@ class WrongPassword(DomainError):
     code = "wrong-password"
     status = 422
     title = "Wrong password"
+
+
+class VersionNotReady(Conflict):
+    code = "version-not-ready"
+    title = "Only a ready version can be made current"

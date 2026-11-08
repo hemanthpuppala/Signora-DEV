@@ -8,8 +8,13 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
+from signora.kernel.blobstore import LocalBlobStore
 from signora.kernel.config import DatabaseSettings, Settings, load_settings
+from signora.kernel.db import Database
+from signora.kernel.jobs import JobContext
+from signora.modules.documents import processing
 from tests.modules.identity_access.conftest import (  # noqa: F401 - fixtures by name
     Account,
     add_member,
@@ -90,3 +95,28 @@ def add_version(api: TestClient, document_id: str, data: bytes, department_id: s
         json={"upload_id": uploaded.json()["id"]},
         headers={**csrf_headers(api), **idempotency_key()},
     )
+
+
+@pytest.fixture
+def run(committing_db: Database, settings: Settings) -> Callable[..., None]:
+    """Run the processing job for a version, as the worker would."""
+
+    def go(version_id: str, *, attempt: int = 1, gotenberg_url: str | None = None) -> None:
+        with committing_db.unit_of_work() as uow:
+            job_id = uow.session.execute(
+                text(
+                    "INSERT INTO jobs (kind, status, attempts) "
+                    "VALUES ('document.process', 'running', :a) RETURNING id"
+                ),
+                {"a": attempt},
+            ).scalar_one()
+        processing.process_version(
+            JobContext(
+                job_id, processing.PROCESS, {"version_id": version_id}, {}, attempt, committing_db
+            ),
+            store=LocalBlobStore(settings.blob_store.dir),
+            gotenberg_url=gotenberg_url or settings.gotenberg.base_url,
+            max_pages=settings.documents.max_pages,
+        )
+
+    return go

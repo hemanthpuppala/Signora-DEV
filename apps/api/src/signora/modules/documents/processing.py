@@ -25,6 +25,7 @@ from signora.kernel.logging import get_logger
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.documents.conversion import ConversionRefusedError, docx_to_pdf
+from signora.modules.documents.current import promote_if_newest
 from signora.modules.documents.pdf import (
     DamagedPdfError,
     PasswordRequiredError,
@@ -52,6 +53,7 @@ class _Work:
     id: uuid.UUID
     workspace_id: uuid.UUID
     document_id: uuid.UUID
+    version_no: int
     status: str
     source_kind: str
     source_sha256: str
@@ -67,7 +69,7 @@ def enqueue_processing(session: Session, version_id: uuid.UUID) -> None:
 def _load(uow: UnitOfWork, version_id: uuid.UUID) -> _Work | None:
     found = uow.session.execute(
         text(
-            "SELECT id, workspace_id, document_id, status, source_kind, source_sha256, "
+            "SELECT id, workspace_id, document_id, version_no, status, source_kind, source_sha256, "
             "source_bytes, unlocked_sha256 FROM document_versions WHERE id = :id"
         ),
         {"id": version_id},
@@ -147,6 +149,17 @@ def _done(context: JobContext, work: _Work, prepared: Prepared, store: BlobStore
         if changed is None:
             return
         if status == "processed":
+            # Ready in this phase means processed; Phase 5 moves this to "AI processing done".
+            promotion = promote_if_newest(uow.session, work.document_id, work.id, work.version_no)
+            if promotion.promoted:
+                _audit(
+                    uow,
+                    work,
+                    "document.current_version_changed",
+                    old=promotion.previous,
+                    new=work.version_no,
+                    automatic=True,
+                )
             bus.publish(
                 uow.session,
                 DocumentVersionProcessed(

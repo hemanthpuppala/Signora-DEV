@@ -465,3 +465,20 @@ def unlock_version(
         )
         row = service.get_document(uow.session, actor.workspace_id, document_id)
         return detail(request, uow.session, actor, row)
+
+
+class MakeCurrent(_Body):
+    version_id: uuid.UUID
+
+
+@router.post(
+    "/documents/{document_id}/current-version",
+    summary="Make a ready version the one new sends use (repeat-safe)",
+)
+def make_current(
+    document_id: uuid.UUID, body: MakeCurrent, request: Request, actor: Member
+) -> DocumentDetail:
+    with _db(request).unit_of_work() as uow:
+        service.make_current(uow, actor=actor, document_id=document_id, version_id=body.version_id)
+        row = service.get_document(uow.session, actor.workspace_id, document_id)
+        return detail(request, uow.session, actor, row)
