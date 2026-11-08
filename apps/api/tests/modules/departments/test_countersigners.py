@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import threading
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -11,6 +13,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from signora.kernel.db import Database
+from signora.modules.departments import countersigners as countersigners_module
+from signora.modules.departments import service as service_module
+from signora.modules.identity_access.access import Actor
 from tests.modules.identity_access.conftest import (
     Account,
     csrf_headers,
@@ -180,3 +185,62 @@ def test_an_archived_department_refuses_changes(
     owner.post(f"{URL}/{department['id']}/archive", headers=csrf_headers(owner))
     response = put_signers(owner, department["id"], [add_member(company).user_id])
     assert response.json()["code"] == "department-archived"
+
+
+def test_two_first_countersigners_at_once_both_succeed(
+    owner: TestClient,
+    committing_db: Database,
+    company: Account,
+    add_member: Callable[..., Account],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With an empty list there are no rows to lock; the department row serialises the two."""
+    department = create(owner, "Intake")
+    ana = add_member(company)
+    actor = Actor(
+        user_id=company.user_id,
+        email=company.email,
+        name="x",
+        workspace_id=company.workspace_id,
+        workspace_name="x",
+        role_id=uuid.uuid4(),  # the service reads only the company, user and email
+        role_key="x",
+        role_name="x",
+        role_description="",
+        permissions=frozenset(),
+        is_creator=True,
+        session_digest=b"",
+    )
+    barrier = threading.Barrier(2)
+    real_lock = service_module.lock_active_department
+
+    def lock_then_wait(session: Any, workspace_id: uuid.UUID, department_id: uuid.UUID) -> None:
+        real_lock(session, workspace_id, department_id)
+        # Without a real lock both requests meet here and read the same empty list. With it, the
+        # second waits inside the lock, so the first gives up waiting and commits first.
+        with contextlib.suppress(threading.BrokenBarrierError):
+            barrier.wait(timeout=2)
+
+    monkeypatch.setattr(countersigners_module, "lock_active_department", lock_then_wait)
+    errors: list[BaseException] = []
+
+    def add_first() -> None:
+        try:
+            with committing_db.unit_of_work() as uow:
+                countersigners_module.set_countersigners(
+                    uow,
+                    actor=actor,
+                    department_id=uuid.UUID(department["id"]),
+                    user_ids=[ana.user_id],
+                )
+        except BaseException as error:  # collected for the assertion
+            errors.append(error)
+
+    threads = [threading.Thread(target=add_first) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert errors == []  # never a duplicate position or person
+    assert signer_ids(owner, department["id"]) == [str(ana.user_id)]

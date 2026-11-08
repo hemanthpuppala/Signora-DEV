@@ -17,7 +17,7 @@ from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
-from signora.modules.departments.service import get_department, require_active
+from signora.modules.departments.service import lock_active_department
 from signora.modules.identity_access import Actor
 
 
@@ -49,7 +49,7 @@ def set_countersigners(
     uow: UnitOfWork, *, actor: Actor, department_id: uuid.UUID, user_ids: list[uuid.UUID]
 ) -> list[Countersigner]:
     """Replace the ordered list in one transaction (repeat-safe)."""
-    require_active(get_department(uow.session, actor.workspace_id, department_id))
+    lock_active_department(uow.session, actor.workspace_id, department_id)
     errors: list[FieldError] = []
     seen: set[uuid.UUID] = set()
     for index, user_id in enumerate(user_ids):
@@ -78,7 +78,7 @@ def set_countersigners(
         for row in uow.session.execute(
             text(
                 "SELECT user_id FROM department_countersigners WHERE department_id = :d "
-                "ORDER BY position FOR UPDATE"
+                "ORDER BY position"
             ),
             {"d": department_id},
         )
