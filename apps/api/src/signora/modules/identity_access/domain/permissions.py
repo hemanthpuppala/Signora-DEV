@@ -20,8 +20,8 @@ class Permission(StrEnum):
     DEPARTMENTS_CREATE = "departments.create"
     DEPARTMENTS_MANAGE = "departments.manage"
     # Inside a department (Phase 3 topic 2): from the role in every department, or a grant in one
-    FILES_VIEW_SENDS = "files.view_sends"  # see sends and their client details
-    FILES_SEND = "files.send"  # upload, review, approve and send files
+    DOCUMENTS_VIEW_SENDS = "documents.view_sends"  # see sends and their client details
+    DOCUMENTS_SEND = "documents.send"  # upload, review, approve and send documents
 
 
 ALL_PERMISSIONS = frozenset(Permission)
@@ -51,7 +51,7 @@ class RoleTemplate:
 READ = RoleTemplate(
     "read",
     "Viewer",
-    "Can see departments, files and signed agreements, but can't change anything.",
+    "Can see departments, documents and signed agreements, but can't change anything.",
     frozenset(),
 )
 READ_WRITE = RoleTemplate(
@@ -64,13 +64,13 @@ READ_WRITE = RoleTemplate(
             Permission.WORKSPACE_RENAME,
             Permission.DEPARTMENTS_CREATE,
             Permission.DEPARTMENTS_MANAGE,
-            Permission.FILES_VIEW_SENDS,
-            Permission.FILES_SEND,
+            Permission.DOCUMENTS_VIEW_SENDS,
+            Permission.DOCUMENTS_SEND,
         }
     ),
 )
 # What a department grant gives in its one department (Phase 3 topic 2).
-DEPARTMENT_GRANT = frozenset({Permission.FILES_VIEW_SENDS, Permission.FILES_SEND})
+DEPARTMENT_GRANT = frozenset({Permission.DOCUMENTS_VIEW_SENDS, Permission.DOCUMENTS_SEND})
 # Shown for the workspace creator, who holds the Editor role plus every permission in code.
 OWNER_LABEL = "Owner"
 OWNER_DESCRIPTION = (

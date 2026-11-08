@@ -96,8 +96,8 @@ def test_roles_are_listed_as_data(manager: TestClient) -> None:
     assert set(roles["read_write"]["permissions"]) == {
         "departments.create",
         "departments.manage",
-        "files.send",
-        "files.view_sends",
+        "documents.send",
+        "documents.view_sends",
         "members.directory",
         "workspace.rename",
     }

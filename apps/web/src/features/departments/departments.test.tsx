@@ -18,7 +18,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(search),
 }));
 
-const EDITOR = ["departments.create", "departments.manage", "files.send", "files.view_sends"];
+const EDITOR = ["departments.create", "departments.manage", "documents.send", "documents.view_sends"];
 const me = (permissions: string[]) =>
   ({
     user: { id: "u", email: "rosa@example.com", name: "Rosa Hale" },
@@ -126,7 +126,7 @@ describe("departments screens", () => {
     expect(await screen.findByText(/Archived on .*Restore it to make changes\./)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Restore" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Department settings" })).toBeNull();
-    expect(screen.getByText("No files yet.")).toBeTruthy();
+    expect(screen.getByText("No documents yet.")).toBeTruthy();
   });
 
   it("gives viewers no settings or restore", async () => {

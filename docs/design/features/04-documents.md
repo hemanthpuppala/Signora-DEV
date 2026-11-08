@@ -526,7 +526,7 @@ holds until something changes), and short polling.
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
 | 4.1 | Phase 4 LLD (this file), topics 1-6 | done | topics 1-6 agreed and recorded |
-| 4.2 | Rename `files.*` permissions to `documents.*` (data migration), screen text | todo | — |
+| 4.2 | Rename `files.*` permissions to `documents.*` (data migration), screen text | done | migration 0012 renames them in every role (customised ones too) and rewords the Viewer description where still default; test on a throwaway database upgrades and downgrades; enum, tests, contracts and "No documents yet." updated |
 | 4.3 | Uploads: streaming to the blob store, type check, size limit, rate limit, `uploads` table, cleanup job | todo | — |
 | 4.4 | Documents and versions: schema, create with an upload, add a version, numbering, duplicate rule, rename, description, email code, archive and restore, audit | todo | — |
 | 4.5 | Processing job: Gotenberg conversion, PyMuPDF checks, working copy, text check, statuses, retries, Try again, unlock | todo | — |

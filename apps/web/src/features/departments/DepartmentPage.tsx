@@ -21,7 +21,7 @@ import {
 
 import { dayMonth, departmentKey, useDepartment } from "./api";
 
-/** Screens 07/08: one department. Files arrive in Phase 4 (until then: "No files yet."). */
+/** Screens 07/08: one department. Files arrive in Phase 4 (until then: "No documents yet."). */
 export function DepartmentPage({ me, id }: { me: Me; id: string }) {
   const queryClient = useQueryClient();
   const department = useDepartment(id);
@@ -87,7 +87,7 @@ export function DepartmentPage({ me, id }: { me: Me; id: string }) {
         <MetricTile value={data.counts.pending} label="Pending" />
       </MetricGrid>
       <Section title="Files">
-        <SmallText>No files yet.</SmallText>
+        <SmallText>No documents yet.</SmallText>
       </Section>
     </>
   );

@@ -708,8 +708,8 @@
           "workspace.rename",
           "departments.create",
           "departments.manage",
-          "files.view_sends",
-          "files.send"
+          "documents.view_sends",
+          "documents.send"
         ],
         "title": "Permission",
         "type": "string"

@@ -368,8 +368,8 @@ def test_permissions_come_from_the_role_and_the_creator_has_all(
     assert set(me["permissions"]) == {
         "departments.create",
         "departments.manage",
-        "files.send",
-        "files.view_sends",
+        "documents.send",
+        "documents.view_sends",
         "members.directory",
         "workspace.rename",
     }

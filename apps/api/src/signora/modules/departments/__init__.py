@@ -1,4 +1,4 @@
-"""Departments module: how a firm groups its files (Phase 3 LLD).
+"""Departments module: how a firm groups its documents (Phase 3 LLD).
 
 Public interface — other modules import only from here.
 """

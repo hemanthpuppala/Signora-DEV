@@ -160,8 +160,8 @@ def test_default_roles_match_the_agreed_rules() -> None:
         Permission.WORKSPACE_RENAME,
         Permission.DEPARTMENTS_CREATE,
         Permission.DEPARTMENTS_MANAGE,
-        Permission.FILES_VIEW_SENDS,
-        Permission.FILES_SEND,
+        Permission.DOCUMENTS_VIEW_SENDS,
+        Permission.DOCUMENTS_SEND,
     }
     # Managing people and editing roles belong to the creator by default (owner decision).
     for role in DEFAULT_ROLES:

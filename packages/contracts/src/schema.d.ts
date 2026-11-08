@@ -853,7 +853,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        Permission: "members.manage" | "members.directory" | "roles.manage" | "workspace.rename" | "departments.create" | "departments.manage" | "files.view_sends" | "files.send";
+        Permission: "members.manage" | "members.directory" | "roles.manage" | "workspace.rename" | "departments.create" | "departments.manage" | "documents.view_sends" | "documents.send";
         /** PersonRef */
         PersonRef: {
             /**
