@@ -1,0 +1,145 @@
+import { QueryClientProvider } from "@tanstack/react-query";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { makeQueryClient } from "@/shared/api/QueryProvider";
+import { ToastProvider } from "@/shared/ui";
+
+import { DepartmentPage } from "./DepartmentPage";
+import { DepartmentsHome } from "./DepartmentsHome";
+import { NewDepartmentForm } from "./NewDepartmentForm";
+
+const replace = vi.fn();
+let search = "";
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace }),
+  useSearchParams: () => new URLSearchParams(search),
+}));
+
+const EDITOR = ["departments.create", "departments.manage", "files.send", "files.view_sends"];
+const me = (permissions: string[]) =>
+  ({
+    user: { id: "u", email: "rosa@example.com", name: "Rosa Hale" },
+    workspace: { id: "w", name: "Hale & Ward LLP" },
+    role: { id: "r", key: "read_write", name: "Editor", description: "" },
+    display_role: { name: "Editor", description: "" },
+    permissions,
+    is_creator: false,
+  }) as never;
+
+const finance = {
+  id: "d-1",
+  name: "Finance",
+  description: "Engagement letters",
+  status: "active",
+  created_at: "2026-11-07T10:00:00Z",
+  updated_at: "2026-11-07T10:00:00Z",
+  archived_at: null,
+  counts: { sent: 4, signed: 3, pending: 1 },
+  access: "edit",
+  created_by: { id: "u", name: "Rosa Hale" },
+  settings: { reminder_interval_hours: 24, max_reminders: 5, expiry_days: 14, notify_emails: [] },
+  countersigners: [],
+};
+
+function reply(status: number, body: unknown) {
+  return Promise.resolve(
+    new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }),
+  );
+}
+
+function problem(code: string, status: number) {
+  return { type: `/problems/${code}`, title: code, status, code, instance: "/x", request_id: "r" };
+}
+
+function wrap(node: ReactNode) {
+  render(
+    <QueryClientProvider client={makeQueryClient()}>
+      <ToastProvider>{node}</ToastProvider>
+    </QueryClientProvider>,
+  );
+}
+
+describe("departments screens", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    replace.mockReset();
+    search = "";
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+  });
+
+  it("shows departments as cards with their counts, and an add card for editors", async () => {
+    fetchMock.mockImplementation(() => reply(200, [finance]));
+    wrap(<DepartmentsHome me={me(EDITOR)} />);
+
+    const card = await screen.findByRole("link", { name: /Finance/ });
+    expect(card.getAttribute("href")).toBe("/departments/d-1");
+    expect(card.textContent).toContain("Engagement letters");
+    expect(card.textContent).toMatch(/Sent\s*4/);
+    expect(screen.getAllByRole("link", { name: /New department/ })).toHaveLength(2);
+  });
+
+  it("shows viewers no create action at all, and the empty state", async () => {
+    fetchMock.mockImplementation(() => reply(200, []));
+    wrap(<DepartmentsHome me={me([])} />);
+
+    expect(await screen.findByText("No departments yet.")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /New department/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /New department/ })).toBeNull();
+    expect(screen.queryByText(/Only owners and editors/)).toBeNull();
+  });
+
+  it("points a taken name at the name field", async () => {
+    fetchMock.mockImplementation(() => reply(409, problem("department-name-taken", 409)));
+    wrap(<NewDepartmentForm />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText("Name"), "Finance");
+    await user.click(screen.getByRole("button", { name: /create department/i }));
+
+    expect(await screen.findByText("Another department already has this name.")).toBeTruthy();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("opens the new department after creating it", async () => {
+    fetchMock.mockImplementation(() => reply(201, finance));
+    wrap(<NewDepartmentForm />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText("Name"), "Finance");
+    await user.click(screen.getByRole("button", { name: /create department/i }));
+
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/departments/d-1"));
+  });
+
+  it("shows an archived department read-only, with Restore for those who manage", async () => {
+    const archived = { ...finance, status: "archived", archived_at: "2026-11-07T12:00:00Z" };
+    fetchMock.mockImplementation(() => reply(200, archived));
+    wrap(<DepartmentPage me={me(EDITOR)} id="d-1" />);
+
+    expect(await screen.findByText(/Archived on .*Restore it to make changes\./)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Restore" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Department settings" })).toBeNull();
+    expect(screen.getByText("No files yet.")).toBeTruthy();
+  });
+
+  it("gives viewers no settings or restore", async () => {
+    fetchMock.mockImplementation(() => reply(200, { ...finance, access: "read" }));
+    wrap(<DepartmentPage me={me([])} id="d-1" />);
+
+    expect(await screen.findByRole("heading", { name: "Finance" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Department settings" })).toBeNull();
+  });
+
+  it("says when a department does not exist", async () => {
+    fetchMock.mockImplementation(() => reply(404, problem("not-found", 404)));
+    wrap(<DepartmentPage me={me(EDITOR)} id="nope" />);
+    expect(await screen.findByText("This department doesn't exist.")).toBeTruthy();
+  });
+});

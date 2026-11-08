@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "__Host-signora_session";
 const CONSOLE_PATHS = new Set(["/", "/people", "/settings"]);
+const isConsolePath = (path: string) => CONSOLE_PATHS.has(path) || path.startsWith("/departments");
 
 /**
  * Next.js 16 request proxy (formerly middleware): sets a per-request nonce-based Content Security
@@ -11,7 +12,7 @@ const CONSOLE_PATHS = new Set(["/", "/people", "/settings"]);
  */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (CONSOLE_PATHS.has(pathname) && !request.cookies.has(SESSION_COOKIE)) {
+  if (isConsolePath(pathname) && !request.cookies.has(SESSION_COOKIE)) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
     login.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname)}`;

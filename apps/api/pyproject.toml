@@ -142,6 +142,7 @@ protected_modules = [
     "signora.modules.identity_access.dependencies",
     "signora.modules.identity_access.domain",
     "signora.modules.identity_access.errors",
+    "signora.modules.identity_access.hooks",
     "signora.modules.identity_access.jobs",
     "signora.modules.identity_access.emails",
     "signora.modules.identity_access.invites",
@@ -157,6 +158,20 @@ protected_modules = [
 allowed_importers = ["signora.modules.identity_access", "signora.models", "signora.handlers"]
 
 [[tool.importlinter.contracts]]
+name = "Public interface only: departments internals are imported only by departments and composition roots"
+type = "protected"
+protected_modules = [
+    "signora.modules.departments.access",
+    "signora.modules.departments.countersigners",
+    "signora.modules.departments.domain",
+    "signora.modules.departments.errors",
+    "signora.modules.departments.models",
+    "signora.modules.departments.routes",
+    "signora.modules.departments.service",
+]
+allowed_importers = ["signora.modules.departments", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
 name = "Leaf modules import only the kernel"
 type = "forbidden"
 source_modules = ["signora.modules.audit", "signora.modules.notifications"]
@@ -170,5 +185,9 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "Pure domain: domain modules import no web framework or database library"
 type = "forbidden"
-source_modules = ["signora.modules.audit.domain", "signora.modules.identity_access.domain"]
+source_modules = [
+    "signora.modules.audit.domain",
+    "signora.modules.departments.domain",
+    "signora.modules.identity_access.domain",
+]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]

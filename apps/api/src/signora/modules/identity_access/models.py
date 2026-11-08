@@ -84,6 +84,8 @@ users = Table(
     CheckConstraint("email = lower(email)", name="email_normalised"),
     CheckConstraint("char_length(name) BETWEEN 1 AND 120", name="name_length"),
     ForeignKeyConstraint(["role_id", "workspace_id"], ["roles.id", "roles.workspace_id"]),
+    # Lets other tables check a referenced user belongs to the same company (Phase 3).
+    UniqueConstraint("id", "workspace_id"),
     Index("ix_users_workspace_id", "workspace_id"),
 )
 

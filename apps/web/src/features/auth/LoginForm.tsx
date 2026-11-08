@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { formError } from "@/shared/api/errors";
 import { safeNext, useLogIn } from "@/shared/session";
-import { AuthPanel, Button, Notice, PasswordField, SmallText, TextField } from "@/shared/ui";
+import { AuthPanel, Button, EmailField, Notice, PasswordField, SmallText } from "@/shared/ui";
 
 export function LoginForm() {
   const router = useRouter();
@@ -30,9 +30,8 @@ export function LoginForm() {
         <Notice title="Password changed">Log in with your new password.</Notice>
       ) : null}
       {problem ? <Notice tone="warning">{problem}</Notice> : null}
-      <TextField
+      <EmailField
         label="Email"
-        type="email"
         name="email"
         autoComplete="email"
         required

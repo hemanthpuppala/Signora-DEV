@@ -365,7 +365,14 @@ def test_permissions_come_from_the_role_and_the_creator_has_all(
 
     guarded.cookies.clear()
     me = log_in(guarded, member.email)
-    assert set(me["permissions"]) == {"members.directory", "workspace.rename"}
+    assert set(me["permissions"]) == {
+        "departments.create",
+        "departments.manage",
+        "files.send",
+        "files.view_sends",
+        "members.directory",
+        "workspace.rename",
+    }
     assert me["is_creator"] is False
     assert guarded.get("/api/v1/test/people").json()["code"] == "permission-denied"
 

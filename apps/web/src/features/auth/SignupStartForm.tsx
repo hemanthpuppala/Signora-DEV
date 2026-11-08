@@ -6,15 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { fieldErrors, formError } from "@/shared/api/errors";
-import {
-  AuthPanel,
-  BodyText,
-  Button,
-  Notice,
-  SmallText,
-  TextButton,
-  TextField,
-} from "@/shared/ui";
+import { AuthPanel, BodyText, Button, EmailField, Notice, SmallText, TextButton } from "@/shared/ui";
 
 /** Screen 02 (deviation: email only; the emailed link carries the rest). */
 export function SignupStartForm() {
@@ -45,9 +37,8 @@ export function SignupStartForm() {
   return (
     <AuthPanel eyebrow="New account" heading="Begin." onSubmit={submit}>
       {problem ? <Notice tone="warning">{problem}</Notice> : null}
-      <TextField
+      <EmailField
         label="Work email"
-        type="email"
         name="email"
         autoComplete="email"
         required

@@ -85,7 +85,7 @@ def test_an_invitee_joins_with_the_chosen_role_and_is_audited(
     expires = datetime.fromisoformat(body["expires_at"])
     for sentence in (
         "Rosa Hale invited you to join Hale & Ward LLP as a Viewer.",
-        "As a Viewer, you can see projects, documents and signed agreements, "
+        "As a Viewer, you can see departments, files and signed agreements, "
         "but can't change anything.",
         f"This invitation expires on {expires.day} {expires:%B}.",
     ):
@@ -98,7 +98,7 @@ def test_an_invitee_joins_with_the_chosen_role_and_is_audited(
             "email": email,
             "workspace_name": "Hale & Ward LLP",
             "role_name": "Viewer",
-            "role_description": "Can see projects, documents and signed agreements, "
+            "role_description": "Can see departments, files and signed agreements, "
             "but can't change anything.",
             "inviter_name": "Rosa Hale",
         }

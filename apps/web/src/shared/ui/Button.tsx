@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cx } from "@/shared/lib/cx";
@@ -59,3 +60,31 @@ export function TextButton({ className, type = "button", children, ...rest }: Te
     </button>
   );
 }
+
+/** A link that looks like a button (navigation, e.g. "New department →"). */
+export function LinkButton({
+  href,
+  variant = "primary",
+  arrow = false,
+  children,
+}: {
+  href: string;
+  variant?: ButtonVariant;
+  arrow?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cx(
+        styles.button,
+        variant === "quiet" && styles.quiet,
+        variant === "destructive" && styles.destructive,
+      )}
+    >
+      {children}
+      {arrow ? <span aria-hidden="true">→</span> : null}
+    </Link>
+  );
+}
+

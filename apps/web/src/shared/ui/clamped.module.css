@@ -1,0 +1,43 @@
+/* ClampedText: one small line, or about four lines in a scrollable box. */
+.closed {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  min-width: 0;
+}
+
+.open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.collapsed,
+.expanded {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--t55);
+  overflow-wrap: anywhere;
+}
+
+.collapsed {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.expanded {
+  max-height: calc(20px * 4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  white-space: pre-line;
+}
+
+.expanded:focus-visible {
+  outline: 1px solid var(--r40);
+  outline-offset: 2px;
+}

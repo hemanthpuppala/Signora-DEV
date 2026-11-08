@@ -20,6 +20,7 @@ from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.identity_access import accounts
 from signora.modules.identity_access.access import Actor
 from signora.modules.identity_access.errors import CannotRemoveSelf, CreatorProtected
+from signora.modules.identity_access.hooks import run_member_removed
 from signora.modules.identity_access.sessions import delete_user_sessions
 
 
@@ -173,6 +174,9 @@ def remove_member(uow: UnitOfWork, *, actor: Actor, user_id: uuid.UUID) -> None:
     if removed != 1:
         raise NotFound
     ended = delete_user_sessions(uow.session, user_id)
+    run_member_removed(
+        uow, actor.workspace_id, user_id
+    )  # other modules' clean-up, same transaction
     _audit(
         uow,
         actor,

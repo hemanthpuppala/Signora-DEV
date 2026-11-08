@@ -48,9 +48,9 @@ Every screen and email follows these; they come from reviewing Phase 2 with the 
 4. **State rules up front, as rules.** A hint under a field is the requirement in the industry's wording
    ("Use 12 or more characters."), not advice. Validate when the person leaves the field, never while they type;
    the server stays the authority and its messages use the same words.
-5. **Hide what a role never uses; explain a key action it cannot take.** Whole areas (People) are absent from
-   navigation; from Phase 3, a primary action a person might expect is shown disabled with the reason ("Only
-   owners and editors can add agreements").
+5. **Hide what a person cannot do.** Areas (People) and actions ("New department") a person's role does not allow
+   are not shown at all; no disabled buttons with reasons (owner decision, 2026-11-07, replacing "show it disabled
+   with the reason"). The server still refuses the action if called directly.
 6. **Keep the geometry calm.** Fields in a row line up by their labels (`FieldGrid`), buttons sit on the input line
    (`FieldAction`), each table action has its own column (`ActionCell`), navigation items share one baseline,
    and browser autofill keeps the black fields.

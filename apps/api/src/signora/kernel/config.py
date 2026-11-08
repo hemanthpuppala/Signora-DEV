@@ -105,7 +105,7 @@ class _EnvVars(BaseSettings):
     signing_otp_max_attempts: int = Field(default=5, ge=1, le=20)
     signer_session_minutes: int = Field(default=30, ge=5, le=240)
     default_reminder_interval_hours: int = Field(default=24, ge=1, le=24 * 30)
-    default_max_reminders: int = Field(default=5, ge=0, le=50)
+    default_max_reminders: int = Field(default=5, ge=0, le=20)  # departments allow 0-20
     default_expiry_days: int = Field(default=14, ge=1, le=365)
     # worker
     worker_concurrency: int = Field(default=8, ge=1, le=64)

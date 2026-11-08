@@ -3,7 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { Button, Select, StatusPill, TextField, ToastProvider, useToast } from "./index";
+import {
+  Button,
+  ClampedText,
+  EmailField,
+  Select,
+  StatusPill,
+  TablePanel,
+  TextField,
+  ToastProvider,
+  useToast,
+} from "./index";
 
 describe("Button", () => {
   it("shows the loading label, disables itself and marks busy while loading", () => {
@@ -131,5 +141,75 @@ describe("Toast", () => {
     act(() => vi.advanceTimersByTime(2600));
     expect(screen.queryByRole("status")).toBeNull();
     vi.useRealTimers();
+  });
+});
+
+describe("TablePanel", () => {
+  it("is a named, keyboard-focusable region so a long table can be scrolled", () => {
+    render(
+      <TablePanel label="Members list">
+        <table>
+          <tbody>
+            <tr>
+              <td>Rosa</td>
+            </tr>
+          </tbody>
+        </table>
+      </TablePanel>,
+    );
+    const region = screen.getByRole("region", { name: "Members list" });
+    expect(region.getAttribute("tabindex")).toBe("0");
+  });
+});
+
+describe("EmailField", () => {
+  function Controlled() {
+    const [value, setValue] = useState("");
+    return (
+      <>
+        <EmailField label="Email" value={value} onChange={(event) => setValue(event.target.value)} />
+        <button type="button">Next</button>
+      </>
+    );
+  }
+
+  it("points out a malformed address when the field is left, not while typing", async () => {
+    const user = userEvent.setup();
+    render(<Controlled />);
+    const input = screen.getByLabelText("Email");
+
+    await user.type(input, "hiaf");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("alert").textContent).toBe("Enter a valid email address");
+
+    await user.type(input, "@firm.com");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("ClampedText", () => {
+  function overflow(scrollWidth: number) {
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", { configurable: true, value: scrollWidth });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, value: 300 });
+  }
+
+  it("shows More only when the text does not fit, and opens it in a scrollable box", async () => {
+    overflow(900);
+    render(<ClampedText>{"A long description. ".repeat(40)}</ClampedText>);
+
+    const more = screen.getByRole("button", { name: "More" });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.setup().click(more);
+    const less = screen.getByRole("button", { name: "Less" });
+    expect(less.getAttribute("aria-expanded")).toBe("true");
+    const text = document.getElementById(less.getAttribute("aria-controls") ?? "");
+    expect(text?.getAttribute("tabindex")).toBe("0");
+  });
+
+  it("shows no button when the text fits", () => {
+    overflow(200);
+    render(<ClampedText>Short.</ClampedText>);
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });
