@@ -116,6 +116,27 @@ def require_active(department: DepartmentRow) -> None:
         raise DepartmentArchived
 
 
+def lock_active_department(
+    session: Session, workspace_id: uuid.UUID, department_id: uuid.UUID
+) -> None:
+    """Hold the department's row lock until commit, so replacing one of its lists is serialised.
+
+    Locking the list rows is not enough: an empty list has no rows to lock, so two first additions
+    would both insert. ``NO KEY UPDATE`` still lets other tables reference the department.
+    """
+    found = session.execute(
+        text(
+            "SELECT archived_at FROM departments WHERE id = :id AND workspace_id = :w "
+            "FOR NO KEY UPDATE"
+        ),
+        {"id": department_id, "w": workspace_id},
+    ).one_or_none()
+    if found is None:
+        raise NotFound
+    if found.archived_at is not None:
+        raise DepartmentArchived
+
+
 def list_departments(
     session: Session, workspace_id: uuid.UUID, status: Status
 ) -> list[DepartmentRow]:

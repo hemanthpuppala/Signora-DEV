@@ -17,7 +17,7 @@ from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import FieldError, PermissionDenied, ValidationFailed
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
-from signora.modules.departments.service import get_department, require_active
+from signora.modules.departments.service import get_department, lock_active_department
 from signora.modules.identity_access import DEPARTMENT_GRANT, Actor, Permission
 
 Access = Literal["edit", "read"]
@@ -119,7 +119,7 @@ def set_grants(
     uow: UnitOfWork, *, actor: Actor, department_id: uuid.UUID, user_ids: list[uuid.UUID]
 ) -> list[GrantRow]:
     """Replace the list in one transaction; audit each person added or removed."""
-    require_active(get_department(uow.session, actor.workspace_id, department_id))
+    lock_active_department(uow.session, actor.workspace_id, department_id)
     wanted = list(dict.fromkeys(user_ids))  # order kept, duplicates merged
     active = set(
         uow.session.execute(
@@ -149,7 +149,7 @@ def set_grants(
         raise ValidationFailed(errors)
     current = set(
         uow.session.execute(
-            text("SELECT user_id FROM department_grants WHERE department_id = :d FOR UPDATE"),
+            text("SELECT user_id FROM department_grants WHERE department_id = :d"),
             {"d": department_id},
         ).scalars()
     )

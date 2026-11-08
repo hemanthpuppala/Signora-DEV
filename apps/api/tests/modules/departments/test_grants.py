@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import threading
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -11,7 +13,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from signora.kernel.db import Database
+from signora.modules.departments import access as access_module
 from signora.modules.departments import load_access
+from signora.modules.departments import service as service_module
 from signora.modules.identity_access import Permission
 from signora.modules.identity_access.access import Actor
 from signora.modules.identity_access.domain.permissions import parse_permissions
@@ -228,3 +232,57 @@ def test_candidates_leave_out_people_who_already_edit_everywhere(
     assert {e["message"] for e in refused.json()["errors"]} == {
         "Already has edit access through their role"
     }
+
+
+def test_two_first_grants_at_once_both_succeed(
+    owner: TestClient,
+    committing_db: Database,
+    company: Account,
+    add_member: Callable[..., Account],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With no grants yet there are no rows to lock; the department row serialises the two."""
+    department = create(owner, "Intake")
+    carol = add_member(company, role="read")
+    actor = actor_for(committing_db, company)
+    barrier = threading.Barrier(2)
+    real_lock = service_module.lock_active_department
+
+    def lock_then_wait(session: Any, workspace_id: uuid.UUID, department_id: uuid.UUID) -> None:
+        real_lock(session, workspace_id, department_id)
+        # Without a real lock both requests meet here and read the same empty list. With it, the
+        # second waits inside the lock, so the first gives up waiting and commits first.
+        with contextlib.suppress(threading.BrokenBarrierError):
+            barrier.wait(timeout=2)
+
+    monkeypatch.setattr(access_module, "lock_active_department", lock_then_wait)
+    errors: list[BaseException] = []
+
+    def grant() -> None:
+        try:
+            with committing_db.unit_of_work() as uow:
+                access_module.set_grants(
+                    uow,
+                    actor=actor,
+                    department_id=uuid.UUID(department["id"]),
+                    user_ids=[carol.user_id],
+                )
+        except BaseException as error:  # collected for the assertion
+            errors.append(error)
+
+    threads = [threading.Thread(target=grant) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert errors == []  # never a primary-key violation
+    with committing_db.unit_of_work() as uow:
+        granted = uow.session.execute(
+            text(
+                "SELECT count(*) FROM audit_events "
+                "WHERE workspace_id = :w AND action = 'department.access_granted'"
+            ),
+            {"w": company.workspace_id},
+        ).scalar_one()
+    assert granted == 1  # the second request found Carol already granted
