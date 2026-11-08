@@ -587,7 +587,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        Permission: "members.manage" | "members.directory" | "roles.manage" | "workspace.rename";
+        Permission: "members.manage" | "members.directory" | "roles.manage" | "workspace.rename" | "departments.create" | "departments.manage" | "files.view_sends" | "files.send";
         /**
          * ProblemDetails
          * @description RFC 9457 problem details as returned by every error (backbone LLD §7.1).

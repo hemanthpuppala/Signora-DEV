@@ -436,7 +436,7 @@ building blocks (`Section`, `FieldGrid`, `FieldAction`, `ActionCell`).
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
 | 3.1 | Phase 3 LLD (this file), topics 1-6 | done | this file |
-| 3.2 | Permissions `departments.create`, `departments.manage`, `files.view_sends`, `files.send`; Editor role data migration; `users (id, workspace_id)` key | todo | — |
+| 3.2 | Permissions `departments.create`, `departments.manage`, `files.view_sends`, `files.send`; Editor role data migration; `users (id, workspace_id)` key | done | migration 0006 (only Editor roles still on their default permissions are extended); default-role, `/me` and roles tests updated; contract regenerated |
 | 3.3 | `departments` module: schema (migration 0006), create, list, get, update, archive, restore, audit | todo | — |
 | 3.4 | Department settings (validation, defaults copied at creation) | todo | — |
 | 3.5 | Department grants: table, API, `can(actor, permission, department)`, `/me` grants | todo | — |

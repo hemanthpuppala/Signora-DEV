@@ -93,7 +93,14 @@ def test_the_directory_shows_names_to_read_write_only(
 def test_roles_are_listed_as_data(manager: TestClient) -> None:
     roles = {r["key"]: r for r in manager.get("/api/v1/roles").json()}
     assert roles["read"]["permissions"] == []
-    assert sorted(roles["read_write"]["permissions"]) == ["members.directory", "workspace.rename"]
+    assert set(roles["read_write"]["permissions"]) == {
+        "departments.create",
+        "departments.manage",
+        "files.send",
+        "files.view_sends",
+        "members.directory",
+        "workspace.rename",
+    }
     assert all(r["is_system"] for r in roles.values())
 
 

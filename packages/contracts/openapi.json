@@ -393,7 +393,11 @@
           "members.manage",
           "members.directory",
           "roles.manage",
-          "workspace.rename"
+          "workspace.rename",
+          "departments.create",
+          "departments.manage",
+          "files.view_sends",
+          "files.send"
         ],
         "title": "Permission",
         "type": "string"
