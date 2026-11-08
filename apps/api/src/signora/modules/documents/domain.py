@@ -35,14 +35,18 @@ def detect_kind(path: Path) -> Kind:
     """``pdf`` or ``docx`` from the bytes; raises ``UnsupportedFile`` or ``ProtectedWordFile``."""
     with path.open("rb") as handle:
         head = handle.read(_PDF_MAGIC_WITHIN)
-    if _PDF_MAGIC in head:
-        return "pdf"
+    # Containers first: their signature is fixed at the start, while a PDF header may sit anywhere
+    # in the first KB, so a Word file holding an attached PDF would otherwise read as a PDF.
     if head.startswith(_ZIP_MAGIC):
         if _is_docx(path):
             return "docx"
         raise UnsupportedFile
-    if head.startswith(_CFB_MAGIC) and _contains(path, _ENCRYPTED_PACKAGE):
-        raise ProtectedWordFile
+    if head.startswith(_CFB_MAGIC):
+        if _contains(path, _ENCRYPTED_PACKAGE):
+            raise ProtectedWordFile
+        raise UnsupportedFile
+    if _PDF_MAGIC in head:
+        return "pdf"
     raise UnsupportedFile
 
 

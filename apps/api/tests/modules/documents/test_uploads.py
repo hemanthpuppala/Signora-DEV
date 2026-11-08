@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import uuid
+import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
@@ -61,6 +63,20 @@ def test_a_pdf_is_stored_by_its_hash_and_recorded(
 def test_a_word_file_is_recognised_from_its_contents(owner: TestClient) -> None:
     department = create_department(owner)
     response = upload(owner, department["id"], docx_bytes(), filename="letter.bin")
+    assert response.status_code == 201, response.text
+    assert response.json()["kind"] == "docx"
+
+
+def test_a_word_file_holding_a_pdf_is_still_a_word_file(owner: TestClient) -> None:
+    """An attached PDF stored uncompressed puts \"%PDF-\" in the first KB of the ZIP."""
+    with zipfile.ZipFile(io.BytesIO(docx_bytes())) as original:
+        parts = {name: original.read(name) for name in original.namelist()}
+    data = zip_bytes({"word/embeddings/attached.pdf": b"%PDF-1.7\n", **parts})
+    assert b"%PDF-" in data[:1024]
+
+    department = create_department(owner)
+    response = upload(owner, department["id"], data, filename="letter.docx")
+
     assert response.status_code == 201, response.text
     assert response.json()["kind"] == "docx"
 
