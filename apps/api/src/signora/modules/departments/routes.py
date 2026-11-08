@@ -15,6 +15,11 @@ from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.departments import access as grants
 from signora.modules.departments import service
 from signora.modules.departments.access import DepartmentAccess, GrantRow, load_access
+from signora.modules.departments.countersigners import (
+    Countersigner,
+    list_countersigners,
+    set_countersigners,
+)
 from signora.modules.identity_access import Actor, Permission, current_actor, require
 
 router = APIRouter(prefix="/api/v1/departments", tags=["departments"])
@@ -82,11 +87,18 @@ class DepartmentSummary(BaseModel):
     access: Literal["edit", "read"]  # the caller's access in this department (topic 2)
 
 
+class CountersignerView(BaseModel):
+    id: uuid.UUID
+    name: str
+    email: str
+
+
 class Department(DepartmentSummary):
     updated_at: datetime
     archived_at: datetime | None
     created_by: PersonRef
     settings: DepartmentSettings
+    countersigners: list[CountersignerView]  # who may countersign, in default order
 
 
 def summary(row: service.DepartmentRow, rights: DepartmentAccess) -> DepartmentSummary:
@@ -101,9 +113,12 @@ def summary(row: service.DepartmentRow, rights: DepartmentAccess) -> DepartmentS
     )
 
 
-def detail(row: service.DepartmentRow, rights: DepartmentAccess) -> Department:
+def detail(
+    row: service.DepartmentRow, rights: DepartmentAccess, signers: list[Countersigner]
+) -> Department:
     return Department(
         **summary(row, rights).model_dump(),
+        countersigners=[CountersignerView(id=s.id, name=s.name, email=s.email) for s in signers],
         updated_at=row.updated_at,
         archived_at=row.archived_at,
         created_by=PersonRef(id=row.created_by_id, name=row.created_by_name),
@@ -167,7 +182,11 @@ def create_department(
             defaults=company_defaults(request),
             overrides=body.settings.change() if body.settings else None,
         )
-        created = detail(row, load_access(uow.session, actor)).model_dump(mode="json")
+        created = detail(
+            row,
+            load_access(uow.session, actor),
+            list_countersigners(uow.session, actor.workspace_id, row.id),
+        ).model_dump(mode="json")
         return guard.finish(uow, status.HTTP_201_CREATED, created)
 
 
@@ -175,7 +194,11 @@ def create_department(
 def get_department(department_id: uuid.UUID, request: Request, actor: Member) -> Department:
     with _db(request).unit_of_work() as uow:
         row = service.get_department(uow.session, actor.workspace_id, department_id)
-        return detail(row, load_access(uow.session, actor))
+        return detail(
+            row,
+            load_access(uow.session, actor),
+            list_countersigners(uow.session, actor.workspace_id, row.id),
+        )
 
 
 @router.patch("/{department_id}", summary="Rename or describe a department")
@@ -191,21 +214,33 @@ def update_department(
             description=body.description,
             settings=body.settings.change() if body.settings else None,
         )
-        return detail(row, load_access(uow.session, actor))
+        return detail(
+            row,
+            load_access(uow.session, actor),
+            list_countersigners(uow.session, actor.workspace_id, row.id),
+        )
 
 
 @router.post("/{department_id}/archive", summary="Archive a department (repeat-safe)")
 def archive_department(department_id: uuid.UUID, request: Request, actor: Manager) -> Department:
     with _db(request).unit_of_work() as uow:
         row = service.archive_department(uow, actor=actor, department_id=department_id)
-        return detail(row, load_access(uow.session, actor))
+        return detail(
+            row,
+            load_access(uow.session, actor),
+            list_countersigners(uow.session, actor.workspace_id, row.id),
+        )
 
 
 @router.post("/{department_id}/restore", summary="Restore an archived department (repeat-safe)")
 def restore_department(department_id: uuid.UUID, request: Request, actor: Manager) -> Department:
     with _db(request).unit_of_work() as uow:
         row = service.restore_department(uow, actor=actor, department_id=department_id)
-        return detail(row, load_access(uow.session, actor))
+        return detail(
+            row,
+            load_access(uow.session, actor),
+            list_countersigners(uow.session, actor.workspace_id, row.id),
+        )
 
 
 class GrantsInput(_Body):
@@ -252,3 +287,21 @@ def set_grants(
             uow, actor=actor, department_id=department_id, user_ids=body.user_ids
         )
     return grant_views(rows)
+
+
+class CountersignersInput(_Body):
+    user_ids: Annotated[list[uuid.UUID], Field(max_length=1000)]
+
+
+@router.put(
+    "/{department_id}/countersigners",
+    summary="Replace who may countersign, in default order (repeat-safe)",
+)
+def replace_countersigners(
+    department_id: uuid.UUID, body: CountersignersInput, request: Request, actor: Manager
+) -> list[CountersignerView]:
+    with _db(request).unit_of_work() as uow:
+        signers = set_countersigners(
+            uow, actor=actor, department_id=department_id, user_ids=body.user_ids
+        )
+    return [CountersignerView(id=s.id, name=s.name, email=s.email) for s in signers]

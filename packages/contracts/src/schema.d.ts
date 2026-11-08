@@ -208,6 +208,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/departments/{department_id}/countersigners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace who may countersign, in default order (repeat-safe) */
+        put: operations["replace_countersigners_api_v1_departments__department_id__countersigners_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/departments/{department_id}/grants": {
         parameters: {
             query?: never;
@@ -538,6 +555,23 @@ export interface components {
              */
             role_id: string;
         };
+        /** CountersignerView */
+        CountersignerView: {
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** CountersignersInput */
+        CountersignersInput: {
+            /** User Ids */
+            user_ids: string[];
+        };
         /** Counts */
         Counts: {
             /**
@@ -576,6 +610,8 @@ export interface components {
             access: "edit" | "read";
             /** Archived At */
             archived_at: string | null;
+            /** Countersigners */
+            countersigners: components["schemas"]["CountersignerView"][];
             counts: components["schemas"]["Counts"];
             /**
              * Created At
@@ -1627,6 +1663,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Department"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    replace_countersigners_api_v1_departments__department_id__countersigners_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                department_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CountersignersInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountersignerView"][];
                 };
             };
             /** @description Validation failed (problem details) */

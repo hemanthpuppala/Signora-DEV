@@ -84,6 +84,49 @@
         "title": "ChangeRoleRequest",
         "type": "object"
       },
+      "CountersignerView": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
+        ],
+        "title": "CountersignerView",
+        "type": "object"
+      },
+      "CountersignersInput": {
+        "additionalProperties": false,
+        "properties": {
+          "user_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "user_ids"
+        ],
+        "title": "CountersignersInput",
+        "type": "object"
+      },
       "Counts": {
         "properties": {
           "pending": {
@@ -158,6 +201,13 @@
             ],
             "title": "Archived At"
           },
+          "countersigners": {
+            "items": {
+              "$ref": "#/components/schemas/CountersignerView"
+            },
+            "title": "Countersigners",
+            "type": "array"
+          },
           "counts": {
             "$ref": "#/components/schemas/Counts"
           },
@@ -210,7 +260,8 @@
           "updated_at",
           "archived_at",
           "created_by",
-          "settings"
+          "settings",
+          "countersigners"
         ],
         "title": "Department",
         "type": "object"
@@ -2115,6 +2166,98 @@
           }
         },
         "summary": "Archive a department (repeat-safe)",
+        "tags": [
+          "departments"
+        ]
+      }
+    },
+    "/api/v1/departments/{department_id}/countersigners": {
+      "put": {
+        "operationId": "replace_countersigners_api_v1_departments__department_id__countersigners_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "department_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Department Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CountersignersInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CountersignerView"
+                  },
+                  "title": "Response Replace Countersigners Api V1 Departments  Department Id  Countersigners Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Replace who may countersign, in default order (repeat-safe)",
         "tags": [
           "departments"
         ]

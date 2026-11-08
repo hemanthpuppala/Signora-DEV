@@ -142,6 +142,7 @@ protected_modules = [
     "signora.modules.identity_access.dependencies",
     "signora.modules.identity_access.domain",
     "signora.modules.identity_access.errors",
+    "signora.modules.identity_access.hooks",
     "signora.modules.identity_access.jobs",
     "signora.modules.identity_access.emails",
     "signora.modules.identity_access.invites",
@@ -161,6 +162,7 @@ name = "Public interface only: departments internals are imported only by depart
 type = "protected"
 protected_modules = [
     "signora.modules.departments.access",
+    "signora.modules.departments.countersigners",
     "signora.modules.departments.domain",
     "signora.modules.departments.errors",
     "signora.modules.departments.models",

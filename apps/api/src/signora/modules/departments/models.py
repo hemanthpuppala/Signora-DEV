@@ -73,3 +73,23 @@ department_grants = Table(
     ForeignKeyConstraint(["user_id", "workspace_id"], ["users.id", "users.workspace_id"]),
     Index("ix_department_grants_user_id", "user_id"),
 )
+
+# Who may countersign for the department, in default order (topic 4). The number of firm
+# signatures a file needs comes from the file (Phases 5-6), not from here.
+department_countersigners = Table(
+    "department_countersigners",
+    metadata,
+    Column("department_id", UUID(as_uuid=True), primary_key=True),
+    Column("workspace_id", UUID(as_uuid=True), nullable=False),
+    Column("user_id", UUID(as_uuid=True), primary_key=True),
+    Column("position", Integer, nullable=False),
+    Column("added_by", UUID(as_uuid=True), ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("position >= 1", name="position_positive"),
+    UniqueConstraint("department_id", "position"),
+    ForeignKeyConstraint(
+        ["department_id", "workspace_id"], ["departments.id", "departments.workspace_id"]
+    ),
+    ForeignKeyConstraint(["user_id", "workspace_id"], ["users.id", "users.workspace_id"]),
+    Index("ix_department_countersigners_user_id", "user_id"),
+)
