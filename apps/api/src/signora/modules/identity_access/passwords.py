@@ -82,6 +82,10 @@ def complete_reset(
     uow: UnitOfWork, *, policy: PasswordPolicy, token: str, password: str, base_url: str
 ) -> str:
     """Set the new password, use up the user's reset links, end every session; returns the email."""
+    # Lock order as in sign-up: the address first, then the link. Completing marks every reset link
+    # of the address used, so locking a link's row first would deadlock two completions.
+    address = links.live_link(uow.session, purpose="password_reset", token=token).email
+    accounts.lock_email(uow.session, address)
     link = links.live_link(uow.session, purpose="password_reset", token=token, lock=True)
     user = accounts.find_user_by_email(uow.session, link.email)
     if user is None or not user.active or user.id != link.user_id:

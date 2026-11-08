@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -225,3 +226,40 @@ def test_guessing_the_current_password_is_throttled(
     for _ in range(5):
         assert change(client, "guess guess guess").status_code == 422
     assert change(client, PASSWORD).status_code == 429
+
+
+def test_two_reset_links_submitted_at_once_do_not_deadlock(
+    make_client: Callable[..., TestClient],
+    committing_db: Database,
+    make_workspace: Callable[..., Account],
+) -> None:
+    from signora.modules.identity_access.domain.tokens import issue_token
+
+    account = make_workspace()
+    tokens = [issue_token(), issue_token()]
+    with committing_db.unit_of_work() as uow:  # two reset emails were requested
+        for token in tokens:
+            uow.session.execute(
+                text(
+                    "INSERT INTO email_tokens (purpose, email, user_id, token_hash, expires_at) "
+                    "VALUES ('password_reset', :e, :u, :h, now() + interval '30 minutes')"
+                ),
+                {"e": account.email, "u": account.user_id, "h": token.digest},
+            )
+
+    results: list[int] = []
+    barrier = threading.Barrier(2)
+    # One app, one event loop (as in production); the handlers run concurrently on its threads.
+    with make_client() as client:
+
+        def submit(value: str) -> None:
+            barrier.wait()
+            results.append(reset(client, value).status_code)
+
+        threads = [threading.Thread(target=submit, args=(t.value,)) for t in tokens]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+    assert sorted(results) == [200, 410]  # one sets the password; the other link is used up
