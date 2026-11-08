@@ -52,7 +52,7 @@ def test_people_lists_active_members_with_roles_creator_first(
     assert [m["is_creator"] for m in members] == [True, False]
     assert members[0]["role"]["name"] == "Editor"
     assert members[1]["role"]["name"] == "Viewer"
-    assert members[1]["role"]["description"].startswith("Can see projects")
+    assert members[1]["role"]["description"].startswith("Can see departments")
     assert members[0]["display_role"]["name"] == "Owner"  # the creator, in people's words
     assert members[1]["display_role"]["name"] == "Viewer"
     assert {"id", "name", "email", "role", "display_role", "is_creator", "joined_at"} == set(

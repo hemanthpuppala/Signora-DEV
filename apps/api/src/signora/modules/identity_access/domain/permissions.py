@@ -51,7 +51,7 @@ class RoleTemplate:
 READ = RoleTemplate(
     "read",
     "Viewer",
-    "Can see projects, documents and signed agreements, but can't change anything.",
+    "Can see departments, files and signed agreements, but can't change anything.",
     frozenset(),
 )
 READ_WRITE = RoleTemplate(
