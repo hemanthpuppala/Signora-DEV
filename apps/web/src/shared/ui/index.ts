@@ -29,6 +29,7 @@ export { AddCard, CardGrid, StatCard, type CardStat } from "./Card";
 export { ClampedText } from "./ClampedText";
 export { RowActions } from "./RowActions";
 export { PasswordField, type PasswordFieldProps } from "./PasswordField";
+export { PdfViewer, type PdfOverlayArgs, type PdfViewerProps } from "./pdf/PdfViewer";
 export { Select, type SelectOption } from "./Select";
 export { ToastProvider, useToast } from "./Toast";
 export {

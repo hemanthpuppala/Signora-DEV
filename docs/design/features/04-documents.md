@@ -391,12 +391,18 @@ painted page at any zoom. Signora's viewer follows that design, written for this
 - **Large documents** (Signora addition): pages are laid out at their final size at once, but rendered only when near
   the viewport (the visible page first), and pdf.js loads the file by byte ranges, so a 200-page, 50 MB document
   opens quickly. ScoutBoard renders every page; with up to 200 pages Signora must not.
-- **Safety**: PDF scripting is never enabled and `isEvalSupported` is off (on top of the working copy having no
-  scripts, topic 3). The pdf.js worker is served from Signora's own origin (CSP `worker-src 'self'`). pdf.js is
-  lazy-loaded, so it stays out of pages that show no PDF.
+- **Safety**: PDF scripting never runs: it needs pdf.js's separate sandbox build, which Signora never loads (and
+  the working copy has no scripts, topic 3). pdf.js 6 no longer has `isEvalSupported`; it evaluates nothing. The
+  worker and its data (fonts, character maps, colour profiles, image decoders) are copied from `pdfjs-dist` into
+  `public/pdfjs/<version>/` before dev and build and served from Signora's own origin (CSP `worker-src 'self'`; the
+  page policy is not applied to those static files). pdf.js is loaded on first use, never with the page bundle.
 - **Not ready**: a version that is not Processed shows its status instead of the viewer. Any ready version can be
   opened from the version history.
-- The `pdfjs-dist` version is chosen at implementation from its current release notes (ScoutBoard pins 5.4.296).
+- **Layout before loading**: page sizes come from the API's page facts, so all pages are laid out at once and
+  scrolling is stable while pdf.js fetches the file by ranges.
+- `pdfjs-dist` **6.4.299** (2026-10-03): the newest release older than two weeks; 6.5.438 (2026-11-01) is too fresh
+  to adopt, the same rule the platform applies to Gotenberg. ScoutBoard pins 5.4.296.
+- Esc to clear a selection arrives with selections, in Phase 6.
 
 ### 5.2 Serving
 
@@ -539,7 +545,7 @@ holds until something changes), and short polling.
 | 4.5 | Processing job: Gotenberg conversion, PyMuPDF checks, working copy, text check, statuses, retries, Try again, unlock | done | `pdf.py` (7 tests, no database: page facts as displayed, 200 pages prepared in about a second and 201 refused, damaged PDF, password needed and opened only with it, edit restrictions removed silently, working copy without JavaScript, embedded file or launch link but with its form field, scanned pages found while blank pages and signature blocks are not); `document.process` job (10 tests against Postgres and Gotenberg: queued on create and on a new version, PDF processed and repeat-safe, .docx converted, scanned pages block with "Pages 2-4 and 7…", 201 pages fail with the count and cannot be retried, an outage retries then fails with Try again which processes it, password unlock (wrong 422, right continues, password absent from the audit), five wrong passwords then 429, unlock refused when not locked) |
 | 4.6 | Current version rules, make current, immutability trigger | done | migration 0015 (trigger refuses changing a version's source, its processed facts or its unlocked copy, and deleting versions); `current.py` decides under the document lock; 5 tests: the first ready version becomes current (audited as automatic), the latest takes over when ready and a slower older one never does, a version needing OCR never becomes current and cannot be made current (409), any ready version can be made current (repeat-safe; Viewers 403) until a newer one is ready, the database refuses changes and deletes while the AI description may still change |
 | 4.7 | Serving: working copy inline with ranges, original as download | done | `BlobStore.path` for serving local files; 5 tests: the working copy inline (`private, no-store`, `nosniff`, `Accept-Ranges`), a byte range answered 206 with its `Content-Range`, the cleaned copy rather than the upload; a version not processed yet answers 409; the original is the exact upload as an attachment with its type; Viewers download, other companies 404 |
-| 4.8 | Web: shared `PdfViewer` (pdf.js, overlay slot, zoom, lazy pages) | todo | — |
+| 4.8 | Web: shared `PdfViewer` (pdf.js, overlay slot, zoom, lazy pages) | done | `shared/ui/pdf`: pure layout maths (5 tests: fit, zoom steps, wheel factor, sharp canvas sizes, page in view) and the component (4 tests with pdf.js mocked: every page laid out from the page facts and the file loaded by ranges with assets from our origin, zoom buttons and fit width, the overlay on every page at the live scale, a message when the file cannot be shown); asset copy script; CSP `worker-src 'self'`; checked in a real browser in task 4.11 |
 | 4.9 | Web: documents on the department page, upload page, new-department dropzone, polling hook | todo | — |
 | 4.10 | Web: document page (viewer, versions, password, Try again, make current, new version, archive) | todo | — |
 | 4.11 | Deploy and live end-to-end check | todo | — |

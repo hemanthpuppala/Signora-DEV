@@ -53,7 +53,8 @@ const config = [
   ...nextVitals,
   ...nextTs,
   boundaryRules,
-  { ignores: [".next/**", "node_modules/**", "next-env.d.ts", "coverage/**"] },
+  // public/pdfjs is copied from pdfjs-dist before dev and build (scripts/copy-pdfjs-assets.mjs).
+  { ignores: [".next/**", "node_modules/**", "next-env.d.ts", "coverage/**", "public/pdfjs/**"] },
 ];
 
 export default config;
