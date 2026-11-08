@@ -56,7 +56,7 @@ Everyone in the company can list and open departments (what they see inside is t
 department" disabled with "Only owners and editors can create departments." A data migration adds both permissions
 to existing Editor roles (only where the role still has its default permissions).
 
-### 1.4 Schema (migration 0006)
+### 1.4 Schema (migration 0007)
 
 ```sql
 CREATE TABLE departments (
@@ -168,7 +168,7 @@ grant gives both in its department only. `departments.create`/`departments.manag
 `can(actor, permission, department)` = the company role allows it **or** the actor holds a grant for that
 department. The actor's grants are loaded once per request (one indexed query) and checked as a set lookup, O(1).
 
-### 2.4 Schema (migration 0006, with `departments`)
+### 2.4 Schema (migration 0009)
 
 ```sql
 CREATE TABLE department_grants (
@@ -238,7 +238,7 @@ A new department is created with the company defaults copied in; from then on it
 where a changed company default silently changes every department that never customised it, and which would need a
 company-settings screen.
 
-### 3.3 Schema (columns on `departments`, migration 0006)
+### 3.3 Schema (columns on `departments`, migration 0008)
 
 ```sql
 reminder_interval_hours int    NOT NULL CHECK (reminder_interval_hours BETWEEN 1 AND 720),
@@ -289,7 +289,7 @@ Countersigning itself (emailed link with a one-time code, or the console) is Pha
   transaction; removal is never blocked. A department with an empty list shows "No countersigner. Choose one in
   settings." **Carried to Phase 9:** sends already waiting for a removed person's signature must be reassigned.
 
-### 4.3 Schema (migration 0006)
+### 4.3 Schema (migration 0010)
 
 ```sql
 CREATE TABLE department_countersigners (
@@ -446,5 +446,5 @@ building blocks (`Section`, `FieldGrid`, `FieldAction`, `ActionCell`).
 | 3.6 | Countersigners: table, API, member-removal hook | done | migration 0010; identity gains `on_member_removed` (runs in the removal's transaction; identity never imports departments); 6 tests: order kept and replaced (no size limit, Viewers allowed), audited as added/removed/reordered and nothing on a no-op, duplicates/inactive/foreign/unknown people refused with indexed errors, grant holders refused and Editors allowed, member removal deletes the rows in every department (the test fails without the hook), archived department 409 |
 | 3.7 | Contracts; web: departments home, new department, department page, archived banner | done | Navigation Departments/People/Settings; design system gains `CardGrid`/`StatCard`/`AddCard` (prototype .pcard), `HeadRow`, `LinkButton` and `UnavailableAction` (disabled with the reason, linked by aria-describedby). 7 Vitest tests: cards with counts and add card for editors, viewers see the disabled action with its reason and the empty state, a taken name points at the name field, creation opens the new department, archived banner with Restore for managers and no Settings, viewers get neither, missing department. `make check`: 344 backend, 66 frontend, build |
 | 3.8 | Web: department settings (about, timing, notify, countersigners, edit access, archive) | done | /departments/{id}/settings with sections saving on their own; people picked from the colleague directory; ordered countersigners with Up/Down/Remove in `ActionCell` columns; edit access shown to the Owner only; archive behind a confirmation (`RowActions`). 5 Vitest tests: edit access owner-only, countersigners added/reordered/saved in order, server range error on the field, archive only after confirming, archived department asks to restore first |
-| 3.9 | Deploy and live end-to-end check | todo | — |
+| 3.9 | Deploy and live end-to-end check | done | Deployed; migrations 0006-0010 applied on the live database (every company's default Editor role gained the four permissions; Viewer unchanged). Headless run on https://hemanth.tail50655e.ts.net, all 6 steps passing: new company lands on Departments with the empty state, create (name normalised) opens the department, a taken name refused on the field, settings timing and countersigners saved, a Viewer sees departments read-only with the disabled action and its reason, archive after confirming and restore. Found and fixed: two links named "Settings" on the department page (now "Department settings") |
 
