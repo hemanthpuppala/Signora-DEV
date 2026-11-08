@@ -84,7 +84,8 @@
         "title": "ChangeRoleRequest",
         "type": "object"
       },
-      "CountersignerView": {
+      "Colleague": {
+        "description": "A member as department lists show them: countersigners, and people edit access can go to.",
         "properties": {
           "email": {
             "title": "Email",
@@ -105,7 +106,7 @@
           "name",
           "email"
         ],
-        "title": "CountersignerView",
+        "title": "Colleague",
         "type": "object"
       },
       "CountersignersInput": {
@@ -203,7 +204,7 @@
           },
           "countersigners": {
             "items": {
-              "$ref": "#/components/schemas/CountersignerView"
+              "$ref": "#/components/schemas/Colleague"
             },
             "title": "Countersigners",
             "type": "array"
@@ -2202,7 +2203,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/CountersignerView"
+                    "$ref": "#/components/schemas/Colleague"
                   },
                   "title": "Response Replace Countersigners Api V1 Departments  Department Id  Countersigners Put",
                   "type": "array"
@@ -2456,7 +2457,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/CountersignerView"
+                    "$ref": "#/components/schemas/Colleague"
                   },
                   "title": "Response List Grant Candidates Api V1 Departments  Department Id  Grants Candidates Get",
                   "type": "array"

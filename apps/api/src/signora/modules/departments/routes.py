@@ -84,7 +84,9 @@ class DepartmentSummary(BaseModel):
     access: Literal["edit", "read"]  # the caller's access in this department (topic 2)
 
 
-class CountersignerView(BaseModel):
+class Colleague(BaseModel):
+    """A member as department lists show them: countersigners, and people edit access can go to."""
+
     id: uuid.UUID
     name: str
     email: str
@@ -95,7 +97,7 @@ class Department(DepartmentSummary):
     archived_at: datetime | None
     created_by: PersonRef
     settings: DepartmentSettings
-    countersigners: list[CountersignerView]  # who may countersign, in default order
+    countersigners: list[Colleague]  # who may countersign, in default order
 
 
 def summary(row: service.DepartmentRow, rights: DepartmentAccess) -> DepartmentSummary:
@@ -115,7 +117,7 @@ def detail(session: Session, actor: Actor, row: service.DepartmentRow) -> Depart
     signers = list_countersigners(session, actor.workspace_id, row.id)
     return Department(
         **summary(row, load_access(session, actor)).model_dump(),
-        countersigners=[CountersignerView(id=s.id, name=s.name, email=s.email) for s in signers],
+        countersigners=[Colleague(id=s.id, name=s.name, email=s.email) for s in signers],
         updated_at=row.updated_at,
         archived_at=row.archived_at,
         created_by=PersonRef(id=row.created_by_id, name=row.created_by_name),
@@ -258,10 +260,10 @@ def list_grants(department_id: uuid.UUID, request: Request, actor: PeopleManager
 )
 def list_grant_candidates(
     department_id: uuid.UUID, request: Request, actor: PeopleManager
-) -> list[CountersignerView]:
+) -> list[Colleague]:
     with _db(request).unit_of_work() as uow:
         people = grants.grant_candidates(uow.session, actor.workspace_id, department_id)
-    return [CountersignerView(id=p.id, name=p.name, email=p.email) for p in people]
+    return [Colleague(id=p.id, name=p.name, email=p.email) for p in people]
 
 
 @router.put(
@@ -288,9 +290,9 @@ class CountersignersInput(_Body):
 )
 def replace_countersigners(
     department_id: uuid.UUID, body: CountersignersInput, request: Request, actor: Manager
-) -> list[CountersignerView]:
+) -> list[Colleague]:
     with _db(request).unit_of_work() as uow:
         signers = set_countersigners(
             uow, actor=actor, department_id=department_id, user_ids=body.user_ids
         )
-    return [CountersignerView(id=s.id, name=s.name, email=s.email) for s in signers]
+    return [Colleague(id=s.id, name=s.name, email=s.email) for s in signers]

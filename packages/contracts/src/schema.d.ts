@@ -572,8 +572,11 @@ export interface components {
              */
             role_id: string;
         };
-        /** CountersignerView */
-        CountersignerView: {
+        /**
+         * Colleague
+         * @description A member as department lists show them: countersigners, and people edit access can go to.
+         */
+        Colleague: {
             /** Email */
             email: string;
             /**
@@ -628,7 +631,7 @@ export interface components {
             /** Archived At */
             archived_at: string | null;
             /** Countersigners */
-            countersigners: components["schemas"]["CountersignerView"][];
+            countersigners: components["schemas"]["Colleague"][];
             counts: components["schemas"]["Counts"];
             /**
              * Created At
@@ -1735,7 +1738,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CountersignerView"][];
+                    "application/json": components["schemas"]["Colleague"][];
                 };
             };
             /** @description Validation failed (problem details) */
@@ -1895,7 +1898,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CountersignerView"][];
+                    "application/json": components["schemas"]["Colleague"][];
                 };
             };
             /** @description Validation failed (problem details) */
