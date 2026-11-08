@@ -832,8 +832,8 @@ decisions (`medium` against `low`, layout text against Markdown).
 | # | Task | Status | Evidence |
 |---|---|---|---|
 | 5.1 | Phase 5 design: topics 1–7, requirements, decisions, plan | done | this document |
-| 5.2 | Test pipeline committed: readers, AI step, builders, unit tests, outputs (without documents' text) | todo | — |
-| 5.3 | Phase 4 fix: the working copy keeps no form-field scripts (regression test) | todo | — |
+| 5.2 | Test pipeline committed: readers, AI step, builders, unit tests, outputs (without documents' text) | todo | moved after 5.9: the harness imports the product's `detection` module instead of keeping its own copy of the readers and schema (one source of truth); the superseded `rules_baseline.py` is not committed |
+| 5.3 | Phase 4 fix: the working copy keeps no form-field scripts (regression test) | done | `_make_safe` removes every `/AA` and every unsafe `/A` (JavaScript, Launch, SubmitForm, ImportData, media, GoToE) in one pass over the objects; `form_with_scripts` (a field's calculate and keystroke scripts, a parent's inherited script, a button's JavaScript click, a JavaScript link, an ordinary link): no action left, every field and the ordinary link kept (it failed before: four actions survived); the 54 documents tests pass |
 | 5.4 | Migration: `detecting`/`ready` replace `processed` (existing versions re-detected), `detection_runs`, `version_roles`, `version_fields`, `field_placements` | todo | — |
 | 5.5 | `detection` module, read stage: form fields, blanks, labels, choices, layout text (ported from `tests/`, with their tests) | todo | — |
 | 5.6 | AI stage: client and settings (`low`, 200 s, 16k), schema, prompt, delimiter neutralising, repair round (a fake AI in tests) | todo | — |

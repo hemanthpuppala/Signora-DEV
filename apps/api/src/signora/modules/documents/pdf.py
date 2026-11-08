@@ -100,8 +100,24 @@ def _lacks_text(page: pymupdf.Page) -> bool:
     return False
 
 
+# Actions that run a script or reach outside the document. Plain links (/URI, /GoTo) are kept.
+_UNSAFE_ACTIONS = frozenset(
+    {
+        "/JavaScript",
+        "/Launch",
+        "/SubmitForm",
+        "/ImportData",
+        "/Rendition",
+        "/Movie",
+        "/Sound",
+        "/GoToE",
+    }
+)
+
+
 def _make_safe(document: pymupdf.Document) -> None:
-    """Remove what could run or open something; keep form fields (Phase 5 reads them)."""
+    """Remove what could run or open something; keep the form fields themselves (Phase 5 reads
+    them from the original, never from this copy)."""
     document.scrub(
         attached_files=True,
         embedded_files=True,
@@ -116,14 +132,15 @@ def _make_safe(document: pymupdf.Document) -> None:
         thumbnails=False,
         xml_metadata=False,
     )
-    catalog = document.pdf_catalog()
-    for key in ("OpenAction", "AA"):
-        document.xref_set_key(catalog, key, "null")
-    for page in _pages(document):
-        document.xref_set_key(page.xref, "AA", "null")
-        for link in page.get_links():
-            if link.get("kind") == pymupdf.LINK_LAUNCH:
-                page.delete_link(link)
+    document.xref_set_key(document.pdf_catalog(), "OpenAction", "null")
+    # One pass over every object: additional actions (/AA) on the catalog, pages, form fields and
+    # annotations run on events (open, keystroke, calculate, focus), and an action (/A) of an
+    # unsafe kind runs on a click. A field's /AA was left by scrub(javascript=True) (Phase 5 §2.1).
+    for xref in range(1, document.xref_length()):
+        if document.xref_get_key(xref, "AA")[0] != "null":
+            document.xref_set_key(xref, "AA", "null")
+        if document.xref_get_key(xref, "A/S")[1] in _UNSAFE_ACTIONS:
+            document.xref_set_key(xref, "A", "null")
 
 
 def prepare(data: bytes, *, max_pages: int) -> Prepared:
