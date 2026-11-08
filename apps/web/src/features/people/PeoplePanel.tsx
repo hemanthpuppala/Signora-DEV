@@ -236,7 +236,8 @@ function MemberRow({
 }
 
 function InviteRow({ invite, onChanged }: { invite: Invite; onChanged: (message: string) => void }) {
-  const resend = useIdempotentAction<string, Invite>("invite-resend", (id, key) =>
+  // One saved slot per invitation: rows must not resume or announce each other's resend.
+  const resend = useIdempotentAction<string, Invite>(`invite-resend:${invite.id}`, (id, key) =>
     unwrap(
       api.POST("/api/v1/invites/{invite_id}/resend", {
         params: { path: { invite_id: id } },
