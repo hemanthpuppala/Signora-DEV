@@ -23,7 +23,11 @@ function loads(succeeds = true) {
 }
 
 describe("PdfViewer", () => {
-  afterEach(() => getDocument.mockReset());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    getDocument.mockReset();
+  });
 
   it("lays out every page from the page facts and loads the file by ranges from our origin", async () => {
     loads();
@@ -84,6 +88,33 @@ describe("PdfViewer", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(getDocument).not.toHaveBeenCalled();
+  });
+
+  it("shows no page of the previous file while a new one loads", async () => {
+    // Every page is in view, and painting succeeds (jsdom has no 2D context: the size shows it).
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(private readonly report: IntersectionObserverCallback) {}
+        observe(target: Element) {
+          this.report([{ target, isIntersecting: true } as IntersectionObserverEntry], this as never);
+        }
+        disconnect() {}
+      },
+    );
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const page = { getViewport: () => ({}), render: () => ({ promise: Promise.resolve(), cancel: vi.fn() }) };
+    getDocument.mockImplementation(({ url }: { url: string }) => ({
+      promise: url === "/v2.pdf" ? Promise.resolve({ numPages: 1, getPage: () => Promise.resolve(page) }) : new Promise(() => {}),
+      destroy: vi.fn(),
+    }));
+    const { container, rerender } = render(<PdfViewer url="/v2.pdf" pages={[A4]} label="Letter, version 2" />);
+    const canvas = container.querySelector("canvas") as HTMLCanvasElement;
+    await vi.waitFor(() => expect(canvas.width).toBeGreaterThan(0));
+
+    rerender(<PdfViewer url="/v1.pdf" pages={[A4]} label="Letter, version 1" />);
+
+    await vi.waitFor(() => expect(canvas.width).toBe(0));
   });
 
   it("says so when the document cannot be shown", async () => {

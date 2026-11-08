@@ -250,8 +250,9 @@ export function PdfViewer({ url, pages, label, renderOverlay }: PdfViewerProps) 
   );
 }
 
-/** One page's canvas: rendered off-screen and then shown, so it never blanks; released (emptied)
- * when it leaves the neighbourhood of the viewport, so memory stays bounded. */
+/** One page's canvas: rendered off-screen and then shown, so a re-render never blanks it; released
+ * (emptied) when it leaves the neighbourhood of the viewport, so memory stays bounded, and while a
+ * new file loads, so no page of the previous one stays on screen. */
 function PageCanvas({
   document,
   number,
@@ -270,12 +271,11 @@ function PageCanvas({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    if (!active) {
+    if (!active || !document) {
       canvas.width = 0; // release the bitmap
       canvas.height = 0;
       return undefined;
     }
-    if (!document) return undefined;
     let cancelled = false;
     let task: RenderTask | null = null;
     const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
