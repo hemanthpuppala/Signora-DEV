@@ -66,7 +66,6 @@ export function SignupCompleteForm() {
       <TextField label="Work email" value={check.data.email} readOnly autoComplete="username" />
       <TextField
         label="Company name"
-        hint="Your team and clients will see this name."
         name="organization"
         autoComplete="organization"
         required
