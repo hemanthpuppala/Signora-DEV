@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   Button,
+  EmailField,
   Select,
   StatusPill,
   TablePanel,
@@ -157,5 +158,31 @@ describe("TablePanel", () => {
     );
     const region = screen.getByRole("region", { name: "Members list" });
     expect(region.getAttribute("tabindex")).toBe("0");
+  });
+});
+
+describe("EmailField", () => {
+  function Controlled() {
+    const [value, setValue] = useState("");
+    return (
+      <>
+        <EmailField label="Email" value={value} onChange={(event) => setValue(event.target.value)} />
+        <button type="button">Next</button>
+      </>
+    );
+  }
+
+  it("points out a malformed address when the field is left, not while typing", async () => {
+    const user = userEvent.setup();
+    render(<Controlled />);
+    const input = screen.getByLabelText("Email");
+
+    await user.type(input, "hiaf");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("alert").textContent).toBe("Enter a valid email address");
+
+    await user.type(input, "@firm.com");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

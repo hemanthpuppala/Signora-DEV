@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { fieldErrors, formError } from "@/shared/api/errors";
-import { AuthPanel, BodyText, Button, Notice, SmallText, TextField } from "@/shared/ui";
+import { AuthPanel, BodyText, Button, EmailField, Notice, SmallText } from "@/shared/ui";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -36,9 +36,8 @@ export function ForgotPasswordForm() {
   return (
     <AuthPanel eyebrow="Password" heading="Forgot it?" onSubmit={submit}>
       {problem ? <Notice tone="warning">{problem}</Notice> : null}
-      <TextField
+      <EmailField
         label="Email"
-        type="email"
         name="email"
         autoComplete="email"
         required

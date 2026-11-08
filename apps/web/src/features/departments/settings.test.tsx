@@ -169,24 +169,35 @@ describe("department settings", () => {
     expect(options.map((o) => o.textContent)).toEqual(["Ben Ito · ben@firm.com"]);
   });
 
-  it("adds notify emails one at a time, removes them, and saves the list", async () => {
+  it("saves each added or removed notify email straight away", async () => {
     serve(department({ settings: { reminder_interval_hours: 24, max_reminders: 5, expiry_days: 14, notify_emails: ["desk@firm.com"] } }));
     open(EDITOR);
     const section = await screen.findByRole("region", { name: "Also notify" });
     const user = userEvent.setup();
 
     await user.type(within(section).getByLabelText("Email"), "ops@firm.com{Enter}");
-    await user.type(within(section).getByLabelText("Email"), "OPS@firm.com");
-    await user.click(within(section).getByRole("button", { name: "Add" })); // an exact repeat
-    const desk = within(section).getByText("desk@firm.com").closest("tr") as HTMLElement;
-    await user.click(within(desk).getByRole("button", { name: "Remove" }));
-    await user.click(within(section).getByRole("button", { name: "Save notifications" }));
-
     await vi.waitFor(() =>
-      expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({
-        settings: { notify_emails: ["ops@firm.com"] },
+      expect(sent.filter((r) => r.method === "PATCH").at(-1)?.body).toEqual({
+        settings: { notify_emails: ["desk@firm.com", "ops@firm.com"] },
       }),
     );
+
+    const desk = within(section).getByText("desk@firm.com").closest("tr") as HTMLElement;
+    await user.click(within(desk).getByRole("button", { name: "Remove" }));
+    await vi.waitFor(() => expect(sent.filter((r) => r.method === "PATCH")).toHaveLength(2));
+    expect(within(section).queryByRole("button", { name: /save/i })).toBeNull();
+  });
+
+  it("refuses a malformed address before saving", async () => {
+    serve(department());
+    open(EDITOR);
+    const section = await screen.findByRole("region", { name: "Also notify" });
+    const user = userEvent.setup();
+
+    await user.type(within(section).getByLabelText("Email"), "hiaf{Enter}");
+
+    expect(await within(section).findByText("Enter a valid email address")).toBeTruthy();
+    expect(sent.some((r) => r.method === "PATCH")).toBe(false);
   });
 
   it("hides the add field once five people are listed", async () => {

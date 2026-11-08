@@ -5,28 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
+import { INVALID_EMAIL, looksLikeEmail } from "@/shared/lib/email";
 import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import { can, type Me } from "@/shared/session";
-import {
-  ActionCell,
-  ActionHeader,
-  Button,
-  FieldAction,
-  FieldGrid,
-  HeadRow,
-  Heading1,
-  LinkButton,
-  Notice,
-  RowActions,
-  Section,
-  Select,
-  SmallText,
-  TablePanel,
-  TextArea,
-  TextButton,
-  TextField,
-  useToast,
-} from "@/shared/ui";
+import { ActionCell, ActionHeader, Button, EmailField, FieldAction, FieldGrid, Heading1, HeadRow, LinkButton, Notice, RowActions, Section, Select, SmallText, TablePanel, TextArea, TextButton, TextField, useToast } from "@/shared/ui";
 
 import { departmentKey, useDepartment, type Department } from "./api";
 
@@ -210,91 +192,103 @@ function TimingForm({ department }: { department: Department }) {
 
 const NOTIFY_MAX = 5;
 
+/** "Also notify": each Add and Remove saves straight away (no separate Save to forget). */
 function NotifyForm({ department }: { department: Department }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const [emails, setEmails] = useState<string[]>(department.settings.notify_emails);
   const [draft, setDraft] = useState("");
-  const save = usePatch(department.id, "Notifications saved");
-  const errors = fieldErrors(save.error);
+  const [draftError, setDraftError] = useState<string | undefined>(undefined);
+  const save = useMutation({
+    mutationFn: (next: string[]) =>
+      unwrap(
+        api.PATCH("/api/v1/departments/{department_id}", {
+          params: { path: { department_id: department.id } },
+          body: { settings: { notify_emails: next } },
+        }),
+      ),
+    onSuccess: (updated, next) => {
+      queryClient.setQueryData(departmentKey(department.id), updated);
+      setEmails(updated.settings.notify_emails); // as the server stored them (normalised)
+      toast.show(next.length > emails.length ? "Added" : "Removed");
+    },
+  });
+  const serverErrors = fieldErrors(save.error);
   const add = () => {
     const email = draft.trim();
-    // The server normalises and validates on save (one definition of an email); here we only
-    // skip blanks and exact repeats.
-    if (email && !emails.some((existing) => existing.toLowerCase() === email.toLowerCase())) {
-      setEmails((list) => [...list, email]);
+    if (!looksLikeEmail(email)) {
+      setDraftError(INVALID_EMAIL);
+      return;
     }
-    setDraft("");
+    if (emails.some((existing) => existing.toLowerCase() === email.toLowerCase())) {
+      setDraftError("Already in the list");
+      return;
+    }
+    setDraftError(undefined);
+    save.mutate([...emails, email], { onSuccess: () => setDraft("") });
   };
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    save.mutate({ settings: { notify_emails: emails } });
-  };
+  const addError =
+    draftError ??
+    Object.entries(serverErrors).find(([field]) => field.startsWith("notify_emails"))?.[1] ??
+    (save.error && !Object.keys(serverErrors).length ? formError(save.error) ?? undefined : undefined);
   return (
-    <form onSubmit={submit} noValidate>
-      <Section title="Also notify">
-        <SmallText>The sender is always notified. Add up to {NOTIFY_MAX} more people.</SmallText>
-        {emails.length > 0 ? (
-          <TablePanel label="Also notify list">
-            <table>
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <ActionHeader label="Remove" />
+    <Section title="Also notify">
+      <SmallText>The sender is always notified. Add up to {NOTIFY_MAX} more people.</SmallText>
+      {emails.length > 0 ? (
+        <TablePanel label="Also notify list">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <ActionHeader label="Remove" />
+              </tr>
+            </thead>
+            <tbody>
+              {emails.map((email) => (
+                <tr key={email}>
+                  <td>{email}</td>
+                  <ActionCell>
+                    <TextButton
+                      disabled={save.isPending}
+                      onClick={() => save.mutate(emails.filter((e) => e !== email))}
+                    >
+                      Remove
+                    </TextButton>
+                  </ActionCell>
                 </tr>
-              </thead>
-              <tbody>
-                {emails.map((email, index) => (
-                  <tr key={email}>
-                    <td>
-                      {email}
-                      {errors[`notify_emails[${index}]`] ? (
-                        <SmallText role="alert">{errors[`notify_emails[${index}]`]}</SmallText>
-                      ) : null}
-                    </td>
-                    <ActionCell>
-                      <TextButton onClick={() => setEmails((list) => list.filter((e) => e !== email))}>
-                        Remove
-                      </TextButton>
-                    </ActionCell>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TablePanel>
-        ) : null}
-        <FieldGrid>
-          {emails.length < NOTIFY_MAX ? (
-            <>
-              <TextField
-                label="Email"
-                type="email"
-                autoComplete="off"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault(); // Enter adds the address; Save sends the list
-                    add();
-                  }
-                }}
-              />
-              <FieldAction>
-                <Button variant="quiet" disabled={!draft.trim()} onClick={add}>
-                  Add
-                </Button>
-              </FieldAction>
-            </>
-          ) : null}
-          <FieldAction>
-            <Button type="submit" loading={save.isPending} loadingLabel="Saving…">
-              Save notifications
-            </Button>
-          </FieldAction>
-        </FieldGrid>
-        {errors.notify_emails || errors["settings.notify_emails"] ? (
-          <Notice tone="warning">{errors.notify_emails ?? errors["settings.notify_emails"]}</Notice>
-        ) : null}
-      </Section>
-    </form>
+              ))}
+            </tbody>
+          </table>
+        </TablePanel>
+      ) : null}
+      {emails.length < NOTIFY_MAX ? (
+        <form
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            add();
+          }}
+          noValidate
+        >
+          <FieldGrid>
+            <EmailField
+              label="Email"
+              autoComplete="off"
+              value={draft}
+              error={addError}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setDraftError(undefined);
+              }}
+            />
+            <FieldAction>
+              <Button type="submit" variant="quiet" disabled={!draft.trim()} loading={save.isPending}>
+                Add
+              </Button>
+            </FieldAction>
+          </FieldGrid>
+        </form>
+      ) : null}
+    </Section>
   );
 }
 

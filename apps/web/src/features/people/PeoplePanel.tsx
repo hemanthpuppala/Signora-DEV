@@ -8,22 +8,7 @@ import { api, unwrap } from "@/shared/api/client";
 import { fieldErrors, formError } from "@/shared/api/errors";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
 import type { Me } from "@/shared/session";
-import {
-  ActionCell,
-  ActionHeader,
-  Button,
-  FieldAction,
-  FieldGrid,
-  Notice,
-  RowActions,
-  Section,
-  Select,
-  SmallText,
-  TablePanel,
-  TextButton,
-  TextField,
-  useToast,
-} from "@/shared/ui";
+import { ActionCell, ActionHeader, Button, EmailField, FieldAction, FieldGrid, Notice, RowActions, Section, Select, SmallText, TablePanel, TextButton, useToast } from "@/shared/ui";
 
 type Member = components["schemas"]["MemberView"];
 type Invite = components["schemas"]["InviteView"];
@@ -145,9 +130,8 @@ function InviteForm({
       <Section title="Invite">
         {problem ? <Notice tone="warning">{problem}</Notice> : null}
         <FieldGrid>
-          <TextField
+          <EmailField
             label="Invite by email"
-            type="email"
             autoComplete="off"
             required
             value={email}

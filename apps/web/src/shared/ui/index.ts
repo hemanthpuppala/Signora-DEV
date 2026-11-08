@@ -22,6 +22,7 @@ export {
   type Status,
   type TabItem,
 } from "./Display";
+export { EmailField, type EmailFieldProps } from "./EmailField";
 export { TextArea, TextField } from "./Field";
 export { FieldAction, FieldGrid, HeadRow, Section } from "./Layout";
 export { AddCard, CardGrid, StatCard, type CardStat } from "./Card";
