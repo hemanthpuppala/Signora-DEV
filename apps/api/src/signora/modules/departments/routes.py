@@ -9,17 +9,14 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from sqlalchemy.orm import Session
 
 from signora.kernel.db import Database
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.departments import access as grants
 from signora.modules.departments import service
 from signora.modules.departments.access import DepartmentAccess, GrantRow, load_access
-from signora.modules.departments.countersigners import (
-    Countersigner,
-    list_countersigners,
-    set_countersigners,
-)
+from signora.modules.departments.countersigners import list_countersigners, set_countersigners
 from signora.modules.identity_access import Actor, Permission, current_actor, require
 
 router = APIRouter(prefix="/api/v1/departments", tags=["departments"])
@@ -113,11 +110,11 @@ def summary(row: service.DepartmentRow, rights: DepartmentAccess) -> DepartmentS
     )
 
 
-def detail(
-    row: service.DepartmentRow, rights: DepartmentAccess, signers: list[Countersigner]
-) -> Department:
+def detail(session: Session, actor: Actor, row: service.DepartmentRow) -> Department:
+    """The full response: the row plus the caller's access and the countersigner list."""
+    signers = list_countersigners(session, actor.workspace_id, row.id)
     return Department(
-        **summary(row, rights).model_dump(),
+        **summary(row, load_access(session, actor)).model_dump(),
         countersigners=[CountersignerView(id=s.id, name=s.name, email=s.email) for s in signers],
         updated_at=row.updated_at,
         archived_at=row.archived_at,
@@ -182,11 +179,7 @@ def create_department(
             defaults=company_defaults(request),
             overrides=body.settings.change() if body.settings else None,
         )
-        created = detail(
-            row,
-            load_access(uow.session, actor),
-            list_countersigners(uow.session, actor.workspace_id, row.id),
-        ).model_dump(mode="json")
+        created = detail(uow.session, actor, row).model_dump(mode="json")
         return guard.finish(uow, status.HTTP_201_CREATED, created)
 
 
@@ -194,11 +187,7 @@ def create_department(
 def get_department(department_id: uuid.UUID, request: Request, actor: Member) -> Department:
     with _db(request).unit_of_work() as uow:
         row = service.get_department(uow.session, actor.workspace_id, department_id)
-        return detail(
-            row,
-            load_access(uow.session, actor),
-            list_countersigners(uow.session, actor.workspace_id, row.id),
-        )
+        return detail(uow.session, actor, row)
 
 
 @router.patch("/{department_id}", summary="Rename or describe a department")
@@ -214,33 +203,21 @@ def update_department(
             description=body.description,
             settings=body.settings.change() if body.settings else None,
         )
-        return detail(
-            row,
-            load_access(uow.session, actor),
-            list_countersigners(uow.session, actor.workspace_id, row.id),
-        )
+        return detail(uow.session, actor, row)
 
 
 @router.post("/{department_id}/archive", summary="Archive a department (repeat-safe)")
 def archive_department(department_id: uuid.UUID, request: Request, actor: Manager) -> Department:
     with _db(request).unit_of_work() as uow:
         row = service.archive_department(uow, actor=actor, department_id=department_id)
-        return detail(
-            row,
-            load_access(uow.session, actor),
-            list_countersigners(uow.session, actor.workspace_id, row.id),
-        )
+        return detail(uow.session, actor, row)
 
 
 @router.post("/{department_id}/restore", summary="Restore an archived department (repeat-safe)")
 def restore_department(department_id: uuid.UUID, request: Request, actor: Manager) -> Department:
     with _db(request).unit_of_work() as uow:
         row = service.restore_department(uow, actor=actor, department_id=department_id)
-        return detail(
-            row,
-            load_access(uow.session, actor),
-            list_countersigners(uow.session, actor.workspace_id, row.id),
-        )
+        return detail(uow.session, actor, row)
 
 
 class GrantsInput(_Body):
