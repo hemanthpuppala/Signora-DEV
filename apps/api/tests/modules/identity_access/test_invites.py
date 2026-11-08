@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import uuid
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from signora.kernel.db import Database
+from signora.modules.identity_access.invites import resend_cooldown_key
 from tests.modules.identity_access.conftest import (
     PASSWORD,
     Account,
@@ -43,6 +45,12 @@ def accept(
         json={"token": token, "name": name, "password": password},
         headers=idempotency_key(),
     )
+
+
+def a_minute_later(client: TestClient, invite_id: str) -> None:
+    """As if the one-minute invitation cooldown had passed."""
+    limiter = client.app.state.rate_limiter  # type: ignore[attr-defined]
+    limiter.reset(resend_cooldown_key(uuid.UUID(invite_id)))
 
 
 def newest_token(db: Database, email: str) -> str:
@@ -131,6 +139,7 @@ def test_inviting_again_is_a_resend_that_kills_the_old_link(
     email = unique_email("again")
     first = invite(client, email, creator.role_ids["read"]).json()
     old = newest_token(committing_db, email)
+    a_minute_later(client, first["id"])
     second = invite(client, email, creator.role_ids["read_write"]).json()
     new = newest_token(committing_db, email)
 
@@ -216,6 +225,7 @@ def test_resend_issues_a_new_link_at_most_once_a_minute(
     created = invite(client, unique_email("resend"), creator.role_ids["read"]).json()
     old = newest_token(committing_db, created["email"])
     url = f"{INVITES}/{created['id']}/resend"
+    a_minute_later(client, created["id"])
 
     resent = client.post(url, headers={**csrf_headers(client), **idempotency_key()})
     again = client.post(url, headers={**csrf_headers(client), **idempotency_key()})
@@ -366,3 +376,24 @@ def test_invites_for_one_address_at_once_make_one_invite(
             {"e": email},
         ).scalar_one()
     assert pending == 1
+
+
+def test_inviting_again_within_a_minute_sends_no_new_email(
+    client: TestClient, committing_db: Database, creator: Account
+) -> None:
+    email = unique_email("spam")
+    invite(client, email, creator.role_ids["read"])
+
+    again = [invite(client, email, creator.role_ids["read"]) for _ in range(3)]
+
+    assert {r.status_code for r in again} == {429}
+    assert len(emails_to(committing_db, email)) == 1
+    resend = client.post(
+        f"{INVITES}/{_pending_id(client, email)}/resend",
+        headers={**csrf_headers(client), **idempotency_key()},
+    )
+    assert resend.status_code == 429  # the same cooldown covers the Resend button
+
+
+def _pending_id(client: TestClient, email: str) -> str:
+    return str(next(i["id"] for i in client.get(INVITES).json() if i["email"] == email))

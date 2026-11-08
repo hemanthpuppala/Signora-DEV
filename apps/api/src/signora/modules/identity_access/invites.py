@@ -111,6 +111,18 @@ def _send_invitation(
     )
 
 
+def resend_cooldown_key(invite_id: uuid.UUID) -> str:
+    return f"invite:resend:{invite_id}"
+
+
+def _start_cooldown(limiter: RateLimiter, invite_id: uuid.UUID) -> None:
+    """One invitation email per invite per minute, whether it came from creating, inviting the
+    same address again, or Resend."""
+    retry = limiter.hit(resend_cooldown_key(invite_id), limit=1, window=RESEND_COOLDOWN)
+    if retry is not None:
+        raise RateLimited(retry)
+
+
 def _audit(uow: UnitOfWork, actor: Actor, action: str, invite_id: uuid.UUID, **data: Any) -> None:
     record(
         uow,
@@ -161,6 +173,7 @@ def create_invite(
         {"w": actor.workspace_id, "e": address},
     ).scalar_one_or_none()
     if existing is not None:  # inviting again = resend: new link, old one dead, new expiry
+        _start_cooldown(limiter, existing)
         uow.session.execute(
             text(
                 "UPDATE invites SET token_hash = :h, role_id = :r, invited_by = :by, "
@@ -186,6 +199,7 @@ def create_invite(
                 **ttl,
             },
         ).scalar_one()
+        _start_cooldown(limiter, invite_id)
         _audit(uow, actor, "invite.created", invite_id, email=address, role=role_name)
     invite = _pending(uow.session, actor.workspace_id, invite_id)
     _send_invitation(uow, actor=actor, invite=invite, token=token.value, base_url=base_url)
@@ -202,9 +216,7 @@ def resend_invite(
     base_url: str,
 ) -> InviteRow:
     invite = _pending(uow.session, actor.workspace_id, invite_id)
-    retry = limiter.hit(f"invite:resend:{invite_id}", limit=1, window=RESEND_COOLDOWN)
-    if retry is not None:
-        raise RateLimited(retry)
+    _start_cooldown(limiter, invite_id)
     token = issue_token()
     uow.session.execute(
         text(
