@@ -58,8 +58,18 @@ export function useSignOut() {
   });
 }
 
-/** Only same-site paths are followed after log-in (no open redirect). */
-export function safeNext(value: string | null | undefined): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return "/";
-  return value;
+/**
+ * Where to go after log-in: only a path on this site (no open redirect). The value is resolved the
+ * way the browser will resolve it (which drops tabs and newlines and treats "\\" like "/"), and kept
+ * only when the result stays on this origin; anything else goes home.
+ */
+export function safeNext(value: string | null | undefined, origin?: string): string {
+  if (!value || !value.startsWith("/")) return "/";
+  const here = origin ?? window.location.origin;
+  try {
+    const url = new URL(value, here);
+    return url.origin === here ? `${url.pathname}${url.search}${url.hash}` : "/";
+  } catch {
+    return "/";
+  }
 }
