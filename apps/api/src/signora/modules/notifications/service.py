@@ -32,6 +32,8 @@ DELIVER = "notifications.send_email"
 SWEEP = "sweep.email_messages"
 MAX_ATTEMPTS = 8
 RETENTION = timedelta(days=30)
+DEFERRAL_MINIMUM = timedelta(minutes=1)
+DEFERRAL_FALLBACK = timedelta(hours=1)  # limit reached with nothing sent today (limit set to 0)
 LAST_ERROR_MAX = 2000
 
 TransportFactory = Callable[[], Transport]
@@ -115,6 +117,32 @@ def _mark_failed(session: Session, message_id: str, error: str) -> None:
     )
 
 
+def _defer_until_capacity(session: Session, message_id: str, job_id: uuid.UUID) -> int:
+    """Queue this message's delivery again for when the oldest send of the last 24 hours ages out
+    (at least a minute away). Returns the wait in seconds."""
+    wait: float | None = session.execute(
+        sql(
+            "SELECT extract(epoch FROM min(sent_at) + interval '24 hours' - now()) "
+            "FROM email_messages WHERE status = 'sent' AND sent_at > now() - interval '24 hours'"
+        )
+    ).scalar_one()
+    seconds = max(
+        int(wait or DEFERRAL_FALLBACK.total_seconds()), int(DEFERRAL_MINIMUM.total_seconds())
+    )
+    session.execute(
+        sql("UPDATE email_messages SET last_error = :note WHERE id = :id AND status = 'queued'"),
+        {"id": message_id, "note": "waiting for daily email capacity"},
+    )
+    enqueue(
+        session,
+        DELIVER,
+        {"message_id": message_id},
+        run_after=timedelta(seconds=seconds),
+        dedupe_key=f"email:{message_id}:deferred:{job_id}",
+    )
+    return seconds
+
+
 def _record_attempt(session: Session, message_id: str, error: str) -> None:
     session.execute(
         sql(
@@ -152,10 +180,15 @@ def make_deliver(
             with context.complete():
                 return
 
+        if sent_today >= daily_limit():
+            # Not a failure: wait for capacity without using up attempts (the provider's daily cap
+            # is never exceeded and the message is never dropped).
+            with context.complete() as uow:
+                wait = _defer_until_capacity(uow.session, message_id, context.job_id)
+            log.warning("email.deferred_daily_limit", sent_today=sent_today, wait_s=wait, **bind)
+            return
+
         try:
-            if sent_today >= daily_limit():
-                # Retried with backoff, so the provider's daily cap is never exceeded.
-                raise TransientEmailError(f"daily email limit reached ({sent_today} sent)")
             transport = transport_factory()
             provider_id = transport.send(
                 OutgoingEmail(

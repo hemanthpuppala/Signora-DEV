@@ -224,18 +224,32 @@ def test_transient_failures_end_as_failed_after_the_last_attempt(
     assert row.text_body is None
 
 
-@pytest.mark.usefixtures("no_backoff")
-def test_the_daily_limit_holds_messages_back_and_fails_them_at_the_end(
+def test_the_daily_limit_defers_delivery_without_using_attempts(
     committing_db: Database, delivering: Any
 ) -> None:
     transport = FakeTransport()
     message_id = queue(committing_db)
     delivering(transport, message_id, daily_limit=0)
 
-    wait_until(lambda: message(committing_db, message_id).status == "failed", timeout=20)
+    def deferred() -> Any:
+        with committing_db.unit_of_work() as uow:
+            return uow.session.execute(
+                text(
+                    "SELECT run_at - now() AS wait FROM jobs "
+                    "WHERE dedupe_key LIKE :k AND status = 'queued'"
+                ),
+                {"k": f"email:{message_id}:deferred:%"},
+            ).one_or_none()
 
+    wait_until(lambda: deferred() is not None)
+
+    row = message(committing_db, message_id)
+    assert row.status == "queued"  # not failed: it waits for capacity
+    assert row.attempts == 0
+    assert row.text_body is not None  # the body is kept for the later send
+    assert row.last_error == "waiting for daily email capacity"
+    assert deferred().wait.total_seconds() > 50 * 60  # no capacity today: try again in an hour
     assert transport.sent_to_target() == []
-    assert "daily email limit" in message(committing_db, message_id).last_error
 
 
 # --- SendGrid ----------------------------------------------------------------------------------

@@ -159,7 +159,8 @@ accessible layout (text and HTML parts, escaped by Jinja2 autoescape).
   - **permanent** (HTTP 400/401/403/413, SMTP 5xx recipient refused) → `status=failed` at once, body purged, error
     logged (401/403 at error level: a configuration problem).
 - `EMAIL_DAILY_LIMIT` (**450**) is checked before each send (count of `sent` in the last 24 h); over the limit the
-  job is retried later, so Gmail's daily cap is never exceeded.
+  delivery is re-queued for when the oldest send of the window ages out (at least a minute later), without using
+  an attempt, so Gmail's daily cap is never exceeded and no message is dropped.
 - Known limit: a crash after the provider accepted a message but before `sent` is recorded can deliver it twice.
   Every email system has this window; it is documented, not hidden.
 - Privacy: bodies hold sign-in links, so logs carry only the message id, category, provider and outcome; the body is
