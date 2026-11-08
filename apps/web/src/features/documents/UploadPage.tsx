@@ -48,6 +48,8 @@ type Row = {
   /** Reused if "Add document" is pressed again after a lost connection: never two documents. */
   idempotencyKey: string;
   message: string | null;
+  /** Whether a failure is worth repeating; Try again sends the file again. */
+  canRetry: boolean;
   nameError: string | null;
   instructionsError: string | null;
   documentId: string | null;
@@ -67,6 +69,7 @@ function newRow(file: File, tooLargeMessage: string | null): Row {
     allowDuplicate: false,
     idempotencyKey: crypto.randomUUID(),
     message: tooLargeMessage,
+    canRetry: false,
     nameError: null,
     instructionsError: null,
     documentId: null,
@@ -78,13 +81,16 @@ function tooLargeMessage(maxBytes: number | undefined): string {
   return maxBytes ? `Upload a file of ${formatBytes(maxBytes)} or less` : "This file is too large. Upload a smaller one";
 }
 
-function uploadProblem(error: unknown, maxBytes: number | undefined): string {
-  if (!(error instanceof ApiError)) return "The upload didn't finish. Try again"; // no answer
+/** Why an upload failed, and whether sending it again could work (no answer, a wait, a fault). */
+function uploadFailure(error: unknown, maxBytes: number | undefined): Pick<Row, "message" | "canRetry"> {
+  if (!(error instanceof ApiError)) return { message: "The upload didn't finish. Try again", canRetry: true };
   // The API's 413, or the proxy's bare one when a body passes its own limit.
-  if (error.status === 413) return tooLargeMessage(maxBytes);
+  if (error.status === 413) return { message: tooLargeMessage(maxBytes), canRetry: false };
   // The hourly limit states its wait; a server fault gives its reference.
-  if (error.status === 429 || error.status >= 500) return formError(error) ?? error.problem.title;
-  return error.problem.title;
+  if (error.status === 429 || error.status >= 500) {
+    return { message: formError(error) ?? error.problem.title, canRetry: true };
+  }
+  return { message: error.problem.title, canRetry: false }; // the file itself is refused
 }
 
 /**
@@ -109,13 +115,21 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
     (key: string, file: File) => {
       uploadFile(departmentId, file, (progress) => update(key, { progress }))
         .then((upload) =>
-          update(key, {
-            upload,
-            name: upload.suggested_name,
-            phase: upload.duplicate ? "question" : "ready",
-          }),
+          setRows((current) =>
+            current.map((row) =>
+              row.key === key
+                ? {
+                    ...row,
+                    upload,
+                    // Sent again after it expired: keep the name the person already typed.
+                    name: row.name || upload.suggested_name,
+                    phase: upload.duplicate && !row.allowDuplicate ? "question" : "ready",
+                  }
+                : row,
+            ),
+          ),
         )
-        .catch((error: unknown) => update(key, { phase: "failed", message: uploadProblem(error, maxBytes) }));
+        .catch((error: unknown) => update(key, { phase: "failed", ...uploadFailure(error, maxBytes) }));
     },
     [departmentId, maxBytes, update],
   );
@@ -138,9 +152,18 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
     setRows((current) => [...current, row]); // the effect above starts its transfer
   };
 
-  // A new key makes the effect above start a fresh transfer for the same file.
+  // A new key makes the effect above start a fresh transfer for the same file; a new upload is a
+  // new request to add it, so it gets a new idempotency key too.
   const retry = (row: Row) =>
-    update(row.key, { key: crypto.randomUUID(), phase: "uploading", progress: 0, message: null });
+    update(row.key, {
+      key: crypto.randomUUID(),
+      phase: "uploading",
+      progress: 0,
+      upload: null,
+      message: null,
+      canRetry: false,
+      idempotencyKey: crypto.randomUUID(),
+    });
 
   const create = (row: Row) => {
     if (!row.upload) return;
@@ -182,7 +205,8 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
           return;
         }
         if (error instanceof ApiError && error.code === "upload-not-found") {
-          update(row.key, { phase: "failed", message: error.problem.title });
+          // Uploads expire after a day: Try again sends the file again.
+          update(row.key, { phase: "failed", message: error.problem.title, canRetry: true });
           return;
         }
         update(row.key, { phase: "ready", message: formError(error) });
@@ -322,7 +346,7 @@ function UploadRow({
           <span className={styles.message} role={row.phase === "failed" ? "alert" : "status"}>
             {row.message}
           </span>
-          {row.phase === "failed" && row.upload === null && row.message !== null && !row.message.startsWith("Upload a") ? (
+          {row.phase === "failed" && row.canRetry ? (
             <TextButton onClick={onRetry}>Try again</TextButton>
           ) : null}
           <TextButton onClick={onRemove}>Remove</TextButton>

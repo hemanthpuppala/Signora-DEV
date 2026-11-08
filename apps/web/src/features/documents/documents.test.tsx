@@ -293,6 +293,28 @@ describe("documents", () => {
     expect(await screen.findByText("Too many attempts. Try again in 10 minutes.")).toBeTruthy();
   });
 
+  it("sends an expired upload again on Try again, keeping the typed name", async () => {
+    serve({
+      create: () =>
+        reply(404, { type: "/problems/upload-not-found", title: "This upload has expired. Upload the file again", status: 404, code: "upload-not-found", instance: "/x", request_id: "r" }),
+    });
+    wrap(<UploadPage department={FINANCE} />);
+    const user = userEvent.setup();
+    await user.upload(await screen.findByLabelText(/Drop a PDF or Word file/), pdf());
+    FakeUpload.sent[0]?.answer(201, uploaded());
+    const name = await screen.findByLabelText("Name");
+    await user.clear(name);
+    await user.type(name, "Client letter");
+    await user.click(screen.getByRole("button", { name: "Add document" }));
+
+    expect(await screen.findByText("This upload has expired. Upload the file again")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await vi.waitFor(() => expect(FakeUpload.sent).toHaveLength(2));
+    FakeUpload.sent[1]?.answer(201, uploaded({ id: "up-2" }));
+
+    expect(((await screen.findByLabelText("Name")) as HTMLInputElement).value).toBe("Client letter");
+  });
+
   it("explains instead of uploading in an archived department", () => {
     serve({});
     wrap(<UploadPage department={{ ...FINANCE, status: "archived" }} />);
