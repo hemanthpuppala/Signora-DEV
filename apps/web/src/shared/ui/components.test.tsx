@@ -3,7 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { Button, Select, StatusPill, TextField, ToastProvider, useToast } from "./index";
+import {
+  Button,
+  Select,
+  StatusPill,
+  TablePanel,
+  TextField,
+  ToastProvider,
+  useToast,
+} from "./index";
 
 describe("Button", () => {
   it("shows the loading label, disables itself and marks busy while loading", () => {
@@ -131,5 +139,23 @@ describe("Toast", () => {
     act(() => vi.advanceTimersByTime(2600));
     expect(screen.queryByRole("status")).toBeNull();
     vi.useRealTimers();
+  });
+});
+
+describe("TablePanel", () => {
+  it("is a named, keyboard-focusable region so a long table can be scrolled", () => {
+    render(
+      <TablePanel label="Members list">
+        <table>
+          <tbody>
+            <tr>
+              <td>Rosa</td>
+            </tr>
+          </tbody>
+        </table>
+      </TablePanel>,
+    );
+    const region = screen.getByRole("region", { name: "Members list" });
+    expect(region.getAttribute("tabindex")).toBe("0");
   });
 });

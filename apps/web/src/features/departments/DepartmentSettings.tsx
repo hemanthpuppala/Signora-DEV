@@ -285,7 +285,7 @@ function PeopleList({
     <Section title={title}>
       {people.length === 0 ? <SmallText>{empty}</SmallText> : null}
       {people.length > 0 ? (
-        <TablePanel>
+        <TablePanel label={`${title} list`}>
           <table>
             <thead>
               <tr>

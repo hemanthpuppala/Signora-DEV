@@ -61,6 +61,7 @@
   /* shape */
   --radius: 0;
   --control-height: 44px;
+  --table-max-height: 480px; /* tables longer than this scroll inside their panel */
   /* Field geometry (label line, gap, underline input), shared by fields and the actions beside them. */
   --field-label-height: 14px; /* 10px label at line-height 1.4 */
   --field-gap: 6px;

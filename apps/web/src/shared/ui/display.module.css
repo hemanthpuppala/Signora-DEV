@@ -1,9 +1,16 @@
 /* Tables inside a hairline panel (prototype .tbl-box). */
 .tablePanel {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: var(--table-max-height);
+  overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--sep);
-  padding: 4px 24px;
+  padding: 0 24px 4px;
+}
+
+.tablePanel:focus-visible {
+  outline: 1px solid var(--r40);
+  outline-offset: -1px;
 }
 
 .tablePanel table {
@@ -20,6 +27,11 @@
   color: var(--t55);
   padding: 16px 16px 12px 0;
   border-bottom: 1px solid var(--sep);
+  /* The header row stays visible while the rows scroll. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
 }
 
 .tablePanel td {

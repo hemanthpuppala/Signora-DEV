@@ -116,7 +116,7 @@ export function Gallery() {
             { href: "/dev/ui#documents", label: "Documents · 3" },
           ]}
         />
-        <TablePanel>
+        <TablePanel label="Example table">
           <table>
             <thead>
               <tr>

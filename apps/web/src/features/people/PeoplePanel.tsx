@@ -62,7 +62,7 @@ export function PeoplePanel({ me }: { me: Me }) {
       />
       <Section title="Members">
         {members.isError ? <Notice tone="warning">{formError(members.error)}</Notice> : null}
-        <TablePanel>
+        <TablePanel label="Members list">
           <table>
             <thead>
               <tr>
@@ -82,7 +82,7 @@ export function PeoplePanel({ me }: { me: Me }) {
       <Section title="Pending invitations">
         {invites.data && invites.data.length === 0 ? <SmallText>No pending invitations.</SmallText> : null}
         {invites.data && invites.data.length > 0 ? (
-          <TablePanel>
+          <TablePanel label="Pending invitations list">
             <table>
               <thead>
                 <tr>

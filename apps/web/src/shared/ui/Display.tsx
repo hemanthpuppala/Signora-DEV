@@ -5,8 +5,25 @@ import { cx } from "@/shared/lib/cx";
 
 import styles from "./display.module.css";
 
-export function TablePanel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx(styles.tablePanel, className)}>{children}</div>;
+/**
+ * A table inside a hairline panel. Long tables scroll inside the panel (the header row stays
+ * visible) instead of growing the page; the panel is focusable so keyboard users can scroll it.
+ */
+export function TablePanel({
+  children,
+  label,
+  className,
+}: {
+  children: ReactNode;
+  /** What the table lists ("Members"); announced when the panel is focused. */
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div className={cx(styles.tablePanel, className)} role="region" aria-label={label} tabIndex={0}>
+      {children}
+    </div>
+  );
 }
 
 /**
