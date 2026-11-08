@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, unwrap } from "@/shared/api/client";
 import { NetworkError, userMessage } from "@/shared/api/errors";
+import { useMeta } from "@/shared/api/useMeta";
 import { MetricGrid, MetricTile, Notice, StatusPill } from "@/shared/ui";
 
 /**
@@ -23,10 +24,7 @@ async function fetchReadiness() {
 
 /** Development only (component gallery): reads /api/v1/meta and /api/v1/health/ready: proves browser -> Caddy -> API works end to end. */
 export function MetaPanel() {
-  const meta = useQuery({
-    queryKey: ["meta"],
-    queryFn: () => unwrap(api.GET("/api/v1/meta")),
-  });
+  const meta = useMeta();
   const ready = useQuery({
     queryKey: ["health", "ready"],
     queryFn: fetchReadiness,

@@ -100,6 +100,10 @@ class _EnvVars(BaseSettings):
     # gotenberg
     gotenberg_host: str
     gotenberg_port: int = Field(ge=1, le=65535)
+    # documents (Phase 4 LLD topic 2)
+    document_max_bytes: int = Field(default=50 * 1024 * 1024, ge=1024, le=500 * 1024 * 1024)
+    document_max_pages: int = Field(default=200, ge=1, le=2000)
+    document_uploads_per_hour: int = Field(default=60, ge=1, le=10_000)
     # signing defaults
     signing_otp_ttl_minutes: int = Field(default=10, ge=1, le=60)
     signing_otp_max_attempts: int = Field(default=5, ge=1, le=20)
@@ -253,6 +257,12 @@ class BlobStoreSettings(_Group):
     dir: Path  # absolute: resolved against the repository root
 
 
+class DocumentSettings(_Group):
+    max_bytes: int
+    max_pages: int
+    uploads_per_hour: int
+
+
 class GotenbergSettings(_Group):
     host: str
     port: int
@@ -351,6 +361,7 @@ class Settings(_Group):
     db: DatabaseSettings
     blob_store: BlobStoreSettings
     gotenberg: GotenbergSettings
+    documents: DocumentSettings
     signing: SigningSettings
     worker: WorkerSettings
     ai: AISettings
@@ -407,6 +418,11 @@ def load_settings(root: Path | None = None) -> Settings:
             backend=env.blob_store_backend, dir=_resolve(base, env.blob_store_dir)
         ),
         gotenberg=GotenbergSettings(host=env.gotenberg_host, port=env.gotenberg_port),
+        documents=DocumentSettings(
+            max_bytes=env.document_max_bytes,
+            max_pages=env.document_max_pages,
+            uploads_per_hour=env.document_uploads_per_hour,
+        ),
         signing=SigningSettings(
             otp_ttl_minutes=env.signing_otp_ttl_minutes,
             otp_max_attempts=env.signing_otp_max_attempts,

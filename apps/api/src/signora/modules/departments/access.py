@@ -34,7 +34,7 @@ class DepartmentAccess:
         return permission in DEPARTMENT_GRANT and department_id in self.granted
 
     def level(self, department_id: uuid.UUID) -> Access:
-        return "edit" if self.can(Permission.FILES_SEND, department_id) else "read"
+        return "edit" if self.can(Permission.DOCUMENTS_SEND, department_id) else "read"
 
     def require(self, permission: Permission, department_id: uuid.UUID) -> None:
         if not self.can(permission, department_id):
@@ -61,8 +61,9 @@ class GrantRow:
     created_at: Any
 
 
-# Active members whose role already gives edit access in every department (the creator holds every
-# permission in code; a role holding files.send edits everywhere). A grant adds nothing for them.
+# Active members whose role already gives edit access in every department (the creator holds
+# every permission in code; a role holding documents.send edits everywhere). A grant adds nothing
+# for them.
 _EDITS_EVERYWHERE = "(u.id = w.created_by OR CAST(:send AS text) = ANY(r.permissions))"
 _MEMBERS = (
     "FROM users u JOIN roles r ON r.id = u.role_id JOIN workspaces w ON w.id = u.workspace_id "
@@ -92,7 +93,7 @@ def list_grants(
             f"{_GRANT_PEOPLE} JOIN users b ON b.id = g.granted_by "
             f"WHERE {_EFFECTIVE} ORDER BY lower(u.name), u.id"
         ),
-        {"d": department_id, "w": workspace_id, "send": Permission.FILES_SEND.value},
+        {"d": department_id, "w": workspace_id, "send": Permission.DOCUMENTS_SEND.value},
     )
     return [GrantRow(**row._mapping) for row in rows]
 
@@ -114,7 +115,7 @@ def grant_candidates(
             f"SELECT u.id, u.name, u.email {_MEMBERS} AND NOT {_EDITS_EVERYWHERE} "
             "ORDER BY lower(u.name), u.id"
         ),
-        {"w": workspace_id, "send": Permission.FILES_SEND.value},
+        {"w": workspace_id, "send": Permission.DOCUMENTS_SEND.value},
     )
     return [Candidate(**row._mapping) for row in rows]
 
@@ -137,7 +138,7 @@ def set_grants(
     edits_everywhere = set(
         uow.session.execute(
             text(f"SELECT u.id {_MEMBERS} AND u.id = ANY(:ids) AND {_EDITS_EVERYWHERE}"),
-            {"w": actor.workspace_id, "ids": wanted, "send": Permission.FILES_SEND.value},
+            {"w": actor.workspace_id, "ids": wanted, "send": Permission.DOCUMENTS_SEND.value},
         ).scalars()
     )
     errors = [
@@ -154,7 +155,7 @@ def set_grants(
     current = set(
         uow.session.execute(
             text(f"SELECT g.user_id {_GRANT_PEOPLE} WHERE {_EFFECTIVE}"),
-            {"d": department_id, "w": actor.workspace_id, "send": Permission.FILES_SEND.value},
+            {"d": department_id, "w": actor.workspace_id, "send": Permission.DOCUMENTS_SEND.value},
         ).scalars()
     )
     added = [u for u in wanted if u not in current]

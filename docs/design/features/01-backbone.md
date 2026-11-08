@@ -86,6 +86,11 @@ slot. Several workers may enqueue the same sweep; the time-slot dedupe key (§1.
   jitter (e.g. email: 30 s, 1 m, 2 m, 4 m, 8 m, 16 m, 32 m, 1 h ≈ 2 h total).
 - **Dead jobs:** after the last attempt the job becomes `dead`, keeps its `last_error`, and is not deleted
   automatically, so failures can be diagnosed and retried by hand.
+- **Settling a dead job** (added in Phase 4): a job kind may declare `on_dead(uow, payload)`. It runs in the
+  transaction that marks the job dead, both when the last attempt raises and when the lease of the last attempt
+  runs out because the worker died. It runs in a savepoint, so if it fails the job is still recorded dead and the
+  failure is logged (`job.on_dead_failed`). Modules use it to settle state the job left half-done, for example a
+  document version that would otherwise stay "Processing" forever.
 - **Leases:** a claimed job gets `lease_expires_at = now + lease`. If the worker crashes, the job is reclaimed after
   the lease ends and counts as an attempt.
 - **Short transactions.** A handler receives a `JobContext` (job id, payload, meta, claimed attempt) and opens units of

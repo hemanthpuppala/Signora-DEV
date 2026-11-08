@@ -1,24 +1,47 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
-import { Button, HeadRow, Heading1, Notice, Section, TextArea, TextField } from "@/shared/ui";
+import {
+  ActionCell,
+  ActionHeader,
+  Button,
+  Dropzone,
+  HeadRow,
+  Heading1,
+  Notice,
+  PageForm,
+  Section,
+  TablePanel,
+  TextArea,
+  TextButton,
+  TextField,
+} from "@/shared/ui";
 
 import { type Department } from "./api";
 
 type Input = { name: string; description: string };
 
-/** Screen 06 (deviation: name and description only; the dropzone arrives with uploading). */
-export function NewDepartmentForm() {
-  const router = useRouter();
+/**
+ * Screen 06. With ``upload`` (people who can upload), a dropzone holds files in the browser until
+ * the department exists (Phase 4 LLD §6.3); ``onCreated`` gets them, and the route decides where
+ * to go (the upload page, which then uploads them).
+ */
+export function NewDepartmentForm({
+  onCreated,
+  upload,
+}: {
+  onCreated: (department: Department, files: File[]) => void;
+  upload?: { hint: string } | undefined;
+}) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const create = useIdempotentAction<Input, Department>("department-create", (input, key) =>
     unwrap(api.POST("/api/v1/departments", { body: input, headers: { "Idempotency-Key": key } })),
   );
@@ -27,8 +50,8 @@ export function NewDepartmentForm() {
   useEffect(() => {
     if (!created) return;
     void queryClient.invalidateQueries({ queryKey: ["departments"] });
-    router.replace(`/departments/${created.id}`);
-  }, [created, queryClient, router]);
+    onCreated(created, files);
+  }, [created, queryClient, onCreated, files]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -40,7 +63,7 @@ export function NewDepartmentForm() {
   const problem =
     create.state.status === "retrying" ? "Connection lost — retrying…" : nameTaken ? null : formError(error);
   return (
-    <form onSubmit={submit} noValidate>
+    <PageForm onSubmit={submit} noValidate>
       <HeadRow>
         <Heading1>New department</Heading1>
       </HeadRow>
@@ -61,12 +84,46 @@ export function NewDepartmentForm() {
           error={errors.description}
           onChange={(event) => setDescription(event.target.value)}
         />
-        <div>
-          <Button type="submit" arrow loading={create.isPending || Boolean(created)} loadingLabel="Creating…">
-            Create department
-          </Button>
-        </div>
       </Section>
-    </form>
+      {upload ? (
+        <Section title="Documents">
+          {files.length > 0 ? (
+            <TablePanel label="Documents to upload list">
+              <table>
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <ActionHeader label="Remove" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {files.map((file, index) => (
+                    <tr key={`${file.name}-${index}`}>
+                      <td>{file.name}</td>
+                      <ActionCell>
+                        <TextButton onClick={() => setFiles(files.filter((_, other) => other !== index))}>
+                          Remove
+                        </TextButton>
+                      </ActionCell>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TablePanel>
+          ) : null}
+          <Dropzone
+            title="Drop a PDF or Word file"
+            hint={upload.hint}
+            accept=".pdf,.docx"
+            onFile={(file) => setFiles((current) => [...current, file])}
+          />
+        </Section>
+      ) : null}
+      <div>
+        <Button type="submit" arrow loading={create.isPending || Boolean(created)} loadingLabel="Creating…">
+          Create department
+        </Button>
+      </div>
+    </PageForm>
   );
 }

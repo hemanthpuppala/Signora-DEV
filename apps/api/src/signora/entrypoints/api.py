@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy import Engine
 
 from signora.handlers import register_all
+from signora.kernel.blobstore import blob_store_from_settings
 from signora.kernel.config import Settings, get_settings
 from signora.kernel.db import Database, create_db_engine
 from signora.kernel.health import Check, core_checks, integration_results, run_checks
@@ -33,7 +34,7 @@ from signora.kernel.http import (
 from signora.kernel.jobs import registry
 from signora.kernel.logging import configure_logging
 from signora.kernel.ratelimit import create_rate_limiter
-from signora.modules import departments, identity_access
+from signora.modules import departments, documents, identity_access
 
 API_PREFIX = "/api/v1"
 INTERNAL_PREFIX = "/internal"  # never forwarded by Caddy (LLD §7.3)
@@ -50,6 +51,8 @@ class MetaResponse(BaseModel):
     commit: str
     password_min_length: int
     password_rule: str  # the server's own wording of the rule, shown as the form hint
+    document_max_bytes: int  # upload limits (Phase 4 LLD §2.1), shown before uploading
+    document_max_pages: int
 
 
 def _health_router() -> APIRouter:
@@ -89,6 +92,8 @@ def _health_router() -> APIRouter:
             commit=settings.app.commit,
             password_min_length=settings.auth.password_min_length,
             password_rule=identity_access.PasswordPolicy(settings.auth.password_min_length).rule,
+            document_max_bytes=settings.documents.max_bytes,
+            document_max_pages=settings.documents.max_pages,
         )
 
     return router
@@ -128,6 +133,7 @@ def create_app(
     app.state.database = Database(app_engine)
     app.state.checks = lambda: checks_factory(settings, app_engine)
     app.state.rate_limiter = create_rate_limiter(settings.rate_limit)
+    app.state.blob_store = blob_store_from_settings(settings.blob_store)
 
     install_error_handlers(app)
     # Added last = outermost: the request context (request id, access log) wraps the origin check.
@@ -140,6 +146,7 @@ def create_app(
     app.include_router(_health_router())
     app.include_router(identity_access.router)
     app.include_router(departments.router)
+    app.include_router(documents.router)
     # A removed member leaves every countersigner list and loses every department grant, in the
     # removal's own transaction.
     identity_access.on_member_removed(departments.drop_removed_member)

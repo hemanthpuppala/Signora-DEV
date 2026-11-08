@@ -14,7 +14,13 @@ SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src" / "signora"
 HTTP_METHOD_DECORATORS = {"get", "post", "put", "patch", "delete", "head", "options", "api_route"}
 
 # Reviewed ``async def`` handlers that do no blocking I/O: "file.py:function" -> reason.
-ALLOWED_ASYNC_HANDLERS: dict[str, str] = {}
+ALLOWED_ASYNC_HANDLERS: dict[str, str] = {
+    "modules/documents/routes.py:create_upload": (
+        "streams the raw request body to disk under a size limit (only an async handler can read "
+        "the body as it arrives); the database work and file checks run in the thread pool "
+        "(Phase 4 LLD §2.2)"
+    ),
+}
 
 
 def async_route_handlers(source: str, filename: str) -> list[str]:

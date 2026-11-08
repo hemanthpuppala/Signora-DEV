@@ -19,7 +19,9 @@ from sqlalchemy import Result, text
 from sqlalchemy.orm import Session
 
 from signora.kernel.db import Database, UnitOfWork
-from signora.kernel.logging import current_context
+from signora.kernel.logging import current_context, get_logger
+
+log = get_logger("signora.jobs")
 
 NOTIFY_CHANNEL = "signora_jobs"
 BACKOFF_BASE_SECONDS = 30.0
@@ -29,6 +31,7 @@ LAST_ERROR_MAX = 2000
 
 JsonDict = dict[str, Any]
 Handler = Callable[["JobContext"], None]
+DeadHandler = Callable[[UnitOfWork, JsonDict], None]
 
 
 class UnknownJobKindError(LookupError):
@@ -41,10 +44,17 @@ class LeaseLostError(RuntimeError):
 
 @dataclass(frozen=True)
 class JobKind:
+    """A kind of job and its retry policy.
+
+    ``on_dead`` runs in the transaction that marks a job ``dead``, whether its last attempt raised
+    or its worker died. It lets the owning module settle state the job left half-done (LLD §1.4).
+    """
+
     name: str
     handler: Handler
     max_attempts: int
     lease: timedelta
+    on_dead: DeadHandler | None = None
 
     def __post_init__(self) -> None:
         if self.max_attempts < 1:
@@ -195,12 +205,24 @@ def mark_succeeded(session: Session, job_id: uuid.UUID, attempt: int) -> bool:
     return _affected(result) == 1
 
 
+def _settle_dead(session: Session, kind: JobKind, job_id: uuid.UUID, payload: JsonDict) -> None:
+    """Run the kind's ``on_dead`` in a savepoint: if it fails, the job is still recorded dead."""
+    if kind.on_dead is None:
+        return
+    try:
+        with session.begin_nested():
+            kind.on_dead(UnitOfWork(session), payload)
+    except Exception:
+        log.exception("job.on_dead_failed", job_id=str(job_id), job_kind=kind.name)
+
+
 def mark_failed(
     session: Session, job: ClaimedJob, kind: JobKind, error: BaseException
 ) -> str | None:
     """Record a failed attempt: re-queue with backoff, or ``dead`` after the last attempt.
 
-    Returns the new status, or None when the claim was no longer current.
+    Returns the new status, or None when the claim was no longer current. A job that goes dead has
+    its kind's ``on_dead`` run in the same transaction.
     """
     dead = job.attempt >= kind.max_attempts
     message = f"{type(error).__name__}: {error}"[:LAST_ERROR_MAX]
@@ -227,6 +249,8 @@ def mark_failed(
     )
     if _affected(result) != 1:
         return None
+    if dead:
+        _settle_dead(session, kind, job.id, job.payload)
     return "dead" if dead else "queued"
 
 
@@ -246,7 +270,8 @@ def renew_lease(session: Session, job: ClaimedJob, lease: timedelta) -> bool:
 def reclaim_expired(session: Session, jobs_registry: JobRegistry) -> tuple[int, int]:
     """Return expired running jobs to the queue (or ``dead`` if out of attempts).
 
-    A reclaimed claim already counted as an attempt. Returns (requeued, dead).
+    A reclaimed claim already counted as an attempt. A job that goes dead has its kind's
+    ``on_dead`` run in the same transaction. Returns (requeued, dead).
     """
     max_attempts = {n: jobs_registry.get(n).max_attempts for n in jobs_registry.names}
     rows = session.execute(
@@ -269,13 +294,15 @@ def reclaim_expired(session: Session, jobs_registry: JobRegistry) -> tuple[int, 
                     ELSE NULL END
             FROM expired
             WHERE j.id = expired.id
-            RETURNING j.status
+            RETURNING j.id, j.kind, j.payload, j.status
             """
         ),
         {"kinds": list(jobs_registry.names), "max_attempts": json.dumps(max_attempts)},
-    ).scalars()
-    statuses = list(rows)
-    return statuses.count("queued"), statuses.count("dead")
+    ).all()
+    dead = [row for row in rows if row.status == "dead"]
+    for row in dead:
+        _settle_dead(session, jobs_registry.get(row.kind), row.id, row.payload)
+    return len(rows) - len(dead), len(dead)
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,53 @@
+/* Prototype .drop: a dashed box that takes one file, by drop or by choosing. */
+.drop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 24px;
+  border: 1px dashed var(--r25);
+  background: var(--surface);
+  text-align: center;
+  cursor: pointer;
+}
+
+.drop:hover,
+.dragging {
+  border-color: var(--ink);
+}
+
+.drop:focus-within {
+  outline: 1px solid var(--r40);
+  outline-offset: 2px;
+}
+
+.disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.title {
+  font-family: var(--serif);
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--t55);
+}
+
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--ink);
+}

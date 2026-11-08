@@ -77,6 +77,8 @@ python_version = "3.12"
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
+# PyMuPDF and python-docx ship partial annotations; calling their unannotated functions is allowed.
+untyped_calls_exclude = ["pymupdf", "docx"]
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
@@ -172,6 +174,24 @@ protected_modules = [
 allowed_importers = ["signora.modules.departments", "signora.models", "signora.handlers"]
 
 [[tool.importlinter.contracts]]
+name = "Public interface only: documents internals are imported only by documents and composition roots"
+type = "protected"
+protected_modules = [
+    "signora.modules.documents.conversion",
+    "signora.modules.documents.current",
+    "signora.modules.documents.domain",
+    "signora.modules.documents.errors",
+    "signora.modules.documents.jobs",
+    "signora.modules.documents.models",
+    "signora.modules.documents.pdf",
+    "signora.modules.documents.processing",
+    "signora.modules.documents.routes",
+    "signora.modules.documents.service",
+    "signora.modules.documents.uploads",
+]
+allowed_importers = ["signora.modules.documents", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
 name = "Leaf modules import only the kernel"
 type = "forbidden"
 source_modules = ["signora.modules.audit", "signora.modules.notifications"]
@@ -188,6 +208,7 @@ type = "forbidden"
 source_modules = [
     "signora.modules.audit.domain",
     "signora.modules.departments.domain",
+    "signora.modules.documents.domain",
     "signora.modules.identity_access.domain",
 ]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]

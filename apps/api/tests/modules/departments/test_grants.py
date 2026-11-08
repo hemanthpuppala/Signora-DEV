@@ -94,9 +94,9 @@ def test_a_grant_gives_edit_access_in_that_department_only(
     with committing_db.unit_of_work() as uow:
         rights = load_access(uow.session, actor_for(committing_db, viewer))
     finance_id, hr_id = uuid.UUID(finance["id"]), uuid.UUID(hr["id"])
-    assert rights.can(Permission.FILES_SEND, finance_id)
-    assert rights.can(Permission.FILES_VIEW_SENDS, finance_id)
-    assert not rights.can(Permission.FILES_SEND, hr_id)
+    assert rights.can(Permission.DOCUMENTS_SEND, finance_id)
+    assert rights.can(Permission.DOCUMENTS_VIEW_SENDS, finance_id)
+    assert not rights.can(Permission.DOCUMENTS_SEND, hr_id)
     assert not rights.can(Permission.DEPARTMENTS_MANAGE, finance_id)  # grants never give this
 
 

@@ -12,6 +12,10 @@ and in the code (owner decision 2026-11-07: plain, universal, and what firms alr
 
 This document is written topic by topic; a topic is recorded here as soon as it is agreed.
 
+> **Renamed in Phase 4:** "files" are called **documents**; `files.view_sends` and `files.send` are now
+> `documents.view_sends` and `documents.send` (migration 0012). This document keeps the wording it was agreed in;
+> see [`04-documents.md`](04-documents.md) §1.6.
+
 ## Topic status
 
 | # | Topic | Status |

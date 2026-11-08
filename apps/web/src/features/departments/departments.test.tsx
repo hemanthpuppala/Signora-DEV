@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,7 +18,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(search),
 }));
 
-const EDITOR = ["departments.create", "departments.manage", "files.send", "files.view_sends"];
+const EDITOR = ["departments.create", "departments.manage", "documents.send", "documents.view_sends"];
 const me = (permissions: string[]) =>
   ({
     user: { id: "u", email: "rosa@example.com", name: "Rosa Hale" },
@@ -97,36 +97,65 @@ describe("departments screens", () => {
 
   it("points a taken name at the name field", async () => {
     fetchMock.mockImplementation(() => reply(409, problem("department-name-taken", 409)));
-    wrap(<NewDepartmentForm />);
+    const onCreated = vi.fn();
+    wrap(<NewDepartmentForm onCreated={onCreated} />);
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Name"), "Finance");
     await user.click(screen.getByRole("button", { name: /create department/i }));
 
     expect(await screen.findByText("Another department already has this name.")).toBeTruthy();
-    expect(replace).not.toHaveBeenCalled();
+    expect(onCreated).not.toHaveBeenCalled();
   });
 
-  it("opens the new department after creating it", async () => {
+  it("reports the new department after creating it", async () => {
     fetchMock.mockImplementation(() => reply(201, finance));
-    wrap(<NewDepartmentForm />);
+    const onCreated = vi.fn();
+    wrap(<NewDepartmentForm onCreated={onCreated} />);
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Name"), "Finance");
     await user.click(screen.getByRole("button", { name: /create department/i }));
 
-    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/departments/d-1"));
+    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "d-1" }), []));
+    expect(screen.queryByRole("region", { name: "Documents" })).toBeNull(); // no upload: no dropzone
+  });
+
+  it("holds dropped files until the department exists, then hands them over", async () => {
+    fetchMock.mockImplementation(() => reply(201, finance));
+    const onCreated = vi.fn();
+    wrap(<NewDepartmentForm onCreated={onCreated} upload={{ hint: "up to 50 MB" }} />);
+    const user = userEvent.setup();
+    const letter = new File(["%PDF-1.7"], "Letter.pdf", { type: "application/pdf" });
+    const nda = new File(["%PDF-1.7"], "NDA.pdf", { type: "application/pdf" });
+
+    await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), letter);
+    await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), nda);
+    const list = screen.getByRole("region", { name: "Documents to upload list" });
+    await user.click(within(within(list).getByText("NDA.pdf").closest("tr") as HTMLElement).getByRole("button", { name: "Remove" }));
+    await user.type(screen.getByLabelText("Name"), "Finance");
+    await user.click(screen.getByRole("button", { name: /create department/i }));
+
+    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "d-1" }), [letter]));
+    const urls = fetchMock.mock.calls.map(([request]) => (request as Request).url);
+    expect(urls.some((url) => url.includes("/uploads"))).toBe(false); // nothing is sent early
   });
 
   it("shows an archived department read-only, with Restore for those who manage", async () => {
     const archived = { ...finance, status: "archived", archived_at: "2026-11-07T12:00:00Z" };
     fetchMock.mockImplementation(() => reply(200, archived));
-    wrap(<DepartmentPage me={me(EDITOR)} id="d-1" />);
+    wrap(
+      <DepartmentPage
+        me={me(EDITOR)}
+        id="d-1"
+        documents={(department) => <p>{`documents of ${department.name}, ${department.status}`}</p>}
+      />,
+    );
 
     expect(await screen.findByText(/Archived on .*Restore it to make changes\./)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Restore" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Department settings" })).toBeNull();
-    expect(screen.getByText("No files yet.")).toBeTruthy();
+    expect(screen.getByText("documents of Finance, archived")).toBeTruthy(); // the route's slot
   });
 
   it("gives viewers no settings or restore", async () => {

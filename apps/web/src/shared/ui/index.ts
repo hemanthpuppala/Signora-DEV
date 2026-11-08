@@ -22,13 +22,16 @@ export {
   type Status,
   type TabItem,
 } from "./Display";
+export { Dialog } from "./Dialog";
+export { Dropzone } from "./Dropzone";
 export { EmailField, type EmailFieldProps } from "./EmailField";
 export { TextArea, TextField } from "./Field";
-export { FieldAction, FieldGrid, HeadRow, Section } from "./Layout";
+export { FieldAction, FieldGrid, HeadRow, PageForm, Section } from "./Layout";
 export { AddCard, CardGrid, StatCard, type CardStat } from "./Card";
 export { ClampedText } from "./ClampedText";
 export { RowActions } from "./RowActions";
 export { PasswordField, type PasswordFieldProps } from "./PasswordField";
+export { PdfViewer, type PdfOverlayArgs, type PdfViewerProps } from "./pdf/PdfViewer";
 export { Select, type SelectOption } from "./Select";
 export { ToastProvider, useToast } from "./Toast";
 export {

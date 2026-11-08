@@ -63,6 +63,11 @@ class BlobStore(Protocol):
 
     def exists(self, ref: BlobRef) -> bool: ...
 
+    def path(self, ref: BlobRef) -> Path:
+        """A local file path for serving with HTTP ranges; raises ``BlobNotFoundError``. (An S3
+        backend will serve through presigned URLs instead, added with it.)"""
+        ...
+
     def check(self) -> None:
         """Readiness probe: raises when the store cannot be written."""
         ...
@@ -122,6 +127,12 @@ class LocalBlobStore:
 
     def exists(self, ref: BlobRef) -> bool:
         return self._path(ref).is_file()
+
+    def path(self, ref: BlobRef) -> Path:
+        path = self._path(ref)
+        if not path.is_file():
+            raise BlobNotFoundError(ref.key)
+        return path
 
     def check(self) -> None:
         self._tmp.mkdir(parents=True, exist_ok=True)
