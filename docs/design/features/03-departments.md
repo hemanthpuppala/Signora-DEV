@@ -4,8 +4,10 @@ Parent design: [`../signora-platform.md`](../signora-platform.md) · Previous: [
 Branch: `phase-3/departments`
 
 A department is how a firm groups the agreements it sends: Finance sends engagement letters, HR sends offer
-letters, Intake sends client agreements. Each department will hold its agreement templates and their default
-settings. The platform design called this a "project"; it is renamed **department** everywhere, in the interface
+letters, Intake sends client agreements. A department holds **files**, its only entity: any number of them, each
+with its own version history. A file is uploaded once and can be **sent** for signing many times; each send carries
+its own clients, their names and emails, and the values filled in for them (sends arrive in Phase 7). There is no
+separate "template" entity. The platform design called this a "project"; it is renamed **department** everywhere, in the interface
 and in the code (owner decision 2026-11-07: plain, universal, and what firms already call these groups).
 
 This document is written topic by topic; a topic is recorded here as soon as it is agreed.
@@ -15,7 +17,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 | # | Topic | Status |
 |---|---|---|
 | 1 | Departments: what they are and who manages them | **agreed** (2026-11-07) |
-| 2 | Who can see and do what inside a department | open |
+| 2 | Who can see and do what inside a department | **agreed** (2026-11-07) |
 | 3 | Department settings and defaults | open |
 | 4 | Countersigners | open |
 | 5 | Signer checks | open |
@@ -27,8 +29,8 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 
 ### 1.1 What a department is
 
-A named group inside one company ("Finance", "Client Intake"). In later phases it holds agreement templates and
-agreements and owns their defaults (topics 3-5). Topic 1 covers the department itself: name, description, active or
+A named group inside one company ("Finance", "Client Intake"). In later phases it holds files (each with its
+versions and sends) and owns their defaults (topics 3-5). Topic 1 covers the department itself: name, description, active or
 archived, and who creates and manages it.
 
 ### 1.2 Rules
@@ -38,8 +40,8 @@ archived, and who creates and manages it.
   Restoring an archived department whose name is now taken answers `409 department-name-taken` (rename first). Two
   companies can both have "Finance".
 - **Description**: optional, up to 500 characters.
-- **Archive, never delete** (owner decision: no delete option for now). Departments will hold signed agreements and
-  audit history. Archived = read-only and hidden from the default list; it can be restored.
+- **Archive, never delete** (owner decision: no delete option for now). Departments will hold signed files and audit
+  history. Archived = read-only and hidden from the default list; it can be restored.
 - **States**: `active` → (archive) → `archived` → (restore) → `active`. Changing an archived department answers
   `409 department-archived` ("Restore it to make changes").
 
@@ -75,7 +77,7 @@ CREATE UNIQUE INDEX uq_departments_active_name
 CREATE INDEX ix_departments_workspace_created ON departments (workspace_id, created_at DESC);
 ```
 
-- `UNIQUE (id, workspace_id)`: later tables (templates, agreements, countersigners) reference
+- `UNIQUE (id, workspace_id)`: later tables (files, sends, countersigners, grants) reference
   `(department_id, workspace_id)`, as users reference roles, so the database guarantees a child row never points at
   another company's department.
 - Two creations with one name at the same moment: the partial unique index decides; the loser answers
@@ -96,7 +98,7 @@ CREATE INDEX ix_departments_workspace_created ON departments (workspace_id, crea
 Department        { id, name, description, status: "active" | "archived", created_at, updated_at,
                     archived_at, created_by: {id, name} }
 DepartmentSummary { id, name, description, status, created_at, counts: {sent, signed, pending} }
-                    // counts are zeros until agreements exist (Phase 7)
+                    // counts of sends; zeros until sends exist (Phase 7)
 ```
 
 - Archive and restore are guarded state changes (`UPDATE … WHERE archived_at IS NULL`), so a repeat or a race
@@ -129,3 +131,81 @@ O(log n). Archive and restore: one guarded `UPDATE`.
 - Permission matrix (Owner, Editor, Viewer) on every endpoint; another company's id answers `404` everywhere.
 - Every change writes its audit entry.
 - Web: Viewers see "New department" disabled with the reason.
+
+---
+
+## Topic 2 — Who can see and do what inside a department
+
+### 2.1 Decision (option B)
+
+The company role is the baseline in every department. The Owner can additionally give a person **edit access in one
+department** ("Editor in Client Intake"); a grant only raises access there, never lowers it. Rejected: company role
+only (an intake clerk would have to be an Editor everywhere), and department membership (nobody would see the whole
+firm; the platform design says everyone sees every department).
+
+### 2.2 What each level sees and does
+
+| In a department | Read (company Viewer, no grant) | Edit (company Editor or Owner, or a grant here) |
+|---|---|---|
+| Its files, their versions, counts (sent, signed, pending) | ✓ | ✓ |
+| Each send's client details: names, emails, filled-in values, signed copies | ✗ | ✓ |
+| Upload, review, approve and send files | ✗ | ✓ |
+
+Client details stay with the people doing the work (owner decision).
+
+### 2.3 Permissions
+
+Department-level permissions join the code catalogue:
+
+| Permission | Allows (in one department) |
+|---|---|
+| `files.view_sends` | See sends and their client details |
+| `files.send` | Upload, review, approve and send files |
+
+The company Editor role holds both in every department (data, as in Phase 2); the Owner holds everything in code. A
+grant gives both in its department only. `departments.create`/`departments.manage` (topic 1) stay company-level.
+
+`can(actor, permission, department)` = the company role allows it **or** the actor holds a grant for that
+department. The actor's grants are loaded once per request (one indexed query) and checked as a set lookup, O(1).
+
+### 2.4 Schema (migration 0006, with `departments`)
+
+```sql
+CREATE TABLE department_grants (
+  department_id uuid NOT NULL,
+  workspace_id  uuid NOT NULL,
+  user_id       uuid NOT NULL,
+  granted_by    uuid NOT NULL REFERENCES users(id),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (department_id, user_id),
+  FOREIGN KEY (department_id, workspace_id) REFERENCES departments (id, workspace_id),
+  FOREIGN KEY (user_id, workspace_id) REFERENCES users (id, workspace_id)
+);
+CREATE INDEX ix_department_grants_user ON department_grants (user_id);
+```
+
+The composite keys make a grant to another company's person or department impossible (`users` gains
+`UNIQUE (id, workspace_id)`). A removed member keeps their grant rows for history but cannot sign in, so the grant
+has no effect.
+
+### 2.5 API
+
+| Method and path | Permission | Request | Responses |
+|---|---|---|---|
+| `GET /departments/{id}/grants` | `members.manage` | — | `200 [{user: {id, name, email}, granted_by, created_at}]` |
+| `PUT /departments/{id}/grants` | `members.manage` | `{user_ids: [...]}` (the full list) | `200` the new list; `422` for a user not in the company; `409 department-archived` |
+
+`PUT` replaces the list in one transaction (idempotent by nature: the same list twice gives the same state), so no
+`Idempotency-Key`. `/me` gains `department_grants: [department ids]` so the interface can show or hide actions.
+
+Audit (company chain): `department.access_granted` and `department.access_revoked`, one entry per person changed.
+
+### 2.6 Tests
+
+- Viewer without a grant: sees files and counts, not sends; cannot send. With a grant in Finance: can in Finance,
+  cannot in HR.
+- Editor and Owner: can in every department; a grant changes nothing for them.
+- Only `members.manage` reads or changes grants; a user or department of another company is refused (422/404).
+- Replacing the list adds and removes exactly the difference and audits each change; a removed member's grant has no
+  effect.
+
