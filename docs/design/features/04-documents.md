@@ -21,7 +21,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 | 2 | Uploading | **agreed** (2026-11-07) |
 | 3 | Processing (DOCX to PDF, page facts, needs-OCR check, failures) | **agreed** (2026-11-07) |
 | 4 | Versions | **agreed** (2026-11-07) |
-| 5 | Viewing. Owner input so far: inline viewing for staff and signers; pdf.js (or similar) for now, a richer viewer later | open |
+| 5 | Viewing | **agreed** (2026-11-07) |
 | 6 | Screens and behaviour (including the dropzones carried from Phase 3) | open |
 
 ---
@@ -354,8 +354,52 @@ CREATE INDEX ix_document_versions_source ON document_versions (workspace_id, sou
 
 ---
 
+## Topic 5 — Viewing
+
+### 5.1 One viewer, modelled on ScoutBoard's résumé builder (owner decision)
+
+The owner's reference is ScoutBoard's résumé builder (`ScoutBoard/packages/ui/src/primitives/pdf-canvas`): the PDF is
+painted on canvases with `pdfjs-dist`, and a **per-page overlay slot** places clickable elements exactly over the
+painted page at any zoom. Signora's viewer follows that design, written for this codebase:
+
+- **`PdfViewer`** in the design system (`apps/web/src/shared/ui`), one component for every surface: staff viewing
+  now, the field review canvas (Phase 6: field boxes drawn, moved and resized in the overlay), and the signer's page
+  (Phase 8: click a signature field to sign, inline for signers). Read-only in this phase.
+- **Rendering**: each page on its own canvas at `cssScale × devicePixelRatio`, so it is sharp on high-density screens;
+  a new zoom shows the existing bitmap scaled at once and re-renders sharp when the gesture stops; rendering to an
+  off-screen canvas first, so pages never blank.
+- **Overlay slot**: `renderOverlay({page, scale})` renders inside a box sized to the painted page. Positions are in
+  PDF points (as stored in `pages`, topic 4) multiplied by the live scale, so overlays never drift on zoom.
+- **Controls**: fit to width (default; suits phones), zoom in and out (buttons, Ctrl or ⌘ with the wheel, trackpad
+  pinch), page *n* of *N* with previous and next. Esc clears a selection (used from Phase 6).
+- **Large documents** (Signora addition): pages are laid out at their final size at once, but rendered only when near
+  the viewport (the visible page first), and pdf.js loads the file by byte ranges, so a 200-page, 50 MB document
+  opens quickly. ScoutBoard renders every page; with up to 200 pages Signora must not.
+- **Safety**: PDF scripting is never enabled and `isEvalSupported` is off (on top of the working copy having no
+  scripts, topic 3). The pdf.js worker is served from Signora's own origin (CSP `worker-src 'self'`). pdf.js is
+  lazy-loaded, so it stays out of pages that show no PDF.
+- **Not ready**: a version that is not Processed shows its status instead of the viewer. Any ready version can be
+  opened from the version history.
+- The `pdfjs-dist` version is chosen at implementation from its current release notes (ScoutBoard pins 5.4.296).
+
+### 5.2 Serving
+
+- `GET /api/v1/documents/{id}/versions/{version_id}/pdf`: the **working copy** only, for anyone who can see the
+  document. `Content-Type: application/pdf`, `Content-Disposition: inline`, `Cache-Control: private, no-store`,
+  `X-Content-Type-Options: nosniff`, and HTTP range requests (`206`) for pdf.js's partial loading.
+- `GET /api/v1/documents/{id}/versions/{version_id}/original`: the file exactly as uploaded (the .docx, or the PDF
+  before cleaning), always `Content-Disposition: attachment`, never shown in the page, because it may still hold
+  scripts. **Anyone who can see the document may download it** (owner decision: Viewers can already view it).
+- Signers get their own endpoint in Phase 8, tied to their signing session and their send's version.
+
+### 5.3 Later (owner decision: the richer viewer is this one, extended)
+
+Text search and page thumbnails are not in this phase; they extend the same `PdfViewer` later.
+
+---
+
 ## Task tracker
 
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-4 recorded |
+| 4.1 | Phase 4 LLD (this file), topics 1-6 | in progress | topics 1-5 recorded |
