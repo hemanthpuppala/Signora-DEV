@@ -109,6 +109,7 @@ document_versions = Table(
     Column("source_kind", Text, nullable=False),
     Column("source_filename", Text, nullable=False),
     Column("source_bytes", BigInteger, nullable=False),
+    Column("unlocked_sha256", Text),  # the source opened with its password (§2.6)
     Column("pdf_sha256", Text),
     Column("pdf_bytes", BigInteger),
     Column("page_count", Integer),

@@ -104,6 +104,7 @@ def upgrade() -> None:
         sa.Column("source_kind", sa.Text(), nullable=False),
         sa.Column("source_filename", sa.Text(), nullable=False),
         sa.Column("source_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("unlocked_sha256", sa.Text(), nullable=True),
         sa.Column("pdf_sha256", sa.Text(), nullable=True),
         sa.Column("pdf_bytes", sa.BigInteger(), nullable=True),
         sa.Column("page_count", sa.Integer(), nullable=True),

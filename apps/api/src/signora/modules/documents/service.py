@@ -8,29 +8,39 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from io import BytesIO
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.db import UnitOfWork
-from signora.kernel.errors import FieldError, NotFound, ValidationFailed
+from signora.kernel.errors import FieldError, NotFound, RateLimited, ValidationFailed
+from signora.kernel.ratelimit import RateLimiter
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, load_access, normalize_name, require_active
 from signora.modules.documents.domain import AI_INSTRUCTIONS_MAX, DESCRIPTION_MAX, NAME_MAX, Kind
 from signora.modules.documents.errors import (
+    CannotRetry,
     DocumentArchived,
     DocumentNameTaken,
     DuplicateFile,
+    NotLocked,
     UploadNotFound,
     UploadUsed,
+    WrongPassword,
 )
+from signora.modules.documents.pdf import unlock
+from signora.modules.documents.processing import enqueue_processing
 from signora.modules.identity_access import Actor, Permission
 
 ACTIVE_NAME_INDEX = "uq_documents_active_name"
+UNLOCK_TRIES = 5  # wrong passwords per version (§2.6)
+UNLOCK_WINDOW = timedelta(minutes=15)
 
 
 @dataclass(frozen=True)
@@ -323,6 +333,7 @@ def create_document(
             raise DocumentNameTaken from None
         raise
     version_id = _insert_version(session, actor, document_id, 1, upload, instructions)
+    enqueue_processing(session, version_id)
     audit(uow, actor, "document.created", document_id, name=clean_name)
     audit(
         uow,
@@ -370,6 +381,7 @@ def add_version(
         raise DuplicateFile(_duplicate_detail(duplicate))
     version_no = document.latest_version_no + 1  # under the document lock: never shared
     version_id = _insert_version(session, actor, document_id, version_no, upload, instructions)
+    enqueue_processing(session, version_id)
     audit(
         uow,
         actor,
@@ -473,3 +485,70 @@ def restore_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -
     if changed is not None:
         audit(uow, actor, "document.restored", document_id)
     return get_document(session, actor.workspace_id, document_id)
+
+
+def _changeable_version(
+    session: Session, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+) -> VersionRow:
+    document = _lock_document(session, actor, document_id)
+    if document.archived_at is not None:
+        raise DocumentArchived
+    return get_version(session, actor.workspace_id, document_id, version_id)
+
+
+def retry_version(
+    uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+) -> None:
+    """ "Try again" after a passing failure outlasted its retries (§3.4). Repeat-safe."""
+    session = uow.session
+    version = _changeable_version(session, actor, document_id, version_id)
+    if version.status == "processing":
+        return
+    if version.status != "failed" or not version.failure_temporary:
+        raise CannotRetry
+    session.execute(
+        text(
+            "UPDATE document_versions SET status = 'processing', failure_code = NULL, "
+            "failure_temporary = false WHERE id = :id"
+        ),
+        {"id": version_id},
+    )
+    enqueue_processing(session, version_id)
+    audit(uow, actor, "document.version_retried", document_id, version_no=version.version_no)
+
+
+def unlock_version(
+    uow: UnitOfWork,
+    *,
+    actor: Actor,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    password: str,
+    store: BlobStore,
+    limiter: RateLimiter,
+) -> None:
+    """Open a password-protected PDF (§2.6). The password is tried once and never stored, logged
+    or audited; an unlocked copy becomes the source processing continues from."""
+    session = uow.session
+    version = _changeable_version(session, actor, document_id, version_id)
+    if version.status != "needs_password":
+        raise NotLocked
+    key = f"documents.unlock:{version_id}"
+    if (retry := limiter.check(key, limit=UNLOCK_TRIES, window=UNLOCK_WINDOW)) is not None:
+        raise RateLimited(retry)
+    source = BlobRef(actor.workspace_id, version.source_sha256, version.source_bytes)
+    with store.open(source) as handle:
+        unlocked = unlock(handle.read(), password)
+    if unlocked is None:
+        limiter.hit(key, limit=UNLOCK_TRIES, window=UNLOCK_WINDOW)
+        raise WrongPassword
+    ref = store.put(actor.workspace_id, BytesIO(unlocked), max_bytes=len(unlocked))
+    session.execute(
+        text(
+            "UPDATE document_versions SET unlocked_sha256 = :h, status = 'processing' "
+            "WHERE id = :id AND status = 'needs_password'"
+        ),
+        {"id": version_id, "h": ref.sha256},
+    )
+    enqueue_processing(session, version_id)
+    audit(uow, actor, "document.version_unlocked", document_id, version_no=version.version_no)

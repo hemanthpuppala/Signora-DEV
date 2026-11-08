@@ -213,8 +213,8 @@ The same bytes (same SHA-256) never silently become a second copy or a new versi
   waits in **Needs password**. The password field is shown **only** for a version in that state, on the document
   page, to people with edit access in the department.
 - `POST /api/v1/documents/{id}/versions/{version_id}/unlock` `{password}`: the password is tried once
-  (`authenticate`). Right: an unlocked copy is saved as the working PDF (signing writes on the pages) and processing
-  continues (topic 3). Wrong: `422` "Wrong password".
+  (`authenticate`). Right: an unlocked copy is stored (`unlocked_sha256`) and processing continues from it (topic 3);
+  the working copy is made from it, unencrypted, because signing writes on the pages. Wrong: `422` "Wrong password".
 - 5 wrong tries per version per 15 minutes, then `429` with the wait. The password is never stored, logged or
   audited (the audit records only that the version was unlocked, by whom).
 - A PDF that opens without a password but carries edit restrictions (an owner password only) is handled
@@ -234,8 +234,10 @@ them with PyMuPDF and Gotenberg (isolated, topic 3), and viewers render them wit
 Using an upload (topic 2) creates the version in **Processing** and enqueues a `document.process` job in the same
 transaction; the request returns at once. **Versions are processed in parallel** (owner question): each is its own
 job, and the worker runs up to `WORKER_CONCURRENCY` jobs at once (default 8), so uploads never queue behind one
-another unless more than that are running. Word conversions also share Gotenberg; how many it converts at once is
-checked against its documentation at implementation and recorded here. The worker, for each version:
+another unless more than that are running. Word conversions also share Gotenberg, which (8.x documentation,
+configuration page) runs one LibreOffice conversion at a time "due to a lock mechanism" and queues the rest; our
+`--api-timeout=120s` includes that wait, so under a burst a conversion may time out and is then retried like any
+passing failure. PDFs never touch Gotenberg. The worker, for each version:
 
 1. **.docx to PDF** through Gotenberg (`POST /forms/libreoffice/convert`), which runs without network access behind
    its gateway (platform P0.6). A conversion taking over 2 minutes is a timeout.
@@ -253,9 +255,10 @@ checked against its documentation at implementation and recorded here. The worke
 
 ### 3.2 Pages without text: blocked until OCR (owner decision)
 
-- A page **lacks text** when it shows content (images or drawings) but has fewer than 20 characters of extractable
-  text: a scanned page, including a scan with a typed page number. A page with no content at all (a blank page) is
-  not counted; there is nothing to read on it.
+- A page **lacks text** when an image covers at least a third of it and it has fewer than 20 characters of
+  extractable text: a scanned page, including a scan with a typed page number. A blank page is not counted, and
+  neither is a page with only a little text and lines (a signature block), so neither blocks a document by mistake.
+  (Refined at implementation from "images or drawings": a signature line is a drawing.)
 - **If any page lacks text, the version is blocked as Needs OCR.** Nothing is detected or sent from it until OCR
   exists (a later phase). The version records which pages lack text (`pages_without_text`), so the OCR phase can
   handle every case: all pages scanned, some scanned among text pages, a scanned signature page.
@@ -533,7 +536,7 @@ holds until something changes), and short polling.
 | 4.2 | Rename `files.*` permissions to `documents.*` (data migration), screen text | done | migration 0012 renames them in every role (customised ones too) and rewords the Viewer description where still default; test on a throwaway database upgrades and downgrades; enum, tests, contracts and "No documents yet." updated |
 | 4.3 | Uploads: streaming to the blob store, type check, size limit, rate limit, `uploads` table, cleanup job | done | migration 0013; kernel `spool_body` (3 tests: within the limit, chunked body stopped at the limit with no file left, declared length refused); 15 upload tests: PDF stored by hash and recorded, .docx recognised whatever its name, PNG/text/ZIP/.docm/.doc/empty refused, password-protected Word asks to remove the password, over the limit 413, base file name kept, Viewer 403, archived 409, unknown and other company 404, 60-per-hour limit, sweep after a day. Raw body instead of multipart (§2.2) |
 | 4.4 | Documents and versions: schema, create with an upload, add a version, numbering, duplicate rule, rename, description, email code, archive and restore, audit | done | migration 0014 (the current version references `(id, document_id)`, so it is always this document's); 9 tests: an upload becomes a document with version 1 processing and no current version, audited; an upload is used once, by its uploader, in its department, before it expires; names unique per department ignoring case; the same bytes flagged on upload, refused without confirmation, never a version, allowed as a separate document, other departments unaffected; versions numbered in order (under the document lock); rename/description/email code by a person (sources set to person) and audited; archived refuses versions, restore onto a taken name 409; Viewers read only, other companies 404; creation replays with its key |
-| 4.5 | Processing job: Gotenberg conversion, PyMuPDF checks, working copy, text check, statuses, retries, Try again, unlock | todo | — |
+| 4.5 | Processing job: Gotenberg conversion, PyMuPDF checks, working copy, text check, statuses, retries, Try again, unlock | done | `pdf.py` (7 tests, no database: page facts as displayed, 200 pages prepared in about a second and 201 refused, damaged PDF, password needed and opened only with it, edit restrictions removed silently, working copy without JavaScript, embedded file or launch link but with its form field, scanned pages found while blank pages and signature blocks are not); `document.process` job (10 tests against Postgres and Gotenberg: queued on create and on a new version, PDF processed and repeat-safe, .docx converted, scanned pages block with "Pages 2-4 and 7…", 201 pages fail with the count and cannot be retried, an outage retries then fails with Try again which processes it, password unlock (wrong 422, right continues, password absent from the audit), five wrong passwords then 429, unlock refused when not locked) |
 | 4.6 | Current version rules, make current, immutability trigger | todo | — |
 | 4.7 | Serving: working copy inline with ranges, original as download | todo | — |
 | 4.8 | Web: shared `PdfViewer` (pdf.js, overlay slot, zoom, lazy pages) | todo | — |

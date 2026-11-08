@@ -177,11 +177,15 @@ allowed_importers = ["signora.modules.departments", "signora.models", "signora.h
 name = "Public interface only: documents internals are imported only by documents and composition roots"
 type = "protected"
 protected_modules = [
+    "signora.modules.documents.conversion",
     "signora.modules.documents.domain",
     "signora.modules.documents.errors",
     "signora.modules.documents.jobs",
     "signora.modules.documents.models",
+    "signora.modules.documents.pdf",
+    "signora.modules.documents.processing",
     "signora.modules.documents.routes",
+    "signora.modules.documents.service",
     "signora.modules.documents.uploads",
 ]
 allowed_importers = ["signora.modules.documents", "signora.models", "signora.handlers"]

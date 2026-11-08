@@ -422,3 +422,46 @@ def add_version(
         row = service.get_document(uow.session, actor.workspace_id, document_id)
         created = detail(request, uow.session, actor, row).model_dump(mode="json")
         return guard.finish(uow, status.HTTP_201_CREATED, created)
+
+
+class UnlockVersion(_Body):
+    password: Annotated[str, Field(min_length=1, max_length=1024)]
+
+
+@router.post(
+    "/documents/{document_id}/versions/{version_id}/retry",
+    summary="Try processing again after a passing failure (repeat-safe)",
+)
+def retry_version(
+    document_id: uuid.UUID, version_id: uuid.UUID, request: Request, actor: Member
+) -> DocumentDetail:
+    with _db(request).unit_of_work() as uow:
+        service.retry_version(uow, actor=actor, document_id=document_id, version_id=version_id)
+        row = service.get_document(uow.session, actor.workspace_id, document_id)
+        return detail(request, uow.session, actor, row)
+
+
+@router.post(
+    "/documents/{document_id}/versions/{version_id}/unlock",
+    summary="Open a password-protected PDF with its password (never stored)",
+)
+def unlock_version(
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    body: UnlockVersion,
+    request: Request,
+    actor: Member,
+) -> DocumentDetail:
+    limiter: RateLimiter = request.app.state.rate_limiter
+    with _db(request).unit_of_work() as uow:
+        service.unlock_version(
+            uow,
+            actor=actor,
+            document_id=document_id,
+            version_id=version_id,
+            password=body.password,
+            store=_store(request),
+            limiter=limiter,
+        )
+        row = service.get_document(uow.session, actor.workspace_id, document_id)
+        return detail(request, uow.session, actor, row)

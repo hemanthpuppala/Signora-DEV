@@ -41,3 +41,19 @@ class UploadNotFound(DomainError):
 class UploadUsed(Conflict):
     code = "upload-used"
     title = "This upload has already been used"
+
+
+class CannotRetry(Conflict):
+    code = "cannot-retry"
+    title = "Only a version that failed for a passing reason can be tried again"
+
+
+class NotLocked(Conflict):
+    code = "version-not-locked"
+    title = "This version doesn't need a password"
+
+
+class WrongPassword(DomainError):
+    code = "wrong-password"
+    status = 422
+    title = "Wrong password"
