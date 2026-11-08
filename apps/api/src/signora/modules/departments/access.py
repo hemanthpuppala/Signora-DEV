@@ -15,9 +15,7 @@ from sqlalchemy.orm import Session
 
 from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import FieldError, PermissionDenied, ValidationFailed
-from signora.modules.audit import Actor as AuditActor
-from signora.modules.audit import AuditChain, Subject, record
-from signora.modules.departments.service import get_department, lock_active_department
+from signora.modules.departments.service import audit, get_department, lock_active_department
 from signora.modules.identity_access import DEPARTMENT_GRANT, Actor, Permission
 
 Access = Literal["edit", "read"]
@@ -179,14 +177,7 @@ def set_grants(
         ("department.access_revoked", removed),
     ):
         for user_id in people:
-            record(
-                uow,
-                chain=AuditChain.workspace(actor.workspace_id),
-                actor=AuditActor("user", actor.user_id, actor.email),
-                action=action,
-                subject=Subject("department", department_id),
-                data={"user_id": str(user_id)},
-            )
+            audit(uow, actor, action, department_id, user_id=str(user_id))
     return list_grants(uow.session, actor.workspace_id, department_id)
 
 

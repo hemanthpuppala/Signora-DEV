@@ -212,9 +212,10 @@ def _name_taken(error: IntegrityError) -> bool:
     return ACTIVE_NAME_INDEX in str(error.orig)
 
 
-def _audit(
+def audit(
     uow: UnitOfWork, actor: Actor, action: str, department_id: uuid.UUID, **data: Any
 ) -> None:
+    """Record a change to a department on the company's audit chain."""
     record(
         uow,
         chain=AuditChain.workspace(actor.workspace_id),
@@ -264,7 +265,7 @@ def create_department(
         if _name_taken(error):
             raise DepartmentNameTaken from None
         raise
-    _audit(uow, actor, "department.created", department_id, name=clean_name)
+    audit(uow, actor, "department.created", department_id, name=clean_name)
     return _row(uow.session, actor.workspace_id, department_id)
 
 
@@ -306,7 +307,7 @@ def update_department(
         if _name_taken(error):
             raise DepartmentNameTaken from None
         raise
-    _audit(
+    audit(
         uow,
         actor,
         "department.updated",
@@ -326,7 +327,7 @@ def archive_department(uow: UnitOfWork, *, actor: Actor, department_id: uuid.UUI
         {"id": department_id, "w": actor.workspace_id, "u": actor.user_id},
     ).one_or_none()
     if changed is not None:
-        _audit(uow, actor, "department.archived", department_id)
+        audit(uow, actor, "department.archived", department_id)
     return _row(uow.session, actor.workspace_id, department_id)
 
 
@@ -349,5 +350,5 @@ def restore_department(uow: UnitOfWork, *, actor: Actor, department_id: uuid.UUI
             ) from None
         raise
     if changed is not None:
-        _audit(uow, actor, "department.restored", department_id)
+        audit(uow, actor, "department.restored", department_id)
     return _row(uow.session, actor.workspace_id, department_id)

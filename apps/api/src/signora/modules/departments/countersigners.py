@@ -15,9 +15,7 @@ from sqlalchemy.orm import Session
 
 from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import FieldError, ValidationFailed
-from signora.modules.audit import Actor as AuditActor
-from signora.modules.audit import AuditChain, Subject, record
-from signora.modules.departments.service import lock_active_department
+from signora.modules.departments.service import audit, lock_active_department
 from signora.modules.identity_access import Actor
 
 
@@ -105,26 +103,22 @@ def set_countersigners(
             },
         )
 
-    def audit(action: str, **data: object) -> None:
-        record(
-            uow,
-            chain=AuditChain.workspace(actor.workspace_id),
-            actor=AuditActor("user", actor.user_id, actor.email),
-            action=action,
-            subject=Subject("department", department_id),
-            data=data,
-        )
-
     added = [u for u in user_ids if u not in before]
     removed = [u for u in before if u not in user_ids]
     for user_id in added:
-        audit("department.countersigner_added", user_id=str(user_id))
+        audit(uow, actor, "department.countersigner_added", department_id, user_id=str(user_id))
     for user_id in removed:
-        audit("department.countersigner_removed", user_id=str(user_id))
+        audit(uow, actor, "department.countersigner_removed", department_id, user_id=str(user_id))
     kept_before = [u for u in before if u in user_ids]
     kept_after = [u for u in user_ids if u in before]
     if kept_before != kept_after:
-        audit("department.countersigners_reordered", order=[str(u) for u in user_ids])
+        audit(
+            uow,
+            actor,
+            "department.countersigners_reordered",
+            department_id,
+            order=[str(u) for u in user_ids],
+        )
     return list_countersigners(uow.session, actor.workspace_id, department_id)
 
 
