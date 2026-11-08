@@ -20,7 +20,7 @@ This document is written topic by topic; a topic is recorded here as soon as it 
 | 2 | Who can see and do what inside a department | **agreed** (2026-11-07) |
 | 3 | Department settings and defaults | **agreed** (2026-11-07) |
 | 4 | Countersigners | **agreed** (2026-11-07) |
-| 5 | Signer checks | open |
+| 5 | Signer checks | **agreed** (2026-11-07): nothing at department level |
 | 6 | Screens and behaviour | open |
 
 ---
@@ -325,4 +325,27 @@ The list is replaced in one transaction (repeat-safe, no `Idempotency-Key`). Aud
 - A Viewer can be designated; a grant holder cannot change the list.
 - Removing a member removes them from every list in the same transaction; the department then reports no
   countersigner.
+
+---
+
+## Topic 5 — Signer checks
+
+How a client proves who they are before signing. The checks run in Phase 8 (signing).
+
+### 5.1 Decisions (owner, 2026-11-07)
+
+- **Email code**: opening a signing link sends a 6-digit code to the client's email, required before signing.
+  **On by default and configurable per file**, not per department. **Carried to the files phases (4-6):** a per-file
+  setting "Require email code" (default on), copied onto each send (Phase 7) so a later change never affects a send
+  already out. Trade-off recorded: with the code off, possession of the link is enough to sign (a forwarded email
+  suffices), as in DocuSign's default.
+- **Department access code** (a code shared outside email): **deferred** (future feature). When it returns, each
+  send keeps the code it was sent with, so changing the code never locks out a client already told the old one
+  (agreed).
+- **ID verification (Stripe Identity)**: **deferred** (future feature); nothing is added for it now (no column, no
+  switch), per the design-system principle of not showing options that cannot work.
+
+### 5.2 Effect on Phase 3
+
+No signer-check fields, endpoints or screens in departments.
 
