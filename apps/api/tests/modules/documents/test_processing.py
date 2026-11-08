@@ -10,8 +10,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
+from signora.kernel.blobstore import LocalBlobStore
 from signora.kernel.db import Database
-from signora.modules.documents import processing
+from signora.kernel.jobs import JobRegistry
+from signora.kernel.jobs.core import reclaim_expired
+from signora.modules.documents import jobs, processing
 from signora.modules.documents.conversion import ConversionUnavailableError
 from tests.modules.documents.conftest import (
     add_version,
@@ -134,7 +137,8 @@ def test_a_passing_outage_retries_then_fails_with_try_again(
     with pytest.raises(ConversionUnavailableError):  # the worker retries it
         run(version_id, attempt=1, gotenberg_url=UNREACHABLE)
     assert _version(owner, document["id"])["status"] == "processing"
-    run(version_id, attempt=processing.MAX_ATTEMPTS, gotenberg_url=UNREACHABLE)
+    with pytest.raises(ConversionUnavailableError):  # the last attempt: the job dies
+        run(version_id, attempt=processing.MAX_ATTEMPTS, gotenberg_url=UNREACHABLE)
 
     problem = _version(owner, document["id"])["problem"]
     assert (problem["code"], problem["can_retry"]) == ("unavailable", True)
@@ -145,6 +149,50 @@ def test_a_passing_outage_retries_then_fails_with_try_again(
     assert _queued(committing_db, version_id) >= 1
     run(version_id)
     assert _version(owner, document["id"])["status"] == "processed"
+
+
+def test_a_failure_while_saving_on_the_last_attempt_offers_try_again(
+    owner: TestClient, run: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    department = create_department(owner)
+    document = new_document(owner, department["id"], pdf_bytes()).json()
+
+    def broken_put(*args: object, **kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(LocalBlobStore, "put", broken_put)
+    with pytest.raises(OSError, match="disk full"):
+        run(document["versions"][0]["id"], attempt=processing.MAX_ATTEMPTS)
+
+    version = _version(owner, document["id"])
+    assert version["status"] == "failed"
+    assert (version["problem"]["code"], version["problem"]["can_retry"]) == ("unavailable", True)
+
+
+def test_a_worker_that_dies_on_the_last_attempt_leaves_try_again(
+    owner: TestClient, committing_db: Database
+) -> None:
+    department = create_department(owner)
+    document = new_document(owner, department["id"], pdf_bytes()).json()
+    version_id = document["versions"][0]["id"]
+    registry = JobRegistry()
+    jobs.register(registry)
+    with committing_db.unit_of_work() as uow:  # the queued job was claimed 8 times; its worker died
+        uow.session.execute(
+            text(
+                "UPDATE jobs SET status = 'running', attempts = :max, "
+                "lease_expires_at = now() - interval '1 second' "
+                "WHERE kind = 'document.process' AND payload->>'version_id' = :v"
+            ),
+            {"max": processing.MAX_ATTEMPTS, "v": version_id},
+        )
+    with committing_db.unit_of_work() as uow:
+        _, dead = reclaim_expired(uow.session, registry)
+
+    assert dead >= 1
+    version = _version(owner, document["id"])
+    assert version["status"] == "failed"
+    assert (version["problem"]["code"], version["problem"]["can_retry"]) == ("unavailable", True)
 
 
 def test_a_password_protected_pdf_is_unlocked_and_processing_continues(

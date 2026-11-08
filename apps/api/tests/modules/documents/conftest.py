@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -13,8 +14,9 @@ from sqlalchemy import text
 from signora.kernel.blobstore import LocalBlobStore
 from signora.kernel.config import DatabaseSettings, Settings, load_settings
 from signora.kernel.db import Database
-from signora.kernel.jobs import JobContext
-from signora.modules.documents import processing
+from signora.kernel.jobs import JobContext, JobRegistry
+from signora.kernel.jobs.core import ClaimedJob, mark_failed
+from signora.modules.documents import jobs, processing
 from tests.modules.identity_access.conftest import (  # noqa: F401 - fixtures by name
     Account,
     add_member,
@@ -99,24 +101,32 @@ def add_version(api: TestClient, document_id: str, data: bytes, department_id: s
 
 @pytest.fixture
 def run(committing_db: Database, settings: Settings) -> Callable[..., None]:
-    """Run the processing job for a version, as the worker would."""
+    """Run the processing job for a version, as the worker would, failures included."""
+    registry = JobRegistry()
+    jobs.register(registry)
+    kind = registry.get(processing.PROCESS)
 
     def go(version_id: str, *, attempt: int = 1, gotenberg_url: str | None = None) -> None:
+        payload = {"version_id": version_id}
         with committing_db.unit_of_work() as uow:
             job_id = uow.session.execute(
                 text(
-                    "INSERT INTO jobs (kind, status, attempts) "
-                    "VALUES ('document.process', 'running', :a) RETURNING id"
+                    "INSERT INTO jobs (kind, status, attempts, payload) "
+                    "VALUES ('document.process', 'running', :a, CAST(:p AS jsonb)) RETURNING id"
                 ),
-                {"a": attempt},
+                {"a": attempt, "p": json.dumps(payload)},
             ).scalar_one()
-        processing.process_version(
-            JobContext(
-                job_id, processing.PROCESS, {"version_id": version_id}, {}, attempt, committing_db
-            ),
-            store=LocalBlobStore(settings.blob_store.dir),
-            gotenberg_url=gotenberg_url or settings.gotenberg.base_url,
-            max_pages=settings.documents.max_pages,
-        )
+        try:
+            processing.process_version(
+                JobContext(job_id, processing.PROCESS, payload, {}, attempt, committing_db),
+                store=LocalBlobStore(settings.blob_store.dir),
+                gotenberg_url=gotenberg_url or settings.gotenberg.base_url,
+                max_pages=settings.documents.max_pages,
+            )
+        except Exception as error:
+            with committing_db.unit_of_work() as uow:
+                job = ClaimedJob(job_id, processing.PROCESS, payload, {}, attempt)
+                mark_failed(uow.session, job, kind, error)
+            raise
 
     return go

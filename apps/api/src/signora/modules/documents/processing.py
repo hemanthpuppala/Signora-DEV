@@ -20,8 +20,7 @@ from sqlalchemy.orm import Session
 from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.db import UnitOfWork
 from signora.kernel.events import DomainEvent, bus
-from signora.kernel.jobs import JobContext, enqueue
-from signora.kernel.logging import get_logger
+from signora.kernel.jobs import JobContext, JsonDict, enqueue
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.documents.conversion import ConversionRefusedError, docx_to_pdf
@@ -33,8 +32,6 @@ from signora.modules.documents.pdf import (
     TooManyPagesError,
     prepare,
 )
-
-log = get_logger("signora.documents")
 
 PROCESS = "document.process"
 MAX_ATTEMPTS = 8  # the job backoff: 30 s doubling to 1 h (backbone LLD §1.4)
@@ -94,6 +91,21 @@ def _audit(uow: UnitOfWork, work: _Work, action: str, **data: Any) -> None:
     )
 
 
+def _record_failure(
+    uow: UnitOfWork, work: _Work, code: str, *, temporary: bool, page_count: int | None = None
+) -> None:
+    changed = uow.session.execute(
+        text(
+            "UPDATE document_versions SET status = 'failed', failure_code = :code, "
+            "failure_temporary = :temporary, page_count = coalesce(:pages, page_count) "
+            "WHERE id = :id AND status = 'processing' RETURNING id"
+        ),
+        {"id": work.id, "code": code, "temporary": temporary, "pages": page_count},
+    ).one_or_none()
+    if changed is not None:
+        _audit(uow, work, "document.version_failed", reason=code, temporary=temporary)
+
+
 def _fail(
     context: JobContext,
     work: _Work,
@@ -103,16 +115,18 @@ def _fail(
     page_count: int | None = None,
 ) -> None:
     with context.complete() as uow:
-        changed = uow.session.execute(
-            text(
-                "UPDATE document_versions SET status = 'failed', failure_code = :code, "
-                "failure_temporary = :temporary, page_count = coalesce(:pages, page_count) "
-                "WHERE id = :id AND status = 'processing' RETURNING id"
-            ),
-            {"id": work.id, "code": code, "temporary": temporary, "pages": page_count},
-        ).one_or_none()
-        if changed is not None:
-            _audit(uow, work, "document.version_failed", reason=code, temporary=temporary)
+        _record_failure(uow, work, code, temporary=temporary, page_count=page_count)
+
+
+def give_up(uow: UnitOfWork, payload: JsonDict) -> None:
+    """The job is dead: every attempt failed, or its worker died each time (the ``on_dead`` hook).
+
+    A version still Processing fails as temporary, so the person is offered Try again instead of
+    waiting forever.
+    """
+    work = _load(uow, uuid.UUID(payload["version_id"]))
+    if work is not None:
+        _record_failure(uow, work, "unavailable", temporary=True)
 
 
 def _needs_password(context: JobContext, work: _Work) -> None:
@@ -190,10 +204,7 @@ def process_version(
         _fail(context, work, code, temporary=False)
     except ConversionRefusedError:
         _fail(context, work, "conversion_failed", temporary=False)
-    except Exception:  # anything else is retried; the last attempt fails the version
-        log.warning("document.process_retry", version_id=str(work.id), attempt=context.attempt)
-        if context.attempt < MAX_ATTEMPTS:
-            raise
-        _fail(context, work, "unavailable", temporary=True)
     else:
         _done(context, work, prepared, store)
+    # Anything else propagates: the worker retries it, and when the job dies ``give_up`` fails
+    # the version. The last attempt, a failure while saving and a dying worker end the same way.

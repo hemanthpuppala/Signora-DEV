@@ -22,7 +22,7 @@ from sqlalchemy import create_engine, text
 
 from signora.entrypoints import worker as worker_entrypoint
 from signora.kernel.config import DatabaseSettings, load_settings
-from signora.kernel.db import Database
+from signora.kernel.db import Database, UnitOfWork
 from signora.kernel.jobs import (
     JobContext,
     JobKind,
@@ -184,6 +184,66 @@ def test_failing_job_retries_then_goes_dead(
     assert row.attempts == 3
     assert row.last_error == "ValueError: boom on attempt 3"
     assert row.finished_at is not None
+
+
+def test_a_dead_job_is_settled_by_its_kind_whether_it_raised_or_its_worker_died(
+    committing_db: Database,
+) -> None:
+    reg = JobRegistry()
+    kind = unique_kind("settled")
+    settled: list[str] = []
+
+    def on_dead(uow: UnitOfWork, payload: dict[str, Any]) -> None:
+        settled.append(payload["n"])
+        uow.session.execute(text("INSERT INTO jobs (kind) VALUES (:k)"), {"k": f"{kind}.mark"})
+
+    reg.register(
+        JobKind(
+            kind, lambda ctx: None, max_attempts=1, lease=timedelta(seconds=30), on_dead=on_dead
+        )
+    )
+    with committing_db.unit_of_work() as uow:
+        enqueue(uow.session, kind, {"n": "raised"}, jobs_registry=reg)
+        enqueue(uow.session, kind, {"n": "crashed"}, jobs_registry=reg)
+    with committing_db.unit_of_work() as uow:
+        raised, crashed = sorted(
+            claim(uow.session, reg, 2), key=lambda job: job.payload["n"] != "raised"
+        )
+        uow.session.execute(
+            text("UPDATE jobs SET lease_expires_at = now() - interval '1 second' WHERE id = :id"),
+            {"id": crashed.id},
+        )
+    with committing_db.unit_of_work() as uow:
+        assert jobs_core.mark_failed(uow.session, raised, reg.get(kind), ValueError("x")) == "dead"
+    with committing_db.unit_of_work() as uow:
+        assert reclaim_expired(uow.session, reg) == (0, 1)
+
+    assert settled == ["raised", "crashed"]
+    assert len(job_rows(committing_db, f"{kind}.mark")) == 2  # committed with the dead mark
+
+
+def test_a_failing_dead_hook_still_records_the_job_dead(committing_db: Database) -> None:
+    reg = JobRegistry()
+    kind = unique_kind("hook-fails")
+
+    def on_dead(uow: UnitOfWork, payload: dict[str, Any]) -> None:
+        uow.session.execute(text("INSERT INTO jobs (kind) VALUES (:k)"), {"k": f"{kind}.mark"})
+        raise RuntimeError("hook broke")
+
+    reg.register(
+        JobKind(
+            kind, lambda ctx: None, max_attempts=1, lease=timedelta(seconds=30), on_dead=on_dead
+        )
+    )
+    with committing_db.unit_of_work() as uow:
+        enqueue(uow.session, kind, jobs_registry=reg)
+    with committing_db.unit_of_work() as uow:
+        (job,) = claim(uow.session, reg, 1)
+    with committing_db.unit_of_work() as uow:
+        assert jobs_core.mark_failed(uow.session, job, reg.get(kind), ValueError("x")) == "dead"
+
+    assert job_rows(committing_db, kind)[0].status == "dead"
+    assert job_rows(committing_db, f"{kind}.mark") == []  # the hook's own writes rolled back
 
 
 def test_backoff_doubles_with_jitter_and_caps() -> None:

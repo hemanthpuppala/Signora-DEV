@@ -30,6 +30,7 @@ def register(jobs_registry: JobRegistry) -> list[RecurringJob]:
             process_version,
             max_attempts=processing.MAX_ATTEMPTS,
             lease=processing.LEASE,
+            on_dead=processing.give_up,
         )
     )
     return [RecurringJob(uploads.SWEEP, every=timedelta(hours=1))]
