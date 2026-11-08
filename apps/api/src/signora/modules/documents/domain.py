@@ -86,7 +86,7 @@ FAILURE_MESSAGES = {
     "too_many_pages": "This document has {pages} pages. Upload one with {max_pages} or fewer",
     "damaged": "This PDF can't be opened. Save it again and upload it",
     "conversion_failed": "This Word file couldn't be converted. Save it again and upload it",
-    "unavailable": "Processing couldn't finish. Try again",
+    "unavailable": "Processing couldn't finish",  # the screen offers "Try again" beside it
 }
 
 

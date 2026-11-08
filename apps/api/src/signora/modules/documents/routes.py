@@ -192,6 +192,15 @@ class Problem(BaseModel):
     can_retry: bool
 
 
+class PageView(BaseModel):
+    """A page as displayed (rotation applied), in PDF points: the viewer lays pages out from these
+    before the file loads, and Phase 6 places fields in the same units."""
+
+    width: float
+    height: float
+    rotation: int
+
+
 class VersionView(BaseModel):
     id: uuid.UUID
     number: int
@@ -201,6 +210,7 @@ class VersionView(BaseModel):
     filename: str
     bytes: int
     page_count: int | None
+    pages: list[PageView]  # empty until processed
     pages_without_text: list[int]
     ai_instructions: str
     uploaded_by: PersonRef
@@ -274,6 +284,7 @@ def version_view(
         filename=version.source_filename,
         bytes=version.source_bytes,
         page_count=version.page_count,
+        pages=[PageView(**page) for page in version.pages or []],
         pages_without_text=version.pages_without_text,
         ai_instructions=version.ai_instructions,
         uploaded_by=PersonRef(id=version.uploaded_by_id, name=version.uploaded_by_name),

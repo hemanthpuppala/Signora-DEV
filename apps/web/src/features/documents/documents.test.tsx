@@ -9,6 +9,7 @@ import { ToastProvider } from "@/shared/ui";
 
 import { clearHandOff, handOff, processingInterval } from "./api";
 import { DocumentsSection } from "./DocumentsSection";
+import { FakeUpload } from "./fakeUpload.testing";
 import { UploadPage } from "./UploadPage";
 
 const push = vi.fn();
@@ -60,42 +61,6 @@ const detail = (status: string) => ({
     },
   ],
 });
-
-/** XMLHttpRequest stand-in: the test decides when and how each upload answers. */
-class FakeUpload {
-  static sent: FakeUpload[] = [];
-  upload: { onprogress: ((event: ProgressEvent) => void) | null } = { onprogress: null };
-  onload: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  onabort: (() => void) | null = null;
-  responseType = "";
-  status = 0;
-  statusText = "";
-  response: unknown = null;
-  url = "";
-  headers: Record<string, string> = {};
-  body: unknown = null;
-  open(_method: string, url: string) {
-    this.url = url;
-  }
-  setRequestHeader(name: string, value: string) {
-    this.headers[name] = value;
-  }
-  getResponseHeader() {
-    return null;
-  }
-  send(body: unknown) {
-    this.body = body;
-    FakeUpload.sent.push(this);
-  }
-  abort() {}
-  answer(status: number, body: unknown) {
-    this.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 1 } as ProgressEvent);
-    this.status = status;
-    this.response = body;
-    this.onload?.();
-  }
-}
 
 const uploaded = (overrides: Record<string, unknown> = {}) => ({
   id: "up-1",

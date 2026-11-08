@@ -1055,6 +1055,30 @@
         "title": "NameRequest",
         "type": "object"
       },
+      "PageView": {
+        "description": "A page as displayed (rotation applied), in PDF points: the viewer lays pages out from these\nbefore the file loads, and Phase 6 places fields in the same units.",
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "number"
+          },
+          "rotation": {
+            "title": "Rotation",
+            "type": "integer"
+          },
+          "width": {
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "width",
+          "height",
+          "rotation"
+        ],
+        "title": "PageView",
+        "type": "object"
+      },
       "Permission": {
         "enum": [
           "members.manage",
@@ -1709,6 +1733,13 @@
             ],
             "title": "Page Count"
           },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageView"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
           "pages_without_text": {
             "items": {
               "type": "integer"
@@ -1762,6 +1793,7 @@
           "filename",
           "bytes",
           "page_count",
+          "pages",
           "pages_without_text",
           "ai_instructions",
           "uploaded_by",

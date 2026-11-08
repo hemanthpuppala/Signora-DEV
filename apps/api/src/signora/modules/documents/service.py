@@ -83,6 +83,7 @@ class VersionRow:
     pdf_sha256: str | None
     pdf_bytes: int | None
     page_count: int | None
+    pages: list[dict[str, Any]] | None
     pages_without_text: list[int]
     ai_instructions: str
     uploaded_by_id: uuid.UUID
@@ -120,7 +121,7 @@ _DOCUMENT_SELECT = """
 _VERSION_SELECT = """
     SELECT v.id, v.document_id, v.version_no, v.status, v.failure_code, v.failure_temporary,
            v.source_kind, v.source_filename, v.source_bytes, v.source_sha256, v.pdf_sha256,
-           v.pdf_bytes, v.page_count, v.pages_without_text, v.ai_instructions,
+           v.pdf_bytes, v.page_count, v.pages, v.pages_without_text, v.ai_instructions,
            v.uploaded_by AS uploaded_by_id, u.name AS uploaded_by_name, v.created_at,
            v.processed_at
     FROM document_versions v JOIN users u ON u.id = v.uploaded_by

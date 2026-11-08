@@ -67,6 +67,7 @@ def test_a_pdf_is_processed_into_a_working_copy_with_its_page_facts(
 
     version = _version(owner, document["id"])
     assert (version["status"], version["page_count"], version["problem"]) == ("processed", 3, None)
+    assert version["pages"][2] == {"width": 595.0, "height": 842.0, "rotation": 0}
     with committing_db.unit_of_work() as uow:
         row = uow.session.execute(
             text("SELECT pdf_sha256, pages FROM document_versions WHERE id = :id"),

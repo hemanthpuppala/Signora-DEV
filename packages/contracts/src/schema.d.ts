@@ -1201,6 +1201,19 @@ export interface components {
             name: string;
         };
         /**
+         * PageView
+         * @description A page as displayed (rotation applied), in PDF points: the viewer lays pages out from these
+         *     before the file loads, and Phase 6 places fields in the same units.
+         */
+        PageView: {
+            /** Height */
+            height: number;
+            /** Rotation */
+            rotation: number;
+            /** Width */
+            width: number;
+        };
+        /**
          * Permission
          * @enum {string}
          */
@@ -1447,6 +1460,8 @@ export interface components {
             number: number;
             /** Page Count */
             page_count: number | null;
+            /** Pages */
+            pages: components["schemas"]["PageView"][];
             /** Pages Without Text */
             pages_without_text: number[];
             problem: components["schemas"]["Problem"] | null;
