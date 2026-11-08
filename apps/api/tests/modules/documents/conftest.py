@@ -63,3 +63,30 @@ def upload(api: TestClient, department_id: str, data: bytes, filename: str = "Le
         content=data,
         headers={**csrf_headers(api), "Content-Type": "application/octet-stream"},
     )
+
+
+def new_document(
+    api: TestClient,
+    department_id: str,
+    data: bytes,
+    name: str = "Engagement letter",
+    **extra: Any,
+) -> Any:
+    """Upload then create; returns the create response."""
+    uploaded = upload(api, department_id, data)
+    assert uploaded.status_code == 201, uploaded.text
+    return api.post(
+        f"{DEPARTMENTS}/{department_id}/documents",
+        json={"name": name, "upload_id": uploaded.json()["id"], **extra},
+        headers={**csrf_headers(api), **idempotency_key()},
+    )
+
+
+def add_version(api: TestClient, document_id: str, data: bytes, department_id: str) -> Any:
+    uploaded = upload(api, department_id, data)
+    assert uploaded.status_code == 201, uploaded.text
+    return api.post(
+        f"/api/v1/documents/{document_id}/versions",
+        json={"upload_id": uploaded.json()["id"]},
+        headers={**csrf_headers(api), **idempotency_key()},
+    )

@@ -79,3 +79,40 @@ def name_from_filename(filename: str) -> str:
     """The default document name: the file name without its extension (§2.4)."""
     stem = filename.rsplit(".", 1)[0] if "." in filename.strip(".") else filename
     return " ".join(stem.split())[:NAME_MAX] or "Document"
+
+
+# What a person reads for each failure (§2.5, §3.4). ``{pages}`` and ``{max_pages}`` are filled in.
+FAILURE_MESSAGES = {
+    "too_many_pages": "This document has {pages} pages. Upload one with {max_pages} or fewer",
+    "damaged": "This PDF can't be opened. Save it again and upload it",
+    "conversion_failed": "This Word file couldn't be converted. Save it again and upload it",
+    "unavailable": "Processing couldn't finish. Try again",
+}
+
+
+def failure_message(code: str, *, pages: int | None, max_pages: int) -> str:
+    template = FAILURE_MESSAGES.get(code, "Processing failed. Upload the file again")
+    return template.format(pages=pages if pages is not None else "too many", max_pages=max_pages)
+
+
+def describe_pages(numbers: list[int]) -> str:
+    """``[4]`` -> "Page 4"; ``[1, 2, 3, 7]`` -> "Pages 1-3 and 7" (topic 3 §3.2)."""
+    if not numbers:
+        return ""
+    ranges: list[str] = []
+    start = previous = numbers[0]
+    for number in [*numbers[1:], None]:
+        if number is not None and number == previous + 1:
+            previous = number
+            continue
+        ranges.append(str(start) if start == previous else f"{start}-{previous}")
+        if number is not None:
+            start = previous = number
+    single = len(numbers) == 1
+    joined = ranges[0] if len(ranges) == 1 else ", ".join(ranges[:-1]) + f" and {ranges[-1]}"
+    return f"{'Page' if single else 'Pages'} {joined}"
+
+
+def scanned_message(numbers: list[int]) -> str:
+    verb = "is a scanned image" if len(numbers) == 1 else "are scanned images"
+    return f"{describe_pages(numbers)} {verb}. Scanned pages can't be read yet"

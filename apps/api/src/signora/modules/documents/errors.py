@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from signora.kernel.errors import DomainError
+from signora.kernel.errors import Conflict, DomainError
 
 
 class UnsupportedFile(DomainError):
@@ -15,3 +15,29 @@ class ProtectedWordFile(DomainError):
     code = "protected-word-file"
     status = 422
     title = "Remove the password in Word and upload it again"
+
+
+class DocumentNameTaken(Conflict):
+    code = "document-name-taken"
+    title = "Another document in this department already has this name"
+
+
+class DocumentArchived(Conflict):
+    code = "document-archived"
+    title = "This document is archived. Restore it to make changes"
+
+
+class DuplicateFile(Conflict):
+    code = "duplicate-file"
+    title = "This file is already in this department"
+
+
+class UploadNotFound(DomainError):
+    code = "upload-not-found"
+    status = 404
+    title = "This upload has expired. Upload the file again"
+
+
+class UploadUsed(Conflict):
+    code = "upload-used"
+    title = "This upload has already been used"
