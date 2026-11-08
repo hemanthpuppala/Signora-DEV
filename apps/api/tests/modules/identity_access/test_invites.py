@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
@@ -290,3 +291,78 @@ def test_the_workspace_invite_limit(
             for _ in range(3)
         ]
     assert codes == [201, 201, 429]
+
+
+def test_invites_for_one_address_at_once_make_one_invite(
+    committing_db: Database,
+    creator: Account,
+    settings: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both transactions are held just before the "pending invite?" lookup and released together,
+    so without serialisation both see no invite and both insert."""
+    from signora.kernel.ratelimit import InMemoryRateLimiter
+    from signora.modules.identity_access import accounts as accounts_module
+    from signora.modules.identity_access import invites as invite_service
+    from signora.modules.identity_access.access import Actor
+    from signora.modules.identity_access.domain.permissions import ALL_PERMISSIONS
+
+    actor = Actor(
+        user_id=creator.user_id,
+        email=creator.email,
+        name="Rosa Hale",
+        workspace_id=creator.workspace_id,
+        workspace_name="Hale & Ward LLP",
+        role_id=creator.role_ids["read_write"],
+        role_key="read_write",
+        role_name="Editor",
+        role_description="",
+        permissions=ALL_PERMISSIONS,
+        is_creator=True,
+        session_digest=b"",
+    )
+    email = unique_email("twice")
+    barrier = threading.Barrier(2)
+    real_find = accounts_module.find_user_by_email
+
+    waited: set[int] = set()
+
+    def find_then_wait(session: Any, address: str) -> Any:
+        found = real_find(session, address)
+        if address == email and threading.get_ident() not in waited:
+            waited.add(threading.get_ident())
+            barrier.wait(timeout=10)  # both requests are now right before the lookup
+        return found
+
+    monkeypatch.setattr(accounts_module, "find_user_by_email", find_then_wait)
+    limiter = InMemoryRateLimiter(max_keys=1000)
+    errors: list[BaseException] = []
+
+    def create() -> None:
+        try:
+            with committing_db.unit_of_work() as uow:
+                invite_service.create_invite(
+                    uow,
+                    actor=actor,
+                    limiter=limiter,
+                    settings=settings.auth,
+                    email=email,
+                    role_id=creator.role_ids["read"],
+                    base_url="https://signora.test",
+                )
+        except BaseException as error:  # collected for the assertion
+            errors.append(error)
+
+    threads = [threading.Thread(target=create) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert [type(e).__name__ for e in errors] in ([], ["RateLimited"])  # never a unique violation
+    with committing_db.unit_of_work() as uow:
+        pending = uow.session.execute(
+            text("SELECT count(*) FROM invites WHERE email = :e AND accepted_at IS NULL"),
+            {"e": email},
+        ).scalar_one()
+    assert pending == 1

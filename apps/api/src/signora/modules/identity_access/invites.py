@@ -147,6 +147,12 @@ def create_invite(
 
     token = issue_token()
     ttl = {"ttl": timedelta(days=settings.invite_days).total_seconds()}
+    # Serialise invites for one address in one company, so two at once cannot both decide there is
+    # no pending invite (a FOR UPDATE below locks nothing when no row exists yet).
+    uow.session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"invite:{actor.workspace_id}:{address}"},
+    )
     existing = uow.session.execute(
         text(
             "SELECT id FROM invites WHERE workspace_id = :w AND email = :e "
