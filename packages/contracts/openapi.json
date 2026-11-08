@@ -118,6 +118,16 @@
             "maxLength": 200,
             "title": "Name",
             "type": "string"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettingsInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -164,6 +174,9 @@
             "title": "Name",
             "type": "string"
           },
+          "settings": {
+            "$ref": "#/components/schemas/DepartmentSettings"
+          },
           "status": {
             "enum": [
               "active",
@@ -187,9 +200,41 @@
           "counts",
           "updated_at",
           "archived_at",
-          "created_by"
+          "created_by",
+          "settings"
         ],
         "title": "Department",
+        "type": "object"
+      },
+      "DepartmentSettings": {
+        "properties": {
+          "expiry_days": {
+            "title": "Expiry Days",
+            "type": "integer"
+          },
+          "max_reminders": {
+            "title": "Max Reminders",
+            "type": "integer"
+          },
+          "notify_emails": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notify Emails",
+            "type": "array"
+          },
+          "reminder_interval_hours": {
+            "title": "Reminder Interval Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reminder_interval_hours",
+          "max_reminders",
+          "expiry_days",
+          "notify_emails"
+        ],
+        "title": "DepartmentSettings",
         "type": "object"
       },
       "DepartmentSummary": {
@@ -779,6 +824,62 @@
         "title": "RoleView",
         "type": "object"
       },
+      "SettingsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "expiry_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Days"
+          },
+          "max_reminders": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Reminders"
+          },
+          "notify_emails": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 320,
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notify Emails"
+          },
+          "reminder_interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reminder Interval Hours"
+          }
+        },
+        "title": "SettingsInput",
+        "type": "object"
+      },
       "SignupCompleteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -891,6 +992,16 @@
               }
             ],
             "title": "Name"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettingsInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "UpdateDepartment",

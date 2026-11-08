@@ -20,14 +20,41 @@ from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import FieldError, NotFound, ValidationFailed
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
-from signora.modules.departments.domain import description_problem, name_problem, normalize_name
+from signora.modules.departments.domain import (
+    EXPIRY_DAYS,
+    MAX_REMINDERS,
+    NOTIFY_EMAILS_MAX,
+    REMINDER_INTERVAL_HOURS,
+    description_problem,
+    name_problem,
+    normalize_name,
+    range_problem,
+)
 from signora.modules.departments.errors import DepartmentArchived, DepartmentNameTaken
-from signora.modules.identity_access import Actor
+from signora.modules.identity_access import Actor, InvalidEmailError, normalize_email
 
 ACTIVE_NAME_INDEX = "uq_departments_active_name"
 LIST_LIMIT = 500
 
 Status = Literal["active", "archived"]
+
+
+@dataclass(frozen=True)
+class Settings:
+    reminder_interval_hours: int
+    max_reminders: int
+    expiry_days: int
+    notify_emails: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SettingsChange:
+    """Fields to change; ``None`` leaves a setting as it is."""
+
+    reminder_interval_hours: int | None = None
+    max_reminders: int | None = None
+    expiry_days: int | None = None
+    notify_emails: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -40,6 +67,19 @@ class DepartmentRow:
     archived_at: datetime | None
     created_by_id: uuid.UUID
     created_by_name: str
+    reminder_interval_hours: int
+    max_reminders: int
+    expiry_days: int
+    notify_emails: list[str]
+
+    @property
+    def settings(self) -> Settings:
+        return Settings(
+            self.reminder_interval_hours,
+            self.max_reminders,
+            self.expiry_days,
+            tuple(self.notify_emails),
+        )
 
     @property
     def status(self) -> Status:
@@ -48,7 +88,8 @@ class DepartmentRow:
 
 _SELECT = """
     SELECT d.id, d.name, d.description, d.created_at, d.updated_at, d.archived_at,
-           d.created_by AS created_by_id, u.name AS created_by_name
+           d.created_by AS created_by_id, u.name AS created_by_name,
+           d.reminder_interval_hours, d.max_reminders, d.expiry_days, d.notify_emails
     FROM departments d JOIN users u ON u.id = d.created_by
     WHERE d.workspace_id = :w
 """
@@ -102,6 +143,50 @@ def _valid_description(raw: str) -> str:
     return description
 
 
+def _valid_emails(raw: list[str]) -> list[str]:
+    """Normalised with the identity module's one definition of an email; duplicates merged."""
+    clean: list[str] = []
+    errors: list[FieldError] = []
+    for index, value in enumerate(raw):
+        try:
+            email = normalize_email(value)
+        except InvalidEmailError as error:
+            errors.append(FieldError(f"notify_emails[{index}]", str(error)))
+            continue
+        if email not in clean:
+            clean.append(email)
+    if len(clean) > NOTIFY_EMAILS_MAX:
+        errors.append(FieldError("notify_emails", f"Add {NOTIFY_EMAILS_MAX} or fewer emails"))
+    if errors:
+        raise ValidationFailed(errors)
+    return clean
+
+
+def _valid_settings(change: SettingsChange) -> dict[str, Any]:
+    """The given settings, checked; the database checks the same ranges."""
+    values: dict[str, Any] = {}
+    errors: list[FieldError] = []
+    for field, bounds in (
+        ("reminder_interval_hours", REMINDER_INTERVAL_HOURS),
+        ("max_reminders", MAX_REMINDERS),
+        ("expiry_days", EXPIRY_DAYS),
+    ):
+        value = getattr(change, field)
+        if value is None:
+            continue
+        if (problem := range_problem(value, bounds)) is not None:
+            errors.append(FieldError(field, problem))
+        values[field] = value
+    if change.notify_emails is not None:
+        try:
+            values["notify_emails"] = _valid_emails(change.notify_emails)
+        except ValidationFailed as error:
+            errors.extend(error.field_errors)
+    if errors:
+        raise ValidationFailed(errors)
+    return values
+
+
 def _name_taken(error: IntegrityError) -> bool:
     return ACTIVE_NAME_INDEX in str(error.orig)
 
@@ -120,21 +205,38 @@ def _audit(
 
 
 def create_department(
-    uow: UnitOfWork, *, actor: Actor, name: str, description: str = ""
+    uow: UnitOfWork,
+    *,
+    actor: Actor,
+    name: str,
+    description: str = "",
+    defaults: Settings,
+    overrides: SettingsChange | None = None,
 ) -> DepartmentRow:
+    """Settings start from the company ``defaults`` (copied, not inherited: topic 3)."""
     clean_name, clean_description = _valid_name(name), _valid_description(description)
+    settings = {
+        "reminder_interval_hours": defaults.reminder_interval_hours,
+        "max_reminders": defaults.max_reminders,
+        "expiry_days": defaults.expiry_days,
+        "notify_emails": list(defaults.notify_emails),
+        **_valid_settings(overrides or SettingsChange()),
+    }
     try:
         with uow.session.begin_nested():  # a lost name race rolls back only this insert
             department_id = uow.session.execute(
                 text(
-                    "INSERT INTO departments (workspace_id, name, description, created_by) "
-                    "VALUES (:w, :n, :d, :u) RETURNING id"
+                    "INSERT INTO departments (workspace_id, name, description, created_by, "
+                    "reminder_interval_hours, max_reminders, expiry_days, notify_emails) "
+                    "VALUES (:w, :n, :d, :u, :reminder_interval_hours, :max_reminders, "
+                    ":expiry_days, :notify_emails) RETURNING id"
                 ),
                 {
                     "w": actor.workspace_id,
                     "n": clean_name,
                     "d": clean_description,
                     "u": actor.user_id,
+                    **settings,
                 },
             ).scalar_one()
     except IntegrityError as error:
@@ -152,16 +254,20 @@ def update_department(
     department_id: uuid.UUID,
     name: str | None = None,
     description: str | None = None,
+    settings: SettingsChange | None = None,
 ) -> DepartmentRow:
     current = _row(uow.session, actor.workspace_id, department_id)
     require_active(current)
-    changes: dict[str, tuple[str, str]] = {}
+    changes: dict[str, tuple[Any, Any]] = {}
     if name is not None and (new_name := _valid_name(name)) != current.name:
         changes["name"] = (current.name, new_name)
     if description is not None and (new_desc := _valid_description(description)) != (
         current.description
     ):
         changes["description"] = (current.description, new_desc)
+    for field, value in _valid_settings(settings or SettingsChange()).items():
+        if value != getattr(current, field):
+            changes[field] = (getattr(current, field), value)
     if not changes:
         return current
     values = {field: new for field, (_, new) in changes.items()}

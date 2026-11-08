@@ -547,6 +547,7 @@ export interface components {
             description: string;
             /** Name */
             name: string;
+            settings?: components["schemas"]["SettingsInput"] | null;
         };
         /** Department */
         Department: {
@@ -568,6 +569,7 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            settings: components["schemas"]["DepartmentSettings"];
             /**
              * Status
              * @enum {string}
@@ -578,6 +580,17 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DepartmentSettings */
+        DepartmentSettings: {
+            /** Expiry Days */
+            expiry_days: number;
+            /** Max Reminders */
+            max_reminders: number;
+            /** Notify Emails */
+            notify_emails: string[];
+            /** Reminder Interval Hours */
+            reminder_interval_hours: number;
         };
         /** DepartmentSummary */
         DepartmentSummary: {
@@ -832,6 +845,17 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** SettingsInput */
+        SettingsInput: {
+            /** Expiry Days */
+            expiry_days?: number | null;
+            /** Max Reminders */
+            max_reminders?: number | null;
+            /** Notify Emails */
+            notify_emails?: string[] | null;
+            /** Reminder Interval Hours */
+            reminder_interval_hours?: number | null;
+        };
         /** SignupCompleteRequest */
         SignupCompleteRequest: {
             /** Name */
@@ -867,6 +891,7 @@ export interface components {
             description?: string | null;
             /** Name */
             name?: string | null;
+            settings?: components["schemas"]["SettingsInput"] | null;
         };
         /** UserView */
         UserView: {

@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from signora.kernel.db import Database
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v1/departments", tags=["departments"])
 # Lengths are checked after normalising (domain.py); these bounds only stop oversized bodies.
 NameInput = Annotated[str, StringConstraints(max_length=200)]
 DescriptionInput = Annotated[str, StringConstraints(max_length=2000)]
+EmailText = Annotated[str, StringConstraints(max_length=320)]
 Creator = Annotated[Actor, Depends(require(Permission.DEPARTMENTS_CREATE))]
 Manager = Annotated[Actor, Depends(require(Permission.DEPARTMENTS_MANAGE))]
 Member = Annotated[Actor, Depends(current_actor)]
@@ -29,14 +30,33 @@ class _Body(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class SettingsInput(_Body):
+    reminder_interval_hours: int | None = None
+    max_reminders: int | None = None
+    expiry_days: int | None = None
+    notify_emails: Annotated[list[EmailText], Field(max_length=20)] | None = None
+
+    def change(self) -> service.SettingsChange:
+        return service.SettingsChange(**self.model_dump())
+
+
 class CreateDepartment(_Body):
     name: NameInput
     description: DescriptionInput = ""
+    settings: SettingsInput | None = None  # overrides of the company defaults
 
 
 class UpdateDepartment(_Body):
     name: NameInput | None = None
     description: DescriptionInput | None = None
+    settings: SettingsInput | None = None
+
+
+class DepartmentSettings(BaseModel):
+    reminder_interval_hours: int
+    max_reminders: int
+    expiry_days: int
+    notify_emails: list[str]
 
 
 class PersonRef(BaseModel):
@@ -63,6 +83,7 @@ class Department(DepartmentSummary):
     updated_at: datetime
     archived_at: datetime | None
     created_by: PersonRef
+    settings: DepartmentSettings
 
 
 def summary(row: service.DepartmentRow) -> DepartmentSummary:
@@ -82,6 +103,23 @@ def detail(row: service.DepartmentRow) -> Department:
         updated_at=row.updated_at,
         archived_at=row.archived_at,
         created_by=PersonRef(id=row.created_by_id, name=row.created_by_name),
+        settings=DepartmentSettings(
+            reminder_interval_hours=row.reminder_interval_hours,
+            max_reminders=row.max_reminders,
+            expiry_days=row.expiry_days,
+            notify_emails=row.notify_emails,
+        ),
+    )
+
+
+def company_defaults(request: Request) -> service.Settings:
+    """The company defaults from configuration (``DEFAULT_*`` in ``.env``)."""
+    signing = request.app.state.settings.signing
+    return service.Settings(
+        reminder_interval_hours=signing.default_reminder_interval_hours,
+        max_reminders=signing.default_max_reminders,
+        expiry_days=signing.default_expiry_days,
+        notify_emails=(),
     )
 
 
@@ -117,7 +155,12 @@ def create_department(
         if (replay := guard.begin(uow)) is not None:
             return replay
         row = service.create_department(
-            uow, actor=actor, name=body.name, description=body.description
+            uow,
+            actor=actor,
+            name=body.name,
+            description=body.description,
+            defaults=company_defaults(request),
+            overrides=body.settings.change() if body.settings else None,
         )
         return guard.finish(uow, status.HTTP_201_CREATED, detail(row).model_dump(mode="json"))
 
@@ -139,6 +182,7 @@ def update_department(
             department_id=department_id,
             name=body.name,
             description=body.description,
+            settings=body.settings.change() if body.settings else None,
         )
     return detail(row)
 
