@@ -29,7 +29,6 @@ export function SettingsPanel({ me }: { me: Me }) {
         <BodyText>
           <b>{me.display_role.name}</b> in {me.workspace.name}
         </BodyText>
-        <SmallText>{me.display_role.description}</SmallText>
       </Section>
       <ProfileForm me={me} />
       <PasswordForm />
