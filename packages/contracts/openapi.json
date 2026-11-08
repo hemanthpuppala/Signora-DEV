@@ -275,7 +275,7 @@
           "permissions": {
             "description": "Effective permissions; drives what the UI shows",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/Permission"
             },
             "title": "Permissions",
             "type": "array"
@@ -354,6 +354,10 @@
             "title": "Password Min Length",
             "type": "integer"
           },
+          "password_rule": {
+            "title": "Password Rule",
+            "type": "string"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -362,7 +366,8 @@
         "required": [
           "version",
           "commit",
-          "password_min_length"
+          "password_min_length",
+          "password_rule"
         ],
         "title": "MetaResponse",
         "type": "object"
@@ -382,6 +387,16 @@
         ],
         "title": "NameRequest",
         "type": "object"
+      },
+      "Permission": {
+        "enum": [
+          "members.manage",
+          "members.directory",
+          "roles.manage",
+          "workspace.rename"
+        ],
+        "title": "Permission",
+        "type": "string"
       },
       "ProblemDetails": {
         "description": "RFC 9457 problem details as returned by every error (backbone LLD §7.1).\n\nDeclared in the OpenAPI document so the frontend contract types include it.",

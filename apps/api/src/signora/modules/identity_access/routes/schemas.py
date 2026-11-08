@@ -9,7 +9,11 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from signora.modules.identity_access.access import Actor
-from signora.modules.identity_access.domain.permissions import OWNER_DESCRIPTION, OWNER_LABEL
+from signora.modules.identity_access.domain.permissions import (
+    OWNER_DESCRIPTION,
+    OWNER_LABEL,
+    Permission,
+)
 
 # Long enough for any passphrase; short enough that nobody makes the server hash a megabyte.
 PasswordInput = Annotated[str, StringConstraints(min_length=1, max_length=1024)]
@@ -160,7 +164,9 @@ class MeResponse(BaseModel):
     workspace: WorkspaceView
     role: RoleView
     display_role: DisplayRole
-    permissions: list[str] = Field(description="Effective permissions; drives what the UI shows")
+    permissions: list[Permission] = Field(
+        description="Effective permissions; drives what the UI shows"
+    )
     is_creator: bool
 
     @staticmethod

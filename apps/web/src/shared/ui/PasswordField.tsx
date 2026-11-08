@@ -46,7 +46,8 @@ export function PasswordField({
     onChange?.(event);
   };
 
-  const shownError = error ?? (tooShort ? (hint ?? `Use ${minLength} or more characters.`) : undefined);
+  // The hint is the server's rule; it doubles as the too-short message.
+  const shownError = error ?? (tooShort ? (hint ?? "Too short") : undefined);
   return (
     <div className={styles.passwordWrap}>
       <TextField

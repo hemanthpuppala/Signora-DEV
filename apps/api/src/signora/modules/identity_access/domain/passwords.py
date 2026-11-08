@@ -39,11 +39,16 @@ class PasswordPolicy:
     min_length: int
     max_length: int = MAX_PASSWORD_LENGTH
 
+    @property
+    def rule(self) -> str:
+        """The rule as people read it: the form hint and the too-short message (one wording)."""
+        return f"Use {self.min_length} or more characters."
+
     def problem(self, password: str) -> str | None:
         """A user-facing reason the password is not allowed, or ``None`` when it is fine."""
         normalized = normalize_password(password)
         if len(normalized) < self.min_length:
-            return f"Use {self.min_length} or more characters."
+            return self.rule
         if len(normalized) > self.max_length:
             return f"Use {self.max_length} or fewer characters."
         if normalized.casefold() in _common_passwords():

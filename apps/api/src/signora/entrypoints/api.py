@@ -48,7 +48,8 @@ class StatusResponse(BaseModel):
 class MetaResponse(BaseModel):
     version: str
     commit: str
-    password_min_length: int  # so forms can state the rule the server enforces
+    password_min_length: int
+    password_rule: str  # the server's own wording of the rule, shown as the form hint
 
 
 def _health_router() -> APIRouter:
@@ -87,6 +88,7 @@ def _health_router() -> APIRouter:
             version=version("signora"),
             commit=settings.app.commit,
             password_min_length=settings.auth.password_min_length,
+            password_rule=identity_access.PasswordPolicy(settings.auth.password_min_length).rule,
         )
 
     return router

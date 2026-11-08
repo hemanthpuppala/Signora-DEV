@@ -36,7 +36,7 @@ describe("SignupCompleteForm", () => {
   it("offers log-in when the account was created but the automatic log-in failed", async () => {
     fetchMock.mockImplementation((request) => {
       const path = new URL((request as Request).url).pathname;
-      if (path === "/api/v1/meta") return reply(200, { version: "0", commit: "x", password_min_length: 12 });
+      if (path === "/api/v1/meta") return reply(200, { version: "0", commit: "x", password_min_length: 12, password_rule: "Use 12 or more characters." });
       if (path === "/api/v1/auth/signup/verify") return reply(200, { email: "rosa@example.com" });
       if (path === "/api/v1/auth/signup/complete") return reply(201, { email: "rosa@example.com" });
       return reply(

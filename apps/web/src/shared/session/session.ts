@@ -7,7 +7,8 @@ import { api, unwrap } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 
 export type Me = components["schemas"]["MeResponse"];
-export type PermissionName = "members.manage" | "members.directory" | "roles.manage" | "workspace.rename";
+/** Generated from the API's Permission enum, so a renamed permission fails the build. */
+export type PermissionName = components["schemas"]["Permission"];
 
 export const SESSION_QUERY_KEY = ["me"] as const;
 

@@ -541,7 +541,7 @@ export interface components {
              * Permissions
              * @description Effective permissions; drives what the UI shows
              */
-            permissions: string[];
+            permissions: components["schemas"]["Permission"][];
             role: components["schemas"]["RoleView"];
             user: components["schemas"]["UserView"];
             workspace: components["schemas"]["WorkspaceView"];
@@ -573,6 +573,8 @@ export interface components {
             commit: string;
             /** Password Min Length */
             password_min_length: number;
+            /** Password Rule */
+            password_rule: string;
             /** Version */
             version: string;
         };
@@ -581,6 +583,11 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * Permission
+         * @enum {string}
+         */
+        Permission: "members.manage" | "members.directory" | "roles.manage" | "workspace.rename";
         /**
          * ProblemDetails
          * @description RFC 9457 problem details as returned by every error (backbone LLD §7.1).
