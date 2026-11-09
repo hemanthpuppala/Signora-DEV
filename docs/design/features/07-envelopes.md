@@ -292,7 +292,7 @@ list's length are left for the sender to choose. O(R).
 
 ### 11.3 Value formats (shared with Phase 8)
 
-One pure module, `review.formats` (review owns the field types): `validate(holds, value, options) -> str | error` for
+One pure module, `review.formats` (review owns the field types): `check_value(holds, value, options, normalize_email) -> str` (or `InvalidValueError`) for
 every type in the manual layer: text and note (1–2 000), email (`normalize_email`), phone (7–20 digits after
 stripping), date (ISO `YYYY-MM-DD`), number/currency/percent (decimal; percent 0–100), checkbox (`true`/`false`),
 choice (one of its option values), URL (`https://` only), and the private types as text. The send form and the
@@ -390,7 +390,7 @@ Decided by the owner's "complete everything, follow industry practice" (2026-11-
 |---|---|---|---|
 | 7.1 | This design, owner decisions §1–§6, open questions §15 answered | in progress | this document |
 | 7.2 | Migration 0019 (envelopes, recipients, values; drop `documents.require_email_code`); models; triggers | done | `0019_envelopes.py`, `envelopes/models.py` (composite keys keep every row in one company and one version; a copy has no party, a countersigner a colleague); `email_messages.reply_to`; triggers keep what was sent; the document's email code removed from its model, service and API (PATCH answers 422). Tests: migration up, triggers, downgrade; schema matches models; document tests updated |
-| 7.3 | `review.formats` (§11.3) | todo | — |
+| 7.3 | `review.formats` (§11.3) | done | `review/formats.py` (`check_value`, pure; identity's `normalize_email` passed in, so emails keep one definition; signature, initials and signing dates refused as not typed); added to the pure-module and public-submodule contracts. Tests: `test_formats.py` (28: each type's values, each refusal in plain words, every type judged) |
 | 7.4 | Links (ADR-E1), key derived from `SECRET_KEY` | todo | — |
 | 7.5 | Send form (§2, §11.1) | todo | — |
 | 7.6 | Send: validation, prefill, values, recipients, emails, audit, idempotency | todo | — |
