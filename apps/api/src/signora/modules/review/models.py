@@ -11,6 +11,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -133,6 +134,27 @@ field_placements = Table(
     ),
     Index("ix_field_placements_version_id", "version_id"),
     Index("ix_field_placements_field_id", "field_id"),
+)
+
+# The size of the agreement's text beside each text place, measured from the PDF when the version
+# is approved (Phase 7b): a filled value is drawn at it. Derived, so kept apart from the frozen
+# places; a version approved earlier is measured by `signora measure-text-sizes`.
+placement_text_sizes = Table(
+    "placement_text_sizes",
+    metadata,
+    # Keyed to the approved version, not to each place: places are frozen once approved, and a
+    # draft's saves (which replace every place) never touch this table.
+    Column("placement_id", UUID(as_uuid=True), primary_key=True),
+    Column("workspace_id", UUID(as_uuid=True), nullable=False),
+    Column(
+        "version_id",
+        UUID(as_uuid=True),
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("size", Float, nullable=False),
+    CheckConstraint("size > 0 AND size <= 72", name="size_plausible"),
+    Index("ix_placement_text_sizes_version_id", "version_id"),
 )
 
 # A version's review: its revision (one per Save, Phase 6 §1.6) and, at approval, the warnings

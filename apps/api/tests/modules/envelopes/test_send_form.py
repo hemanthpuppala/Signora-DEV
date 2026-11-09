@@ -70,7 +70,7 @@ def test_the_form_asks_what_the_document_needs(
     assert form["pages"] and form["pages"][0]["width"] > 0  # for drawing the values
     effective = by_id[doc.field("Effective date")["id"]]
     assert effective["places"] == [
-        {"page": 1, "rect": [300.0, 40.0, 400.0, 60.0], "option_value": None}
+        {"page": 1, "rect": [300.0, 40.0, 400.0, 60.0], "option_value": None, "text_size": None}
     ]
 
 

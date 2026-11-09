@@ -13,13 +13,15 @@ from signora.modules.envelopes.form import (
     FormSettings,
     FormSigner,
     Option,
+    Place,
     SendForm,
 )
 from signora.modules.envelopes.sending import SendRequest, plan_send, split_name
 from signora.modules.identity_access import normalize_email
+from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, font_view
 
 CLIENT = uuid.uuid4()
-PLAN, CARD, FULL, FIRST, LAST, LEGAL, EMAIL = (uuid.uuid4() for _ in range(7))
+PLAN, CARD, FULL, FIRST, LAST, LEGAL, EMAIL, YEAR = (uuid.uuid4() for _ in range(8))
 
 
 FROM = {"full_name": "name", "first_name": "name", "last_name": "name", "email": "email"}
@@ -71,7 +73,15 @@ FORM = SendForm(
         field(LAST, "last_name", CLIENT),
         field(LEGAL, "party_name", CLIENT),
         field(EMAIL, "email", CLIENT),
+        # The "20__" of a year: a short box on a line of 11 pt text.
+        field(
+            YEAR,
+            "year",
+            places=[Place(page=1, rect=(300, 100, 312, 114), option_value=None, text_size=11.0)],
+        ),
     ],
+    font=font_view(DEFAULT_FONT),
+    fit=FIT_RULE,
     settings=FormSettings(
         require_email_code=True,
         reminder_interval_hours=24,
@@ -126,3 +136,12 @@ def test_split_name() -> None:
     assert split_name("Maya Chen") == ("Maya", "Chen")
     assert split_name("Maya van Dijk") == ("Maya van", "Dijk")
     assert split_name("Cher") == ("Cher", "")
+
+
+def test_a_value_too_long_for_its_box_is_refused() -> None:
+    assert plan({PLAN: "Silver", YEAR: "26"})[YEAR] == "26"  # fits the box after a printed "20"
+    with pytest.raises(ValidationFailed) as refused:
+        plan({PLAN: "Silver", YEAR: "2026"})  # four digits: smaller than readable in that box
+    assert [(e.field, e.message) for e in refused.value.field_errors] == [
+        (f"fields.{YEAR}", "Too long for its box")
+    ]

@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from signora.modules.typesetting import FontView
+
 EnvelopeStatus = Literal[
     "sent", "opened", "viewed", "signed", "completed", "declined", "expired", "cancelled"
 ]
@@ -71,6 +73,7 @@ class EnvelopeView(BaseModel):
     reminder_interval_hours: int
     max_reminders: int
     notify_emails: list[str]
+    font: FontView  # what its values are drawn in, pinned at send (Phase 7b)
     recipients: list[RecipientView]
     values: list[ValueView]
     timeline: list[TimelineEntry]

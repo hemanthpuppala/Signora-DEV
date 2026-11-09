@@ -210,8 +210,10 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
         }
     for row in session.execute(
         text(
-            "SELECT id, field_id, page, x0, y0, x1, y1, kind, option_value, option_text "
-            "FROM field_placements WHERE version_id = :v ORDER BY page, y0, x0"
+            "SELECT p.id, p.field_id, p.page, p.x0, p.y0, p.x1, p.y1, p.kind, p.option_value, "
+            "p.option_text, s.size AS text_size FROM field_placements p "
+            "LEFT JOIN placement_text_sizes s ON s.placement_id = p.id "
+            "WHERE p.version_id = :v ORDER BY p.page, p.y0, p.x0"
         ),
         {"v": version_id},
     ):
@@ -223,6 +225,7 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
                 kind=row.kind,
                 option_value=row.option_value,
                 option_text=option_words(row.option_text),
+                text_size=row.text_size,
             )
         )
     views = sorted(

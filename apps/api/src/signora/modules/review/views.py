@@ -35,6 +35,8 @@ class PlacementView(BaseModel):
     kind: str
     option_value: str | None
     option_text: str | None
+    # The agreement's text size beside it, measured at approval (Phase 7b); none before that
+    text_size: float | None = None
 
 
 class DependencyView(BaseModel):

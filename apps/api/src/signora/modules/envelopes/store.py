@@ -22,6 +22,7 @@ from signora.modules.envelopes.views import (
     TimelineEntry,
     ValueView,
 )
+from signora.modules.typesetting import DEFAULT_FONT, font_view
 
 TIMELINE_MAX = 200
 
@@ -48,8 +49,9 @@ def write_send(
         text(
             "INSERT INTO envelopes (workspace_id, department_id, document_id, version_id, title, "
             "require_email_code, reminder_interval_hours, max_reminders, expires_at, "
-            "notify_emails, sent_by) VALUES (:w, :dep, :doc, :v, :title, :code, :every, :max, "
-            "now() + make_interval(days => :days), :notify, :by) RETURNING id, expires_at"
+            "notify_emails, sent_by, font) VALUES (:w, :dep, :doc, :v, :title, :code, :every, "
+            ":max, now() + make_interval(days => :days), :notify, :by, :font) "
+            "RETURNING id, expires_at"
         ),
         {
             "w": workspace_id,
@@ -58,6 +60,7 @@ def write_send(
             "v": version_id,
             "title": plan.title,
             "code": settings.require_email_code,
+            "font": DEFAULT_FONT,  # pinned: the preview's font is the signed PDF's
             "every": settings.reminder_interval_hours,
             "max": settings.max_reminders,
             "days": settings.expiry_days,
@@ -158,7 +161,7 @@ def read_envelope(
             "SELECT e.id, e.title, e.status, e.department_id, e.document_id, d.name AS "
             "document_name, e.version_id, v.version_no, e.sent_by, u.name AS sent_by_name, "
             "e.sent_at, e.expires_at, e.cancelled_at, e.require_email_code, "
-            "e.reminder_interval_hours, e.max_reminders, e.notify_emails FROM envelopes e "
+            "e.reminder_interval_hours, e.max_reminders, e.notify_emails, e.font FROM envelopes e "
             "JOIN documents d ON d.id = e.document_id "
             "JOIN document_versions v ON v.id = e.version_id JOIN users u ON u.id = e.sent_by "
             "WHERE e.id = :e AND e.workspace_id = :w"
@@ -232,6 +235,7 @@ def read_envelope(
         reminder_interval_hours=envelope.reminder_interval_hours,
         max_reminders=envelope.max_reminders,
         notify_emails=list(envelope.notify_emails),
+        font=font_view(envelope.font),
         recipients=recipients,
         values=values,
         timeline=timeline,

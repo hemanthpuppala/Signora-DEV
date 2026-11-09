@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from signora.modules.review import FieldView, RoleView
 from signora.modules.review.formats import NOT_TYPED
 from signora.modules.review.values import ManualHolds
+from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, FitRule, FontView, font_view
 
 # A party's fields that come from the person signing as it, as DocuSign's Full Name, First Name,
 # Last Name and Email fields do (Phase 7b): the email at send, the name at signing (the name they
@@ -42,6 +43,7 @@ class Place(BaseModel):
     page: int
     rect: tuple[float, float, float, float]
     option_value: str | None  # a choice's place stands for one option
+    text_size: float | None  # the agreement's text size beside it (Phase 7b), when measured
 
 
 class PageSize(BaseModel):
@@ -101,6 +103,8 @@ class SendForm(BaseModel):
     countersigners: list[FormCountersigner]
     fields: list[FormField]
     settings: FormSettings
+    font: FontView  # what values are drawn in, and how they fit (Phase 7b)
+    fit: FitRule
 
 
 def options_of(field: FieldView) -> list[Option]:
@@ -174,7 +178,12 @@ def build_form(
             sensitive=field.sensitive,
             options=options_of(field) if field.holds == "choice" else [],
             places=[
-                Place(page=place.page, rect=place.rect, option_value=place.option_value)
+                Place(
+                    page=place.page,
+                    rect=place.rect,
+                    option_value=place.option_value,
+                    text_size=place.text_size,
+                )
                 for place in field.placements
             ],
             depends_on=Condition(
@@ -195,4 +204,6 @@ def build_form(
         countersigners=countersigning,
         fields=form_fields,
         settings=settings,
+        font=font_view(DEFAULT_FONT),
+        fit=FIT_RULE,
     )

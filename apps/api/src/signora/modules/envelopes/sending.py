@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.modules.envelopes.form import Colleague, FormField, SendForm
 from signora.modules.review.formats import InvalidValueError, check_value
+from signora.modules.typesetting import fitted_size, place_size
 
 MAX_COPIES = 10
 
@@ -109,6 +110,20 @@ def prefill(
         for item in fields
         if item.party_id == party_id and item.from_recipient == "email"
     }
+
+
+MARKS = frozenset({"checkbox", "choice"})  # drawn as a tick, never as text
+
+
+def fits(item: FormField, value: str, font_id: str) -> bool:
+    """Whether a value can be drawn in every place of its field (Phase 7b): at the agreement's
+    text size, or smaller down to the smallest readable size. Marks are ticks, always fitting."""
+    if item.holds in MARKS:
+        return True
+    return all(
+        fitted_size(value, place.rect, place_size(place.text_size, place.rect), font_id) is not None
+        for place in item.places
+    )
 
 
 def split_name(name: str) -> tuple[str, str]:
@@ -215,6 +230,10 @@ def plan_send(
         except InvalidValueError as error:
             invalid.add(field_id)
             errors.append(FieldError(f"fields.{field_id}", str(error)))
+            continue
+        if not fits(item, values[field_id], form.font.id):
+            invalid.add(field_id)
+            errors.append(FieldError(f"fields.{field_id}", "Too long for its box"))
     for item in form.fields:
         if item.id not in values or _asked(item, values):
             continue

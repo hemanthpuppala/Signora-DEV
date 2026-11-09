@@ -1012,6 +1012,9 @@
             "title": "Expires At",
             "type": "string"
           },
+          "font": {
+            "$ref": "#/components/schemas/FontView"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1110,6 +1113,7 @@
           "reminder_interval_hours",
           "max_reminders",
           "notify_emails",
+          "font",
           "recipients",
           "values",
           "timeline"
@@ -1438,6 +1442,39 @@
         "title": "FieldView",
         "type": "object"
       },
+      "FitRule": {
+        "properties": {
+          "baseline_min": {
+            "title": "Baseline Min",
+            "type": "number"
+          },
+          "baseline_ratio": {
+            "title": "Baseline Ratio",
+            "type": "number"
+          },
+          "fallback_cap": {
+            "title": "Fallback Cap",
+            "type": "number"
+          },
+          "fallback_ratio": {
+            "title": "Fallback Ratio",
+            "type": "number"
+          },
+          "min_size": {
+            "title": "Min Size",
+            "type": "number"
+          }
+        },
+        "required": [
+          "min_size",
+          "fallback_ratio",
+          "fallback_cap",
+          "baseline_ratio",
+          "baseline_min"
+        ],
+        "title": "FitRule",
+        "type": "object"
+      },
       "Flags": {
         "properties": {
           "addressed_to_ai": {
@@ -1467,6 +1504,29 @@
           }
         },
         "title": "Flags",
+        "type": "object"
+      },
+      "FontView": {
+        "properties": {
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "family",
+          "url"
+        ],
+        "title": "FontView",
         "type": "object"
       },
       "FormCountersigner": {
@@ -2296,12 +2356,24 @@
             ],
             "title": "Rect",
             "type": "array"
+          },
+          "text_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Size"
           }
         },
         "required": [
           "page",
           "rect",
-          "option_value"
+          "option_value",
+          "text_size"
         ],
         "title": "Place",
         "type": "object"
@@ -2449,6 +2521,17 @@
             ],
             "title": "Rect",
             "type": "array"
+          },
+          "text_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Size"
           }
         },
         "required": [
@@ -2984,6 +3067,12 @@
             "title": "Fields",
             "type": "array"
           },
+          "fit": {
+            "$ref": "#/components/schemas/FitRule"
+          },
+          "font": {
+            "$ref": "#/components/schemas/FontView"
+          },
           "pages": {
             "items": {
               "$ref": "#/components/schemas/PageSize"
@@ -3020,7 +3109,9 @@
           "signers",
           "countersigners",
           "fields",
-          "settings"
+          "settings",
+          "font",
+          "fit"
         ],
         "title": "SendForm",
         "type": "object"
@@ -8013,6 +8104,79 @@
         "summary": "Remind everyone who still has to sign (requires Idempotency-Key)",
         "tags": [
           "envelopes"
+        ]
+      }
+    },
+    "/api/v1/fonts/{font_id}": {
+      "get": {
+        "operationId": "font_file_api_v1_fonts__font_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "font_id",
+            "required": true,
+            "schema": {
+              "title": "Font Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "font/ttf": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A font's file (TrueType); public, and the same bytes for an id forever",
+        "tags": [
+          "typesetting"
         ]
       }
     },
