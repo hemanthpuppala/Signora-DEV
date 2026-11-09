@@ -30,7 +30,7 @@ import { useVersionFields, type VersionFields } from "./fields";
 import { VersionLabel } from "./VersionLabel";
 import { VersionProgress } from "./VersionProgress";
 import { FieldsPanel } from "./FieldsPanel";
-import { useNewVersion } from "./NewVersion";
+import { NewVersionForm, useNewVersion } from "./NewVersion";
 import { Versions } from "./Versions";
 import { VersionState } from "./VersionState";
 
@@ -109,7 +109,7 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
               <HeadAction
                 icon="upload"
                 label="New version"
-                disabled={newVersion.uploading !== null}
+                disabled={newVersion.busy}
                 onClick={() => fileInput.current?.click()}
               />
               <input
@@ -181,6 +181,15 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
         <div className={styles.main}>
           {newVersion.problem ? <Notice tone="warning">{newVersion.problem}</Notice> : null}
           <VersionProgress uploading={newVersion.uploading} version={newest} />
+          {newVersion.pending ? (
+            <NewVersionForm
+              pending={newVersion.pending}
+              adding={newVersion.adding}
+              error={newVersion.instructionsError}
+              onAdd={newVersion.add}
+              onCancel={newVersion.cancel}
+            />
+          ) : null}
           {newest && newest.status !== "ready" ? (
             <VersionState document={data} version={newest} canEdit={canEdit} />
           ) : null}

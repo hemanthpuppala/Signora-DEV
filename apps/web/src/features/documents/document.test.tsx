@@ -222,7 +222,7 @@ describe("document page", () => {
     expect(await screen.findByText("This document can't get new versions or be sent.")).toBeTruthy();
   });
 
-  it("adds a new version straight from the file, with its way to ready in steps", async () => {
+  it("uploads a new version as soon as it is picked, then takes the AI's instructions before adding it", async () => {
     serve(READY, { "/versions": () => reply(201, READY) });
     open();
     const user = userEvent.setup();
@@ -234,8 +234,29 @@ describe("document page", () => {
     expect((screen.getByRole("button", { name: "New version" }) as HTMLButtonElement).disabled).toBe(true); // one at a time
     FakeUpload.sent[0]?.answer(201, { id: "up-3", filename: "Letter v3.pdf", kind: "pdf", bytes: 8, suggested_name: "Letter v3", expires_at: "2026-11-08T10:00:00Z", duplicate: null });
 
-    await vi.waitFor(() => expect(posts("/versions")[0]?.body).toEqual({ upload_id: "up-3", ai_instructions: "" }));
+    // Review fix: the rework posted the version with no instructions; the facts given for the
+    // first version (who countersigns) were lost on every later one.
+    const form = await screen.findByRole("form", { name: "New version" });
+    expect(posts("/versions")).toHaveLength(0);
+    await user.type(within(form).getByLabelText("Instructions for the AI"), "The firm countersigns.");
+    await user.click(within(form).getByRole("button", { name: "Add version" }));
+    await vi.waitFor(() => expect(posts("/versions")[0]?.body).toEqual({ upload_id: "up-3", ai_instructions: "The firm countersigns." }));
     expect(posts("/versions")[0]?.key).toBeTruthy();
+    await vi.waitFor(() => expect(screen.queryByRole("form", { name: "New version" })).toBeNull());
+  });
+
+  it("lets the person drop an uploaded file instead of adding it", async () => {
+    serve(READY);
+    open();
+    const user = userEvent.setup();
+
+    await user.upload(await screen.findByLabelText("New version file"), new File(["%PDF-1.7"], "Letter v3.pdf"));
+    FakeUpload.sent[0]?.answer(201, { id: "up-3", filename: "Letter v3.pdf", kind: "pdf", bytes: 8, suggested_name: "Letter v3", expires_at: "2026-11-08T10:00:00Z", duplicate: null });
+    await user.click(within(await screen.findByRole("form", { name: "New version" })).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("form", { name: "New version" })).toBeNull();
+    expect((screen.getByRole("button", { name: "New version" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(posts("/versions")).toHaveLength(0);
   });
 
   it("shows a new version's steps until it is ready", async () => {

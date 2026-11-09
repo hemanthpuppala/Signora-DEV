@@ -480,8 +480,9 @@ the navigation (Departments, People, Settings) have none.
 
 - **Header**: "‹ Documents" (§6.3a) with New version, Edit and Archive document at its end for people with edit
   access; the name with the version shown beside it (V2, a star when current); the description (no AI labels,
-  owner decision). Revised in Phase 5: a new version uploads straight from the file picker and shows its steps
-  above the viewer until ready.
+  owner decision). Revised in Phase 5: a new version uploads as soon as it is picked from the file picker; once
+  the file has arrived, a short form above the viewer takes the optional **instructions for the AI** for that
+  version (as the first upload does, §1.3) and **Add version**; then its steps show there until ready.
 - **Main area (left, large)**: the viewer (topic 5) on the current version. When the newest version is not ready,
   its state is shown above the viewer of the current one (or alone, for a first version):
   - Processing: "Processing version 3…";
@@ -492,7 +493,7 @@ the navigation (Departments, People, Settings) have none.
   - **Require email code** switch (edit access);
   - **Versions**: number, file name, pages, uploaded by and when, status, a *Current* badge; Open, Download
     original, and **Make current** for ready versions, with the confirmation from §4.2;
-  - **Upload new version**: a dropzone with instructions for the AI (edit access);
+  - (the new version is added from the header, see above);
   - **Archive document**, behind a confirmation (edit access); an archived document shows a banner with Restore.
 - **Viewers**: the viewer, the versions list, Open and Download original.
 

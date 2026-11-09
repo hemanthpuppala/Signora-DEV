@@ -173,8 +173,9 @@
   display: flex;
 }
 
-/* A new version's way to ready: one line of steps. */
-.progress {
+/* A new version's way to ready: one line of steps; the arrived file's notes before it is added. */
+.progress,
+.newVersion {
   display: flex;
   flex-direction: column;
   gap: 8px;
