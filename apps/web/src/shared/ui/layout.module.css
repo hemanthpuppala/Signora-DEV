@@ -5,6 +5,59 @@
   gap: 16px;
 }
 
+/* Prototype .blocks / .block: groups of settings in one panel, title on the left, controls on
+   the right, a hairline between rows. */
+.blocks {
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px;
+  background: var(--surface);
+  border: 1px solid var(--sep);
+}
+
+.blocks > * + * {
+  border-top: 1px solid var(--sep);
+}
+
+.block {
+  display: grid;
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+  gap: 16px 36px;
+  padding: 24px 0;
+}
+
+@media (max-width: 719.98px) {
+  .block {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.blockHead {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.blockTitle {
+  composes: eyebrow from "./typography.module.css";
+  margin: 0;
+  color: var(--ink);
+}
+
+.blockHint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--t55);
+}
+
+.blockBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
 /* Fields line up by their top, so labels and inputs share a line even when one field has a hint
    or an error underneath (aligning by the bottom pushed that field's input up). */
 .fields {
@@ -58,6 +111,42 @@
   flex-wrap: wrap;
   gap: 12px 24px;
   align-items: center;
+}
+
+/* The back line: the way back on the left, the page's own actions at its end. Where the buttons
+   fit, the line keeps the eyebrow's own height: the buttons centre on it and reach past it, so the
+   title sits as close under it as on any page. */
+.backLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 15px;
+}
+
+.backActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The way back to the page above, as the head's eyebrow: "‹ Documents". */
+.back {
+  composes: eyebrow from "./typography.module.css";
+  align-self: flex-start;
+  margin: 0;
+  color: var(--t55);
+  text-decoration: none;
+  white-space: nowrap; /* the arrow stays with its word */
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 /* A form that is the whole page: its blocks are spaced like the page's. */

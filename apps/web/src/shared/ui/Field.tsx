@@ -3,6 +3,7 @@ import { useId, type InputHTMLAttributes, type TextareaHTMLAttributes } from "re
 import { cx } from "@/shared/lib/cx";
 
 import styles from "./field.module.css";
+import { Icon } from "./Icon";
 
 type FieldChrome = {
   label: string;
@@ -80,6 +81,36 @@ export function TextArea({ label, hint, error, className, id, ...textarea }: Tex
           {error}
         </span>
       ) : null}
+    </div>
+  );
+}
+
+export type SearchFieldProps = { label: string; className?: string } & Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "className" | "type" | "placeholder"
+>;
+
+/**
+ * A search box: the underlined field with a magnifier inside on the left, its label as the
+ * placeholder (and still the accessible name), so it takes one line.
+ */
+export function SearchField({ label, className, id, ...input }: SearchFieldProps) {
+  const generated = useId();
+  const controlId = id ?? generated;
+  return (
+    <div className={cx(styles.search, className)}>
+      <label className={styles.hiddenLabel} htmlFor={controlId}>
+        {label}
+      </label>
+      <Icon name="search" className={styles.searchIcon} />
+      <input
+        id={controlId}
+        type="search"
+        className={cx(styles.control, styles.searchControl)}
+        placeholder={label}
+        autoComplete="off"
+        {...input}
+      />
     </div>
   );
 }

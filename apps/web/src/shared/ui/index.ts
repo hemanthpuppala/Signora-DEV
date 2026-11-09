@@ -7,6 +7,7 @@ export {
   TextButton,
   type ButtonProps,
   type ButtonVariant,
+  HeadAction,
 } from "./Button";
 export { Checkbox, Radio } from "./Choice";
 export {
@@ -25,9 +26,12 @@ export {
 export { Dialog } from "./Dialog";
 export { Dropzone } from "./Dropzone";
 export { EmailField, type EmailFieldProps } from "./EmailField";
-export { TextArea, TextField } from "./Field";
-export { FieldAction, FieldGrid, HeadRow, PageForm, Section } from "./Layout";
+export { SearchField, TextArea, TextField } from "./Field";
+export { Icon, type IconName } from "./Icon";
+export { IconButton, Tooltip, type IconButtonProps } from "./Tooltip";
+export { BackLink, Block, Blocks, FieldAction, FieldGrid, HeadRow, PageForm, Section, type Back } from "./Layout";
 export { AddCard, CardGrid, StatCard, type CardStat } from "./Card";
+export { DocumentCard, DocumentGrid } from "./DocumentCard";
 export { ClampedText } from "./ClampedText";
 export { RowActions } from "./RowActions";
 export { PasswordField, type PasswordFieldProps } from "./PasswordField";

@@ -7,6 +7,8 @@ import {
   Button,
   ClampedText,
   EmailField,
+  IconButton,
+  SearchField,
   Select,
   StatusPill,
   TablePanel,
@@ -63,6 +65,37 @@ function ControlledSelect({ onChange }: { onChange: (value: string) => void }) {
     />
   );
 }
+
+describe("IconButton", () => {
+  it("is named by its label, shows it as a tooltip, and Escape hides the tooltip", async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(<IconButton icon="star" label="Make current" onClick={onClick} />);
+
+    const button = screen.getByRole("button", { name: "Make current" });
+    const tip = screen.getByText("Make current");
+    expect(tip.getAttribute("aria-hidden")).toBe("true"); // the name is the button's; the tooltip only shows it
+    await user.click(button);
+    expect(onClick).toHaveBeenCalledOnce();
+    await user.keyboard("{Escape}");
+    expect(tip.className).toMatch(/dismissed/);
+  });
+
+  it("can be a download link", () => {
+    render(<IconButton icon="download" label="Download original" href="/file.pdf" download />);
+    const link = screen.getByRole("link", { name: "Download original" });
+    expect(link.getAttribute("href")).toBe("/file.pdf");
+    expect(link.hasAttribute("download")).toBe(true);
+  });
+});
+
+describe("SearchField", () => {
+  it("is a search box named by its label, which is also its placeholder", () => {
+    render(<SearchField label="Find a field" />);
+    const input = screen.getByRole("searchbox", { name: "Find a field" });
+    expect(input.getAttribute("placeholder")).toBe("Find a field");
+  });
+});
 
 describe("Select", () => {
   it("opens with ArrowDown, moves with arrows, chooses with Enter and keeps focus", async () => {

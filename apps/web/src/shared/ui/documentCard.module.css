@@ -1,0 +1,173 @@
+/* Document cards (prototype .dgrid / .dcard): a page, the name and version, facts, a footer. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+}
+
+.card {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 18px;
+  min-width: 0;
+  padding: 22px 22px 0;
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  color: var(--ink);
+  transition: border-color 0.15s;
+}
+
+.card:hover,
+.card:has(.name:focus-visible) {
+  border-color: var(--r40);
+}
+
+/* The page: paper with a few lines, its type tagged on the edge. */
+.thumb {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 48px;
+  height: 62px;
+  padding: 11px 7px 7px;
+  background: var(--paper);
+}
+
+.thumb i {
+  display: block;
+  height: 2px;
+  background: #cfccc4; /* a printed line on the paper */
+}
+
+.thumb i:nth-of-type(2) {
+  width: 85%;
+}
+
+.thumb i:nth-of-type(4) {
+  width: 70%;
+}
+
+.thumb i:nth-of-type(5) {
+  width: 45%;
+  margin-top: auto;
+  background: var(--paper-ink); /* a signature line */
+}
+
+.thumb b {
+  position: absolute;
+  left: -6px;
+  bottom: 9px;
+  padding: 2px 4px;
+  background: var(--bg);
+  border: 1px solid var(--r40);
+  font: 500 7px/1 var(--sans);
+  letter-spacing: 0.2em;
+  color: var(--ink);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The name and version, with the status dot at the far right. */
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.name {
+  font: 300 22px/1.15 var(--serif);
+  color: var(--ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.name:hover,
+.name:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+
+/* The name's link covers the whole card, so the card opens the document anywhere it is clicked. */
+.name::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* The status and the download sit above that link, so they keep their own tooltip and click. */
+.status,
+.above {
+  position: relative;
+  z-index: 1;
+}
+
+.status {
+  flex: none;
+  padding-top: 8px;
+}
+
+.version {
+  padding: 2px 6px;
+  border: 1px solid var(--r15);
+  font: 400 9px/1.4 var(--sans);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.facts {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--t55);
+}
+
+/* The footer runs the card's full width, under a hairline. */
+.foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 4px -22px 0;
+  padding: 12px 22px;
+  border-top: 1px solid var(--sep);
+  font-size: 12px;
+  color: var(--t55);
+}
+
+.above {
+  margin-left: -7px; /* the icon lines up with the card's text above */
+}
+
+.go {
+  margin-left: auto;
+  font: 400 10px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
