@@ -27,21 +27,21 @@ import { type Department } from "./api";
 type Input = { name: string; description: string };
 
 /**
- * Screen 06. With ``upload`` (people who can upload), a dropzone holds files in the browser until
- * the department exists (Phase 4 LLD §6.3); ``onCreated`` gets them, and the route decides where
- * to go (the upload page, which then uploads them).
+ * Screen 06. With ``upload`` (people who can upload), a dropzone holds one file in the browser
+ * until the department exists (Phase 4 LLD §6.3); ``onCreated`` gets it, and the route decides
+ * where to go (the upload page, which then uploads it).
  */
 export function NewDepartmentForm({
   onCreated,
   upload,
 }: {
-  onCreated: (department: Department, files: File[]) => void;
+  onCreated: (department: Department, file: File | null) => void;
   upload?: { hint: string } | undefined;
 }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [file, setFile] = useState<File | null>(null);
   const create = useIdempotentAction<Input, Department>("department-create", (input, key) =>
     unwrap(api.POST("/api/v1/departments", { body: input, headers: { "Idempotency-Key": key } })),
   );
@@ -50,8 +50,8 @@ export function NewDepartmentForm({
   useEffect(() => {
     if (!created) return;
     void queryClient.invalidateQueries({ queryKey: ["departments"] });
-    onCreated(created, files);
-  }, [created, queryClient, onCreated, files]);
+    onCreated(created, file);
+  }, [created, queryClient, onCreated, file]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -64,7 +64,7 @@ export function NewDepartmentForm({
     create.state.status === "retrying" ? "Connection lost — retrying…" : nameTaken ? null : formError(error);
   return (
     <PageForm onSubmit={submit} noValidate>
-      <HeadRow>
+      <HeadRow back={{ href: "/", label: "Departments" }}>
         <Heading1>New department</Heading1>
       </HeadRow>
       <Section title="About">
@@ -87,8 +87,9 @@ export function NewDepartmentForm({
       </Section>
       {upload ? (
         <Section title="Documents">
-          {files.length > 0 ? (
-            <TablePanel label="Documents to upload list">
+          {/* One document at a time: the dropzone until a file is chosen, then the file in its place. */}
+          {file ? (
+            <TablePanel label="Document to upload">
               <table>
                 <thead>
                   <tr>
@@ -97,26 +98,18 @@ export function NewDepartmentForm({
                   </tr>
                 </thead>
                 <tbody>
-                  {files.map((file, index) => (
-                    <tr key={`${file.name}-${index}`}>
-                      <td>{file.name}</td>
-                      <ActionCell>
-                        <TextButton onClick={() => setFiles(files.filter((_, other) => other !== index))}>
-                          Remove
-                        </TextButton>
-                      </ActionCell>
-                    </tr>
-                  ))}
+                  <tr>
+                    <td>{file.name}</td>
+                    <ActionCell>
+                      <TextButton onClick={() => setFile(null)}>Remove</TextButton>
+                    </ActionCell>
+                  </tr>
                 </tbody>
               </table>
             </TablePanel>
-          ) : null}
-          <Dropzone
-            title="Drop a PDF or Word file"
-            hint={upload.hint}
-            accept=".pdf,.docx"
-            onFile={(file) => setFiles((current) => [...current, file])}
-          />
+          ) : (
+            <Dropzone title="Drop a PDF or Word file" hint={upload.hint} accept=".pdf,.docx" onFile={setFile} />
+          )}
         </Section>
       ) : null}
       <div>

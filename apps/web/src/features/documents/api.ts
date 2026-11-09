@@ -120,22 +120,22 @@ export function uploadFile(
 }
 
 /**
- * Files dropped on one page and uploaded on the next (the department page's and the new-department
- * page's dropzones hand them to the upload page, Phase 4 LLD §6.1, §6.3). Kept in memory: a reload
- * forgets them, and the person drops them again.
+ * A file dropped on one page and uploaded on the next (the department page's and the new-department
+ * page's dropzones hand it to the upload page, Phase 4 LLD §6.1, §6.3). One document is uploaded at
+ * a time. Kept in memory: a reload forgets it, and the person drops it again.
  */
-const handedOff = new Map<string, File[]>();
+const handedOff = new Map<string, File>();
 
-export function handOff(departmentId: string, files: readonly File[]): void {
-  handedOff.set(departmentId, [...(handedOff.get(departmentId) ?? []), ...files]);
+export function handOff(departmentId: string, file: File): void {
+  handedOff.set(departmentId, file);
 }
 
-/** The files waiting for a department (pure: safe in a state initializer). */
-export function handedOffFiles(departmentId: string): File[] {
-  return handedOff.get(departmentId) ?? [];
+/** The file waiting for a department (pure: safe in a state initializer). */
+export function handedOffFile(departmentId: string): File | null {
+  return handedOff.get(departmentId) ?? null;
 }
 
-/** Forget them once the upload page has taken them. */
+/** Forget it once the upload page has taken it. */
 export function clearHandOff(departmentId: string): void {
   handedOff.delete(departmentId);
 }

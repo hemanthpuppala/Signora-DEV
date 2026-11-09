@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
@@ -12,29 +12,26 @@ import {
   Dropzone,
   HeadRow,
   Heading1,
-  LinkButton,
   Notice,
   Section,
-  StatusPill,
   TextArea,
   TextButton,
   TextField,
 } from "@/shared/ui";
 import {
   clearHandOff,
+  documentKey,
   documentsKey,
   formatBytes,
-  handedOffFiles,
+  handedOffFile,
   uploadFile,
-  useDocument,
   type DepartmentRef,
   type Upload,
 } from "./api";
 import { useDocumentLimits } from "./limits";
-import { VERSION_STATUS } from "./status";
 import styles from "./upload.module.css";
 
-type Phase = "uploading" | "question" | "ready" | "creating" | "added" | "failed" | "cancelled";
+type Phase = "uploading" | "question" | "ready" | "creating" | "failed" | "cancelled";
 
 type Row = {
   key: string;
@@ -52,7 +49,6 @@ type Row = {
   canRetry: boolean;
   nameError: string | null;
   instructionsError: string | null;
-  documentId: string | null;
 };
 
 const CANCELLED = "Upload cancelled. Nothing was added.";
@@ -72,7 +68,6 @@ function newRow(file: File, tooLargeMessage: string | null): Row {
     canRetry: false,
     nameError: null,
     instructionsError: null,
-    documentId: null,
   };
 }
 
@@ -94,9 +89,9 @@ function uploadFailure(error: unknown, maxBytes: number | undefined): Pick<Row, 
 }
 
 /**
- * Screen 11 (Phase 4 LLD §6.2): one file per upload, and the next file may be dropped while
- * earlier ones are still uploading or processing. Each row has its own progress, name,
- * instructions for the AI, duplicate question and, once added, its live processing status.
+ * Screen 11 (Phase 4 LLD §6.2): one document at a time (owner decision). The dropzone until a file
+ * is chosen, then that file in its place: its progress, name, instructions for the AI and duplicate
+ * question. Once added, the person is taken to the document's page, which shows its steps.
  */
 const isAbort = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
 
@@ -104,83 +99,81 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
   const departmentId = department.id;
   const canUpload = department.status !== "archived" && department.access === "edit";
   const queryClient = useQueryClient();
+  const router = useRouter();
   const limits = useDocumentLimits();
   const { maxBytes } = limits;
-  // Files handed over from the department or new-department page start as rows at once.
-  const [rows, setRows] = useState<Row[]>(() => handedOffFiles(departmentId).map((file) => newRow(file, null)));
+  // A file handed over from the department or new-department page starts uploading at once.
+  const [row, setRow] = useState<Row | null>(() => {
+    const file = handedOffFile(departmentId);
+    return file ? newRow(file, null) : null;
+  });
 
+  // Only the row it was meant for: a late answer for a removed or retried file changes nothing.
   const update = useCallback((key: string, patch: Partial<Row>) => {
-    setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+    setRow((current) => (current?.key === key ? { ...current, ...patch } : current));
   }, []);
 
-  // Transfers still running, so cancelling a row or leaving the page stops them.
-  const running = useRef(new Map<string, AbortController>());
+  // The transfer still running, so cancelling or leaving the page stops it.
+  const running = useRef<{ key: string; controller: AbortController } | null>(null);
 
   // Starts the transfer; its progress and result arrive later, as events.
   const transfer = useCallback(
     (key: string, file: File) => {
       const controller = new AbortController();
-      running.current.set(key, controller);
+      running.current = { key, controller };
       uploadFile(departmentId, file, (progress) => update(key, { progress }), controller.signal)
         .then((upload) =>
-          setRows((current) =>
-            current.map((row) =>
-              row.key === key
-                ? {
-                    ...row,
-                    upload,
-                    // Sent again after it expired: keep the name the person already typed.
-                    name: row.name || upload.suggested_name,
-                    phase: upload.duplicate && !row.allowDuplicate ? "question" : "ready",
-                  }
-                : row,
-            ),
+          setRow((current) =>
+            current?.key === key
+              ? {
+                  ...current,
+                  upload,
+                  // Sent again after it expired: keep the name the person already typed.
+                  name: current.name || upload.suggested_name,
+                  phase: upload.duplicate && !current.allowDuplicate ? "question" : "ready",
+                }
+              : current,
           ),
         )
         .catch((error: unknown) => {
           if (!isAbort(error)) update(key, { phase: "failed", ...uploadFailure(error, maxBytes) });
         })
         .finally(() => {
-          if (running.current.get(key) === controller) running.current.delete(key);
+          if (running.current?.controller === controller) running.current = null;
         });
     },
     [departmentId, maxBytes, update],
   );
 
-  // Transfers for the handed-over rows, once each (effects may run twice in development). Nothing
-  // is sent where the person can't add documents: the page explains that instead.
-  const started = useRef(new Set<string>());
+  // The row's transfer, once per key (effects may run twice in development). Nothing is sent where
+  // the person can't add documents: the page explains that instead.
+  const started = useRef<string | null>(null);
   useEffect(() => {
     clearHandOff(departmentId);
-    if (!canUpload) return;
-    for (const row of rows) {
-      if (row.phase === "uploading" && !started.current.has(row.key)) {
-        started.current.add(row.key);
-        transfer(row.key, row.file);
-      }
-    }
-  }, [canUpload, departmentId, rows, transfer]);
+    if (!canUpload || !row || row.phase !== "uploading" || started.current === row.key) return;
+    started.current = row.key;
+    transfer(row.key, row.file);
+  }, [canUpload, departmentId, row, transfer]);
 
-  // Leaving the page stops what is still uploading (a development remount starts it again).
-  useEffect(() => {
-    const transfers = running.current;
-    const startedKeys = started.current;
-    return () => {
-      for (const controller of transfers.values()) controller.abort();
-      transfers.clear();
-      startedKeys.clear();
-    };
-  }, []);
+  // Leaving the page stops an upload still running (a development remount starts it again).
+  useEffect(
+    () => () => {
+      running.current?.controller.abort();
+      running.current = null;
+      started.current = null;
+    },
+    [],
+  );
 
-  const remove = (row: Row) => {
-    running.current.get(row.key)?.abort();
-    setRows((current) => current.filter((other) => other.key !== row.key));
+  const remove = () => {
+    running.current?.controller.abort();
+    running.current = null;
+    setRow(null);
   };
 
   const addFile = (file: File) => {
     const tooLarge = maxBytes !== undefined && file.size > maxBytes;
-    const row = newRow(file, tooLarge ? tooLargeMessage(maxBytes) : null);
-    setRows((current) => [...current, row]); // the effect above starts its transfer
+    setRow(newRow(file, tooLarge ? tooLargeMessage(maxBytes) : null)); // the effect starts its transfer
   };
 
   // A new key makes the effect above start a fresh transfer for the same file; a new upload is a
@@ -212,8 +205,10 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
       }),
     )
       .then((document) => {
-        update(row.key, { phase: "added", documentId: document.id });
+        // Added: on to its page, which shows its steps until it is ready (Phase 5 §6.3).
+        queryClient.setQueryData(documentKey(document.id), document);
         void queryClient.invalidateQueries({ queryKey: documentsKey(departmentId) });
+        router.replace(`/departments/${departmentId}/documents/${document.id}`);
       })
       .catch((error: unknown) => {
         if (error instanceof ApiError && error.code === "document-name-taken") {
@@ -244,41 +239,42 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
       });
   };
 
-  const question = rows.find((row) => row.phase === "question");
+  const question = row?.phase === "question" ? row : null;
   const data = department;
-  const back = `/departments/${departmentId}`;
+  const head = (
+    <HeadRow back={{ href: `/departments/${departmentId}/documents`, label: "Documents" }}>
+      <Heading1>Upload a document</Heading1>
+    </HeadRow>
+  );
   if (!canUpload) {
     return (
-      <Notice action={<LinkButton href={back} variant="quiet">Back</LinkButton>}>
-        {data.status === "archived"
-          ? "This department is archived. Restore it to add documents."
-          : "Only people who can edit this department add documents."}
-      </Notice>
+      <>
+        {head}
+        <Notice>
+          {data.status === "archived"
+            ? "This department is archived. Restore it to add documents."
+            : "Only people who can edit this department add documents."}
+        </Notice>
+      </>
     );
   }
 
   return (
     <>
-      <HeadRow actions={<LinkButton href={back} variant="quiet">Back</LinkButton>}>
-        <Heading1>Upload documents</Heading1>
-      </HeadRow>
+      {head}
       <Section title={data.name}>
-        <Dropzone title="Drop a PDF or Word file" hint={limits.hint} accept=".pdf,.docx" onFile={addFile} />
-        {rows.length > 0 ? (
-          <ol className={styles.rows} aria-label="Uploads">
-            {rows.map((row) => (
-              <UploadRow
-                key={row.key}
-                row={row}
-                departmentId={departmentId}
-                onChange={(patch) => update(row.key, patch)}
-                onAdd={() => create(row)}
-                onRetry={() => retry(row)}
-                onRemove={() => remove(row)}
-              />
-            ))}
-          </ol>
-        ) : null}
+        {/* One document at a time: the dropzone until a file is chosen, then the file in its place. */}
+        {row ? (
+          <UploadRow
+            row={row}
+            onChange={(patch) => update(row.key, patch)}
+            onAdd={() => create(row)}
+            onRetry={() => retry(row)}
+            onRemove={remove}
+          />
+        ) : (
+          <Dropzone title="Drop a PDF or Word file" hint={limits.hint} accept=".pdf,.docx" onFile={addFile} />
+        )}
       </Section>
       {question?.upload?.duplicate ? (
         <Dialog
@@ -306,14 +302,12 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
 
 function UploadRow({
   row,
-  departmentId,
   onChange,
   onAdd,
   onRetry,
   onRemove,
 }: {
   row: Row;
-  departmentId: string;
   onChange: (patch: Partial<Row>) => void;
   onAdd: () => void;
   onRetry: () => void;
@@ -321,7 +315,7 @@ function UploadRow({
 }) {
   const editable = row.phase === "ready" || row.phase === "creating";
   return (
-    <li className={styles.row}>
+    <div className={styles.row}>
       <div className={styles.head}>
         <span className={styles.file}>{row.file.name}</span>
         <span className={styles.meta}>{formatBytes(row.file.size)}</span>
@@ -372,9 +366,6 @@ function UploadRow({
           </div>
         </form>
       ) : null}
-      {row.phase === "added" && row.documentId ? (
-        <AddedStatus departmentId={departmentId} documentId={row.documentId} />
-      ) : null}
       {row.phase === "failed" || row.phase === "cancelled" ? (
         <div className={styles.actions}>
           <span className={styles.message} role={row.phase === "failed" ? "alert" : "status"}>
@@ -386,21 +377,6 @@ function UploadRow({
           <TextButton onClick={onRemove}>Remove</TextButton>
         </div>
       ) : null}
-    </li>
-  );
-}
-
-/** After "Add document": the version's live state, until it is ready or needs something. */
-function AddedStatus({ departmentId, documentId }: { departmentId: string; documentId: string }) {
-  const document = useDocument(documentId);
-  const version = document.data?.versions[0];
-  if (!version) return null;
-  const status = VERSION_STATUS[version.status];
-  return (
-    <div className={styles.actions}>
-      <StatusPill status={status.pill} label={status.label} />
-      {version.problem ? <span className={styles.message}>{version.problem.message}</span> : null}
-      <Link href={`/departments/${departmentId}/documents/${documentId}`}>Open</Link>
     </div>
   );
 }
