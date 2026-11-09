@@ -45,8 +45,9 @@ export type PdfViewerProps = {
   /** A box to bring into the middle of the view (a field chosen in a list); a new ``token``
    * scrolls to it again. */
   focus?: { page: number; rect: Rect; token: number } | null;
-  /** Tools for the overlay, at the start of the toolbar (field review's palette). */
-  tools?: ReactNode;
+  /** A message pinned over the top of the pages, where the eye is when acting on them (field
+   * review: "Click where the signature goes"), with an optional action such as Cancel. */
+  notice?: { message: string; action?: { label: string; onClick: () => void } } | null;
 };
 
 /**
@@ -55,7 +56,7 @@ export type PdfViewerProps = {
  * wheel, trackpad pinch) and page navigation. Only pages near the viewport are rendered, so 200
  * pages stay light. pdf.js is loaded on first use, never with the page bundle.
  */
-export function PdfViewer({ url, pages, label, renderOverlay, focus, tools }: PdfViewerProps) {
+export function PdfViewer({ url, pages, label, renderOverlay, focus, notice }: PdfViewerProps) {
   const paneRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [paneWidth, setPaneWidth] = useState(0);
@@ -205,7 +206,6 @@ export function PdfViewer({ url, pages, label, renderOverlay, focus, tools }: Pd
   return (
     <div className={styles.viewer}>
       <div className={styles.toolbar}>
-        {tools ? <div className={styles.group}>{tools}</div> : null}
         <div className={styles.group}>
           <TextButton disabled={currentPage <= 1} onClick={() => goTo(currentPage - 1)}>
             Previous
@@ -231,48 +231,60 @@ export function PdfViewer({ url, pages, label, renderOverlay, focus, tools }: Pd
           </TextButton>
         </div>
       </div>
-      <div
-        ref={paneRef}
-        className={styles.pane}
-        role="region"
-        aria-label={label}
-        tabIndex={0}
-        onScroll={onScroll}
-      >
-        {failed ? (
-          <p className={styles.message}>This document couldn&apos;t be shown. Download the original instead.</p>
-        ) : (
-          <div className={styles.column}>
-            {pages.map((page, index) => {
-              const number = index + 1;
-              const size = cssSize(page, scale);
-              return (
-                <div
-                  key={number}
-                  ref={(element) => {
-                    pageRefs.current[index] = element;
-                  }}
-                  data-page={number}
-                  className={styles.page}
-                  style={{ width: size.width, height: size.height }}
-                  role="img"
-                  aria-label={`Page ${number} of ${total}`}
-                >
-                  <PageCanvas
-                    document={document}
-                    number={number}
-                    page={page}
-                    renderScale={renderScale}
-                    active={near.has(number)}
-                  />
-                  {renderOverlay ? (
-                    <div className={styles.overlay}>{renderOverlay({ page: number, scale })}</div>
-                  ) : null}
-                </div>
-              );
-            })}
+      <div className={styles.stage}>
+        {notice ? (
+          <div className={styles.notice} role="status">
+            <span>{notice.message}</span>
+            {notice.action ? (
+              <button type="button" className={styles.noticeAction} onClick={notice.action.onClick}>
+                {notice.action.label}
+              </button>
+            ) : null}
           </div>
-        )}
+        ) : null}
+        <div
+          ref={paneRef}
+          className={styles.pane}
+          role="region"
+          aria-label={label}
+          tabIndex={0}
+          onScroll={onScroll}
+        >
+          {failed ? (
+            <p className={styles.message}>This document couldn&apos;t be shown. Download the original instead.</p>
+          ) : (
+            <div className={styles.column}>
+              {pages.map((page, index) => {
+                const number = index + 1;
+                const size = cssSize(page, scale);
+                return (
+                  <div
+                    key={number}
+                    ref={(element) => {
+                      pageRefs.current[index] = element;
+                    }}
+                    data-page={number}
+                    className={styles.page}
+                    style={{ width: size.width, height: size.height }}
+                    role="img"
+                    aria-label={`Page ${number} of ${total}`}
+                  >
+                    <PageCanvas
+                      document={document}
+                      number={number}
+                      page={page}
+                      renderScale={renderScale}
+                      active={near.has(number)}
+                    />
+                    {renderOverlay ? (
+                      <div className={styles.overlay}>{renderOverlay({ page: number, scale })}</div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

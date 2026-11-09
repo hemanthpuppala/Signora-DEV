@@ -283,7 +283,9 @@ click replace the panel with its form, and gave party warnings no way forward. R
   Choosing it again, or another field, closes it. No separate form screen.
 - **The field list scrolls inside itself** (owner decision, 2026-11-09): at most the design system's table height
   while every row is closed; an opened row comes to the list's top and the list is exactly as tall as that row and
-  the two rows under it, refitting as the row's content grows (`ExpandableList scrollable`).
+  the two rows under it, refitting as the row's content grows (`ExpandableList scrollable`). At the list's first or last row,
+  scrolling carries on to the page. While a field is being placed, what a click does is pinned over the top of the
+  pages, high contrast, with Cancel (`PdfViewer notice`); the Add field row points there.
 - **"+ Add field" is the first row of the field list**: it opens into a row with a Type dropdown (grouped, every
   type) and who fills it (the filtered party by default), then "Place on the page": click where it goes, or drag to
   draw it. The viewer's toolbar says so while placing. On phones it is placed on page 1 and moved with the numbers.

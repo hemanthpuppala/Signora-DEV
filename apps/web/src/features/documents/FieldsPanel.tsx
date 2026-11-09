@@ -7,7 +7,7 @@ import { ExpandableList, ExpandableRow, Notice, SearchField, Section, SmallText 
 import { HOLDS, toneOf, whoFills, type PartyRef, type VersionFields } from "./fields";
 import type { Selection } from "./FieldBoxes";
 import styles from "./fields.module.css";
-import { AddField, PlacingStatus } from "./review/AddField";
+import { AddField, PlacingRow } from "./review/AddField";
 import type { Draft, DraftField } from "./review/editor";
 import { FieldForm } from "./review/FieldForm";
 import { PartyList } from "./review/PartyList";
@@ -221,7 +221,7 @@ export function FieldsPanel({
               }}
             >
               {tool?.kind === "field" ? (
-                <PlacingStatus tool={tool} onCancel={editing.cancelPlacing} />
+                <PlacingRow onCancel={editing.cancelPlacing} />
               ) : (
                 <AddField
                   parties={draft.parties}

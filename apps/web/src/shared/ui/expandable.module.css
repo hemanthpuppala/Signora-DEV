@@ -12,8 +12,7 @@
 .scrollable {
   position: relative;
   max-height: var(--table-max-height);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow-y: auto; /* at its first or last row, scrolling carries on to the page */
 }
 
 .row {

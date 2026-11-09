@@ -344,7 +344,9 @@ describe("field review", () => {
     const row = screen.getByRole("region", { name: "New field" });
     expect(within(row).getByRole("combobox", { name: "Type" }).textContent).toContain("Signature · Signing"); // one dropdown
     await user.click(within(row).getByRole("button", { name: "Place on the page" }));
-    expect(screen.getAllByText("Click where the signature goes, or drag to draw it")).toHaveLength(2); // row and viewer
+    // Pinned over the pages, where the click goes; the row points there.
+    expect(screen.getByRole("status")).toHaveTextContent("Click where the signature goes, or drag to draw it");
+    expect(within(row).getByText("Click on the document to place it.")).toBeTruthy();
 
     const layer = document.querySelector('[data-page="1"] [data-layer="fields"]') as HTMLElement;
     fireEvent.pointerDown(layer, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
@@ -373,7 +375,7 @@ describe("field review", () => {
     const user = userEvent.setup();
     const check = await screen.findByRole("list", { name: "Things to check" });
     await user.click(within(check).getByRole("button", { name: "Add signature" }));
-    expect(screen.getAllByText("Click where the signature goes, or drag to draw it").length).toBeGreaterThan(0);
+    expect(screen.getByRole("status")).toHaveTextContent("Click where the signature goes, or drag to draw it");
 
     const layer = document.querySelector('[data-page="2"] [data-layer="fields"]') as HTMLElement;
     fireEvent.pointerDown(layer, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });

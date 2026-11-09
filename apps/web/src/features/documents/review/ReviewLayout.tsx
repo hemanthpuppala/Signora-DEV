@@ -31,7 +31,7 @@ import {
   type Draft,
   type Rect,
 } from "./editor";
-import { PlacingStatus, type Tool } from "./AddField";
+import { placingMessage, type Tool } from "./AddField";
 import { ReviewActionBar, SaveProblem } from "./ReviewBar";
 import { useLeaveGuard } from "./useLeaveGuard";
 import { useReview, type PanelEditing } from "./useReview";
@@ -369,10 +369,10 @@ export function ReviewLayout({
             pages={version.pages}
             label={`${document.name}, version ${version.number}`}
             focus={focus}
-            tools={
-              tool ? (
-                <PlacingStatus tool={tool} onCancel={() => setTool(null)} />
-              ) : undefined
+            notice={
+              tool
+                ? { message: placingMessage(tool), action: { label: "Cancel", onClick: () => setTool(null) } }
+                : null
             }
             {...(loaded
               ? {

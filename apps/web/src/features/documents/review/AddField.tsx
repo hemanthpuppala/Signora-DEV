@@ -63,12 +63,17 @@ export function AddField({
   );
 }
 
-/** While placing: what a click does, and how to stop (shown above the PDF, where the click goes). */
-export function PlacingStatus({ tool, onCancel }: { tool: Tool; onCancel: () => void }) {
+/** While placing, what a click on the pages does (pinned over the PDF, where the click goes). */
+export function placingMessage(tool: Tool): string {
   const what = tool.kind === "field" ? `the ${HOLDS[tool.holds].toLowerCase()}` : `another place of ${tool.label}`;
+  return `Click where ${what} goes, or drag to draw it`;
+}
+
+/** The open "+ Add field" row while placing: where to look, and how to stop. */
+export function PlacingRow({ onCancel }: { onCancel: () => void }) {
   return (
-    <span className={styles.placing} role="status">
-      <span>{`Click where ${what} goes, or drag to draw it`}</span>
+    <span className={styles.placing}>
+      <span>Click on the document to place it.</span>
       <TextButton onClick={onCancel}>Cancel</TextButton>
     </span>
   );

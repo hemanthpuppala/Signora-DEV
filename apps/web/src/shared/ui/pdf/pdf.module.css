@@ -35,6 +35,55 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The pages and anything pinned over them. */
+.stage {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Pinned over the top of the pages, high contrast: what a click on them will do. */
+.notice {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: calc(100% - 32px);
+  padding: 10px 12px 10px 16px;
+  transform: translateX(-50%);
+  background: var(--ink);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color: var(--bg);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.noticeAction {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--bg);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--bg);
+  cursor: pointer;
+}
+
+.noticeAction:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.noticeAction:focus-visible {
+  outline: 2px solid var(--bg);
+  outline-offset: 2px;
+}
+
 .pane {
   flex: 1 1 auto;
   min-height: 0;
