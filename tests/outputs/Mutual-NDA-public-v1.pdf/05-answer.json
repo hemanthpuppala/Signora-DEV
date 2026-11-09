@@ -1,0 +1,205 @@
+{
+  "roles": [
+    {
+      "slug": "party_1",
+      "kind": "signer"
+    },
+    {
+      "slug": "party_2",
+      "kind": "signer"
+    }
+  ],
+  "fields": [
+    {
+      "id": "f1",
+      "holds": "text",
+      "filled_by": "sender",
+      "label": "Purpose for using Confidential Information",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f2",
+      "holds": "date",
+      "filled_by": "sender",
+      "label": "Effective date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f3",
+      "holds": "text",
+      "filled_by": "sender",
+      "label": "MNDA term duration",
+      "must_fill": true,
+      "depends_on": {
+        "id": "f4",
+        "option": "Choice1"
+      }
+    },
+    {
+      "id": "f4",
+      "holds": "choice",
+      "filled_by": "sender",
+      "label": "Period for sharing Confidential Information",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f5",
+      "holds": "text",
+      "filled_by": "sender",
+      "label": "Confidentiality term duration",
+      "must_fill": true,
+      "depends_on": {
+        "id": "f7",
+        "option": "Choice1"
+      }
+    },
+    {
+      "id": "f6",
+      "holds": "choice",
+      "filled_by": "sender",
+      "label": "Confidentiality term starts from",
+      "must_fill": true,
+      "depends_on": {
+        "id": "f7",
+        "option": "Choice1"
+      }
+    },
+    {
+      "id": "f7",
+      "holds": "choice",
+      "filled_by": "sender",
+      "label": "Term of confidentiality",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f8",
+      "holds": "state",
+      "filled_by": "sender",
+      "label": "Governing law state",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f9",
+      "holds": "text",
+      "filled_by": "sender",
+      "label": "Jurisdiction state and/or county",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f10",
+      "holds": "text",
+      "filled_by": "sender",
+      "label": "Changes to Standard Terms",
+      "must_fill": false,
+      "depends_on": null
+    },
+    {
+      "id": "f11",
+      "holds": "signature",
+      "filled_by": "party_1",
+      "label": "Party 1 signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f12",
+      "holds": "signature",
+      "filled_by": "party_2",
+      "label": "Party 2 signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f13",
+      "holds": "full_name",
+      "filled_by": "party_1",
+      "label": "Party 1 print name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f14",
+      "holds": "full_name",
+      "filled_by": "party_2",
+      "label": "Party 2 print name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f15",
+      "holds": "title",
+      "filled_by": "party_1",
+      "label": "Party 1 title",
+      "must_fill": false,
+      "depends_on": null
+    },
+    {
+      "id": "f16",
+      "holds": "title",
+      "filled_by": "party_2",
+      "label": "Party 2 title",
+      "must_fill": false,
+      "depends_on": null
+    },
+    {
+      "id": "f17",
+      "holds": "company",
+      "filled_by": "party_1",
+      "label": "Party 1 company",
+      "must_fill": false,
+      "depends_on": null
+    },
+    {
+      "id": "f18",
+      "holds": "company",
+      "filled_by": "party_2",
+      "label": "Party 2 company",
+      "must_fill": false,
+      "depends_on": null
+    },
+    {
+      "id": "f19",
+      "holds": "text",
+      "filled_by": "party_1",
+      "label": "Party 1 notice address or email",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f20",
+      "holds": "text",
+      "filled_by": "party_2",
+      "label": "Party 2 notice address or email",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f21",
+      "holds": "date_signed",
+      "filled_by": "party_1",
+      "label": "Party 1 signing date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f22",
+      "holds": "date_signed",
+      "filled_by": "party_2",
+      "label": "Party 2 signing date",
+      "must_fill": true,
+      "depends_on": null
+    }
+  ],
+  "checkbox_groups": [],
+  "extra_fields": [],
+  "document": {
+    "name": "Mutual Non-Disclosure Agreement",
+    "description": "A mutual non-disclosure agreement between two parties. It covers the purpose and term of sharing information, confidentiality duration, governing law, jurisdiction and changes to the standard terms. Both parties sign; no countersignature."
+  }
+}

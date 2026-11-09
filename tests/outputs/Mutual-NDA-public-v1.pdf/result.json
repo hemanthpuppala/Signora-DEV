@@ -1,0 +1,722 @@
+{
+  "fields_from": "form_fields",
+  "roles": [
+    {
+      "slug": "party_1",
+      "kind": "signer",
+      "label": "Party 1",
+      "position": 1
+    },
+    {
+      "slug": "party_2",
+      "kind": "signer",
+      "label": "Party 2",
+      "position": 2
+    }
+  ],
+  "fields": [
+    {
+      "key": "agreement.purpose_for_using_confidential",
+      "label": "Purpose for using Confidential Information",
+      "holds": "text",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f1"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            231.1,
+            145.1,
+            557.9,
+            173.9
+          ],
+          "kind": "text",
+          "pdf_field": "Purpose",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.effective_date",
+      "label": "Effective date",
+      "holds": "date",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f2"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            231.1,
+            180.7,
+            557.9,
+            200.3
+          ],
+          "kind": "text",
+          "pdf_field": "Effective Date",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.mnda_term_duration",
+      "label": "MNDA term duration",
+      "holds": "text",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": {
+        "key": "agreement.period_for_sharing_confidential",
+        "option": "Choice1",
+        "source": "layout"
+      },
+      "needs_review": null,
+      "ids": [
+        "f3"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            286.7,
+            208.6,
+            329.9,
+            223.0
+          ],
+          "kind": "text",
+          "pdf_field": "MNDA Term",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.period_for_sharing_confidential",
+      "label": "Period for sharing Confidential Information",
+      "holds": "choice",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f4"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            236.3,
+            210.2,
+            247.1,
+            221.0
+          ],
+          "kind": "radio",
+          "pdf_field": "Group1",
+          "option_value": "Choice1",
+          "option_text": "Expires {f3} from Effective Date."
+        },
+        {
+          "page": 1,
+          "rect": [
+            236.3,
+            224.2,
+            247.1,
+            235.0
+          ],
+          "kind": "radio",
+          "pdf_field": "Group1",
+          "option_value": "Choice2",
+          "option_text": "Continues until terminated in accordance with the terms of the MNDA."
+        }
+      ]
+    },
+    {
+      "key": "agreement.confidentiality_term_duration",
+      "label": "Confidentiality term duration",
+      "holds": "text",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": {
+        "key": "agreement.term_of_confidentiality",
+        "option": "Choice1",
+        "source": "layout"
+      },
+      "needs_review": null,
+      "ids": [
+        "f5"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            257.6,
+            239.6,
+            300.8,
+            254.0
+          ],
+          "kind": "text",
+          "pdf_field": "Term of Confidentiality",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.confidentiality_term_starts_from",
+      "label": "Confidentiality term starts from",
+      "holds": "choice",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": {
+        "key": "agreement.term_of_confidentiality",
+        "option": "Choice1",
+        "source": "layout"
+      },
+      "needs_review": null,
+      "ids": [
+        "f6"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            324.2,
+            241.0,
+            335.0,
+            251.8
+          ],
+          "kind": "radio",
+          "pdf_field": "Group 2",
+          "option_value": "Choice1",
+          "option_text": "Effective Date"
+        },
+        {
+          "page": 1,
+          "rect": [
+            393.3,
+            241.1,
+            404.1,
+            251.9
+          ],
+          "kind": "radio",
+          "pdf_field": "Group 2",
+          "option_value": "Choice2",
+          "option_text": "the date of last disclosure,"
+        }
+      ]
+    },
+    {
+      "key": "agreement.term_of_confidentiality",
+      "label": "Term of confidentiality",
+      "holds": "choice",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f7"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            236.3,
+            245.1,
+            247.1,
+            255.9
+          ],
+          "kind": "radio",
+          "pdf_field": "Group3",
+          "option_value": "Choice1",
+          "option_text": "{f5} from {f6=Choice1} Effective Date {f6=Choice2} the date of last disclosure, but in the case of trade secrets, until Confidential Information is no longer considered a trade secret under applicable laws."
+        },
+        {
+          "page": 1,
+          "rect": [
+            236.3,
+            277.1,
+            247.1,
+            287.9
+          ],
+          "kind": "radio",
+          "pdf_field": "Group3",
+          "option_value": "Choice2",
+          "option_text": "In perpetuity."
+        }
+      ]
+    },
+    {
+      "key": "agreement.governing_law_state",
+      "label": "Governing law state",
+      "holds": "state",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f8"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            320.1,
+            302.8,
+            556.2,
+            317.2
+          ],
+          "kind": "text",
+          "pdf_field": "Governing Law",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.jurisdiction_state_and_or_county",
+      "label": "Jurisdiction state and/or county",
+      "holds": "text",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f9"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            370.8,
+            329.1,
+            557.1,
+            343.5
+          ],
+          "kind": "text",
+          "pdf_field": "Jurisdiction",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.changes_to_standard_terms",
+      "label": "Changes to Standard Terms",
+      "holds": "text",
+      "filled_by": "sender",
+      "role": null,
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f10"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            230.8,
+            354.8,
+            557.6,
+            383.6
+          ],
+          "kind": "text",
+          "pdf_field": "MNDA Modifications",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.signature",
+      "label": "Party 1 signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f11"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            190.4,
+            450.3,
+            359.6,
+            479.1
+          ],
+          "kind": "signature",
+          "pdf_field": "Signature1",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_2.signature",
+      "label": "Party 2 signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "party_2",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f12"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            379.1,
+            450.3,
+            556.1,
+            479.1
+          ],
+          "kind": "signature",
+          "pdf_field": "Signature2",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.full_name",
+      "label": "Party 1 print name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f13"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            190.4,
+            482.6,
+            359.6,
+            511.4
+          ],
+          "kind": "text",
+          "pdf_field": "Party 1 Print Name",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_2.full_name",
+      "label": "Party 2 print name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "party_2",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f14"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            379.1,
+            482.6,
+            556.1,
+            511.4
+          ],
+          "kind": "text",
+          "pdf_field": "Party 2 Print Name",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.title",
+      "label": "Party 1 title",
+      "holds": "title",
+      "filled_by": "role",
+      "role": "party_1",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f15"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            190.4,
+            515.5,
+            359.6,
+            544.3
+          ],
+          "kind": "text",
+          "pdf_field": "Party 1 Title",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_2.title",
+      "label": "Party 2 title",
+      "holds": "title",
+      "filled_by": "role",
+      "role": "party_2",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f16"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            379.1,
+            515.5,
+            556.1,
+            544.3
+          ],
+          "kind": "text",
+          "pdf_field": "Party 2 Title",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.company",
+      "label": "Party 1 company",
+      "holds": "company",
+      "filled_by": "role",
+      "role": "party_1",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f17"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            190.4,
+            548.3,
+            359.6,
+            577.1
+          ],
+          "kind": "text",
+          "pdf_field": "Party 1 Company",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_2.company",
+      "label": "Party 2 company",
+      "holds": "company",
+      "filled_by": "role",
+      "role": "party_2",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f18"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            379.1,
+            548.3,
+            556.1,
+            577.1
+          ],
+          "kind": "text",
+          "pdf_field": "Party 2 Company",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.notice_address_or_email",
+      "label": "Party 1 notice address or email",
+      "holds": "text",
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f19"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            190.4,
+            580.7,
+            359.6,
+            616.7
+          ],
+          "kind": "text",
+          "pdf_field": "Party 1 Notice Address",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_2.notice_address_or_email",
+      "label": "Party 2 notice address or email",
+      "holds": "text",
+      "filled_by": "role",
+      "role": "party_2",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f20"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            379.1,
+            580.7,
+            556.1,
+            616.7
+          ],
+          "kind": "text",
+          "pdf_field": "Party 2 Notice Address",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.date_signed",
+      "label": "Party 1 signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f21"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            190.4,
+            620.9,
+            359.6,
+            649.7
+          ],
+          "kind": "text",
+          "pdf_field": "Party 1 Date",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "party_2.date_signed",
+      "label": "Party 2 signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "party_2",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f22"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            379.1,
+            620.9,
+            556.1,
+            649.7
+          ],
+          "kind": "text",
+          "pdf_field": "Party 2 Date",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    }
+  ],
+  "not_asked": [],
+  "document": {
+    "name": "Mutual Non-Disclosure Agreement",
+    "description": "A mutual non-disclosure agreement between two parties. It covers the purpose and term of sharing information, confidentiality duration, governing law, jurisdiction and changes to the standard terms. Both parties sign; no countersignature."
+  },
+  "flags": {
+    "no_fields": false,
+    "addressed_to_ai": false,
+    "repaired": false,
+    "xfa": false,
+    "already_signed": false,
+    "name_dropped": false
+  },
+  "notes": []
+}

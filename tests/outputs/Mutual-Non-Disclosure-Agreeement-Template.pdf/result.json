@@ -1,0 +1,352 @@
+{
+  "fields_from": "form_fields",
+  "roles": [
+    {
+      "slug": "first_party",
+      "kind": "signer",
+      "label": "First Party",
+      "position": 1
+    },
+    {
+      "slug": "second_party",
+      "kind": "signer",
+      "label": "Second Party",
+      "position": 2
+    }
+  ],
+  "fields": [
+    {
+      "key": "first_party.party_name",
+      "label": "First Party legal name",
+      "holds": "party_name",
+      "filled_by": "role",
+      "role": "first_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f1"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            240.4,
+            136.0,
+            362.6,
+            146.3
+          ],
+          "kind": "text",
+          "pdf_field": "with a mailing address of",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "first_party.address",
+      "label": "First Party mailing address",
+      "holds": "address",
+      "filled_by": "role",
+      "role": "first_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f2"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            72.0,
+            153.2,
+            294.4,
+            163.6
+          ],
+          "kind": "text",
+          "pdf_field": "hereinafter referred to as the 1st Party and",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "second_party.party_name",
+      "label": "Second Party legal name",
+      "holds": "party_name",
+      "filled_by": "role",
+      "role": "second_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f3"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            72.0,
+            170.4,
+            194.0,
+            180.7
+          ],
+          "kind": "text",
+          "pdf_field": "with a mailing address of_2",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "second_party.address",
+      "label": "Second Party mailing address",
+      "holds": "address",
+      "filled_by": "role",
+      "role": "second_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f4"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            310.0,
+            170.4,
+            532.4,
+            180.7
+          ],
+          "kind": "text",
+          "pdf_field": "undefined",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.confidentiality_period_in_years",
+      "label": "Confidentiality period in years",
+      "holds": "number",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f5"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            460.2,
+            419.0,
+            482.2,
+            429.4
+          ],
+          "kind": "text",
+          "pdf_field": "years from",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "first_party.signature",
+      "label": "First Party signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "first_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f6"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            162.6,
+            450.5,
+            279.4,
+            472.3
+          ],
+          "kind": "signature",
+          "pdf_field": "1st Party Signature",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "first_party.full_name",
+      "label": "First Party print name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "first_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f7"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            335.0,
+            450.5,
+            451.8,
+            472.3
+          ],
+          "kind": "text",
+          "pdf_field": "Print Name",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "first_party.date_signed",
+      "label": "First Party signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "first_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f8"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            95.8,
+            473.5,
+            212.5,
+            495.4
+          ],
+          "kind": "text",
+          "pdf_field": "Date",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "second_party.signature",
+      "label": "Second Party signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "second_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f9"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            164.9,
+            508.1,
+            281.6,
+            529.9
+          ],
+          "kind": "signature",
+          "pdf_field": "2nd Party Signature",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "second_party.full_name",
+      "label": "Second Party print name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "second_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f10"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            337.6,
+            508.1,
+            454.0,
+            529.9
+          ],
+          "kind": "text",
+          "pdf_field": "Print Name_2",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "second_party.date_signed",
+      "label": "Second Party signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "second_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f11"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            95.8,
+            531.1,
+            212.5,
+            552.8
+          ],
+          "kind": "text",
+          "pdf_field": "Date_2",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    }
+  ],
+  "not_asked": [],
+  "document": {
+    "name": "Mutual Non-Disclosure Agreement",
+    "description": "A mutual non-disclosure agreement between two parties. It covers identifying the parties, handling confidential information, exclusions, and the period of confidentiality. Both parties sign; there is no countersignature."
+  },
+  "flags": {
+    "no_fields": false,
+    "addressed_to_ai": false,
+    "repaired": false,
+    "xfa": false,
+    "already_signed": false,
+    "name_dropped": false
+  },
+  "notes": []
+}

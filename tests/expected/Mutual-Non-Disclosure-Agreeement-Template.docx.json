@@ -1,0 +1,78 @@
+{
+  "document": "Mutual-Non-Disclosure-Agreeement-Template.docx",
+  "confirmed": false,
+  "roles": {
+    "first_party": "signer",
+    "second_party": "signer"
+  },
+  "fields": {
+    "f1": {
+      "holds": "party_name",
+      "filled_by": "first_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f2": {
+      "holds": "address",
+      "filled_by": "first_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f3": {
+      "holds": "party_name",
+      "filled_by": "second_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f4": {
+      "holds": "address",
+      "filled_by": "second_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f5": {
+      "holds": "number",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": null
+    },
+    "f6": {
+      "holds": "signature",
+      "filled_by": "first_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f7": {
+      "holds": "full_name",
+      "filled_by": "first_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f8": {
+      "holds": "date_signed",
+      "filled_by": "first_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f9": {
+      "holds": "signature",
+      "filled_by": "second_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f10": {
+      "holds": "full_name",
+      "filled_by": "second_party",
+      "required": true,
+      "depends_on": null
+    },
+    "f11": {
+      "holds": "date_signed",
+      "filled_by": "second_party",
+      "required": true,
+      "depends_on": null
+    }
+  },
+  "shared": [],
+  "addressed_to_ai": false
+}

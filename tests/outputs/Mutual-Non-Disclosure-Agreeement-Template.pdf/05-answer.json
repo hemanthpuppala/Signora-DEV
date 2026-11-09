@@ -1,0 +1,108 @@
+{
+  "roles": [
+    {
+      "slug": "first_party",
+      "kind": "signer"
+    },
+    {
+      "slug": "second_party",
+      "kind": "signer"
+    }
+  ],
+  "fields": [
+    {
+      "id": "f1",
+      "holds": "party_name",
+      "filled_by": "first_party",
+      "label": "First Party legal name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f2",
+      "holds": "address",
+      "filled_by": "first_party",
+      "label": "First Party mailing address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f3",
+      "holds": "party_name",
+      "filled_by": "second_party",
+      "label": "Second Party legal name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f4",
+      "holds": "address",
+      "filled_by": "second_party",
+      "label": "Second Party mailing address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f5",
+      "holds": "number",
+      "filled_by": "sender",
+      "label": "Confidentiality period in years",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f6",
+      "holds": "signature",
+      "filled_by": "first_party",
+      "label": "First Party signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f7",
+      "holds": "full_name",
+      "filled_by": "first_party",
+      "label": "First Party print name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f8",
+      "holds": "date_signed",
+      "filled_by": "first_party",
+      "label": "First Party signing date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f9",
+      "holds": "signature",
+      "filled_by": "second_party",
+      "label": "Second Party signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f10",
+      "holds": "full_name",
+      "filled_by": "second_party",
+      "label": "Second Party print name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f11",
+      "holds": "date_signed",
+      "filled_by": "second_party",
+      "label": "Second Party signing date",
+      "must_fill": true,
+      "depends_on": null
+    }
+  ],
+  "checkbox_groups": [],
+  "extra_fields": [],
+  "document": {
+    "name": "Mutual Non-Disclosure Agreement",
+    "description": "A mutual non-disclosure agreement between two parties. It covers identifying the parties, handling confidential information, exclusions, and the period of confidentiality. Both parties sign; there is no countersignature."
+  }
+}

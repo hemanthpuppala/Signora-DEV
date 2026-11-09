@@ -1,0 +1,116 @@
+{
+  "roles": [
+    {
+      "slug": "recipient",
+      "kind": "signer"
+    },
+    {
+      "slug": "company",
+      "kind": "countersigner"
+    }
+  ],
+  "fields": [
+    {
+      "id": "f1",
+      "holds": "party_name",
+      "filled_by": "company",
+      "label": "Company legal name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f2",
+      "holds": "address",
+      "filled_by": "company",
+      "label": "Company mailing address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f3",
+      "holds": "party_name",
+      "filled_by": "recipient",
+      "label": "Recipient legal name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f4",
+      "holds": "address",
+      "filled_by": "recipient",
+      "label": "Recipient mailing address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f5",
+      "holds": "date",
+      "filled_by": "sender",
+      "label": "Effective date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f6",
+      "holds": "text",
+      "filled_by": "sender",
+      "label": "Governing law state",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f7",
+      "holds": "signature",
+      "filled_by": "recipient",
+      "label": "Recipient signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f8",
+      "holds": "date_signed",
+      "filled_by": "recipient",
+      "label": "Recipient signing date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f9",
+      "holds": "full_name",
+      "filled_by": "recipient",
+      "label": "Recipient printed name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f10",
+      "holds": "signature",
+      "filled_by": "company",
+      "label": "Company signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f11",
+      "holds": "date_signed",
+      "filled_by": "company",
+      "label": "Company signing date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f12",
+      "holds": "full_name",
+      "filled_by": "company",
+      "label": "Company signer's printed name",
+      "must_fill": true,
+      "depends_on": null
+    }
+  ],
+  "checkbox_groups": [],
+  "extra_fields": [],
+  "document": {
+    "name": "Trade Secret Non-Disclosure Agreement",
+    "description": "A one-way non-disclosure agreement between a Company and a Recipient. It covers confidential information, the Recipient’s confidentiality and non-use obligations, exclusions, governing law and remedies. The Recipient signs first and the Company countersigns."
+  }
+}

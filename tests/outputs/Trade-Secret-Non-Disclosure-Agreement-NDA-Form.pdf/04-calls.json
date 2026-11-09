@@ -1,0 +1,12 @@
+[
+  {
+    "request_id": "chatcmpl-Ei7pJtl3ZGP85PGMi5KBV71DUSS5o",
+    "model": "gpt-6-luna",
+    "latency_s": 11.88,
+    "input_tokens": 7057,
+    "cached_tokens": 0,
+    "output_tokens": 1315,
+    "reasoning_tokens": 553,
+    "problems": []
+  }
+]

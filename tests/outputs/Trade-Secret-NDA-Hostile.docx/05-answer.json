@@ -1,0 +1,577 @@
+{
+  "roles": [
+    {
+      "slug": "recipient",
+      "kind": "signer"
+    },
+    {
+      "slug": "company",
+      "kind": "countersigner"
+    },
+    {
+      "slug": "witness",
+      "kind": "signer"
+    }
+  ],
+  "fields": [
+    {
+      "id": "f1",
+      "holds": "party_name",
+      "filled_by": "company",
+      "label": "Company legal name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f2",
+      "holds": "address",
+      "filled_by": "company",
+      "label": "Company mailing address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f3",
+      "holds": "party_name",
+      "filled_by": "recipient",
+      "label": "Recipient legal name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f4",
+      "holds": "address",
+      "filled_by": "recipient",
+      "label": "Recipient mailing address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f5",
+      "holds": "date",
+      "filled_by": "sender",
+      "label": "Effective date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f6",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f7",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f8",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f9",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f10",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f11",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f12",
+      "holds": "state",
+      "filled_by": "sender",
+      "label": "Governing law: state",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f13",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f14",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f15",
+      "holds": "text",
+      "filled_by": "sender",
+      "label": "Permitted purpose",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f16",
+      "holds": "number",
+      "filled_by": "sender",
+      "label": "Consideration amount in dollars",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f17",
+      "holds": "number",
+      "filled_by": "sender",
+      "label": "Consideration amount after dollars",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f18",
+      "holds": "number",
+      "filled_by": "sender",
+      "label": "Non-solicitation period in months",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f19",
+      "holds": "email",
+      "filled_by": "company",
+      "label": "Company notice email",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f20",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f21",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f22",
+      "holds": "signature",
+      "filled_by": "recipient",
+      "label": "Recipient signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f23",
+      "holds": "date_signed",
+      "filled_by": "recipient",
+      "label": "Recipient signing date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f24",
+      "holds": "full_name",
+      "filled_by": "recipient",
+      "label": "Recipient printed name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f25",
+      "holds": "signature",
+      "filled_by": "company",
+      "label": "Company signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f26",
+      "holds": "date_signed",
+      "filled_by": "company",
+      "label": "Company signing date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f27",
+      "holds": "full_name",
+      "filled_by": "company",
+      "label": "Company representative printed name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f28",
+      "holds": "signature",
+      "filled_by": "witness",
+      "label": "Witness signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f29",
+      "holds": "date_signed",
+      "filled_by": "witness",
+      "label": "Witness signing date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f30",
+      "holds": "full_name",
+      "filled_by": "witness",
+      "label": "Witness printed name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f31",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f32",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f33",
+      "holds": "checkbox",
+      "filled_by": "recipient",
+      "label": "Recipient type: individual",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f34",
+      "holds": "checkbox",
+      "filled_by": "recipient",
+      "label": "Recipient type: business entity",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f35",
+      "holds": "party_name",
+      "filled_by": "recipient",
+      "label": "Recipient legal name in Exhibit A",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f36",
+      "holds": "address",
+      "filled_by": "recipient",
+      "label": "Recipient street address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f37",
+      "holds": "city",
+      "filled_by": "recipient",
+      "label": "Recipient city",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f38",
+      "holds": "state",
+      "filled_by": "recipient",
+      "label": "Recipient state",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f39",
+      "holds": "postal_code",
+      "filled_by": "recipient",
+      "label": "Recipient ZIP code",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f40",
+      "holds": "country",
+      "filled_by": "recipient",
+      "label": "Recipient country",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f41",
+      "holds": "date_of_birth",
+      "filled_by": "recipient",
+      "label": "Recipient date of birth",
+      "must_fill": true,
+      "depends_on": {
+        "id": "f33",
+        "option": "checked"
+      }
+    },
+    {
+      "id": "f42",
+      "holds": "tax_id",
+      "filled_by": "recipient",
+      "label": "Recipient taxpayer identification number",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f43",
+      "holds": "email",
+      "filled_by": "recipient",
+      "label": "Recipient email",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f44",
+      "holds": "phone",
+      "filled_by": "recipient",
+      "label": "Recipient phone",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f45",
+      "holds": "full_name",
+      "filled_by": "recipient",
+      "label": "Business entity contact person",
+      "must_fill": false,
+      "depends_on": {
+        "id": "f34",
+        "option": "checked"
+      }
+    },
+    {
+      "id": "f46",
+      "holds": "title",
+      "filled_by": "recipient",
+      "label": "Contact person's title",
+      "must_fill": false,
+      "depends_on": {
+        "id": "f34",
+        "option": "checked"
+      }
+    },
+    {
+      "id": "f47",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f48",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f49",
+      "holds": "currency",
+      "filled_by": "sender",
+      "label": "Signing fee",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f50",
+      "holds": "currency",
+      "filled_by": "sender",
+      "label": "Annual confidentiality fee",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f51",
+      "holds": "currency",
+      "filled_by": "sender",
+      "label": "Total for the first year",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f52",
+      "holds": "checkbox",
+      "filled_by": "sender",
+      "label": "Payment method: bank transfer",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f53",
+      "holds": "checkbox",
+      "filled_by": "sender",
+      "label": "Payment method: check",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f54",
+      "holds": "text",
+      "filled_by": "recipient",
+      "label": "Recipient bank name",
+      "must_fill": true,
+      "depends_on": {
+        "id": "f52",
+        "option": "checked"
+      }
+    },
+    {
+      "id": "f55",
+      "holds": "bank_account",
+      "filled_by": "recipient",
+      "label": "Recipient bank account number",
+      "must_fill": true,
+      "depends_on": {
+        "id": "f52",
+        "option": "checked"
+      }
+    },
+    {
+      "id": "f56",
+      "holds": "bank_account",
+      "filled_by": "recipient",
+      "label": "Recipient bank routing number",
+      "must_fill": true,
+      "depends_on": {
+        "id": "f52",
+        "option": "checked"
+      }
+    },
+    {
+      "id": "f57",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f58",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f59",
+      "holds": "checkbox",
+      "filled_by": "recipient",
+      "label": "Acknowledgement of Information Security Policy",
+      "must_fill": false,
+      "depends_on": null
+    },
+    {
+      "id": "f60",
+      "holds": "checkbox",
+      "filled_by": "recipient",
+      "label": "Consent to email notices",
+      "must_fill": false,
+      "depends_on": null
+    },
+    {
+      "id": "f61",
+      "holds": "checkbox",
+      "filled_by": "recipient",
+      "label": "Acknowledgement of disclosed prior knowledge",
+      "must_fill": false,
+      "depends_on": null
+    },
+    {
+      "id": "f62",
+      "holds": "signature",
+      "filled_by": "recipient",
+      "label": "Recipient signature on acknowledgements",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f63",
+      "holds": "date_signed",
+      "filled_by": "recipient",
+      "label": "Recipient signing date on acknowledgements",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f64",
+      "holds": "initials",
+      "filled_by": "recipient",
+      "label": "Recipient initials",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f65",
+      "holds": "initials",
+      "filled_by": "company",
+      "label": "Company initials",
+      "must_fill": true,
+      "depends_on": null
+    }
+  ],
+  "checkbox_groups": [
+    {
+      "ids": [
+        "f33",
+        "f34"
+      ],
+      "label": "Recipient type"
+    },
+    {
+      "ids": [
+        "f52",
+        "f53"
+      ],
+      "label": "Payment method"
+    }
+  ],
+  "extra_fields": [],
+  "document": {
+    "name": "Trade Secret Non-Disclosure Agreement",
+    "description": "A trade secret non-disclosure agreement between a Company and a Recipient, with a witness signing as well. It covers permitted use, confidentiality, fees, security, non-solicitation, notices, and return of information. The Recipient and witness sign first, and the Company countersigns."
+  }
+}
