@@ -126,7 +126,7 @@ Envelopes keep `font` among the columns their trigger keeps as sent. Existing en
 | # | Task | Status | Evidence |
 |---|---|---|---|
 | 1 | This design | done | this file |
-| 2 | Names at signing: out of the send form and the send's prefill; preview and envelope page show "at signing" | todo | — |
+| 2 | Names at signing: out of the send form and the send's prefill; preview and envelope page show "at signing" | done | `envelopes/form.py` (`from_recipient` on each field: "name" or "email" for a party's own details; the signers' field-id lists dropped), `sending.py` (only emails prefilled, for signers and countersigners; a sender's value for such a field refused: "Filled in from the signer"), `store.py` (prefill rows for every party's recipient); web: Details hides them, signers no longer proposed from Details, the preview draws the email and the name to come (quieter, italic), the envelope page too. Tests: `test_sending.py`, `test_send_form.py`, `test_send.py` (the fixture gains a client printed name and email), `send.test.tsx` |
 | 3 | `typesetting`: font list, default font file and licence, the font endpoint; envelopes pin a font (0020) | todo | — |
 | 4 | Text sizes: measured at approval (0020), backfill command | todo | — |
 | 5 | The fit rule on the server: send refuses a value too long; the form carries sizes and the rule's numbers | todo | — |

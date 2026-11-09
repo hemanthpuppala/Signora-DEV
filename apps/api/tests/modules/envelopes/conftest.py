@@ -50,13 +50,17 @@ class Sendable:
 def sendable(
     api: TestClient, run_job: Callable[..., None], detect_fields: Callable[..., None]
 ) -> Sendable:
-    """The test NDA, reviewed: its client party, a firm party that countersigns, a required
-    effective date and an optional note filled in before sending; approved."""
+    """The test NDA, reviewed: its client party (with a printed name and an email from the
+    signer), a firm party that countersigns, a required effective date and an optional note filled
+    in before sending; approved."""
     document_id, version_id = _in_review(api, run_job, detect_fields)
     body = _body(_view(api, document_id, version_id))
     firm = {"id": str(uuid.uuid4()), "label": "Firm", "kind": "countersigner", "kind_label": None}
     body["parties"].append(firm)
+    party = next(p for p in body["parties"] if p["label"] == "Client")
     body["fields"] += [
+        _drawn("Client printed name", party["id"], holds="full_name", rect=[60, 660, 240, 680]),
+        _drawn("Client email", party["id"], holds="email", rect=[60, 690, 240, 710]),
         _drawn("Firm signature", firm["id"], holds="signature", rect=[300, 600, 480, 636]),
         _drawn("Effective date", None, holds="date", rect=[300, 40, 400, 60]),
         {

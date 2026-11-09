@@ -98,9 +98,13 @@ def write_send(
             {"w": workspace_id, "e": envelope.id, "v": version_id, "rows": json.dumps(rows)},
         )
     }
-    signer_ids = {person.party_id: ids[(1, i)] for i, person in enumerate(plan.signers, start=1)}
+    recipient_of = {
+        person.party_id: ids[(stage, i)]
+        for stage, people in ((1, plan.signers), (2, plan.countersigners))
+        for i, person in enumerate(people, start=1)
+    }
     prefilled = [
-        {"field_id": str(field_id), "value": value, "recipient_id": str(signer_ids[party_id])}
+        {"field_id": str(field_id), "value": value, "recipient_id": str(recipient_of[party_id])}
         for party_id, fills in plan.prefill.items()
         for field_id, value in fills.items()
     ]

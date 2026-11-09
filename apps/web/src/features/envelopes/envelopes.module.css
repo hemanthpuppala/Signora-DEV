@@ -110,6 +110,12 @@
   white-space: nowrap;
 }
 
+/* A name the signer gives when signing: shown as what is to come, not as a value. */
+.atSigning {
+  opacity: 0.45;
+  font-style: italic;
+}
+
 /* The list: a row's title opens its envelope; a quieter second line under each cell. */
 .rowLink {
   color: var(--ink);

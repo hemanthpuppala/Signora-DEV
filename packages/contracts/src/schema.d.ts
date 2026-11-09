@@ -1573,6 +1573,8 @@ export interface components {
         /** FormField */
         FormField: {
             depends_on: components["schemas"]["Condition"] | null;
+            /** From Recipient */
+            from_recipient: ("name" | "email") | null;
             /**
              * Holds
              * @enum {string}
@@ -1613,14 +1615,10 @@ export interface components {
         };
         /** FormSigner */
         FormSigner: {
-            /** Email Field Ids */
-            email_field_ids: string[];
             /** Kind Label */
             kind_label: string | null;
             /** Label */
             label: string;
-            /** Name Field Ids */
-            name_field_ids: string[];
             /**
              * Party Id
              * Format: uuid

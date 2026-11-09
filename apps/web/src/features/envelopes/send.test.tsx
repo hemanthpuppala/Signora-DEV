@@ -24,6 +24,7 @@ const field = (id: string, label: string, holds: string, extra: Record<string, u
   options: [],
   depends_on: null,
   places: [{ page: 1, rect: [100, 100, 200, 120], option_value: null }],
+  from_recipient: null,
   ...extra,
 });
 
@@ -39,8 +40,6 @@ const FORM = {
       label: "Client",
       kind_label: null,
       position: 1,
-      name_field_ids: ["f-name"],
-      email_field_ids: ["f-email"],
     },
   ],
   countersigners: [
@@ -52,8 +51,9 @@ const FORM = {
     },
   ],
   fields: [
-    field("f-name", "Client name", "full_name", { party_id: "p-client" }),
-    field("f-email", "Client email", "email", { party_id: "p-client" }),
+    field("f-name", "Client name", "full_name", { party_id: "p-client", from_recipient: "name" }),
+    field("f-email", "Client email", "email", { party_id: "p-client", from_recipient: "email" }),
+    field("f-company", "Client company", "company", { party_id: "p-client" }),
     field("f-date", "Effective date", "date", { required: true }),
     field("f-plan", "Plan", "choice", {
       options: [
@@ -117,7 +117,7 @@ describe("the send", () => {
   };
   const next = () => userEvent.click(screen.getByRole("button", { name: "Next" }));
 
-  it("walks the five steps and sends what was filled, proposing the signer from the details", async () => {
+  it("walks the five steps and sends what was filled; the signer's own name and email are never asked", async () => {
     const { onSent } = open();
     const user = userEvent.setup();
     const steps = screen.getByRole("list", { name: "Steps" });
@@ -130,19 +130,21 @@ describe("the send", () => {
     expect(screen.getByRole("button", { name: "Mutual NDA" }).getAttribute("aria-pressed")).toBe("true");
     await next();
 
-    // 2. Details: optional, except what only the sender can fill; a condition hides its field.
-    await screen.findByLabelText("Client name");
+    // 2. Details: optional, except what only the sender can fill; a condition hides its field; the
+    //    signer's name and email are theirs (the email from the send, the name when they sign).
+    await screen.findByLabelText("Client company");
+    expect(screen.queryByLabelText("Client name")).toBeNull();
+    expect(screen.queryByLabelText("Client email")).toBeNull();
     expect(screen.queryByLabelText("Card")).toBeNull();
     expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
-    await user.type(screen.getByLabelText("Client name"), "Maya Chen");
-    await user.type(screen.getByLabelText("Client email"), "maya@example.com");
+    await user.type(screen.getByLabelText("Client company"), "Chen Studio");
     await user.type(screen.getByLabelText("Effective date"), "2026-12-01");
     await next();
 
-    // 3. Signers: proposed from what was typed; someone receives a copy.
-    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Maya Chen");
-    expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("maya@example.com");
+    // 3. Signers: typed here; someone receives a copy.
     expect(screen.getByText("Signer 1 · Client")).toBeTruthy();
+    await user.type(screen.getByLabelText("Name"), "Maya Chen");
+    await user.type(screen.getByLabelText("Email"), "maya@example.com");
     await user.click(screen.getByRole("button", { name: "+ Add someone" }));
     const copyName = screen.getAllByLabelText("Name")[1] as HTMLInputElement;
     await user.type(copyName, "Records");
@@ -170,8 +172,7 @@ describe("the send", () => {
       countersigners: [{ party_id: "p-firm", user_id: "u-rosa" }],
       copies: [{ name: "Records", email: "records@firm.example" }],
       values: [
-        { field_id: "f-name", value: "Maya Chen" },
-        { field_id: "f-email", value: "maya@example.com" },
+        { field_id: "f-company", value: "Chen Studio" },
         { field_id: "f-date", value: "2026-12-01" },
       ],
       settings: FORM.settings,

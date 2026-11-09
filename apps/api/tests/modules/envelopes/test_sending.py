@@ -1,4 +1,4 @@
-"""A send checked against its form (Phase 7 LLD §2, §10.1): conditions and prefill, pure."""
+"""A send checked against its form (Phase 7 LLD §2, §10.1; 7b): conditions and prefill, pure."""
 
 from __future__ import annotations
 
@@ -22,6 +22,9 @@ CLIENT = uuid.uuid4()
 PLAN, CARD, FULL, FIRST, LAST, LEGAL, EMAIL = (uuid.uuid4() for _ in range(7))
 
 
+FROM = {"full_name": "name", "first_name": "name", "last_name": "name", "email": "email"}
+
+
 def field(id_: uuid.UUID, holds: str, party: uuid.UUID | None = None, **extra: object) -> FormField:
     return FormField.model_validate(
         {
@@ -35,6 +38,7 @@ def field(id_: uuid.UUID, holds: str, party: uuid.UUID | None = None, **extra: o
             "options": [],
             "depends_on": None,
             "places": [],
+            "from_recipient": FROM.get(holds) if party else None,
             **extra,
         }
     )
@@ -52,8 +56,6 @@ FORM = SendForm(
             label="Client",
             kind_label=None,
             position=1,
-            name_field_ids=[FULL, FIRST, LAST, LEGAL],
-            email_field_ids=[EMAIL],
         )
     ],
     countersigners=[],
@@ -103,16 +105,21 @@ def test_a_field_under_a_condition_is_asked_only_when_it_is_met() -> None:
     assert plan({PLAN: "Gold", CARD: "4111"})[CARD] == "4111"
 
 
-def test_the_signers_name_and_email_prefill_their_fields_as_docusign_does() -> None:
-    values = plan({PLAN: "Silver"})
+def test_the_signers_email_fills_their_email_fields_and_their_name_waits_for_signing() -> None:
+    values = plan({PLAN: "Silver", LEGAL: "Van Dijk Holdings"})
 
-    assert values[EMAIL] == "maya@example.com"
-    assert (values[FULL], values[FIRST], values[LAST]) == ("Maya van Dijk", "Maya van", "Dijk")
-    assert LEGAL not in values  # a legal name may be a company's: only when typed
+    assert values[EMAIL] == "maya@example.com"  # DocuSign's Email field: the recipient's email
+    assert not values.keys() & {FULL, FIRST, LAST}  # the name they sign as, at signing
+    assert values[LEGAL] == "Van Dijk Holdings"  # a legal name may be a company's: the sender's
 
-    typed = plan({PLAN: "Silver", FULL: "M. van Dijk", EMAIL: "other@example.com"})
-    assert typed[FULL] == "M. van Dijk"  # what the sender typed stays
-    assert typed[EMAIL] == "maya@example.com"  # the email is always the signer's
+
+def test_the_sender_cannot_fill_what_comes_from_the_signer() -> None:
+    with pytest.raises(ValidationFailed) as refused:
+        plan({PLAN: "Silver", FULL: "M. van Dijk", EMAIL: "other@example.com"})
+    assert sorted(e.field for e in refused.value.field_errors) == sorted(
+        [f"fields.{FULL}", f"fields.{EMAIL}"]
+    )
+    assert {e.message for e in refused.value.field_errors} == {"Filled in from the signer"}
 
 
 def test_split_name() -> None:

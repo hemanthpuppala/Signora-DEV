@@ -35,11 +35,15 @@ def test_the_form_asks_what_the_document_needs(
 
     client, firm = doc.party("Client"), doc.party("Firm")
     assert [s["party_id"] for s in form["signers"]] == [client["id"]]
-    assert form["signers"][0]["email_field_ids"] == [
-        f["id"]
-        for f in doc.view["fields"]
-        if f["party_id"] == client["id"] and f["holds"] == "email"
-    ]
+    from_client = {
+        f["id"]: f["from_recipient"] for f in form["fields"] if f["party_id"] == client["id"]
+    }
+    for f in doc.view["fields"]:  # the signer's own details are theirs, never asked (7b)
+        if f["party_id"] == client["id"] and f["holds"] == "email":
+            assert from_client[f["id"]] == "email"
+        if f["party_id"] == client["id"] and f["holds"] in ("full_name", "first_name", "last_name"):
+            assert from_client[f["id"]] == "name"
+    assert "email" in from_client.values()
     (countersigner,) = form["countersigners"]
     assert countersigner["party_id"] == firm["id"]
     assert countersigner["default"]["user_id"] == str(company.user_id)  # the department's first

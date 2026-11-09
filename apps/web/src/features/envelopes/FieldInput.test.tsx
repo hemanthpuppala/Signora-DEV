@@ -16,6 +16,7 @@ const field = (holds: FormField["holds"], label: string): FormField => ({
   options: [],
   depends_on: null,
   places: [],
+  from_recipient: null,
 });
 
 describe("a date split into boxes", () => {

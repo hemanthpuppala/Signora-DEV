@@ -240,10 +240,20 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
                     <ValuesOverlay
                       page={page}
                       scale={scale}
-                      shown={data.values.flatMap((v) => {
-                        const field = fields.get(v.field_id);
-                        return field ? [{ places: field.places, holds: field.holds, value: v.value }] : [];
-                      })}
+                      shown={[
+                        ...data.values.flatMap((v) => {
+                          const field = fields.get(v.field_id);
+                          return field ? [{ places: field.places, holds: field.holds, value: v.value }] : [];
+                        }),
+                        // A party's name fields: the name its signer signs as, once they sign.
+                        ...form.data.fields.flatMap((f) => {
+                          const recipient = data.recipients.find((r) => r.party_id === f.party_id);
+                          const given = data.values.some((v) => v.field_id === f.id);
+                          return f.from_recipient === "name" && recipient && !given
+                            ? [{ places: f.places, holds: f.holds, value: recipient.name, atSigning: true }]
+                            : [];
+                        }),
+                      ]}
                     />
                   );
                 }}

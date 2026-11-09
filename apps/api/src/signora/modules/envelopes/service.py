@@ -448,7 +448,8 @@ def change_recipient(
 
 
 def _refill(session: Session, recipient_id: uuid.UUID, name: str, email: str) -> None:
-    """Their prefilled fields follow a corrected name or email (§2)."""
+    """Their prefilled fields follow a corrected name or email (§2). Since Phase 7b only Email
+    fields are prefilled; name rows are those of envelopes sent before it."""
     first, last = split_name(name)
     session.execute(
         text(

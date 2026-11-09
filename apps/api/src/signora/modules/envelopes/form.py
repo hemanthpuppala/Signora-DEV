@@ -2,13 +2,15 @@
 
 What it asks: every field someone types (grouped by party, then "before sending"), each signer's
 name and email, each countersigner (defaulting to the department's list in order), the settings.
-Signatures, initials and signing dates are given by signing, never asked here.
+Signatures, initials and signing dates are given by signing, never asked here; a party's name and
+email fields come from the person who signs as it (``from_recipient``), never asked either.
 """
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -16,10 +18,12 @@ from signora.modules.review import FieldView, RoleView
 from signora.modules.review.formats import NOT_TYPED
 from signora.modules.review.values import ManualHolds
 
-# A signer's name and email fill these of their party's fields when the sender left them empty
-# (as DocuSign fills its Full Name, First Name, Last Name and Email fields from the recipient).
+# A party's fields that come from the person signing as it, as DocuSign's Full Name, First Name,
+# Last Name and Email fields do (Phase 7b): the email at send, the name at signing (the name they
+# sign as, which they may correct). A Legal name may be a company's, so it stays the sender's.
 NAME_HOLDS = frozenset({"full_name", "first_name", "last_name"})
 EMAIL_HOLDS = frozenset({"email"})
+FromRecipient = Literal["name", "email"]
 
 
 class Option(BaseModel):
@@ -56,6 +60,7 @@ class FormField(BaseModel):
     options: list[Option]  # a choice's options
     depends_on: Condition | None
     places: list[Place]  # where the value shows on the document (the review step)
+    from_recipient: FromRecipient | None  # not asked: the party's signer gives it (Phase 7b)
 
 
 class FormSigner(BaseModel):
@@ -63,8 +68,6 @@ class FormSigner(BaseModel):
     label: str
     kind_label: str | None  # an Other kind's words ("Witness")
     position: int
-    name_field_ids: list[uuid.UUID]  # where their name may already be typed (step 2)
-    email_field_ids: list[uuid.UUID]
 
 
 class Colleague(BaseModel):
@@ -111,6 +114,17 @@ def options_of(field: FieldView) -> list[Option]:
     return list(seen.values())
 
 
+def from_recipient(field: FieldView) -> FromRecipient | None:
+    """Whether a field comes from the person signing as its party, and which of their details."""
+    if field.filled_by != "role":
+        return None
+    if field.holds in NAME_HOLDS:
+        return "name"
+    if field.holds in EMAIL_HOLDS:
+        return "email"
+    return None
+
+
 def build_form(
     *,
     document_id: uuid.UUID,
@@ -134,14 +148,6 @@ def build_form(
             label=party.label,
             kind_label=party.kind_label,
             position=party.position,
-            name_field_ids=[
-                f.id
-                for f in typed
-                if f.party_id == party.id and f.holds in NAME_HOLDS | {"party_name"}
-            ],
-            email_field_ids=[
-                f.id for f in typed if f.party_id == party.id and f.holds in EMAIL_HOLDS
-            ],
         )
         for party in ordered
         if party.kind == "signer"
@@ -164,6 +170,7 @@ def build_form(
             holds_label=field.holds_label,
             party_id=field.party_id if field.filled_by == "role" else None,
             required=field.filled_by == "sender" and field.required,
+            from_recipient=from_recipient(field),
             sensitive=field.sensitive,
             options=options_of(field) if field.holds == "choice" else [],
             places=[

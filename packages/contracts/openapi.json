@@ -1516,6 +1516,21 @@
               }
             ]
           },
+          "from_recipient": {
+            "anyOf": [
+              {
+                "enum": [
+                  "name",
+                  "email"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Recipient"
+          },
           "holds": {
             "enum": [
               "signature",
@@ -1620,7 +1635,8 @@
           "sensitive",
           "options",
           "depends_on",
-          "places"
+          "places",
+          "from_recipient"
         ],
         "title": "FormField",
         "type": "object"
@@ -1663,14 +1679,6 @@
       },
       "FormSigner": {
         "properties": {
-          "email_field_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "title": "Email Field Ids",
-            "type": "array"
-          },
           "kind_label": {
             "anyOf": [
               {
@@ -1686,14 +1694,6 @@
             "title": "Label",
             "type": "string"
           },
-          "name_field_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "title": "Name Field Ids",
-            "type": "array"
-          },
           "party_id": {
             "format": "uuid",
             "title": "Party Id",
@@ -1708,9 +1708,7 @@
           "party_id",
           "label",
           "kind_label",
-          "position",
-          "name_field_ids",
-          "email_field_ids"
+          "position"
         ],
         "title": "FormSigner",
         "type": "object"

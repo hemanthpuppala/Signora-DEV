@@ -131,7 +131,8 @@ export function SendModal({
       });
     }
     for (const party of [...data.signers, ...data.countersigners]) {
-      const fields = data.fields.filter((f) => f.party_id === party.party_id);
+      // A party's name and email come from whoever signs as it: never asked here.
+      const fields = data.fields.filter((f) => f.party_id === party.party_id && !f.from_recipient);
       if (fields.length > 0)
         out.push({
           label: party.label,
@@ -147,23 +148,14 @@ export function SendModal({
   const effectiveTitle =
     title ?? (data ? (firstSigner?.name ? `${data.document_name} · ${firstSigner.name}` : data.document_name) : "");
 
-  /** Names and emails typed in Details proposed for each signer, where nothing is set yet. */
-  const proposeSigners = (form: SendForm) => {
-    const byId = new Map(form.fields.map((f) => [f.id, f]));
-    setSigners((current) => {
-      const next = { ...current };
-      for (const signer of form.signers) {
-        const given = next[signer.party_id] ?? { name: "", email: "" };
-        const email = signer.email_field_ids.map((id) => values[id]).find(Boolean) ?? "";
-        const byHolds = (holds: string) =>
-          signer.name_field_ids.filter((id) => byId.get(id)?.holds === holds).map((id) => values[id]).find(Boolean);
-        const first = byHolds("first_name");
-        const last = byHolds("last_name");
-        const name = byHolds("full_name") ?? (first || last ? [first, last].filter(Boolean).join(" ") : byHolds("party_name")) ?? "";
-        next[signer.party_id] = { name: given.name || name, email: given.email || email };
-      }
-      return next;
-    });
+  /** Who signs as a party, as chosen so far: a signer typed in, or the countersigning colleague. */
+  const personOf = (partyId: string): Person | undefined => {
+    const signer = signers[partyId];
+    if (signer) return signer;
+    const firm = data?.countersigners.find((c) => c.party_id === partyId);
+    const userId = firm ? countersignerOf(partyId, firm.default?.user_id) : "";
+    const colleague = colleagues.find((c) => c.id === userId);
+    return colleague ? { name: colleague.name, email: colleague.email } : undefined;
   };
 
   const countersignerOf = (partyId: string, fallback: string | null | undefined) => countersigners[partyId] ?? fallback ?? "";
@@ -228,7 +220,6 @@ export function SendModal({
   const close = () => (touched && !sent ? setConfirmLeave(true) : onClose());
   const fieldError = (id: string) => errors[`fields.${id}`];
   const next = () => {
-    if (step === DETAILS && data) proposeSigners(data);
     setStep(step + 1);
   };
 
@@ -454,9 +445,18 @@ export function SendModal({
                 <ValuesOverlay
                   page={page}
                   scale={scale}
-                  shown={data.fields
-                    .filter((f) => asked(f, values) && values[f.id]?.trim())
-                    .map((f) => ({ places: f.places, holds: f.holds, value: values[f.id] ?? "" }))}
+                  shown={data.fields.flatMap((f) => {
+                    if (f.from_recipient && f.party_id) {
+                      const person = personOf(f.party_id);
+                      if (!person) return [];
+                      // The email is theirs from the send; the name is the one they sign as, later.
+                      return f.from_recipient === "email"
+                        ? [{ places: f.places, holds: f.holds, value: person.email }]
+                        : [{ places: f.places, holds: f.holds, value: person.name, atSigning: true }];
+                    }
+                    const value = values[f.id]?.trim();
+                    return asked(f, values) && value ? [{ places: f.places, holds: f.holds, value }] : [];
+                  })}
                 />
               )}
             />
