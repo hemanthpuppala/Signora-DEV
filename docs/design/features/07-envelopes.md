@@ -82,7 +82,10 @@ reduced motion). Closing asks first once anything is filled.
 5. **Review**: the document in the PDF viewer with every prefilled value drawn in its box, the recipients and the
    settings (§4) summarised, the title (editable), and **Send envelope**.
 
-Prefilled values are **not editable by the signer** (owner decision, DocuSign's default); the email never is. Asking
+Prefilled values are **not editable by the signer** (owner decision, DocuSign's default); the email never is. As DocuSign does, a
+signer's email always fills their party's Email fields, and their name fills that party's Full name, First name and
+Last name fields the sender left empty (split at the last space); a Legal name (which may be a company's) is filled
+only when typed. Asking
 more of the sender later needs no change: every field is already offered in step 2.
 
 ## 3. Who signs when, and who sees what (owner decisions, 2026-11-09; built in Phases 8–9)
@@ -392,7 +395,7 @@ Decided by the owner's "complete everything, follow industry practice" (2026-11-
 | 7.2 | Migration 0019 (envelopes, recipients, values; drop `documents.require_email_code`); models; triggers | done | `0019_envelopes.py`, `envelopes/models.py` (composite keys keep every row in one company and one version; a copy has no party, a countersigner a colleague); `email_messages.reply_to`; triggers keep what was sent; the document's email code removed from its model, service and API (PATCH answers 422). Tests: migration up, triggers, downgrade; schema matches models; document tests updated |
 | 7.3 | `review.formats` (§11.3) | done | `review/formats.py` (`check_value`, pure; identity's `normalize_email` passed in, so emails keep one definition; signature, initials and signing dates refused as not typed); added to the pure-module and public-submodule contracts. Tests: `test_formats.py` (28: each type's values, each refusal in plain words, every type judged) |
 | 7.4 | Links (ADR-E1), key derived from `SECRET_KEY` | done | `envelopes/links.py` (pure: `link_key`, `make_token` 70 URL-safe characters, `read_token` with a constant-time compare, `signing_url`); in the pure-module contract. Tests: `test_links.py` (made again identically, a new version differs, tampered, other key, truncated, spliced and garbage refused) |
-| 7.5 | Send form (§2, §11.1) | todo | — |
+| 7.5 | Send form (§2, §11.1) | done | `GET …/versions/{v}/send-form` (`envelopes/form.py` pure over review's set: signers with the fields their name and email may already be in, countersigners with the department's k-th as default, every typed field grouped by party or before sending with options and conditions, only the sender's required fields required; `service.send_form`); `VersionForReview` gains the document's name and department; departments export `list_countersigners`; import contracts for envelopes. Tests: `test_send_form.py` (4: approved only, what is asked, a party beyond the list, read-only refused) |
 | 7.6 | Send: validation, prefill, values, recipients, emails, audit, idempotency | todo | — |
 | 7.7 | Remind, resend, change email, cancel, retry | todo | — |
 | 7.8 | List and envelope read (timeline, delivery state) | todo | — |

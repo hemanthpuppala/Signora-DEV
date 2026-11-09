@@ -101,11 +101,13 @@ def require_document(session: Session, actor: Actor, document_id: uuid.UUID, *, 
 class VersionForReview:
     """What review needs of a version (Phase 6 §6): its state, the size of each page as displayed
     (places are checked against it), and its name and description (a version made by editing takes
-    them)."""
+    them). Sending (Phase 7) also reads its document's name and department."""
 
     id: uuid.UUID
     workspace_id: uuid.UUID
     document_id: uuid.UUID
+    document_name: str
+    department_id: uuid.UUID
     version_no: int
     status: str
     pages: list[tuple[float, float]]  # (width, height) in PDF points, rotation applied
@@ -145,6 +147,8 @@ def version_for_review(
         id=row.id,
         workspace_id=row.workspace_id,
         document_id=row.document_id,
+        document_name=document.name,
+        department_id=document.department_id,
         version_no=row.version_no,
         status=row.status,
         pages=_page_sizes(row.pages),
@@ -223,6 +227,8 @@ def derive_version(
         id=version_id,
         workspace_id=source.workspace_id,
         document_id=document_id,
+        document_name=document.name,
+        department_id=document.department_id,
         version_no=version_no,
         status="ready",
         pages=_page_sizes(source.pages),

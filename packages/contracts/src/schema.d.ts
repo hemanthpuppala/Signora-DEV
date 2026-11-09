@@ -528,6 +528,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/versions/{version_id}/send-form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What sending an approved version asks: details, signers, countersigners, settings */
+        get: operations["send_form_api_v1_documents__document_id__versions__version_id__send_form_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/versions/{version_id}/unlock": {
         parameters: {
             query?: never;
@@ -873,20 +890,15 @@ export interface components {
              */
             role_id: string;
         };
-        /**
-         * Colleague
-         * @description A member as department lists show them: countersigners, and people edit access can go to.
-         */
-        Colleague: {
-            /** Email */
-            email: string;
+        /** Condition */
+        Condition: {
             /**
-             * Id
+             * Field Id
              * Format: uuid
              */
-            id: string;
-            /** Name */
-            name: string;
+            field_id: string;
+            /** Option */
+            option: string;
         };
         /** CountersignersInput */
         CountersignersInput: {
@@ -952,7 +964,7 @@ export interface components {
             /** Archived At */
             archived_at: string | null;
             /** Countersigners */
-            countersigners: components["schemas"]["Colleague"][];
+            countersigners: components["schemas"]["signora__modules__departments__routes__Colleague"][];
             counts: components["schemas"]["Counts"];
             /**
              * Created At
@@ -1270,6 +1282,76 @@ export interface components {
              */
             xfa: boolean;
         };
+        /** FormCountersigner */
+        FormCountersigner: {
+            default: components["schemas"]["signora__modules__envelopes__form__Colleague"] | null;
+            /** Label */
+            label: string;
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+            /** Position */
+            position: number;
+        };
+        /** FormField */
+        FormField: {
+            depends_on: components["schemas"]["Condition"] | null;
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /** Holds Label */
+            holds_label: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Options */
+            options: components["schemas"]["Option"][];
+            /** Party Id */
+            party_id: string | null;
+            /** Required */
+            required: boolean;
+            /** Sensitive */
+            sensitive: boolean;
+        };
+        /** FormSettings */
+        FormSettings: {
+            /** Expiry Days */
+            expiry_days: number;
+            /** Max Reminders */
+            max_reminders: number;
+            /** Notify Emails */
+            notify_emails: string[];
+            /** Reminder Interval Hours */
+            reminder_interval_hours: number;
+            /** Require Email Code */
+            require_email_code: boolean;
+        };
+        /** FormSigner */
+        FormSigner: {
+            /** Email Field Ids */
+            email_field_ids: string[];
+            /** Kind Label */
+            kind_label: string | null;
+            /** Label */
+            label: string;
+            /** Name Field Ids */
+            name_field_ids: string[];
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+            /** Position */
+            position: number;
+        };
         /** Grant */
         Grant: {
             /**
@@ -1426,6 +1508,13 @@ export interface components {
         NameRequest: {
             /** Name */
             name: string;
+        };
+        /** Option */
+        Option: {
+            /** Text */
+            text: string;
+            /** Value */
+            value: string;
         };
         /**
          * PageView
@@ -1647,6 +1736,30 @@ export interface components {
         Saved: {
             /** Revision */
             revision: number;
+        };
+        /** SendForm */
+        SendForm: {
+            /** Countersigners */
+            countersigners: components["schemas"]["FormCountersigner"][];
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Name */
+            document_name: string;
+            /** Fields */
+            fields: components["schemas"]["FormField"][];
+            settings: components["schemas"]["FormSettings"];
+            /** Signers */
+            signers: components["schemas"]["FormSigner"][];
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /** Version Number */
+            version_number: number;
         };
         /** SettingsInput */
         SettingsInput: {
@@ -1930,6 +2043,33 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /**
+         * Colleague
+         * @description A member as department lists show them: countersigners, and people edit access can go to.
+         */
+        signora__modules__departments__routes__Colleague: {
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** Colleague */
+        signora__modules__envelopes__form__Colleague: {
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /** RoleView */
         signora__modules__identity_access__routes__schemas__RoleView: {
@@ -2690,7 +2830,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Colleague"][];
+                    "application/json": components["schemas"]["signora__modules__departments__routes__Colleague"][];
                 };
             };
             /** @description Validation failed (problem details) */
@@ -2960,7 +3100,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Colleague"][];
+                    "application/json": components["schemas"]["signora__modules__departments__routes__Colleague"][];
                 };
             };
             /** @description Validation failed (problem details) */
@@ -3849,6 +3989,66 @@ export interface operations {
                 };
             };
             /** @description Not approved, or changed since it was opened */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    send_form_api_v1_documents__document_id__versions__version_id__send_form_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendForm"];
+                };
+            };
+            /** @description The version is not approved */
             409: {
                 headers: {
                     [name: string]: unknown;

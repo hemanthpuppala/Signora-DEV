@@ -235,6 +235,29 @@ protected_modules = [
 allowed_importers = ["signora.modules.review", "signora.models", "signora.handlers"]
 
 [[tool.importlinter.contracts]]
+name = "Public interface only: envelopes internals are imported only by envelopes and composition roots"
+type = "protected"
+# envelopes.links is pure and public (Phase 8's signing reads links).
+protected_modules = [
+    "signora.modules.envelopes.form",
+    "signora.modules.envelopes.models",
+    "signora.modules.envelopes.routes",
+    "signora.modules.envelopes.service",
+]
+allowed_importers = ["signora.modules.envelopes", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Nothing sent depends on how it is sent: documents, review and detection never import envelopes"
+type = "forbidden"
+source_modules = [
+    "signora.modules.documents",
+    "signora.modules.review",
+    "signora.modules.detection",
+    "signora.modules.departments",
+]
+forbidden_modules = ["signora.modules.envelopes"]
+
+[[tool.importlinter.contracts]]
 name = "Documents never depend on detection (detection drives documents through documents.lifecycle)"
 type = "forbidden"
 source_modules = ["signora.modules.documents"]
