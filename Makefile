@@ -50,7 +50,11 @@ worker:        ## Run the background worker
 	$(UV) signora worker
 
 web:           ## Run the web app (next dev) on WEB_DEV_PORT (default 3200); /api goes to API_DEV_PORT
-	API_DEV_PORT=$(API_DEV_PORT) pnpm --filter web dev
+	API_DEV_PORT=$(API_DEV_PORT) WEB_DEV_ORIGINS=$(PUBLIC_HOST) pnpm --filter web dev
+
+# The public host name (from PUBLIC_BASE_URL in .env): the dev server accepts it, so it can be
+# reached through a tunnel such as Tailscale Serve.
+PUBLIC_HOST := $(shell sed -n 's|^PUBLIC_BASE_URL=[a-z]*://\([^/:]*\).*|\1|p' .env 2>/dev/null)
 
 # --- API contract (single source of truth: the FastAPI app) -----------------------------------
 
