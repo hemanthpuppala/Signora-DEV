@@ -33,12 +33,13 @@ Phase 10. This phase lays the envelope down so those phases only add behaviour.
 - **Only an approved version can be sent** (platform FR-16). The current version is offered first; any approved
   version can be chosen.
 - **Anyone with edit access** to the document's department sends (owners, editors, people granted edit access).
-- **No drafts** (recommendation, see §15): the send form is one page; leaving it discards it. The prototype's
-  "Save draft" is left out.
+- **No drafts** (owner decision): the send is one modal; closing it discards it. The prototype's "Save draft" is
+  left out.
 - **Bulk sending** (one envelope per spreadsheet row, platform FR-19) is deferred to the "later" list with Presidio
   PII redaction.
-- **Additional signers** beyond the document's parties (platform FR-18, an added signature page) are deferred: the
-  parties are the ones review approved.
+- **Additional signers** beyond the document's parties (platform FR-18): the send's signers step can add people
+  the document has no party for; each signs an added signature page (name, signature, date) appended to the final
+  PDF in Phase 9 (decided, §15.1).
 
 ### 1.1 States (platform §5.1, narrowed to one document)
 
@@ -55,27 +56,32 @@ states are created now, so later phases add transitions, not migrations.
 A recipient: `waiting` (a countersigner before every signer has signed) → `sent` → `opened` → `viewed` → `signed`, or
 `declined`. Terminal envelope states revoke every link.
 
-## 2. The send form (owner decisions, 2026-11-09)
+## 2. The send: a modal in five steps (owner decisions, 2026-11-09, revised the same day)
 
-The form asks only what the document needs from the sender, generated from the approved version's parties and fields
-(nothing is typed about the document itself):
+Sending is a modal over the department or document page, not a page: five steps with a progress line at the top
+("1 Document · 2 Details · 3 Signers · 4 Countersigners · 5 Review"), Back and Next at the bottom, each step one
+clear section in the design system (titles, hairlines, "?" help), smooth and subtle step transitions (none with
+reduced motion). Closing asks first once anything is filled.
 
-- **Each signer** (signer parties, including Other kinds such as "Witness", in signing order): **name** and **email**.
-  The name prefills that party's name fields in the document (`full_name`; `party_name`; `first_name` and
-  `last_name`, when the document has them, are asked as First name and Last name instead of one Name). The email
-  prefills the party's `email` field. Everything else of theirs (address, title, company, their signature…) the
-  signer fills in Phase 8.
-- **Each countersigner party**: a colleague, defaulting to the department's countersigners in order (Phase 3 §4.1),
-  changeable to any active member of the company. A department with an empty list asks the sender to choose.
-- **Before sending**: every field review marked "Filled in before sending" (the effective date, the governing law
-  state…), each with an input for its type (a date picker for a date, a choice's options, a checkbox). Required ones
-  must be filled to send; a field whose condition is not met is not asked.
-- **Settings** (§4), folded under one line with their defaults showing.
-- **The document**, beside the form, in the same PDF viewer: the box of the field being filled is highlighted and
-  brought into view, so the sender sees where each value lands.
+1. **Document**: the department's documents as cards (the documents grid); only those with an approved version can
+   be picked, the others say why ("Needs approval"). The current approved version is used; a document with several
+   approved versions offers the choice. Opened from a document's **Send for signature**, the modal starts at step 2
+   with that document chosen.
+2. **Details**: every field of the document as a form, grouped like review's panel (each party, then "Before
+   sending"), each with an input for its type (a date picker, a choice's options, a checkbox, plain text). **Filling
+   anything in is optional**: what is filled is prefilled for the signer and fixed for them; what is left is theirs
+   to fill when signing. Signatures, initials and signing dates are never asked here. Required "Filled in before sending" fields stay required (§15.2).
+3. **Signers**: one row per signer party in signing order, "Signer 1 · Client", with name and email. Emails and names
+   typed in step 2 for that party are proposed here to confirm; a party with no email field in the document is
+   asked here. **Add signer** adds a person the document has no party for (§1); added signers can be
+   removed, the document's parties cannot (their fields need someone).
+4. **Countersigners**: one row per countersigner party, defaulting to the department's countersigners in order
+   (Phase 3 §4.1), each with their name and email shown; changeable to any active member.
+5. **Review**: the document in the PDF viewer with every prefilled value drawn in its box, the recipients and the
+   settings (§4) summarised, the title (editable), and **Send envelope**.
 
-Prefilled values are **not editable by the signer** (owner decision: DocuSign's default); the email never is. More
-can be asked of the sender later by marking more fields "Filled in before sending" in review, with no change here.
+Prefilled values are **not editable by the signer** (owner decision, DocuSign's default); the email never is. Asking
+more of the sender later needs no change: every field is already offered in step 2.
 
 ## 3. Who signs when, and who sees what (owner decisions, 2026-11-09; built in Phases 8–9)
 
@@ -146,7 +152,7 @@ The document's old `require_email_code` column and its PATCH field are removed i
 | ID | Requirement |
 |---|---|
 | FR-E1 | A person with edit access sends one approved version of a document to its parties (§1, §2). |
-| FR-E2 | The send form is generated from the version: signers' name and email, countersigners from the department's list, the "Filled in before sending" fields by type, the settings (§2, §4). |
+| FR-E2 | The send is a five-step modal (§2): document, details (every field by type, optional), signers (from the details, add and remove extra), countersigners (department defaults), review with the filled document and Send envelope. |
 | FR-E3 | Sending pins the version, stores the sender's values and the prefilled names and emails as the envelope's field values, creates the recipients, and emails every signer their link in the same transaction (the email is queued, §8.2). |
 | FR-E4 | Countersigners are created waiting; nothing is sent to them in this phase (Phase 9 emails them when every signer has signed). |
 | FR-E5 | Each recipient has a private signing link; it can be shown again (Copy signing link) without changing it, and stops working on change of email or a terminal state (§11.2). |
@@ -245,8 +251,8 @@ envelope_values
 - The same email on two parties is refused unless they are the same person by intent: one person holding two
   parties is allowed only when `confirm_same_person` lists both (§15 open question; default refuse).
 - Countersigners: every countersigner party exactly once; an active member of the company.
-- Values: every required, asked sender field (condition met); each value valid for its type (§11.3); unknown fields
-  refused.
+- Values: optional for every field, except as §15.2 decides for required "Filled in before sending" fields;
+  signature, initials and signing dates refused; each value valid for its type (§11.3); unknown fields refused.
 - Settings within the department's ranges (§4); title 1–120.
 
 ## 11. Algorithms and complexity
@@ -313,20 +319,19 @@ Dependencies: envelopes → review (read the version's set, formats) → documen
 departments (settings, countersigners), notifications, audit, identity_access. Nothing imports envelopes yet; Phase 8's
 `signing` module will (import contracts added).
 
-Web: `features/envelopes/` — `SendPage` (`/departments/{id}/documents/{documentId}/send`), `EnvelopesTab` on the
+Web: `features/envelopes/` — `SendModal` (five steps, §2), `EnvelopesTab` on the
 department page, `EnvelopePage` (`/departments/{id}/envelopes/{envelopeId}`); the send form's inputs by type in
 `features/envelopes/inputs.tsx` (reused by Phase 8's signer screen, so they live where both can import them:
 `shared/ui` for the plain inputs, the per-type mapping in one module).
 
 ## 13. Screens
 
-- **Document page**: on an approved version the action bar gains **Send for signature** (primary). A version in
-  review shows why it can't be sent ("Approve it to send").
-- **Send page**: action bar "Send Mutual NDA · version 3" with **Send** (disabled until valid); left, the PDF with the
-  field being filled highlighted; right, sections with the design system's titles and "?" help: **Who signs** (per
-  signer: Name, Email), **Countersigns** (per firm party: a colleague), **Before sending** (by type), **Settings**
-  (folded: "Email code on · reminds every 24 hours, up to 5 · expires in 14 days"), **Title**. Errors name the field
-  and bring it into view.
+- **The send modal** (§2): a wide dialog (the design system's Dialog, grown into a `Stepper` dialog: progress line,
+  one step at a time, Back/Next, the last step's primary action), five steps. Step 2 is the field form grouped by
+  party with "?" help; step 5 shows the PDF with values in place. Errors from the server name the field and take the
+  modal to its step.
+- **Entry points**: **New envelope** on the department page (opens at step 1); **Send for signature** on a
+  document's approved version (opens at step 2).
 - **Envelopes tab** (department page): a table (Document · Recipients · Status · Sent) with status chips; a row opens
   the envelope.
 - **Envelope page**: action bar (title, status, "expires Nov 23"; Remind now, Cancel envelope); **Recipients** (rows:
@@ -350,22 +355,26 @@ Backend (Postgres):
 - Migration: `documents.require_email_code` dropped (and restored on downgrade); new tables' checks.
 - NFR-E1 timing: 20 parties and 200 values sent in < 500 ms.
 
-Web (Vitest): send page (generated sections, inputs by type, validation, highlight follows the field, send with an
+Web (Vitest): send modal (the five steps, inputs by type, optional prefill, signers proposed from the details, add and
+remove extra signers, countersigner defaults, review with values, send with an
 idempotency key); envelopes tab; envelope page (copy link, resend, change email, cancel with confirmation, retry);
 "Send for signature" only on approved versions.
 
 Live: send the reviewed NDA to two test signers and a countersigner colleague; the emails in Mailpit (HTML and text,
 link copyable); copy link; change an email; cancel.
 
-## 15. Open questions (recommendations in place until the owner decides)
+## 15. Decisions and the questions left
 
-1. **Drafts**: none (one-page form). The prototype's "Save draft" left out.
-2. **One person on two parties** (the same email twice): refused by default, allowed after a confirmation naming both.
-3. **Prefilling `party_name` (legal name) from the person's name**: when a party is a company, its legal name is not
-   the person's. Recommendation: prefill `full_name`/first/last from the name; prefill `party_name` only when the
-   party has no `company` field, otherwise leave it for the signer.
-4. **Title**: "{document} · {first signer's name}", editable on the send page.
-5. **Withdrawn email on cancel**: sent to signers who were emailed and have not signed (recommended), or none.
+Decided (owner, 2026-11-09): no drafts; the same email on two parties is refused unless a confirmation names both
+parties; prefilling is optional, every field offered (§2); the title defaults to "{document} · {first signer's name}",
+editable; on cancel, signers who were emailed and have not signed get a short "withdrawn" email.
+
+Confirmed by the owner's "complete everything" (2026-11-09), with the recommendations:
+
+1. **Add signer** (§2 step 3): people the document has no party for, each signing an added signature page appended
+   to the final PDF (Phase 9). Recommendation: yes, as the owner asked ("add and remove more signers"). Decided: yes.
+2. **Required "Filled in before sending" fields**: nobody but the sender can fill them, so a blank one stays blank on
+   the signed copy. Decided: these stay required in step 2 (marked so); everything else is optional.
 
 ## 16. Task tracker
 
@@ -380,7 +389,7 @@ link copyable); copy link; change an email; cancel.
 | 7.7 | Remind, resend, change email, cancel, retry | todo | — |
 | 7.8 | List and envelope read (timeline, delivery state) | todo | — |
 | 7.9 | Emails: words, Reply-To, Message-ID, Mailpit check | todo | — |
-| 7.10 | Web: Send for signature, send page (inputs by type, highlight), settings | todo | — |
+| 7.10 | Web: the send modal (stepper dialog in the design system; five steps; inputs by type; review with values on the PDF); entry points | todo | — |
 | 7.11 | Web: envelopes tab, envelope page (copy link, resend, change email, cancel, retry, timeline) | todo | — |
 | 7.12 | Web: remove the document's email-code remnants; contract | todo | — |
 | 7.13 | Live check, deploy, PR | todo | — |
