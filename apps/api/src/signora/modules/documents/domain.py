@@ -102,6 +102,15 @@ FAILURE_MESSAGES = {
 DETECTION_FAILURE_CODES = frozenset({"ai_not_configured", "ai_unavailable", "detection_failed"})
 
 
+def detection_failure_message(code: str) -> str:
+    """What a detection failure says (they name no pages or limits)."""
+    return (
+        FAILURE_MESSAGES[code]
+        if code in DETECTION_FAILURE_CODES
+        else FAILURE_MESSAGES["detection_failed"]
+    )
+
+
 def failure_message(code: str, *, pages: int | None, max_pages: int) -> str:
     template = FAILURE_MESSAGES.get(code, "Processing failed. Upload the file again")
     return template.format(pages=pages if pages is not None else "too many", max_pages=max_pages)

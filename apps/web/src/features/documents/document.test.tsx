@@ -413,6 +413,13 @@ describe("document page", () => {
       expect(screen.getByText("This document contains text addressed to an AI. Check its fields with care.")).toBeTruthy();
     });
 
+    it("says when finding the fields again failed, and shows the fields found before", async () => {
+      serve(READY, {}, { ...FIELDS, found_again_failed: "Field detection couldn't reach the AI" });
+      open();
+      expect(await screen.findByText("Field detection couldn't reach the AI. These are the fields found before.")).toBeTruthy();
+      expect(within(screen.getByRole("listbox", { name: "Fields" })).getAllByRole("option").length).toBeGreaterThan(0);
+    });
+
     it("finds fields again only after confirming, and shows each version's field count", async () => {
       const counted = documentWith([version(2, { is_current: true, field_count: 6 }), version(1, { field_count: 1 })]);
       serve(counted, { "/detection": () => reply(202, { mode: "restart" }) }, FIELDS);

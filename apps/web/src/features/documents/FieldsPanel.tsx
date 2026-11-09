@@ -173,6 +173,9 @@ export function FieldsPanel({
       {view.flags.already_signed ? (
         <Notice tone="warning">This PDF is already signed: filling it in breaks that signature.</Notice>
       ) : null}
+      {view.found_again_failed ? (
+        <Notice tone="warning">{`${view.found_again_failed}. These are the fields found before.`}</Notice>
+      ) : null}
       {roles.length > 0 || sender > 0 ? (
         <ul className={styles.parties} aria-label="Who signs">
           {roles.map((role) => (

@@ -15,7 +15,12 @@ from signora.kernel.db import Database
 from signora.kernel.errors import NotFound
 from signora.modules.detection.reading import Reading
 from signora.modules.detection.run import restart_run
-from signora.modules.documents import start_detection, version_for_detection, version_status
+from signora.modules.documents import (
+    detection_failure_message,
+    start_detection,
+    version_for_detection,
+    version_status,
+)
 from signora.modules.identity_access import Actor, current_actor
 
 router = APIRouter(prefix="/api/v1", tags=["detection"])
@@ -97,6 +102,8 @@ class VersionFields(BaseModel):
     fields: list[FieldView]  # once ready
     pending: list[PendingField]  # while finding fields, once the document has been read
     flags: Flags
+    # Finding the fields again stopped; the version kept the fields found before (review fix).
+    found_again_failed: str | None = None
 
 
 @router.post(
@@ -238,7 +245,7 @@ def version_fields(
         state = version_status(session, actor, document_id, version_id)
         run = session.execute(
             text(
-                "SELECT stage, fields_from, parsed, result FROM detection_runs "
+                "SELECT stage, fields_from, parsed, result, failure_code FROM detection_runs "
                 "WHERE version_id = :v"
             ),
             {"v": version_id},
@@ -255,4 +262,7 @@ def version_fields(
             fields=fields,
             pending=pending,
             flags=flags,
+            found_again_failed=detection_failure_message(run.failure_code)
+            if run is not None and state == "ready" and run.failure_code
+            else None,
         )

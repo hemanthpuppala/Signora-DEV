@@ -1936,6 +1936,17 @@
           "flags": {
             "$ref": "#/components/schemas/Flags"
           },
+          "found_again_failed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Found Again Failed"
+          },
           "pending": {
             "items": {
               "$ref": "#/components/schemas/PendingField"

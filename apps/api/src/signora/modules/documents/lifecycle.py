@@ -194,18 +194,28 @@ def finish_detection(
 
 
 def fail_detection(uow: UnitOfWork, version: VersionForDetection, code: str) -> None:
-    """A detection failure (§1.1): passing, so Try again is offered. Only while detecting."""
+    """A detection failure (§1.1): passing, so Try again is offered. Only while detecting.
+
+    A version that already has fields (finding them again failed) goes back to ready with those
+    fields: they are kept until a run stores new ones, and a ready version (perhaps the current
+    one) never stops being usable because a second look failed. Detection keeps the failure on
+    its run, so the person is told. A version without fields fails."""
     if code not in DETECTION_FAILURE_CODES:
         raise ValueError(f"not a detection failure: {code}")
     changed = uow.session.execute(
         text(
-            "UPDATE document_versions SET status = 'failed', failure_code = :code, "
-            "failure_temporary = true WHERE id = :id AND status = 'detecting' RETURNING id"
+            "UPDATE document_versions SET "
+            "status = CASE WHEN field_count IS NULL THEN 'failed' ELSE 'ready' END, "
+            "failure_code = CASE WHEN field_count IS NULL THEN :code END, "
+            "failure_temporary = field_count IS NULL "
+            "WHERE id = :id AND status = 'detecting' RETURNING status"
         ),
         {"id": version.id, "code": code},
-    ).one_or_none()
-    if changed is not None:
+    ).scalar_one_or_none()
+    if changed == "failed":
         _system_audit(uow, version, "document.version_failed", reason=code, temporary=True)
+    elif changed == "ready":
+        _system_audit(uow, version, "document.detection_failed", reason=code, kept_fields=True)
 
 
 def apply_name_and_description(

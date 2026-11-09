@@ -114,7 +114,32 @@ def test_the_places_found_show_while_the_ai_works(
     assert all(len(p["placements"][0]["rect"]) == 4 for p in view["pending"])
 
 
-def test_detection_runs_again_by_hand_and_resumes_after_a_failure(
+def test_detection_resumes_after_each_failure_until_it_finishes(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    document_id, version_id = _processed(owner, run)
+
+    # Failing and resuming twice: each resume is its own job (review fix: a reused job key once
+    # dropped the second one, leaving the version "Finding fields" for good).
+    for _ in range(2):
+        detect(version_id, FakeAssigner(AiError("ai_not_configured", "no key")))
+        assert _fields(owner, document_id, version_id)["status"] == "failed"
+        run_id = _run_id(committing_db, version_id)
+        queued = _queued(committing_db, version_id)
+        resumed = _run_by_hand(owner, document_id, version_id)
+        assert (resumed.status_code, resumed.json()) == (202, {"mode": "resume"})
+        assert _run_by_hand(owner, document_id, version_id).json() == {"mode": "running"}
+        assert _queued(committing_db, version_id) == queued + 1  # one job, not one per click
+        assert _run_id(committing_db, version_id) == run_id  # the same run, where it stopped
+    detect(version_id, FakeAssigner())
+    view = _fields(owner, document_id, version_id)
+    assert (view["status"], view["found_again_failed"]) == ("ready", None)
+
+
+def test_finding_fields_again_restarts_and_a_failure_keeps_the_fields_found_before(
     owner: TestClient,
     run: Callable[..., None],
     detect: Callable[..., None],
@@ -122,30 +147,32 @@ def test_detection_runs_again_by_hand_and_resumes_after_a_failure(
 ) -> None:
     document_id, version_id = _processed(owner, run)
     detect(version_id, FakeAssigner())
-
+    before = _fields(owner, document_id, version_id)
     first_run = _run_id(committing_db, version_id)
-    before = _queued(committing_db, version_id)
 
     again = _run_by_hand(owner, document_id, version_id)
     assert (again.status_code, again.json()) == (202, {"mode": "restart"})
-    assert _run_by_hand(owner, document_id, version_id).json() == {"mode": "running"}
-    assert _queued(committing_db, version_id) == before + 1  # one job, not one per click
-    run_id = _run_id(committing_db, version_id)
-    assert run_id != first_run
+    assert _run_id(committing_db, version_id) != first_run
     assert _fields(owner, document_id, version_id)["stage"] == "read"  # a new run from the start
 
-    # Failing and resuming twice: each resume is its own job (review fix: a reused job key once
-    # dropped the second one, leaving the version "Finding fields" for good).
-    for _ in range(2):
-        detect(version_id, FakeAssigner(AiError("ai_not_configured", "no key")))
-        assert _fields(owner, document_id, version_id)["status"] == "failed"
-        queued = _queued(committing_db, version_id)
-        resumed = _run_by_hand(owner, document_id, version_id)
-        assert (resumed.status_code, resumed.json()) == (202, {"mode": "resume"})
-        assert _queued(committing_db, version_id) == queued + 1
-        assert _run_id(committing_db, version_id) == run_id  # the same run, where it stopped
+    # Review fix: a failed second look once left the current version "failed" (no viewer, and a
+    # current version that was not ready). It is ready again, with the fields found before.
+    detect(version_id, FakeAssigner(AiError("ai_not_configured", "no key")))
+    after = _fields(owner, document_id, version_id)
+    assert after["status"] == "ready"
+    assert after["found_again_failed"] == "Field detection isn't set up yet"
+    assert (after["fields"], after["roles"], after["flags"]) == (
+        before["fields"],
+        before["roles"],
+        before["flags"],
+    )
+    document = owner.get(f"{DOCUMENTS}/{document_id}").json()
+    assert document["current_version"]["id"] == version_id
+    assert document["versions"][0]["status"] == "ready"
+
+    assert _run_by_hand(owner, document_id, version_id).json() == {"mode": "restart"}
     detect(version_id, FakeAssigner())
-    assert _fields(owner, document_id, version_id)["status"] == "ready"
+    assert _fields(owner, document_id, version_id)["found_again_failed"] is None
 
 
 def test_detection_is_refused_before_processing_and_to_read_only_members(

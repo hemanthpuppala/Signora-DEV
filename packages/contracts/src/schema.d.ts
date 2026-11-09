@@ -1555,6 +1555,8 @@ export interface components {
             /** Fields From */
             fields_from: ("form_fields" | "blanks" | "none") | null;
             flags: components["schemas"]["Flags"];
+            /** Found Again Failed */
+            found_again_failed?: string | null;
             /** Pending */
             pending: components["schemas"]["PendingField"][];
             /** Roles */

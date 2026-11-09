@@ -80,14 +80,16 @@ def ensure_run(session: Session, version: VersionForDetection) -> uuid.UUID:
 def restart_run(
     session: Session, version: VersionForDetection, *, requested_by: uuid.UUID | None
 ) -> uuid.UUID:
-    """A new run from the start, replacing any earlier one (§1.3)."""
+    """A new run from the start, replacing any earlier one (§1.3). The earlier run's ``result``
+    stays until this run derives its own (only the store stage reads it): the version keeps its
+    fields until then, and so their flags, also when this run fails."""
     run_id = uuid.uuid4()
     session.execute(
         text(
             "INSERT INTO detection_runs (version_id, run_id, workspace_id, requested_by) "
             "VALUES (:v, :r, :w, :by) ON CONFLICT (version_id) DO UPDATE SET run_id = :r, "
             "stage = 'read', fields_from = NULL, parsed = NULL, layout = NULL, calls = NULL, "
-            "answer = NULL, result = NULL, model = NULL, failure_code = NULL, requested_by = :by, "
+            "answer = NULL, model = NULL, failure_code = NULL, requested_by = :by, "
             "created_at = now(), finished_at = NULL"
         ),
         {"v": version.id, "r": run_id, "w": version.workspace_id, "by": requested_by},
@@ -111,7 +113,7 @@ _SAVE_DERIVE = text(
     "WHERE version_id = :v AND run_id = :r AND stage = 'derive' RETURNING version_id"
 )
 _SAVE_DONE = text(
-    "UPDATE detection_runs SET stage = 'done', finished_at = now() "
+    "UPDATE detection_runs SET stage = 'done', finished_at = now(), failure_code = NULL "
     "WHERE version_id = :v AND run_id = :r AND stage = 'store' RETURNING version_id"
 )
 _SAVE_FAILURE = text(
