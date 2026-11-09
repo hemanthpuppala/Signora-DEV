@@ -190,14 +190,29 @@ def test_0018_keeps_ready_versions_in_review_without_a_current_one_and_back(
             ),
             {"v": version, "w": SYSTEM_WORKSPACE},
         )
+        field = connection.execute(
+            text(
+                "INSERT INTO version_fields (workspace_id, version_id, key, label, holds, "
+                "filled_by, required, sensitive, origin) VALUES (:w, :v, 'agreement.date', "
+                "'Effective date', 'date', 'sender', true, false, 'detected') RETURNING id"
+            ),
+            {"v": version, "w": SYSTEM_WORKSPACE},
+        ).scalar_one()
+        connection.execute(
+            text(
+                "INSERT INTO field_placements (workspace_id, version_id, field_id, page, x0, y0, "
+                "x1, y1, kind) VALUES (:w, :v, :f, 1, 10, 20, 110, 40, 'blank')"
+            ),
+            {"v": version, "w": SYSTEM_WORKSPACE, "f": field},
+        )
 
     command.upgrade(config, "0018")
 
     with engine.connect() as connection:
         row = connection.execute(
             text(
-                "SELECT v.status, v.name, d.current_version_id, r.revision "
-                "FROM document_versions v JOIN documents d ON d.id = v.document_id "
+                "SELECT v.status, v.name, d.current_version_id, r.revision, r.baseline_version_id, "
+                "r.proposal FROM document_versions v JOIN documents d ON d.id = v.document_id "
                 "JOIN version_reviews r ON r.version_id = v.id WHERE v.id = :v"
             ),
             {"v": version},
@@ -208,6 +223,18 @@ def test_0018_keeps_ready_versions_in_review_without_a_current_one_and_back(
         None,
         0,
     )
+    # Unedited, so its rows are the AI's proposal: the metrics' baseline (§1.5).
+    assert row.baseline_version_id == version
+    assert row.proposal == [
+        {
+            "page": 1,
+            "rect": [10, 20, 110, 40],
+            "holds": "date",
+            "label": "Effective date",
+            "filled_by": "sender",
+            "party_id": None,
+        }
+    ]
 
     command.downgrade(config, "0017")
 

@@ -283,7 +283,8 @@ def test_rekey_moves_every_reference_with_its_id() -> None:
         },
     )
 
-    settled, moved = rekey(settle(fieldset), stored)
+    settled, moved, ids = rekey(settle(fieldset), stored)
+    assert set(ids) >= {party, field, choice, place, option}
 
     ((new_party, slug),) = settled.parties
     plan, card = (item for item, _ in settled.fields)

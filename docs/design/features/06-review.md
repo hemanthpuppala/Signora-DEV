@@ -65,11 +65,19 @@ attributes before and after), and parties added, removed or changed.
 
 ### 1.5 Review metrics (brings back platform FR-15, which Phase 5 dropped)
 
-At approval the approved fields are compared with the AI's proposal (`detection_runs.result`) using the platform's
+At approval the approved fields are compared with the AI's proposal using the platform's
 matching (§7.6: placements overlapping with IoU ≥ 0.5 and the same type family, paired one to one, greedy by IoU per
 page). Stored per version: true positives, false positives, false negatives, precision, recall, F1, and how many
 fields were relabelled, retyped or given to another party. A version made by editing is compared with the AI
 proposal of the version it came from, so the numbers keep measuring the AI.
+
+Where the proposal lives (build decision, 2026-11-08): review keeps it, not `detection_runs.result`, because review
+never reads detection's tables (ADR-R1) and a version made by editing has no run. When detection hands its proposal
+over (`replace_fields`), review snapshots each place (page, box, type, label, who fills, party id) in
+`version_reviews.proposal` with `baseline_version_id` = the version itself. A version made by editing copies its
+source's snapshot and baseline, with party ids moved to its own (the ids `rekey` gave them), so renaming a party is
+not a reassignment, while a field given to a party the source no longer had is. Migration 0018 builds the snapshot
+for existing versions from their rows, which nobody could edit before Phase 6.
 
 ### 1.6 Concurrency
 
@@ -328,6 +336,9 @@ version_reviews                       -- one row per version that has fields
   version_id     uuid  PK, FK (version_id, workspace_id) → document_versions
   workspace_id   uuid  not null
   revision       int   not null default 0, check (revision >= 0)   -- +1 per Save (§1.6)
+  flags          jsonb not null default '{}'                      -- the document's flags detection found
+  baseline_version_id uuid not null, FK → document_versions       -- whose AI proposal the metrics use (§1.5)
+  proposal       jsonb not null default '[]'                      -- that proposal's places (§1.5)
   accepted       jsonb                                            -- at approval: the warnings accepted (§2.1)
   updated_by     uuid  FK users, nullable                         -- the last Save's author
   updated_at     timestamptz not null default now()
@@ -353,9 +364,22 @@ review_metrics                        -- one row per approved version (§1.5)
 Statement-level `AFTER INSERT`, `AFTER UPDATE` and `AFTER DELETE` triggers on `version_roles`, `version_fields`
 and `field_placements` (functions `review_forbid_approved_rows` and `review_forbid_approved_updates`): each checks
 every row the statement touched (transition tables) with one join, and raises when any belongs to an `approved`
-version. Per-row triggers cost about 0.9 s on a 2 000-field save (one lookup per row) and broke NFR-R1; per
-statement the save takes about 0.9 s in all, the rest being PostgreSQL's own foreign-key checks. Approving only
-changes `document_versions`, so the triggers never stand in its way; a version made by editing writes its own rows.
+version. Per-row triggers cost about 0.9 s on a 2 000-field save (one lookup per row) and broke NFR-R1. Approving
+only changes `document_versions`, so the triggers never stand in its way; a version made by editing writes its own
+rows.
+
+Save performance, measured 2026-11-09 (2 000 fields, 4 000 places; the earlier test timed only a first save):
+- **Re-saving took about 2 s.** Deleting the old fields let the cascade delete their places with one statement per
+  field, each firing the statement triggers, and each deleted field's "does a condition still refer to it" check
+  read the whole table (`depends_on_field_id` had no index: quadratic). Fixed: the writers delete places, fields and
+  parties children first, one statement each (`store._clear`), so the cascade finds nothing; 0018 adds partial
+  indexes on `version_fields.role_id` and `depends_on_field_id`. The cascading keys stay: with the places already
+  gone, deleting fields takes about 105 ms with them and about 440 ms with plain keys (their deferred checks).
+- **A freshly migrated database has no planner statistics**, and its foreign-key checks then read whole tables:
+  the first save took about 0.85 s instead of 0.35 s. A running database has statistics (autovacuum); the timing
+  tests analyze the tables first so they measure that, not the test database's birth. The trigger body itself takes
+  about 1 ms for 4 000 rows.
+- Result with statistics: first save about 0.35 s; worst re-save (every row new) about 0.64 s; approve about 0.2 s.
 
 ### 9.3 Migration `0018_review`
 
@@ -425,8 +449,13 @@ revision 1 with the source's document flags; its audit entries are `document.ver
 
 ### 10.4 `POST …/approve`
 
-Request `{ revision: int, accepted: [code] }`. Response `200 VersionFields` (approved, current). `409 fields-changed`
-on a stale revision, `409 version-not-in-review` unless `ready`.
+Request `{ revision: int, accepted: [code] }`. Response `204` (built; the page reloads the document, whose versions
+say which is approved and current). `409 fields-changed` on a stale revision, `409 version-not-in-review` unless
+`ready`, `409 warnings-changed` when `accepted` is not exactly the warnings the server finds now (the person approves
+over what they saw; with the revision unchanged this only happens to a client out of date). The server records its own
+warnings in `version_reviews.accepted` and writes the metrics to `review_metrics`; the audit entry
+`document.version_approved` lists the accepted codes and the metrics' counts (the audit chain's canonical JSON has no
+floating-point numbers; the ratios follow from the counts).
 
 ### 10.5 Validation (`422`, each error naming its item)
 
@@ -518,7 +547,7 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.5 | Warnings | done | `review/checks.py`: `warnings_for` (one pass, overlaps by a sweep per page), `ReviewWarning` with its code, message and field or party; the document's flags now travel with detection's proposal and are kept on `version_reviews.flags` (added to 0018), and a new proposal moves the revision on; the fields endpoint returns `revision`, `warnings`, and ids (party, field's party, place) with `kind_label`, `holds_label`, `origin`. Tests: one per code (7) and the endpoint |
 | 6.6 | Save: validation, shared values, changes, audit | done | `PUT …/fields` (`review/routes.py`, `service.save`): row lock and revision compare-and-set; `editing.py` (pure: `check` §10.5, `settle` shared values and keys, `changes` for the audit entry, places indexed by field so O(F + P)); `store.read_stored`/`write_set` (editor's ids kept, PDF field names kept, flags kept only while unchanged); `documents.version_for_review`, `record_field_count`, `audit_document`; errors `fields-changed`, `version-not-in-review`. Triggers made statement-level for NFR-R1 (§9.2). Tests (7): save and its audit entry, the three conflicts, each 422 rule, shared values merged, flags, read-only, 2 000 fields under 1 s |
 | 6.7 | Revisions: the version bump | done | `POST …/revisions` (`review/routes.py`, `service.revise`, idempotency guard); `documents.derive_version` (next number under the document lock, the file's columns copied, `derived_name`, audit `document.version_derived`); `editing.rekey`; `store.begin_review`; the fields view reads flags from review once a version is reviewable (a derived version has no run); an archived document's fields cannot be saved (`version_for_review`). Tests (6): the new version end to end (same file, PDF field names kept, fresh ids, source unchanged, audit, saved in place, approved and current, named after an edited edit), a retried request makes one version, each refusal, archived save, `rekey`, `derived_name` |
-| 6.8 | Approve, current, metrics | todo | — |
+| 6.8 | Approve, current, metrics | done | `POST …/approve` (`service.approve`: row lock, revision, warnings accepted must match, metrics, then `documents.approve_version` with the details for its audit entry); `review/metrics.py` (pure: `iou`, `match` by a sweep per page then greedy one to one, `measure`; `BaselinePlace`, `ApprovedPlace`); the proposal snapshot and baseline on `version_reviews` (§1.5, §9; added to 0018 with existing versions' snapshots); `store.read_baseline`, `record_approval`; `begin_review` moves the baseline's party ids; error `warnings-changed`. Tests: matching and measures (7), approve end to end (frozen, current, warnings and metrics recorded, audit, approve again and Find fields again refused), metrics after edits, an edited version against its source's proposal (a party rename is not a reassignment), stale and unseen-warnings refusals and read-only, 2 000 fields under 1 s (NFR-R2), the 0018 snapshot. Save performance fixed on the way (§9.2): children-first deletes, indexes on the field columns that refer to other rows, timing tests with statistics and the worst re-save |
 | 6.9 | Web: editor state and labels | todo | — |
 | 6.10 | Web: party and field forms, save bar, leaving dialog | todo | — |
 | 6.11 | Web: palette, move and resize, keyboard | todo | — |

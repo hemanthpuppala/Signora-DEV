@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import text
@@ -21,6 +22,7 @@ from signora.modules.review.editing import (
     is_sensitive,
     unchanged,
 )
+from signora.modules.review.metrics import BaselinePlace, Metrics
 from signora.modules.review.proposal import Proposal
 from signora.modules.review.views import (
     DependencyView,
@@ -31,24 +33,34 @@ from signora.modules.review.views import (
 )
 
 
+def _clear(session: Session, version_id: uuid.UUID) -> None:
+    """Delete a version's places, fields and parties, children first, one statement each. Left to
+    the cascade, deleting the fields would run one DELETE of places per field, each firing the
+    frozen-version triggers (§9.2)."""
+    params = {"v": version_id}
+    session.execute(text("DELETE FROM field_placements WHERE version_id = :v"), params)
+    session.execute(text("DELETE FROM version_fields WHERE version_id = :v"), params)
+    session.execute(text("DELETE FROM version_roles WHERE version_id = :v"), params)
+
+
 def replace_fields(
     session: Session, *, workspace_id: uuid.UUID, version_id: uuid.UUID, proposal: Proposal
 ) -> None:
     """Replace the version's parties, fields and places with a proposal (detection's handoff,
-    ADR-R1), keep the document's flags, and move the revision on, so an editor holding the earlier
-    set cannot save over the new one (§1.6)."""
-    params = {"v": version_id}
+    ADR-R1), keep the document's flags and the proposal itself (the metrics' baseline, §1.5), and
+    move the revision on, so an editor holding the earlier set cannot save over the new one
+    (§1.6)."""
     session.execute(
         text(
-            "INSERT INTO version_reviews (version_id, workspace_id, flags) "
-            "VALUES (:v, :w, CAST(:flags AS jsonb)) ON CONFLICT (version_id) DO UPDATE SET "
-            "flags = EXCLUDED.flags, revision = version_reviews.revision + 1, updated_by = NULL, "
+            "INSERT INTO version_reviews (version_id, workspace_id, flags, baseline_version_id) "
+            "VALUES (:v, :w, CAST(:flags AS jsonb), :v) ON CONFLICT (version_id) DO UPDATE SET "
+            "flags = EXCLUDED.flags, baseline_version_id = EXCLUDED.baseline_version_id, "
+            "proposal = '[]'::jsonb, revision = version_reviews.revision + 1, updated_by = NULL, "
             "updated_at = now()"
         ),
         {"v": version_id, "w": workspace_id, "flags": json.dumps(proposal.flags)},
     )
-    session.execute(text("DELETE FROM version_fields WHERE version_id = :v"), params)
-    session.execute(text("DELETE FROM version_roles WHERE version_id = :v"), params)
+    _clear(session, version_id)
     party_ids: dict[str, uuid.UUID] = {}
     if proposal.parties:
         rows = session.execute(
@@ -143,6 +155,22 @@ def replace_fields(
             "option_value text, option_text text)"
         ),
         {"w": workspace_id, "v": version_id, "places": json.dumps(places)},
+    )
+    baseline = [
+        BaselinePlace(
+            page=place.page,
+            rect=place.rect,
+            holds=field.holds,
+            label=field.label,
+            filled_by=field.filled_by,
+            party_id=party_ids.get(field.party) if field.party else None,
+        ).as_json()
+        for field in proposal.fields
+        for place in field.places
+    ]
+    session.execute(
+        text("UPDATE version_reviews SET proposal = CAST(:p AS jsonb) WHERE version_id = :v"),
+        {"v": version_id, "p": json.dumps(baseline)},
     )
 
 
@@ -244,18 +272,86 @@ def begin_review(
     version_id: uuid.UUID,
     source_id: uuid.UUID,
     by: uuid.UUID,
+    party_ids: Mapping[uuid.UUID, uuid.UUID],
 ) -> int:
     """A version made by editing starts its review at revision 1 (its first Save made it), with
-    the document's flags its source's detection found (the file is the same)."""
+    the document's flags its source's detection found (the file is the same) and its source's
+    baseline for the metrics (§1.5), its parties moved to the new version's ids."""
+    source = session.execute(
+        text(
+            "SELECT flags, baseline_version_id, proposal FROM version_reviews WHERE version_id = :s"
+        ),
+        {"s": source_id},
+    ).one()
+    proposal = [
+        BaselinePlace.from_json(place).moved(party_ids).as_json() for place in source.proposal
+    ]
     revision: int = session.execute(
         text(
-            "INSERT INTO version_reviews (version_id, workspace_id, revision, flags, updated_by) "
-            "SELECT :v, :w, 1, COALESCE((SELECT flags FROM version_reviews WHERE version_id = :s), "
-            "'{}'::jsonb), :by RETURNING revision"
+            "INSERT INTO version_reviews (version_id, workspace_id, revision, flags, "
+            "baseline_version_id, proposal, updated_by) VALUES (:v, :w, 1, CAST(:flags AS jsonb), "
+            ":baseline, CAST(:proposal AS jsonb), :by) RETURNING revision"
         ),
-        {"v": version_id, "w": workspace_id, "s": source_id, "by": by},
+        {
+            "v": version_id,
+            "w": workspace_id,
+            "flags": json.dumps(source.flags),
+            "baseline": source.baseline_version_id,
+            "proposal": json.dumps(proposal),
+            "by": by,
+        },
     ).scalar_one()
     return revision
+
+
+def read_baseline(session: Session, version_id: uuid.UUID) -> tuple[uuid.UUID, list[BaselinePlace]]:
+    """The AI's proposal a version's metrics compare with, and whose it is (§1.5)."""
+    row = session.execute(
+        text("SELECT baseline_version_id, proposal FROM version_reviews WHERE version_id = :v"),
+        {"v": version_id},
+    ).one()
+    return row.baseline_version_id, [BaselinePlace.from_json(place) for place in row.proposal]
+
+
+def record_approval(
+    session: Session,
+    *,
+    workspace_id: uuid.UUID,
+    version_id: uuid.UUID,
+    baseline_version_id: uuid.UUID,
+    metrics: Metrics,
+    flags_accepted: int,
+    accepted: list[dict[str, Any]],
+) -> None:
+    """The warnings approved over and the version's review metrics."""
+    session.execute(
+        text("UPDATE version_reviews SET accepted = CAST(:a AS jsonb) WHERE version_id = :v"),
+        {"v": version_id, "a": json.dumps(accepted)},
+    )
+    session.execute(
+        text(
+            "INSERT INTO review_metrics (version_id, workspace_id, baseline_version_id, "
+            "true_positives, false_positives, false_negatives, precision, recall, f1, relabelled, "
+            "retyped, reassigned, flags_accepted, mean_iou) VALUES (:v, :w, :b, :tp, :fp, :fn, "
+            ":precision, :recall, :f1, :relabelled, :retyped, :reassigned, :flags, :iou)"
+        ),
+        {
+            "v": version_id,
+            "w": workspace_id,
+            "b": baseline_version_id,
+            "tp": metrics.true_positives,
+            "fp": metrics.false_positives,
+            "fn": metrics.false_negatives,
+            "precision": metrics.precision,
+            "recall": metrics.recall,
+            "f1": metrics.f1,
+            "relabelled": metrics.relabelled,
+            "retyped": metrics.retyped,
+            "reassigned": metrics.reassigned,
+            "flags": flags_accepted,
+            "iou": metrics.mean_iou,
+        },
+    )
 
 
 def read_stored(session: Session, version_id: uuid.UUID) -> Stored:
@@ -328,9 +424,7 @@ def write_set(
     """Write a settled set in place of the stored one, keeping the editor's ids: a constant number
     of statements over O(R + F + P) rows. A place from the PDF keeps its form field name; a field
     keeps its origin, and its flag only while it is unchanged (§2.2)."""
-    params = {"v": version_id}
-    session.execute(text("DELETE FROM version_fields WHERE version_id = :v"), params)
-    session.execute(text("DELETE FROM version_roles WHERE version_id = :v"), params)
+    _clear(session, version_id)
     if settled.parties:
         session.execute(
             text(

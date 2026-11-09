@@ -32,6 +32,8 @@ STATUSES = (
     "('processing', 'needs_password', 'needs_ocr', 'failed', 'detecting', 'ready', 'approved')"
 )
 FIELD_TABLES = ("version_roles", "version_fields", "field_placements")
+# Columns of version_fields that refer to another row (a party, a field), indexed for deletes.
+REFERRING = ("role_id", "depends_on_field_id")
 # One statement-level trigger per event: (event, transition tables, function).
 TRIGGERS = (
     ("INSERT", "NEW TABLE AS touched", "review_forbid_approved_rows"),
@@ -106,6 +108,8 @@ def upgrade() -> None:
         sa.Column("workspace_id", UUID, nullable=False),
         sa.Column("revision", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("flags", pg.JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False),
+        sa.Column("baseline_version_id", UUID, nullable=False),
+        sa.Column("proposal", pg.JSONB(), server_default=sa.text("'[]'::jsonb"), nullable=False),
         sa.Column("accepted", pg.JSONB(), nullable=True),
         sa.Column("updated_by", UUID, nullable=True),
         sa.Column(
@@ -122,12 +126,27 @@ def upgrade() -> None:
             ["users.id", "users.workspace_id"],
             name=op.f("fk_version_reviews_updated_by_users"),
         ),
+        sa.ForeignKeyConstraint(
+            ["baseline_version_id", "workspace_id"],
+            ["document_versions.id", "document_versions.workspace_id"],
+            name=op.f("fk_version_reviews_baseline_version_id_document_versions"),
+        ),
         sa.PrimaryKeyConstraint("version_id", name=op.f("pk_version_reviews")),
     )
+    # No version has been edited yet, so each one's rows are still the AI's proposal (§1.5).
     op.execute(
-        "INSERT INTO version_reviews (version_id, workspace_id, flags) "
-        "SELECT version_id, workspace_id, COALESCE(result -> 'flags', '{}'::jsonb) "
-        "FROM detection_runs"
+        """
+        INSERT INTO version_reviews (version_id, workspace_id, flags, baseline_version_id, proposal)
+        SELECT r.version_id, r.workspace_id, COALESCE(r.result -> 'flags', '{}'::jsonb),
+               r.version_id,
+               COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                             'page', p.page, 'rect', jsonb_build_array(p.x0, p.y0, p.x1, p.y1),
+                             'holds', f.holds, 'label', f.label, 'filled_by', f.filled_by,
+                             'party_id', f.role_id))
+                         FROM field_placements p JOIN version_fields f ON f.id = p.field_id
+                         WHERE p.version_id = r.version_id), '[]'::jsonb)
+        FROM detection_runs r
+        """
     )
     op.create_table(
         "review_metrics",
@@ -160,6 +179,16 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("version_id", name=op.f("pk_review_metrics")),
     )
+
+    # Deleting a field or a party checks no field still refers to it: without these indexes each
+    # check reads every field (quadratic in a save, §9.2).
+    for column in REFERRING:
+        op.create_index(
+            f"ix_version_fields_{column}",
+            "version_fields",
+            [column],
+            postgresql_where=sa.text(f"{column} IS NOT NULL"),
+        )
 
     # An approved version's parties, fields and places never change (NFR-R3). Checked once per
     # statement over every row it touched (transition tables), not once per row: a save writes
@@ -213,6 +242,8 @@ def downgrade() -> None:
             op.execute(f"DROP TRIGGER {table}_frozen_on_{event.lower()} ON {table}")
     op.execute("DROP FUNCTION review_forbid_approved_updates()")
     op.execute("DROP FUNCTION review_forbid_approved_rows()")
+    for column in REFERRING:
+        op.drop_index(f"ix_version_fields_{column}", "version_fields")
     op.drop_table("review_metrics")
     op.drop_table("version_reviews")
     op.drop_constraint(op.f("ck_version_fields_holds_label_when_other"), "version_fields", "check")

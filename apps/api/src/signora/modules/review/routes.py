@@ -1,4 +1,5 @@
-"""Review's API (Phase 6 LLD §10): saving a version's fields, in place or as the next version."""
+"""Review's API (Phase 6 LLD §10): saving a version's fields, in place or as the next version, and
+approving it."""
 
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ from signora.kernel.db import Database
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.identity_access import Actor, current_actor
 from signora.modules.review import service
-from signora.modules.review.fieldset import FieldSet, Revised, Saved
+from signora.modules.review.fieldset import Approval, FieldSet, Revised, Saved
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
 Member = Annotated[Actor, Depends(current_actor)]
@@ -40,6 +41,27 @@ def save_fields(
             uow, actor=actor, document_id=document_id, version_id=version_id, fieldset=fieldset
         )
     return Saved(revision=revision)
+
+
+@router.post(
+    "/documents/{document_id}/versions/{version_id}/approve",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Approve a version in review: its fields freeze, and the newest approved is current",
+    responses={
+        409: {"description": "Changed since it was opened, warnings changed, or not in review"}
+    },
+)
+def approve(
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    approval: Approval,
+    request: Request,
+    actor: Member,
+) -> None:
+    with _db(request).unit_of_work() as uow:
+        service.approve(
+            uow, actor=actor, document_id=document_id, version_id=version_id, approval=approval
+        )
 
 
 @router.post(

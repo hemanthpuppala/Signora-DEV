@@ -5,9 +5,11 @@ boundary (§10.5); rules that span items are checked in ``editing``."""
 from __future__ import annotations
 
 import uuid
+from typing import get_args
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from signora.modules.review.checks import WarningCode
 from signora.modules.review.values import FilledBy, ManualHolds, PartyKind, PlaceKind
 
 MAX_PARTIES = 20
@@ -58,6 +60,13 @@ class FieldSet(_In):
     revision: int = Field(ge=0)  # the revision the editor started from (§1.6)
     parties: list[PartyIn] = Field(max_length=MAX_PARTIES)  # in signing order
     fields: list[FieldIn] = Field(max_length=MAX_FIELDS)
+
+
+class Approval(_In):
+    """Approve with the revision the page shows and the warnings the person saw (§2.1)."""
+
+    revision: int = Field(ge=0)
+    accepted: list[WarningCode] = Field(max_length=len(get_args(WarningCode)))
 
 
 class Saved(BaseModel):

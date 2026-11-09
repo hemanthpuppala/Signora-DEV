@@ -10,6 +10,7 @@ with ``finish_detection`` (ready, and current when it is the newest ready versio
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -321,12 +322,17 @@ def finish_detection(
 
 
 def approve_version(
-    uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+    uow: UnitOfWork,
+    *,
+    actor: Actor,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    details: Mapping[str, Any] | None = None,
 ) -> bool:
     """Approve a version in review (Phase 6 §1.3): frozen and sendable, recorded with who approved
-    and when; it becomes current when no higher-numbered version is approved (§4.2's rule, now over
-    approved versions). False when it was not in review (nothing changed); the caller checks the
-    revision and access first."""
+    and when (and review's ``details``: the warnings accepted, the metrics); it becomes current
+    when no higher-numbered version is approved (§4.2's rule, now over approved versions). False
+    when it was not in review (nothing changed); the caller checks the revision and access first."""
     session = uow.session
     approved = session.execute(
         text(
@@ -338,7 +344,14 @@ def approve_version(
     ).scalar_one_or_none()
     if approved is None:
         return False
-    audit(uow, actor, "document.version_approved", document_id, version_no=approved)
+    audit(
+        uow,
+        actor,
+        "document.version_approved",
+        document_id,
+        version_no=approved,
+        **(details or {}),
+    )
     promotion = promote_if_newest(session, document_id, version_id, approved)
     if promotion.promoted:
         audit(

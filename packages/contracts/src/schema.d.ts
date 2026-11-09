@@ -402,6 +402,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/versions/{version_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a version in review: its fields freeze, and the newest approved is current */
+        post: operations["approve_api_v1_documents__document_id__versions__version_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/versions/{version_id}/detection": {
         parameters: {
             query?: never;
@@ -821,8 +838,18 @@ export interface components {
              */
             upload_id: string;
         };
+        /**
+         * Approval
+         * @description Approve with the revision the page shows and the warnings the person saw (§2.1).
+         */
+        "Approval-Input": {
+            /** Accepted */
+            accepted: ("no_signer" | "party_cannot_sign" | "own_value_not_a_partys" | "needs_a_look" | "already_signed" | "xfa" | "addressed_to_ai" | "overlapping_places" | "private_value")[];
+            /** Revision */
+            revision: number;
+        };
         /** Approval */
-        Approval: {
+        "Approval-Output": {
             /**
              * At
              * Format: date-time
@@ -1763,7 +1790,7 @@ export interface components {
         VersionView: {
             /** Ai Instructions */
             ai_instructions: string;
-            approved: components["schemas"]["Approval"] | null;
+            approved: components["schemas"]["Approval-Output"] | null;
             /** Bytes */
             bytes: number;
             /**
@@ -3286,6 +3313,68 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    approve_api_v1_documents__document_id__versions__version_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Approval-Input"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Changed since it was opened, warnings changed, or not in review */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {

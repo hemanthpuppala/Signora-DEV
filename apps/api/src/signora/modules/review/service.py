@@ -1,11 +1,12 @@
-"""Saving a version's fields (Phase 6 LLD §6.2, §1.2, §1.4, §1.6): one transaction, one revision,
-one audit entry listing the changes. A version in review is saved in place; an edit of an approved
-version becomes the next version."""
+"""Saving and approving a version's fields (Phase 6 LLD §6.2, §1.2-1.6): one transaction, one
+revision, one audit entry listing the changes. A version in review is saved in place; an edit of an
+approved version becomes the next version; approving records the warnings accepted and the review
+metrics."""
 
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from sqlalchemy import text
@@ -17,16 +18,27 @@ from signora.modules.documents import (
     FieldsApproved,
     VersionForReview,
     VersionNotApproved,
+    approve_version,
     audit_document,
     derive_version,
     record_field_count,
     version_for_review,
 )
 from signora.modules.identity_access import Actor
+from signora.modules.review.checks import warnings_for
 from signora.modules.review.editing import Settled, Stored, changes, check, rekey, settle
-from signora.modules.review.errors import FieldsChanged, VersionNotInReview
-from signora.modules.review.fieldset import FieldSet, Revised
-from signora.modules.review.store import begin_review, read_review, read_stored, write_set
+from signora.modules.review.errors import FieldsChanged, VersionNotInReview, WarningsChanged
+from signora.modules.review.fieldset import Approval, FieldSet, Revised
+from signora.modules.review.metrics import ApprovedPlace, measure
+from signora.modules.review.store import (
+    begin_review,
+    read_baseline,
+    read_review,
+    read_set,
+    read_stored,
+    record_approval,
+    write_set,
+)
 
 
 @dataclass(frozen=True)
@@ -97,6 +109,76 @@ def save(
     return new_revision
 
 
+def approve(
+    uow: UnitOfWork,
+    *,
+    actor: Actor,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    approval: Approval,
+) -> None:
+    """Approve a version in review (§1.3): the revision the page shows, with the warnings the person
+    saw. The warnings are recorded as accepted, never a block (§2.1); the metrics compare the set
+    with the AI's proposal (§1.5). Documents freezes it, audits it and moves current."""
+    session = uow.session
+    version = version_for_review(session, actor, document_id, version_id, edit=True, lock=True)
+    if version.status != "ready":
+        raise VersionNotInReview
+    revision = session.execute(
+        text("SELECT revision FROM version_reviews WHERE version_id = :v FOR UPDATE"),
+        {"v": version_id},
+    ).scalar_one_or_none()
+    if revision != approval.revision:
+        raise FieldsChanged
+    roles, fields = read_set(session, version_id)
+    _, flags = read_review(session, version_id)
+    warnings = warnings_for(roles, fields, flags)
+    if {w.code for w in warnings} != set(approval.accepted):
+        raise WarningsChanged
+    baseline_id, proposed = read_baseline(session, version_id)
+    approved = [
+        ApprovedPlace(
+            field_id=field.id,
+            page=place.page,
+            rect=place.rect,
+            holds=field.holds,
+            label=field.label,
+            filled_by=field.filled_by,
+            party_id=field.party_id,
+        )
+        for field in fields
+        for place in field.placements
+    ]
+    metrics = measure(proposed, approved)
+    flags_accepted = sum(1 for field in fields if field.needs_review)
+    accepted = [w.model_dump(mode="json", exclude_none=True) for w in warnings]
+    record_approval(
+        session,
+        workspace_id=version.workspace_id,
+        version_id=version_id,
+        baseline_version_id=baseline_id,
+        metrics=metrics,
+        flags_accepted=flags_accepted,
+        accepted=accepted,
+    )
+    approve_version(
+        uow,
+        actor=actor,
+        document_id=document_id,
+        version_id=version_id,
+        details={
+            "revision": revision,
+            "accepted": [w.code for w in warnings],
+            # Counts only: the audit chain's canonical JSON has no floats, and the ratios follow
+            # from the counts (review_metrics keeps them).
+            "metrics": {
+                **{k: v for k, v in asdict(metrics).items() if isinstance(v, int)},
+                "flags_accepted": flags_accepted,
+            },
+        },
+    )
+
+
 def revise(
     uow: UnitOfWork,
     *,
@@ -115,7 +197,7 @@ def revise(
     revision, _ = read_review(session, source_id)
     edit = _edit(session, source, revision, fieldset)
     version = derive_version(uow, actor=actor, document_id=document_id, source_id=source_id)
-    settled, stored = rekey(edit.settled, edit.stored)
+    settled, stored, ids = rekey(edit.settled, edit.stored)
     write_set(
         session,
         workspace_id=version.workspace_id,
@@ -129,6 +211,7 @@ def revise(
         version_id=version.id,
         source_id=source_id,
         by=actor.user_id,
+        party_ids=ids,
     )
     record_field_count(uow, version.id, len(settled.fields))
     audit_document(

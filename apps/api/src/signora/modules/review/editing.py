@@ -238,11 +238,12 @@ def settle(fieldset: FieldSet) -> Settled:
 
 def rekey(
     settled: Settled, stored: Stored, new_id: Callable[[], uuid.UUID] = uuid.uuid4
-) -> tuple[Settled, Stored]:
+) -> tuple[Settled, Stored, dict[uuid.UUID, uuid.UUID]]:
     """The same set under fresh ids, for a version made by editing (§1.2): ids are unique across
     versions, and the source keeps its own. Every reference (a field's party and condition, a
     place's field) moves with its id, and the stored set is re-keyed alike, so writing it keeps
-    each place's PDF field name and each unchanged field's flag. O(R + F + P)."""
+    each place's PDF field name and each unchanged field's flag. Returns the ids too (old to new),
+    for what else refers to the source's parties (the metrics' baseline). O(R + F + P)."""
     ids: dict[uuid.UUID, uuid.UUID] = {}
 
     def to(old: uuid.UUID) -> uuid.UUID:
@@ -284,7 +285,7 @@ def rekey(
             to(i): replace(p, id=to(i), field_id=to(p.field_id)) for i, p in stored.places.items()
         },
     )
-    return Settled(parties=parties, fields=fields, merged=settled.merged), moved
+    return Settled(parties=parties, fields=fields, merged=settled.merged), moved, ids
 
 
 def is_sensitive(item: FieldIn) -> bool:

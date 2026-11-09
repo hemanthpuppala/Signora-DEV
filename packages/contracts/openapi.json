@@ -67,7 +67,43 @@
         "title": "AddVersion",
         "type": "object"
       },
-      "Approval": {
+      "Approval-Input": {
+        "additionalProperties": false,
+        "description": "Approve with the revision the page shows and the warnings the person saw (§2.1).",
+        "properties": {
+          "accepted": {
+            "items": {
+              "enum": [
+                "no_signer",
+                "party_cannot_sign",
+                "own_value_not_a_partys",
+                "needs_a_look",
+                "already_signed",
+                "xfa",
+                "addressed_to_ai",
+                "overlapping_places",
+                "private_value"
+              ],
+              "type": "string"
+            },
+            "maxItems": 9,
+            "title": "Accepted",
+            "type": "array"
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "accepted"
+        ],
+        "title": "Approval",
+        "type": "object"
+      },
+      "Approval-Output": {
         "properties": {
           "at": {
             "format": "date-time",
@@ -2540,7 +2576,7 @@
           "approved": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Approval"
+                "$ref": "#/components/schemas/Approval-Output"
               },
               {
                 "type": "null"
@@ -5023,6 +5059,100 @@
         "summary": "Add a version from an upload (requires Idempotency-Key)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/approve": {
+      "post": {
+        "operationId": "approve_api_v1_documents__document_id__versions__version_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Approval-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Changed since it was opened, warnings changed, or not in review"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Approve a version in review: its fields freeze, and the newest approved is current",
+        "tags": [
+          "review"
         ]
       }
     },

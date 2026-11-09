@@ -303,22 +303,44 @@ def test_read_only_members_cannot_save(
         assert _save(theirs, document_id, version_id, body).status_code == 403
 
 
-def test_two_thousand_fields_save_in_under_a_second(
-    owner: TestClient, run: Callable[..., None], detect: Callable[..., None]
-) -> None:
-    """NFR-R1: 2 000 fields and 4 000 places, linear and in a constant number of statements."""
-    document_id, version_id = _in_review(owner, run, detect)
-    body = _body(_view(owner, document_id, version_id))
+def large_set(body: dict[str, Any], fields: int = 2000) -> dict[str, Any]:
+    """``fields`` drawn fields with two places each, on a grid that fits a Letter page."""
     body["fields"] = []
-    for n in range(2000):
-        x, y = 20 + (n % 40) * 13, 20 + (n // 40) * 14  # a grid that fits a Letter page
+    for n in range(fields):
+        x, y = 20 + (n % 40) * 13, 20 + (n // 40) * 14
         field = _drawn(f"Field {n}", None, rect=[x, y, x + 10, y + 10])
         field["places"].append({**field["places"][0], "id": str(uuid.uuid4())})
         body["fields"].append(field)
+    return body
 
-    started = time.monotonic()
-    saved = _save(owner, document_id, version_id, body)
-    elapsed = time.monotonic() - started
 
-    assert saved.status_code == 200, saved.text[:500]
-    assert elapsed < 1.0, f"{elapsed:.2f} s"
+def with_statistics(db: Database) -> None:
+    """A running database has planner statistics (autovacuum); a freshly migrated test database has
+    none, and its foreign-key checks then read whole tables. Timings are of the former."""
+    with db.unit_of_work() as uow:
+        uow.session.execute(
+            text("ANALYZE document_versions, version_roles, version_fields, field_placements")
+        )
+
+
+def test_two_thousand_fields_save_in_under_a_second(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """NFR-R1: 2 000 fields and 4 000 places, linear and in a constant number of statements; the
+    first save of them, and the worst later one, every row replaced by new ones."""
+    document_id, version_id = _in_review(owner, run, detect)
+    body = large_set(_body(_view(owner, document_id, version_id)))
+    with_statistics(committing_db)
+
+    timings = []
+    for revision in (0, 1):
+        body = large_set({**body, "revision": revision})  # all new ids the second time
+        started = time.monotonic()
+        saved = _save(owner, document_id, version_id, body)
+        timings.append(time.monotonic() - started)
+        assert saved.status_code == 200, saved.text[:500]
+
+    assert max(timings) < 1.0, [f"{t:.2f} s" for t in timings]

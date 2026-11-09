@@ -95,6 +95,13 @@ version_fields = Table(
         ondelete="CASCADE",
     ),
     Index("ix_version_fields_version_id", "version_id"),
+    # Deleting a party or a field checks nothing still refers to it (§9.2).
+    Index("ix_version_fields_role_id", "role_id", postgresql_where=text("role_id IS NOT NULL")),
+    Index(
+        "ix_version_fields_depends_on_field_id",
+        "depends_on_field_id",
+        postgresql_where=text("depends_on_field_id IS NOT NULL"),
+    ),
 )
 
 # Every place a field fills, keeping the PDF's field name for signing (§5.2).
@@ -138,6 +145,10 @@ version_reviews = Table(
     Column("revision", Integer, nullable=False, server_default=text("0")),
     # The document's flags as detection found them (already signed, XFA, addressed to an AI…).
     Column("flags", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    # The AI's proposal the review metrics compare with (§1.5): this version's own when detection
+    # stored it, its source's for a version made by editing (party ids moved to its own).
+    Column("baseline_version_id", UUID(as_uuid=True), nullable=False),
+    Column("proposal", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
     Column("accepted", JSONB),
     Column("updated_by", UUID(as_uuid=True)),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
@@ -147,6 +158,10 @@ version_reviews = Table(
         ["document_versions.id", "document_versions.workspace_id"],
     ),
     ForeignKeyConstraint(["updated_by", "workspace_id"], ["users.id", "users.workspace_id"]),
+    ForeignKeyConstraint(
+        ["baseline_version_id", "workspace_id"],
+        ["document_versions.id", "document_versions.workspace_id"],
+    ),
 )
 
 # How close the AI came, measured when a version is approved (Phase 6 §1.5).
