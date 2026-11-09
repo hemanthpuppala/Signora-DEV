@@ -259,7 +259,7 @@ the shown version's state, and choosing a version in the list reviews that one. 
 - **Panel, overview**: "Who signs" (add, rename, reorder, remove); a **Things to check** box listing the warnings,
   each with "Show me"; the filters, search and list.
 - **Panel, a field**: choosing one swaps the overview for its form (label, type, who fills, required; "More": the
-  condition, private, position and size, the key, "Make separate field"), its places stepper and Delete; "Done"
+  condition, private, position and size, "Make separate field"; the key is internal and never shown, owner decision 2026-11-09), its places stepper and Delete; "Done"
   returns.
 - **+ Add field** in the viewer's toolbar opens the palette (§5).
 - **Read-only people** see the same page with no controls.

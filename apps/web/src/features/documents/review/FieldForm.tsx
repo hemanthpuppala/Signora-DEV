@@ -245,7 +245,6 @@ export function FieldForm({
           ) : null}
         </div>
       </fieldset>
-      <SmallText>{field.key ? `Key: ${field.key}` : "Its key is made when you save."}</SmallText>
       <div className={styles.actions}>
         <Button variant="destructive" compact onClick={() => editing.onDeleteField(field.id)}>
           Delete field
