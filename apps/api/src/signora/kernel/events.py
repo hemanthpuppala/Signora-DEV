@@ -15,7 +15,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from signora.kernel.jobs import JobContext, JobKind, JobRegistry, enqueue, registry
+from signora.kernel.jobs import DeadHandler, JobContext, JobKind, JobRegistry, enqueue, registry
 from signora.kernel.logging import get_logger
 
 log = get_logger("signora.events")
@@ -64,8 +64,11 @@ class EventBus:
         *,
         max_attempts: int = DEFAULT_MAX_ATTEMPTS,
         lease: timedelta = DEFAULT_LEASE,
+        on_dead: DeadHandler | None = None,
     ) -> Callable[[Callable[[JobContext, E], None]], Callable[[JobContext, E], None]]:
-        """Register ``handler(context, event)`` as ``subscriber``'s reaction to ``event_type``."""
+        """Register ``handler(context, event)`` as ``subscriber``'s reaction to ``event_type``.
+        ``on_dead(uow, payload)`` settles what the handler left when its job dies (backbone §1.4);
+        the payload is the event as JSON."""
         known = self._event_types.setdefault(event_type.name, event_type)
         if known is not event_type:
             raise ValueError(f"two event classes are named {event_type.name!r}")
@@ -82,6 +85,7 @@ class EventBus:
                     run,
                     max_attempts=max_attempts,
                     lease=lease,
+                    on_dead=on_dead,
                 )
             )
             subscribers = self._subscribers.setdefault(event_type.name, [])

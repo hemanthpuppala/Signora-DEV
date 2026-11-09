@@ -5,12 +5,13 @@ from __future__ import annotations
 import threading
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from sqlalchemy import text
 
 from signora.kernel.config import DatabaseSettings
-from signora.kernel.db import Database
+from signora.kernel.db import Database, UnitOfWork
 from signora.kernel.events import DomainEvent, EventBus
 from signora.kernel.jobs import JobContext, JobRegistry
 from tests.support.workers import running_worker, wait_until
@@ -139,3 +140,27 @@ def test_events_are_immutable_and_timestamped_in_utc() -> None:
     assert event.occurred_at <= datetime.now(UTC)
     with pytest.raises(ValueError, match="frozen"):
         event.workspace_id = uuid.uuid4()  # type: ignore[misc]
+
+
+def test_a_subscribers_dead_job_is_settled_with_its_event(
+    committing_db: Database, test_db_settings: DatabaseSettings, no_backoff: None
+) -> None:
+    bus = EventBus(JobRegistry())
+    event_type = make_event_type()
+    settled: list[str] = []
+
+    def settle(uow: UnitOfWork, payload: dict[str, Any]) -> None:
+        settled.append(payload["recipient_id"])
+
+    @bus.subscribe(event_type, "fails", max_attempts=1, on_dead=settle)
+    def fails(_: JobContext, __: DomainEvent) -> None:
+        raise RuntimeError("always")
+
+    recipient = uuid.uuid4()
+    with committing_db.unit_of_work() as uow:
+        bus.publish(uow.session, event_type(recipient_id=recipient))
+    kind = EventBus.job_kind(event_type.name, "fails")
+    with running_worker(committing_db, test_db_settings, bus._registry):
+        wait_until(lambda: statuses(committing_db, kind) == ["dead"])
+
+    assert settled == [str(recipient)]
