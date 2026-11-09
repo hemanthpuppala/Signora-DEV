@@ -63,6 +63,11 @@ def test_the_form_asks_what_the_document_needs(
     }
     document = owner.get(f"{DOCUMENTS}/{doc.document_id}").json()
     assert (form["document_name"], form["version_number"]) == (document["name"], 1)
+    assert form["pages"] and form["pages"][0]["width"] > 0  # for drawing the values
+    effective = by_id[doc.field("Effective date")["id"]]
+    assert effective["places"] == [
+        {"page": 1, "rect": [300.0, 40.0, 400.0, 60.0], "option_value": None}
+    ]
 
 
 def test_a_countersigner_party_beyond_the_departments_list_is_left_to_choose(

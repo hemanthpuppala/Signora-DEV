@@ -10,7 +10,7 @@ import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import { can, type Me } from "@/shared/session";
 import { ActionCell, ActionHeader, Block, Blocks, Button, EmailField, FieldAction, FieldGrid, Heading1, HeadRow, LinkButton, Notice, RowActions, Select, SmallText, TablePanel, TextArea, TextButton, TextField, useToast } from "@/shared/ui";
 
-import { departmentKey, useDepartment, type Department } from "./api";
+import { departmentKey, useDepartment, useDirectory, type Department } from "./api";
 
 type Person = { id: string; name: string; email: string };
 
@@ -325,13 +325,6 @@ function NotifyForm({ department }: { department: Department }) {
       ) : null}
     </Block>
   );
-}
-
-function useDirectory() {
-  return useQuery({
-    queryKey: ["directory"],
-    queryFn: () => unwrap(api.GET("/api/v1/members/directory")),
-  });
 }
 
 /**

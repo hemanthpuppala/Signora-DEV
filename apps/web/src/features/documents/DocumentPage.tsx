@@ -59,7 +59,16 @@ function useDocumentAction(id: string) {
  * version's state shows above the viewer until it is ready. People without edit access see the
  * viewer, the versions and downloads only.
  */
-export function DocumentPage({ departmentId, documentId }: { departmentId: string; documentId: string }) {
+export function DocumentPage({
+  departmentId,
+  documentId,
+  onSend,
+}: {
+  departmentId: string;
+  documentId: string;
+  /** Opens the send of the current (approved) version (Phase 7); the route owns it. */
+  onSend?: (() => void) | undefined;
+}) {
   const document = useDocument(documentId);
   const { archive } = useDocumentAction(documentId);
   const [editing, setEditing] = useState(false);
@@ -113,6 +122,9 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
         backActions={
           canEdit ? (
             <div className={styles.headActions} role="group" aria-label="Document actions">
+              {onSend && data.current_version ? (
+                <HeadAction icon="send" label="Send for signature" variant="primary" onClick={onSend} />
+              ) : null}
               <HeadAction
                 icon="upload"
                 label="New version"

@@ -1,0 +1,83 @@
+"use client";
+
+import { Checkbox, Select, TextArea, TextField } from "@/shared/ui";
+
+import type { FormField } from "./api";
+import styles from "./envelopes.module.css";
+
+/** The browser's input type for a field type, so phones show the right keyboard. */
+function inputType(holds: FormField["holds"]): string {
+  switch (holds) {
+    case "email":
+      return "email";
+    case "phone":
+      return "tel";
+    case "url":
+      return "url";
+    case "date":
+    case "date_of_birth":
+      return "date";
+    default:
+      return "text";
+  }
+}
+
+const NUMERIC = new Set<FormField["holds"]>(["number", "currency", "percent"]);
+
+/**
+ * One field of the document as an input of its type (Phase 7 §2): a date picker for a date, a
+ * choice's own options, a checkbox, a note as a paragraph, text otherwise. The value is the text the
+ * API takes (a checkbox "true", a choice its option's value); the server judges it (review.formats).
+ */
+export function FieldInput({
+  field,
+  value,
+  onChange,
+  error,
+}: {
+  field: FormField;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string | undefined;
+}) {
+  const label = field.holds === "other" && field.holds_label ? `${field.label} (${field.holds_label})` : field.label;
+  const hint = field.required ? { hint: "Required: only you can fill this in" } : {};
+  if (field.holds === "checkbox") {
+    return (
+      <div>
+        <Checkbox checked={value === "true"} onChange={(event) => onChange(event.target.checked ? "true" : "")}>
+          {label}
+        </Checkbox>
+        {error ? <p className={styles.error} role="alert">{error}</p> : null}
+      </div>
+    );
+  }
+  if (field.holds === "choice") {
+    return (
+      <div>
+        <Select
+          label={label}
+          options={[{ value: "", label: "Not chosen" }, ...field.options.map((o) => ({ value: o.value, label: o.text }))]}
+          value={value}
+          onChange={onChange}
+        />
+        {error ? <p className={styles.error} role="alert">{error}</p> : null}
+      </div>
+    );
+  }
+  if (field.holds === "note") {
+    return <TextArea label={label} {...hint} maxLength={2000} value={value} error={error} onChange={(event) => onChange(event.target.value)} />;
+  }
+  return (
+    <TextField
+      label={label}
+      {...hint}
+      type={inputType(field.holds)}
+      inputMode={NUMERIC.has(field.holds) ? "decimal" : undefined}
+      maxLength={2000}
+      value={value}
+      error={error}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
+}

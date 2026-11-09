@@ -1,0 +1,117 @@
+/* Envelopes (Phase 7 LLD §13): the send's steps, its review, the drawn values. */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 16px 20px;
+}
+
+.person {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--sep);
+}
+
+.personLabel {
+  margin: 0;
+  font-size: 13px;
+  color: var(--t75);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  align-items: end;
+  gap: 12px 16px;
+}
+
+.error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+/* Review: the document with its values beside what is sent, one above the other on a phone. */
+.review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+@media (min-width: 860px) {
+  .review {
+    grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr);
+  }
+}
+
+.preview {
+  --pdf-viewer-height: min(60vh, 640px);
+  min-width: 0;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--t75);
+  overflow-wrap: anywhere;
+}
+
+.more > summary {
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--t75);
+  cursor: pointer;
+}
+
+.more > summary:hover {
+  color: var(--ink);
+}
+
+.more[open] > .pair {
+  margin-top: 8px;
+}
+
+/* Values drawn on the page: ink on paper, inside their boxes. */
+.values {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.value {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 2px;
+  font-family: var(--sans);
+  line-height: 1;
+  color: var(--paper-ink);
+  white-space: nowrap;
+}

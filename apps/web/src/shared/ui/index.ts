@@ -26,6 +26,7 @@ export {
   type TabItem,
 } from "./Display";
 export { Dialog } from "./Dialog";
+export { StepDialog } from "./StepDialog";
 export { Dropzone } from "./Dropzone";
 export { ExpandableList, ExpandableRow } from "./Expandable";
 export { EmailField, type EmailFieldProps } from "./EmailField";

@@ -1591,6 +1591,8 @@ export interface components {
             options: components["schemas"]["Option"][];
             /** Party Id */
             party_id: string | null;
+            /** Places */
+            places: components["schemas"]["Place"][];
             /** Required */
             required: boolean;
             /** Sensitive */
@@ -1791,6 +1793,13 @@ export interface components {
             /** Value */
             value: string;
         };
+        /** PageSize */
+        PageSize: {
+            /** Height */
+            height: number;
+            /** Width */
+            width: number;
+        };
         /**
          * PageView
          * @description A page as displayed (rotation applied), in PDF points: the viewer lays pages out from these
@@ -1849,6 +1858,23 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /**
+         * Place
+         * @description Where a field's value is drawn: PDF points on the page as displayed.
+         */
+        Place: {
+            /** Option Value */
+            option_value: string | null;
+            /** Page */
+            page: number;
+            /** Rect */
+            rect: [
+                number,
+                number,
+                number,
+                number
+            ];
         };
         /** PlaceIn */
         PlaceIn: {
@@ -2080,6 +2106,8 @@ export interface components {
             document_name: string;
             /** Fields */
             fields: components["schemas"]["FormField"][];
+            /** Pages */
+            pages: components["schemas"]["PageSize"][];
             settings: components["schemas"]["FormSettings"];
             /** Signers */
             signers: components["schemas"]["FormSigner"][];

@@ -25,6 +25,7 @@ import {
   SearchField,
   Select,
   SmallText,
+  StepDialog,
   STATUSES,
   StatusPill,
   Sub,
@@ -50,6 +51,7 @@ export function Gallery() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState<string | null>("company");
   const [place, setPlace] = useState(0);
+  const [step, setStep] = useState<number | null>(null);
 
   return (
     <>
@@ -179,6 +181,28 @@ export function Gallery() {
             </Chip>
           ))}
         </ChipGroup>
+        <div className={styles.row}>
+          <Button variant="quiet" compact onClick={() => setStep(0)}>
+            Open a step dialog
+          </Button>
+        </div>
+        {step !== null ? (
+          <StepDialog
+            title="New envelope"
+            steps={["Document", "Details", "Review"]}
+            current={step}
+            onStep={setStep}
+            onClose={() => setStep(null)}
+            back={step > 0 ? <TextButton onClick={() => setStep(step - 1)}>Back</TextButton> : null}
+            actions={
+              <Button compact onClick={() => (step < 2 ? setStep(step + 1) : setStep(null))}>
+                {step < 2 ? "Next" : "Done"}
+              </Button>
+            }
+          >
+            <SmallText>{`Step ${step + 1}: one part of the task at a time.`}</SmallText>
+          </StepDialog>
+        ) : null}
         <ExpandableList label="Fields">
           <ExpandableRow id="gallery-add" tone="add" title="Add field" expanded={false} regionLabel="New field" onToggle={() => undefined} />
           {[

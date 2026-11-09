@@ -32,6 +32,19 @@ class Condition(BaseModel):
     option: str
 
 
+class Place(BaseModel):
+    """Where a field's value is drawn: PDF points on the page as displayed."""
+
+    page: int
+    rect: tuple[float, float, float, float]
+    option_value: str | None  # a choice's place stands for one option
+
+
+class PageSize(BaseModel):
+    width: float
+    height: float
+
+
 class FormField(BaseModel):
     id: uuid.UUID
     label: str
@@ -42,6 +55,7 @@ class FormField(BaseModel):
     sensitive: bool
     options: list[Option]  # a choice's options
     depends_on: Condition | None
+    places: list[Place]  # where the value shows on the document (the review step)
 
 
 class FormSigner(BaseModel):
@@ -79,6 +93,7 @@ class SendForm(BaseModel):
     document_name: str
     version_id: uuid.UUID
     version_number: int
+    pages: list[PageSize]  # the document's pages as displayed, for the review step
     signers: list[FormSigner]
     countersigners: list[FormCountersigner]
     fields: list[FormField]
@@ -102,6 +117,7 @@ def build_form(
     document_name: str,
     version_id: uuid.UUID,
     version_number: int,
+    pages: Sequence[tuple[float, float]],
     parties: Sequence[RoleView],
     fields: Sequence[FieldView],
     countersigners: Sequence[Colleague],
@@ -150,6 +166,10 @@ def build_form(
             required=field.filled_by == "sender" and field.required,
             sensitive=field.sensitive,
             options=options_of(field) if field.holds == "choice" else [],
+            places=[
+                Place(page=place.page, rect=place.rect, option_value=place.option_value)
+                for place in field.placements
+            ],
             depends_on=Condition(
                 field_id=id_of_key[field.depends_on.key], option=field.depends_on.option
             )
@@ -163,6 +183,7 @@ def build_form(
         document_name=document_name,
         version_id=version_id,
         version_number=version_number,
+        pages=[PageSize(width=width, height=height) for width, height in pages],
         signers=signers,
         countersigners=countersigning,
         fields=form_fields,

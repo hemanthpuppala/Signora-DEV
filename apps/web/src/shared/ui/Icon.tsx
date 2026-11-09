@@ -18,6 +18,13 @@ const SHAPES = {
   plus: <path d="M12 5v14M5 12h14" />,
   chevron: <path d="m9 6 6 6-6 6" />, // points right; turned to point down when open
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  // A paper plane: send for signature.
+  send: (
+    <>
+      <path d="M20.5 3.5 3.5 10.5l7 3 3 7Z" />
+      <path d="m10.5 13.5 10-10" />
+    </>
+  ),
   // Two sheets: something on every page.
   pages: (
     <>

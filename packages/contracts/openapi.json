@@ -1585,6 +1585,13 @@
             ],
             "title": "Party Id"
           },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
           "required": {
             "title": "Required",
             "type": "boolean"
@@ -1603,7 +1610,8 @@
           "required",
           "sensitive",
           "options",
-          "depends_on"
+          "depends_on",
+          "places"
         ],
         "title": "FormField",
         "type": "object"
@@ -2086,6 +2094,24 @@
         "title": "Option",
         "type": "object"
       },
+      "PageSize": {
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "number"
+          },
+          "width": {
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "title": "PageSize",
+        "type": "object"
+      },
       "PageView": {
         "description": "A page as displayed (rotation applied), in PDF points: the viewer lays pages out from these\nbefore the file loads, and Phase 6 places fields in the same units.",
         "properties": {
@@ -2224,6 +2250,53 @@
           "name"
         ],
         "title": "PersonRef",
+        "type": "object"
+      },
+      "Place": {
+        "description": "Where a field's value is drawn: PDF points on the page as displayed.",
+        "properties": {
+          "option_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Value"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rect": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Rect",
+            "type": "array"
+          }
+        },
+        "required": [
+          "page",
+          "rect",
+          "option_value"
+        ],
+        "title": "Place",
         "type": "object"
       },
       "PlaceIn": {
@@ -2904,6 +2977,13 @@
             "title": "Fields",
             "type": "array"
           },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageSize"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
           "settings": {
             "$ref": "#/components/schemas/FormSettings"
           },
@@ -2929,6 +3009,7 @@
           "document_name",
           "version_id",
           "version_number",
+          "pages",
           "signers",
           "countersigners",
           "fields",

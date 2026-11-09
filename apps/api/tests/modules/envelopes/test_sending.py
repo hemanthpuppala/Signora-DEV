@@ -34,6 +34,7 @@ def field(id_: uuid.UUID, holds: str, party: uuid.UUID | None = None, **extra: o
             "sensitive": False,
             "options": [],
             "depends_on": None,
+            "places": [],
             **extra,
         }
     )
@@ -44,6 +45,7 @@ FORM = SendForm(
     document_name="Mutual NDA",
     version_id=uuid.uuid4(),
     version_number=1,
+    pages=[],
     signers=[
         FormSigner(
             party_id=CLIENT,

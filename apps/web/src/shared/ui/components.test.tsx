@@ -7,12 +7,15 @@ import {
   ActionBar,
   Button,
   ClampedText,
+  DocumentCard,
+  DocumentGrid,
   EmailField,
   ExpandableList,
   ExpandableRow,
   IconButton,
   InfoTip,
   SearchField,
+  StepDialog,
   Select,
   StatusPill,
   TablePanel,
@@ -354,5 +357,39 @@ describe("InfoTip", () => {
     await user.click(button);
     await user.click(screen.getByRole("button", { name: "Elsewhere" }));
     expect(screen.queryByRole("note")).toBeNull();
+  });
+});
+
+describe("StepDialog", () => {
+  it("marks the current step, ticks the finished ones and goes back to them", async () => {
+    const onStep = vi.fn();
+    render(
+      <StepDialog title="New envelope" steps={["Document", "Details", "Review"]} current={1} onStep={onStep} onClose={vi.fn()} actions={null}>
+        Step two
+      </StepDialog>,
+    );
+    const steps = screen.getByRole("list", { name: "Steps" });
+    const items = steps.querySelectorAll("li");
+    expect(items[1]).toHaveAttribute("aria-current", "step");
+    expect(items[0]).toHaveTextContent("✓Document");
+    await userEvent.click(screen.getByRole("button", { name: /Document/ }));
+    expect(onStep).toHaveBeenCalledWith(0);
+    expect(screen.queryByRole("button", { name: /Review/ })).toBeNull(); // later steps come by Next
+  });
+});
+
+describe("DocumentCard, choosing", () => {
+  it("is a button that says whether it is chosen, and can be unavailable", async () => {
+    const onChoose = vi.fn();
+    render(
+      <DocumentGrid label="Documents">
+        <DocumentCard choose={{ chosen: true, onChoose }} kind="PDF" title="Mutual NDA" facts="2 pages" status={null} />
+        <DocumentCard choose={{ chosen: false, onChoose, disabled: true }} kind="DOC" title="Draft" facts="1 page" status={null} />
+      </DocumentGrid>,
+    );
+    expect(screen.getByRole("button", { name: "Mutual NDA" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Draft" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Mutual NDA" }));
+    expect(onChoose).toHaveBeenCalledTimes(1);
   });
 });

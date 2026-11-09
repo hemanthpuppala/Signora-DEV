@@ -55,6 +55,7 @@ def send_form(
         document_name=version.document_name,
         version_id=version_id,
         version_number=version.version_no,
+        pages=version.pages,
         parties=parties,
         fields=fields,
         countersigners=colleagues,
