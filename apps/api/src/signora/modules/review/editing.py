@@ -7,8 +7,8 @@ P places.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from signora.kernel.errors import FieldError
@@ -234,6 +234,57 @@ def settle(fieldset: FieldSet) -> Settled:
             base = f"{owner_name}.{name_words(item.holds_label or item.label, role)}"
         fields.append((item, unique(base, keys)))
     return Settled(parties=parties, fields=fields, merged=merged)
+
+
+def rekey(
+    settled: Settled, stored: Stored, new_id: Callable[[], uuid.UUID] = uuid.uuid4
+) -> tuple[Settled, Stored]:
+    """The same set under fresh ids, for a version made by editing (§1.2): ids are unique across
+    versions, and the source keeps its own. Every reference (a field's party and condition, a
+    place's field) moves with its id, and the stored set is re-keyed alike, so writing it keeps
+    each place's PDF field name and each unchanged field's flag. O(R + F + P)."""
+    ids: dict[uuid.UUID, uuid.UUID] = {}
+
+    def to(old: uuid.UUID) -> uuid.UUID:
+        if old not in ids:
+            ids[old] = new_id()
+        return ids[old]
+
+    parties = [(p.model_copy(update={"id": to(p.id)}), s) for p, s in settled.parties]
+    fields = [
+        (
+            item.model_copy(
+                update={
+                    "id": to(item.id),
+                    "party_id": to(item.party_id) if item.party_id else None,
+                    "depends_on": item.depends_on.model_copy(
+                        update={"field_id": to(item.depends_on.field_id)}
+                    )
+                    if item.depends_on
+                    else None,
+                    "places": [p.model_copy(update={"id": to(p.id)}) for p in item.places],
+                }
+            ),
+            key,
+        )
+        for item, key in settled.fields
+    ]
+    moved = Stored(
+        parties={to(i): replace(p, id=to(i)) for i, p in stored.parties.items()},
+        fields={
+            to(i): replace(
+                f,
+                id=to(i),
+                party_id=to(f.party_id) if f.party_id else None,
+                depends_on=(to(f.depends_on[0]), f.depends_on[1]) if f.depends_on else None,
+            )
+            for i, f in stored.fields.items()
+        },
+        places={
+            to(i): replace(p, id=to(i), field_id=to(p.field_id)) for i, p in stored.places.items()
+        },
+    )
+    return Settled(parties=parties, fields=fields, merged=settled.merged), moved
 
 
 def is_sensitive(item: FieldIn) -> bool:

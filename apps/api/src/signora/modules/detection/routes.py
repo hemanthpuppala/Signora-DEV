@@ -149,7 +149,12 @@ def version_fields(
         roles, fields = read_set(session, version_id) if reviewable else ([], [])
         revision, kept_flags = read_review(session, version_id)
         pending = _pending(run.parsed) if run is not None and state == "detecting" else []
-        found = (run.result or {}).get("flags", {}) if run is not None else {}
+        # Review keeps the flags with the version (a version made by editing has no run of its own);
+        # while fields are being found, the run's are the newest.
+        if reviewable:
+            found = kept_flags
+        else:
+            found = (run.result or {}).get("flags", {}) if run is not None else {}
         flags = Flags(**{name: found[name] for name in Flags.model_fields if name in found})
         return VersionFields(
             status=state,

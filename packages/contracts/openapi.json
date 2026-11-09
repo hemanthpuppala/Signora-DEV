@@ -1987,6 +1987,31 @@
         "title": "ReviewWarning",
         "type": "object"
       },
+      "Revised": {
+        "description": "The version an edit of an approved version became; the page opens it.",
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "number",
+          "revision"
+        ],
+        "title": "Revised",
+        "type": "object"
+      },
       "RoleDetailView": {
         "properties": {
           "description": {
@@ -5528,6 +5553,107 @@
         "summary": "Try processing again after a passing failure (repeat-safe)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/revisions": {
+      "post": {
+        "operationId": "revise_fields_api_v1_documents__document_id__versions__version_id__revisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Revised"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Not approved, or changed since it was opened"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Save an edit of an approved version as the next version (requires Idempotency-Key)",
+        "tags": [
+          "review"
         ]
       }
     },

@@ -25,7 +25,12 @@ from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import normalize_name
 from signora.modules.documents.current import promote_if_newest
 from signora.modules.documents.domain import DESCRIPTION_MAX, DETECTION_FAILURE_CODES, NAME_MAX
-from signora.modules.documents.errors import FieldsApproved, VersionNotProcessed
+from signora.modules.documents.errors import (
+    DocumentArchived,
+    FieldsApproved,
+    VersionNotApproved,
+    VersionNotProcessed,
+)
 from signora.modules.documents.processing import publish_processed
 from signora.modules.documents.service import (
     audit,
@@ -117,8 +122,13 @@ def version_for_review(
 ) -> VersionForReview:
     """A version of a document the actor may read (or, with ``edit``, change); ``404`` for one that
     is not this document's or this company's. ``lock`` takes the version's row lock, so a Save or
-    an Approve decides on a state no one else is changing."""
-    require_document(session, actor, document_id, edit=edit)
+    an Approve decides on a state no one else is changing. An archived document's versions are
+    read, never changed (Phase 4 §1.4)."""
+    document = get_document(session, actor.workspace_id, document_id)
+    if edit:
+        require_edit(session, actor, document.department_id)
+        if document.archived_at is not None:
+            raise DocumentArchived
     row = session.execute(
         text(
             "SELECT id, workspace_id, document_id, version_no, status, pages, name, description "
@@ -139,6 +149,67 @@ def version_for_review(
         name=row.name,
         description=row.description,
     )
+
+
+def derived_name(source_name: str, source_no: int, source_derived: bool, version_no: int) -> str:
+    """``"{source's name} - {n}"`` (§1.2). A source that was itself made by editing already ends
+    in its own number, which the new one replaces: v6 "Financial NDA - 6" gives "Financial NDA - 7",
+    not "Financial NDA - 6 - 7"."""
+    suffix = f" - {source_no}"
+    if source_derived and source_name.endswith(suffix):
+        source_name = source_name.removesuffix(suffix)
+    return f"{source_name} - {version_no}"
+
+
+def derive_version(
+    uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, source_id: uuid.UUID
+) -> VersionForReview:
+    """The version an edit of an approved version becomes (Phase 6 §1.2): the next number, the
+    same stored file and its facts (no upload, so no "already here" check), named after the source,
+    with its description, recording where it came from, in review. Its fields are review's to
+    write. Numbered under the document's row lock, as an upload is."""
+    session = uow.session
+    changeable_version(session, actor, document_id, source_id)  # locks; edit access; not archived
+    document = get_document(session, actor.workspace_id, document_id)
+    source = session.execute(
+        text(
+            "SELECT version_no, status, name, description, derived_from_version_id "
+            "FROM document_versions WHERE id = :id"
+        ),
+        {"id": source_id},
+    ).one()
+    if source.status != "approved":
+        raise VersionNotApproved
+    version_no = document.latest_version_no + 1
+    name = derived_name(
+        source.name or document.name,
+        source.version_no,
+        source.derived_from_version_id is not None,
+        version_no,
+    )
+    version_id: uuid.UUID = session.execute(
+        text(
+            "INSERT INTO document_versions (workspace_id, document_id, version_no, status, "
+            "source_sha256, source_kind, source_filename, source_bytes, unlocked_sha256, "
+            "pdf_sha256, pdf_bytes, page_count, pages, pages_without_text, ai_instructions, name, "
+            "description, derived_from_version_id, uploaded_by, processed_at) "
+            "SELECT workspace_id, document_id, :n, 'ready', source_sha256, source_kind, "
+            "source_filename, source_bytes, unlocked_sha256, pdf_sha256, pdf_bytes, page_count, "
+            "pages, pages_without_text, ai_instructions, :name, description, id, :by, now() "
+            "FROM document_versions WHERE id = :source RETURNING id"
+        ),
+        {"n": version_no, "name": name, "by": actor.user_id, "source": source_id},
+    ).scalar_one()
+    audit(
+        uow,
+        actor,
+        "document.version_derived",
+        document_id,
+        version_no=version_no,
+        derived_from=source.version_no,
+        name=name,
+    )
+    return version_for_review(session, actor, document_id, version_id, edit=True)
 
 
 def record_field_count(uow: UnitOfWork, version_id: uuid.UUID, field_count: int) -> None:

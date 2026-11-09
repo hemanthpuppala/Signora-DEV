@@ -69,6 +69,11 @@ class FieldsApproved(Conflict):
     title = "This version is approved: its fields are frozen. Edit it to make a new version"
 
 
+class VersionNotApproved(Conflict):
+    code = "version-not-approved"
+    title = "Only an approved version is edited into a new version. Save this one in place"
+
+
 class VersionNotProcessed(Conflict):
     code = "version-not-processed"
     title = "Fields can be found once processing has finished"

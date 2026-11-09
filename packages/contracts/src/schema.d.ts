@@ -494,6 +494,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/versions/{version_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save an edit of an approved version as the next version (requires Idempotency-Key) */
+        post: operations["revise_fields_api_v1_documents__document_id__versions__version_id__revisions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/versions/{version_id}/unlock": {
         parameters: {
             query?: never;
@@ -1554,6 +1571,21 @@ export interface components {
             message: string;
             /** Party Id */
             party_id?: string | null;
+        };
+        /**
+         * Revised
+         * @description The version an edit of an approved version became; the page opens it.
+         */
+        Revised: {
+            /** Number */
+            number: number;
+            /** Revision */
+            revision: number;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
         };
         /** RoleDetailView */
         RoleDetailView: {
@@ -3586,6 +3618,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    revise_fields_api_v1_documents__document_id__versions__version_id__revisions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldSet"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Revised"];
+                };
+            };
+            /** @description Not approved, or changed since it was opened */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {

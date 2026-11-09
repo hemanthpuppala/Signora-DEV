@@ -39,7 +39,9 @@ recorded, and approval measures how close the AI came (precision, recall and the
 - **An approved version** is never changed. The first Save of an edit to it creates a **new version**:
   - the next number in the document (v1 edited while v5 is the newest becomes v6);
   - the same stored file (no upload), with its fields copied from the source and the edits applied;
-  - named `"{source version's name} - {new number}"` ("Financial NDA - 6"), with the source's description;
+  - named `"{source version's name} - {new number}"` ("Financial NDA - 6"), with the source's description; when the
+    source was itself made by editing, its own number is replaced, not appended ("Financial NDA - 6" edited gives
+    "Financial NDA - 7"; build decision, 2026-11-08);
   - recording the version it came from; it starts in review, and later Saves edit it.
 - Only field-level changes make a version: parties, fields, places, types, who fills, required, conditions. The
   document's name and description are not versioned and never make one.
@@ -400,7 +402,9 @@ the contract.
 ### 10.2 `PUT …/fields` (save a version in review)
 
 Request `FieldSet { revision, parties: [Party without counts], fields: [Field without key, origin, needs_review] }`;
-the server keeps each existing place's `pdf_field` by id (the client never sets it). Response `200 VersionFields`.
+the server keeps each existing place's `pdf_field` by id (the client never sets it). Response `200 { revision }`
+(built: the page already holds the set it sent, and the fields view is detection's to build, ADR-R1; the page
+refetches it after a save).
 
 | Status | Code | When |
 |---|---|---|
@@ -412,7 +416,12 @@ the server keeps each existing place's `pdf_field` by id (the client never sets 
 ### 10.3 `POST …/revisions` (save an edit of an approved version)
 
 Headers: `Idempotency-Key` (required). Request: `FieldSet` (its `revision` is the source's). Response
-`201 { version_id, number, fields: VersionFields }`. `409 version-not-approved` if the source is not approved.
+`201 { version_id, number, revision }` (built; the page opens the new version and loads its fields, as for a
+save). The set is checked against the source exactly as a save is (§10.5), then written under fresh ids: ids are
+unique across versions, and every reference moves with its id (`editing.rekey`). The new version starts at
+revision 1 with the source's document flags; its audit entries are `document.version_derived` and
+`document.fields_saved` (changes against the source). `409 version-not-approved` if the source is not approved,
+`409 fields-changed` if the editor started from an older revision, `409 document-archived` on an archived document.
 
 ### 10.4 `POST …/approve`
 
@@ -508,7 +517,7 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.4 | Values in two layers, `url` for the AI, contract enums | done | `review/values.py` (pure): the AI layer (`url` added) and the manual layer built from it (`note`, `other`), party kinds, who fills, box kinds, `ALLOWED`, the rule sets and metric families; detection's schema and derive import it (the AI's `ALLOWED` limited to the AI layer); `FieldView.holds` is the contract's enum, and the web's `HOLDS` labels are `Record<Holds, string>` (Website, Note, Other added). Tests: the two layers, the AI never offered a manual value, every rule names listed values, the contract carries the manual layer |
 | 6.5 | Warnings | done | `review/checks.py`: `warnings_for` (one pass, overlaps by a sweep per page), `ReviewWarning` with its code, message and field or party; the document's flags now travel with detection's proposal and are kept on `version_reviews.flags` (added to 0018), and a new proposal moves the revision on; the fields endpoint returns `revision`, `warnings`, and ids (party, field's party, place) with `kind_label`, `holds_label`, `origin`. Tests: one per code (7) and the endpoint |
 | 6.6 | Save: validation, shared values, changes, audit | done | `PUT …/fields` (`review/routes.py`, `service.save`): row lock and revision compare-and-set; `editing.py` (pure: `check` §10.5, `settle` shared values and keys, `changes` for the audit entry, places indexed by field so O(F + P)); `store.read_stored`/`write_set` (editor's ids kept, PDF field names kept, flags kept only while unchanged); `documents.version_for_review`, `record_field_count`, `audit_document`; errors `fields-changed`, `version-not-in-review`. Triggers made statement-level for NFR-R1 (§9.2). Tests (7): save and its audit entry, the three conflicts, each 422 rule, shared values merged, flags, read-only, 2 000 fields under 1 s |
-| 6.7 | Revisions: the version bump | todo | — |
+| 6.7 | Revisions: the version bump | done | `POST …/revisions` (`review/routes.py`, `service.revise`, idempotency guard); `documents.derive_version` (next number under the document lock, the file's columns copied, `derived_name`, audit `document.version_derived`); `editing.rekey`; `store.begin_review`; the fields view reads flags from review once a version is reviewable (a derived version has no run); an archived document's fields cannot be saved (`version_for_review`). Tests (6): the new version end to end (same file, PDF field names kept, fresh ids, source unchanged, audit, saved in place, approved and current, named after an edited edit), a retried request makes one version, each refusal, archived save, `rekey`, `derived_name` |
 | 6.8 | Approve, current, metrics | todo | — |
 | 6.9 | Web: editor state and labels | todo | — |
 | 6.10 | Web: party and field forms, save bar, leaving dialog | todo | — |

@@ -5,7 +5,7 @@ processing through the lifecycle functions.
 """
 
 from signora.modules.documents.domain import detection_failure_message
-from signora.modules.documents.errors import FieldsApproved
+from signora.modules.documents.errors import FieldsApproved, VersionNotApproved
 from signora.modules.documents.lifecycle import (
     StartMode,
     VersionForDetection,
@@ -13,6 +13,7 @@ from signora.modules.documents.lifecycle import (
     apply_name_and_description,
     approve_version,
     audit_document,
+    derive_version,
     fail_detection,
     finish_detection,
     record_field_count,
@@ -31,9 +32,11 @@ __all__ = [
     "StartMode",
     "VersionForDetection",
     "VersionForReview",
+    "VersionNotApproved",
     "apply_name_and_description",
     "approve_version",
     "audit_document",
+    "derive_version",
     "detection_failure_message",
     "fail_detection",
     "finish_detection",

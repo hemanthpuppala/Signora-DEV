@@ -237,6 +237,27 @@ def read_review(session: Session, version_id: uuid.UUID) -> tuple[int, dict[str,
     return (row.revision, dict(row.flags)) if row is not None else (0, {})
 
 
+def begin_review(
+    session: Session,
+    *,
+    workspace_id: uuid.UUID,
+    version_id: uuid.UUID,
+    source_id: uuid.UUID,
+    by: uuid.UUID,
+) -> int:
+    """A version made by editing starts its review at revision 1 (its first Save made it), with
+    the document's flags its source's detection found (the file is the same)."""
+    revision: int = session.execute(
+        text(
+            "INSERT INTO version_reviews (version_id, workspace_id, revision, flags, updated_by) "
+            "SELECT :v, :w, 1, COALESCE((SELECT flags FROM version_reviews WHERE version_id = :s), "
+            "'{}'::jsonb), :by RETURNING revision"
+        ),
+        {"v": version_id, "w": workspace_id, "s": source_id, "by": by},
+    ).scalar_one()
+    return revision
+
+
 def read_stored(session: Session, version_id: uuid.UUID) -> Stored:
     """A version's set as editing compares it: by id, with each place's PDF field name."""
     parties = {

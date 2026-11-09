@@ -62,3 +62,11 @@ class FieldSet(_In):
 
 class Saved(BaseModel):
     revision: int
+
+
+class Revised(BaseModel):
+    """The version an edit of an approved version became; the page opens it."""
+
+    version_id: uuid.UUID
+    number: int
+    revision: int
