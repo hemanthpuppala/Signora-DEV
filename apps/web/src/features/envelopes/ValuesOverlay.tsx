@@ -1,13 +1,15 @@
 "use client";
 
 import styles from "./envelopes.module.css";
-import { typeset, useFontReady, type FitRule, type Typeface } from "./typeset";
+import { typeset, useFontReady, written, type FitRule, type Typeface } from "./typeset";
 
 export type Shown = {
   /** Where: PDF points on the page as displayed; the agreement's text size beside it, if measured. */
   places: readonly { page: number; rect: readonly number[]; option_value: string | null; text_size: number | null }[];
   holds: string;
   value: string;
+  /** How a date or a part of one is written (the field's format; none for other types). */
+  format?: string | null;
   /** Given when signing (a signer's name): drawn quieter, as what is to come, not a value. */
   atSigning?: boolean;
 };
@@ -58,18 +60,19 @@ export function ValuesOverlay({
                 </text>
               );
             }
-            const set = typeset(item.value, place.rect, place.text_size, font, fit);
+            const text = written(item.holds, item.value, item.format ?? null);
+            const set = typeset(text, place.rect, place.text_size, font, fit);
             return (
               <text
                 key={`${i}-${j}`}
                 className={item.atSigning ? `${styles.value} ${styles.atSigning}` : styles.value}
-                x={x0 * scale}
+                x={set.x * scale}
                 y={set.baseline * scale}
                 fontSize={set.size * scale}
                 fontFamily={`"${font.family}", var(--sans)`}
                 {...(set.squeeze ? { textLength: set.squeeze * scale, lengthAdjust: "spacingAndGlyphs" } : {})}
               >
-                {item.value}
+                {text}
               </text>
             );
           }),

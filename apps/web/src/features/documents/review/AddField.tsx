@@ -13,10 +13,15 @@ export type Tool =
   | { kind: "field"; holds: Holds; filled_by: FilledBy; party_id: string | null }
   | { kind: "place"; fieldId: string; label: string };
 
-/** Every type, grouped, in one dropdown ("Signature · Signing"). */
-export const TYPE_OPTIONS = HOLD_GROUPS.flatMap((group) =>
-  group.holds.map((holds) => ({ value: holds, label: `${HOLDS[holds]} · ${group.label}` })),
-);
+/** The types, grouped, as one dropdown's options: each type's name, its group beside it. */
+export function typeOptions(keep: (holds: Holds) => boolean = () => true) {
+  return HOLD_GROUPS.flatMap((group) =>
+    group.holds.filter(keep).map((holds) => ({ value: holds, label: HOLDS[holds], hint: group.label })),
+  );
+}
+
+/** Every type: what a new field may hold. */
+export const TYPE_OPTIONS = typeOptions();
 
 /** Who fills a field, as one dropdown value: a party, the sender, or nobody. */
 export function fillerOptions(parties: readonly DraftParty[]) {
@@ -52,7 +57,7 @@ export function AddField({
   const [who, setWho] = useState(partyId ? `party:${partyId}` : "none");
   return (
     <div className={styles.addField}>
-      <Select label="Type" options={TYPE_OPTIONS} value={holds} onChange={(value) => setHolds(value as Holds)} />
+      <Select label="Type" options={TYPE_OPTIONS} value={holds} onChange={(value) => setHolds(value as Holds)} searchable />
       <Select label="Who fills it" options={fillerOptions(parties)} value={who} onChange={setWho} />
       <div className={styles.actions}>
         <Button compact onClick={() => onPlace({ kind: "field", holds, ...filler(who) })}>

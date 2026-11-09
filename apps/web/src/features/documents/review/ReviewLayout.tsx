@@ -59,6 +59,7 @@ const LOADING: VersionFields = {
   revision: 0,
   warnings: [],
   allowed: {},
+  formats: {},
 } as unknown as VersionFields;
 
 /** Drawing, moving and resizing need a fine pointer and room (§5); the forms work everywhere. */
@@ -309,6 +310,7 @@ export function ReviewLayout({
         review,
         pages: version.pages,
         allowed: view.allowed,
+        formats: view.formats,
         canDraw,
         onAddPlace: (fieldId) => {
           const field = draft.fields.find((f) => f.id === fieldId);

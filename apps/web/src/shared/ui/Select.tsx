@@ -11,7 +11,8 @@ const LIST_MAX_HEIGHT = 280;
 const noSubscription = () => () => {};
 const browserHasPopover = () => "showPopover" in HTMLElement.prototype;
 
-export type SelectOption = { value: string; label: string };
+/** An option; ``hint`` is a quieter word beside it (the group a type belongs to). */
+export type SelectOption = { value: string; label: string; hint?: string };
 
 export type SelectProps = {
   label: string;
@@ -23,12 +24,15 @@ export type SelectProps = {
   name?: string;
   disabled?: boolean;
   className?: string;
+  /** A search box at the top of the open list: typing keeps the options whose label or hint has it. */
+  searchable?: boolean;
 };
 
 /**
  * Select-only combobox (WAI-ARIA APG pattern): focus stays on the trigger, the highlighted option is
  * conveyed with ``aria-activedescendant``. Keys: ArrowDown/ArrowUp open and move, Home/End jump,
- * Enter/Space choose, Escape and Tab close.
+ * Enter/Space choose, Escape and Tab close. ``searchable``: the open list starts with a search box
+ * that takes the focus and the same keys; its options are announced through it.
  *
  * The open list sits above everything (the browser's top layer, as a manual popover) at the
  * trigger's place, so a dialog or a scrolling panel never clips it; it opens upward when there is
@@ -43,19 +47,27 @@ export function Select({
   name,
   disabled = false,
   className,
+  searchable = false,
 }: SelectProps) {
   const id = useId();
   const listId = `${id}-list`;
   const labelId = `${id}-label`;
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState<CSSProperties>({});
   // Known only in the browser (not on the server, nor in every test DOM): until then a plain list.
   const canPop = useSyncExternalStore(noSubscription, browserHasPopover, () => false);
   const selectedIndex = options.findIndex((option) => option.value === value);
-  const [active, setActive] = useState(Math.max(selectedIndex, 0));
+  // What the list shows: every option, or those matching the search (by label or hint).
+  const needle = query.trim().toLowerCase();
+  const shown = options
+    .map((option, index) => ({ option, index }))
+    .filter(({ option }) => !needle || `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(needle));
+  const [active, setActive] = useState(Math.max(selectedIndex, 0)); // a position in ``shown``
 
   useEffect(() => {
     if (!open) return;
@@ -98,23 +110,35 @@ export function Select({
     };
   }, [open, canPop]);
 
+  useEffect(() => {
+    if (open && searchable) searchRef.current?.focus();
+  }, [open, searchable]);
+
   function openAt(index: number) {
+    setQuery("");
     setActive(Math.min(Math.max(index, 0), options.length - 1));
     setOpen(true);
   }
 
-  function choose(index: number) {
-    const option = options[index];
-    if (option) onChange(option.value);
+  function close(refocus: boolean) {
     setOpen(false);
+    setQuery("");
+    if (refocus && searchable) triggerRef.current?.focus();
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+  function choose(position: number) {
+    const option = shown[position]?.option;
+    if (option) onChange(option.value);
+    close(true);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (disabled || options.length === 0) return;
+    const last = Math.max(shown.length - 1, 0);
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        if (open) setActive((i) => Math.min(i + 1, options.length - 1));
+        if (open) setActive((i) => Math.min(i + 1, last));
         else openAt(selectedIndex >= 0 ? selectedIndex : 0);
         break;
       case "ArrowUp":
@@ -131,11 +155,16 @@ export function Select({
       case "End":
         if (open) {
           event.preventDefault();
-          setActive(options.length - 1);
+          setActive(last);
         }
         break;
-      case "Enter":
       case " ":
+        if (open && event.target === searchRef.current) break; // a space typed into the search
+        event.preventDefault();
+        if (open) choose(active);
+        else openAt(selectedIndex >= 0 ? selectedIndex : 0);
+        break;
+      case "Enter":
         event.preventDefault();
         if (open) choose(active);
         else openAt(selectedIndex >= 0 ? selectedIndex : 0);
@@ -143,11 +172,11 @@ export function Select({
       case "Escape":
         if (open) {
           event.preventDefault();
-          setOpen(false);
+          close(true);
         }
         break;
       case "Tab":
-        setOpen(false);
+        close(false);
         break;
       default:
         break;
@@ -155,7 +184,8 @@ export function Select({
   }
 
   const selected = selectedIndex >= 0 ? options[selectedIndex] : undefined;
-  const activeId = open ? `${id}-option-${active}` : undefined;
+  const activeEntry = shown[active];
+  const activeId = open && activeEntry ? `${id}-option-${activeEntry.index}` : undefined;
 
   return (
     <div ref={rootRef} className={cx(fieldStyles.field, styles.select, className)}>
@@ -171,9 +201,9 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        aria-activedescendant={activeId}
+        aria-activedescendant={searchable ? undefined : activeId}
         disabled={disabled}
-        onClick={() => (open ? setOpen(false) : openAt(selectedIndex >= 0 ? selectedIndex : 0))}
+        onClick={() => (open ? close(false) : openAt(selectedIndex >= 0 ? selectedIndex : 0))}
         onKeyDown={onKeyDown}
       >
         <span className={cx(styles.value, !selected && styles.placeholder)}>
@@ -183,30 +213,45 @@ export function Select({
           <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="1.6" />
         </svg>
       </button>
-      <ul
-        ref={listRef}
-        id={listId}
-        role="listbox"
-        aria-labelledby={labelId}
-        className={styles.list}
-        popover={canPop ? "manual" : undefined}
-        style={place}
-        hidden={!open}
-      >
-        {options.map((option, index) => (
-          <li
-            key={option.value}
-            id={`${id}-option-${index}`}
-            role="option"
-            aria-selected={option.value === value}
-            className={cx(styles.option, index === active && styles.active)}
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={() => choose(index)}
-          >
-            {option.label}
-          </li>
-        ))}
-      </ul>
+      <div ref={listRef} className={styles.list} popover={canPop ? "manual" : undefined} style={place} hidden={!open}>
+        {searchable ? (
+          <input
+            ref={searchRef}
+            type="search"
+            role="combobox"
+            className={styles.search}
+            placeholder="Type to search"
+            aria-label={`Search ${label}`}
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={activeId}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActive(0);
+            }}
+            onKeyDown={onKeyDown}
+          />
+        ) : null}
+        <ul id={listId} role="listbox" aria-labelledby={labelId} className={styles.options}>
+          {shown.map(({ option, index }, position) => (
+            <li
+              key={option.value}
+              id={`${id}-option-${index}`}
+              role="option"
+              aria-selected={option.value === value}
+              className={cx(styles.option, position === active && styles.active)}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => choose(position)}
+            >
+              <span className={styles.optionLabel}>{option.label}</span>
+              {option.hint ? <span className={styles.hint}>{option.hint}</span> : null}
+            </li>
+          ))}
+          {shown.length === 0 ? <li className={styles.empty}>No match</li> : null}
+        </ul>
+      </div>
       {name ? <input type="hidden" name={name} value={value ?? ""} /> : null}
     </div>
   );

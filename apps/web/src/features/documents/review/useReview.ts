@@ -175,6 +175,8 @@ export type PanelEditing = {
   review: Review;
   pages: readonly PageSize[];
   allowed: VersionFields["allowed"];
+  /** How each date type may be written, the default first (the server's list). */
+  formats: VersionFields["formats"];
   onAddPlace: (fieldId: string) => void;
   onDeleteField: (fieldId: string) => void;
   canDraw: boolean;

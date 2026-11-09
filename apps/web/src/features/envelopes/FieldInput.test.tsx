@@ -17,6 +17,7 @@ const field = (holds: FormField["holds"], label: string): FormField => ({
   depends_on: null,
   places: [],
   from_recipient: null,
+  format: null,
 });
 
 describe("a date split into boxes", () => {
@@ -32,6 +33,6 @@ describe("a date split into boxes", () => {
     render(<FieldInput field={field("month", "Effective date: month")} value="" onChange={onChange} />);
     await userEvent.click(screen.getByRole("combobox"));
     await userEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: "December" }));
-    expect(onChange).toHaveBeenCalledWith("December");
+    expect(onChange).toHaveBeenCalledWith("12"); // kept as its number; written as its field says
   });
 });

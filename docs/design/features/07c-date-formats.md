@@ -99,9 +99,9 @@ Writing a value is O(1) (a fixed number of parts); checking a send stays O(total
 | # | Task | Status | Evidence |
 |---|---|---|---|
 | 1 | This design | done | this file |
-| 2 | Formats and writing in `review.formats`; canonical values; the shared examples | todo | — |
-| 3 | `version_fields.format` (0021); review reads, saves and checks it | todo | — |
-| 4 | Detection proposes it; a live run on the test NDA | todo | — |
-| 5 | Sending: the form carries it; the fit check measures the written text | todo | — |
-| 6 | Web: the format in the field editor; the send's inputs; the preview writes values | todo | — |
+| 2 | Formats and writing in `review.formats`; canonical values; the shared examples | done | `FORMATS`, `default_format`, `format_for`, `written`; a month kept as its number, a year in four digits (two read in today's century); `packages/contracts/vectors/date-formats.json` (23 examples). Tests: `test_formats.py` (63) |
+| 3 | `version_fields.format` (0021); review reads, saves and checks it | done | read with the type's default; a save keeps it, refuses another type's ("Choose one of this type's formats"); a field's comparison uses the effective format, so a save without one does not clear "needs a look"; the fields view sends each type's formats. Tests: `test_date_formats.py` |
+| 4 | Detection proposes it; a live run on the test NDA | done | `format` in the AI's answer (fields and extra fields), kept when the type has it, else the default; a rule in the system prompt with the split-date example. Found on the way: a word holding a blank and printed words ("20____", "____,") was dropped whole from the text the AI reads, so the AI never saw the "20"; words are now split at their underscore runs (`blanks.split_at_runs`, shared with finding the runs). Live run on the NDA, twice: day `Dth`, month `Month`, year `YY`, signing date `Month D, YYYY`. Tests: `test_derive.py`, `test_reading.py` (fails without the fix) |
+| 5 | Sending: the form carries it; the fit check measures the written text | done | `FormField.format`; `fits` measures `written(...)`: 2026 written "26" fits the "20__" box. Tests: `test_sending.py` |
+| 6 | Web: the format in the field editor; the send's inputs; the preview writes values | done | "Written as" in the field form with examples (`FORMAT_EXAMPLES`), carried in the save body; a type change takes the new type's default; the month picked by name and kept as its number, the year in four digits; `typeset.written` (tested on the shared examples) in the preview and the too-long check. Also: values centred in their boxes (`typesetting.fit.ALIGN`, sent as the rule's `align`; `left_edge` for the signed PDF). Tests: `typeset.test.ts`, `editor.test.ts`, `FieldInput.test.tsx`, `test_typesetting.py` |
 | 7 | Checks, deploy | todo | — |

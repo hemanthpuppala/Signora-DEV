@@ -84,12 +84,13 @@ export function FieldInput({
     );
   }
   if (field.holds === "month") {
-    // A part of a date split into boxes: the month by name, as the agreement reads it.
+    // A part of a date split into boxes: the month picked by name, kept as its number; the field's
+    // format writes it as a name or a number.
     return (
       <div>
         <Select
           label={label}
-          options={[{ value: "", label: "Not chosen" }, ...MONTHS.map((m) => ({ value: m, label: m }))]}
+          options={[{ value: "", label: "Not chosen" }, ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))]}
           value={value}
           onChange={onChange}
         />
@@ -107,8 +108,11 @@ export function FieldInput({
       {...hint}
       type={inputType(field.holds)}
       inputMode={NUMERIC.has(field.holds) ? "decimal" : WHOLE.has(field.holds) ? "numeric" : undefined}
-      {...(field.holds === "day" ? { placeholder: "1 to 31" } : field.holds === "year" ? { placeholder: "2026" } : {})}
-      maxLength={2000}
+      {...(field.holds === "day"
+        ? { placeholder: "1 to 31", maxLength: 2 }
+        : field.holds === "year"
+          ? { placeholder: "2026", maxLength: 4 } // the whole year; the field writes 26 where the form prints 20
+          : { maxLength: 2000 })}
       value={value}
       error={error}
       onChange={(event) => onChange(event.target.value)}

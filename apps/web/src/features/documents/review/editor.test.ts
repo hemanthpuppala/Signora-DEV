@@ -58,6 +58,7 @@ const VIEW = {
       label: "Plan",
       holds: "choice",
       holds_label: null,
+      format: null,
       filled_by: "role",
       role: "client",
       party_id: "client",
@@ -77,6 +78,7 @@ const VIEW = {
       label: "Card",
       holds: "text",
       holds_label: null,
+      format: null,
       filled_by: "role",
       role: "client",
       party_id: "client",
@@ -226,5 +228,19 @@ describe("the review editor", () => {
     const grouped = HOLD_GROUPS.flatMap((group) => group.holds);
     expect([...grouped].sort()).toEqual(Object.keys(HOLDS).sort());
     expect(new Set(grouped).size).toBe(grouped.length);
+  });
+});
+
+describe("a date field's format", () => {
+  it("is saved as chosen, and a change of type gives the new type its default", () => {
+    const year = newField("year", "Year", null, { page: 1, rect: [100, 100, 130, 114], option_value: null, option_text: null });
+    let draft: Draft = { parties: [], fields: [year] };
+    draft = updateField(draft, year.id, { format: "YY" });
+    expect(toFieldSet(draft, 0).fields[0]?.format).toBe("YY");
+
+    draft = updateField(draft, year.id, { holds: "month" });
+    expect(draft.fields[0]?.format).toBeNull(); // the month's default, from the server
+    draft = updateField(draft, year.id, { holds: "text" });
+    expect(toFieldSet(draft, 0).fields[0]?.format).toBeNull();
   });
 });

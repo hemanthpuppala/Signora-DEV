@@ -82,7 +82,7 @@ function shown(envelope: Envelope, form: SendForm): Shown[] {
   return [
     ...envelope.values.flatMap((v) => {
       const field = fields.get(v.field_id);
-      return field ? [{ places: field.places, holds: field.holds, value: v.value }] : [];
+      return field ? [{ places: field.places, holds: field.holds, value: v.value, format: field.format }] : [];
     }),
     // A party's name fields: the name its signer signs as, once they sign.
     ...form.fields.flatMap((f) => {

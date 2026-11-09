@@ -74,6 +74,26 @@ export const HOLDS: Record<Holds, string> = {
   other: "Other",
 };
 
+/**
+ * How a date or a part of one is written (the server's formats, Phase 7c), shown as 9 November
+ * 2026 would be: every format the API sends must have one (tested).
+ */
+export const FORMAT_EXAMPLES: Record<string, string> = {
+  "Month D, YYYY": "November 9, 2026",
+  "D Month YYYY": "9 November 2026",
+  "MM/DD/YYYY": "11/09/2026 · month first",
+  "DD/MM/YYYY": "09/11/2026 · day first",
+  "MM/DD/YY": "11/09/26 · month first",
+  "DD/MM/YY": "09/11/26 · day first",
+  "YYYY-MM-DD": "2026-11-09",
+  D: "9",
+  Dth: "9th",
+  Month: "November",
+  MM: "11",
+  YYYY: "2026",
+  YY: "26 · after a printed 20",
+};
+
 /** The types grouped for picking (Phase 6 §4); every type is in exactly one group (tested). */
 export const HOLD_GROUPS: readonly { label: string; holds: readonly Holds[] }[] = [
   { label: "Signing", holds: ["signature", "initials", "date_signed"] },

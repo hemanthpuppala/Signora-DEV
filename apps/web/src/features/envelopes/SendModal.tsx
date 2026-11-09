@@ -27,7 +27,7 @@ import {
 import { useSendForm, type Envelope, type FormField, type SendForm, type SendRequest } from "./api";
 import styles from "./envelopes.module.css";
 import { FieldInput } from "./FieldInput";
-import { fitsEverywhere } from "./typeset";
+import { fitsEverywhere, written } from "./typeset";
 import { ValuesOverlay } from "./ValuesOverlay";
 
 const STEPS = ["Document", "Details", "Signers", "Countersigners", "Review"] as const;
@@ -153,7 +153,7 @@ export function SendModal({
   const tooLong = (f: FormField): boolean => {
     const value = values[f.id]?.trim();
     if (!data || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f, values)) return false;
-    return !fitsEverywhere(value, f.places, data.font, data.fit);
+    return !fitsEverywhere(written(f.holds, value, f.format), f.places, data.font, data.fit);
   };
 
   /** Who signs as a party, as chosen so far: a signer typed in, or the countersigning colleague. */
@@ -466,7 +466,7 @@ export function SendModal({
                         : [{ places: f.places, holds: f.holds, value: person.name, atSigning: true }];
                     }
                     const value = values[f.id]?.trim();
-                    return asked(f, values) && value ? [{ places: f.places, holds: f.holds, value }] : [];
+                    return asked(f, values) && value ? [{ places: f.places, holds: f.holds, value, format: f.format }] : [];
                   })}
                 />
               )}
