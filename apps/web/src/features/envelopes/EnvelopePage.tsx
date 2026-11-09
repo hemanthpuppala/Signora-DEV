@@ -8,10 +8,16 @@ import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import {
   ActionBar,
   Button,
+  DetailsPane,
   Dialog,
   HeadRow,
   Heading1,
   IconButton,
+  Item,
+  ItemAction,
+  ItemActions,
+  ItemHead,
+  ItemList,
   Notice,
   PdfViewer,
   Section,
@@ -20,6 +26,8 @@ import {
   TextButton,
   TextField,
   useToast,
+  ViewerLayout,
+  ViewerPane,
   type PdfOverlayArgs,
 } from "@/shared/ui";
 
@@ -32,10 +40,11 @@ import {
   useSendForm,
   type Envelope,
   type Recipient,
+  type SendForm,
 } from "./api";
 import { day } from "./EnvelopesList";
 import styles from "./envelopes.module.css";
-import { ValuesOverlay } from "./ValuesOverlay";
+import { ValuesOverlay, type Shown } from "./ValuesOverlay";
 
 const OPEN = new Set<Envelope["status"]>(["sent", "opened", "viewed", "signed"]);
 const LIVE = new Set<Recipient["status"]>(["sent", "opened", "viewed"]);
@@ -65,6 +74,25 @@ function happened(entry: Envelope["timeline"][number], envelope: Envelope): stri
 function role(recipient: Recipient): string {
   if (recipient.kind === "copy") return "Receives a copy";
   return `${recipient.kind === "signer" ? "Signer" : "Countersigner"} · ${recipient.party_label ?? ""}`;
+}
+
+/** The values on the document as sent: what was filled in, and each party's name to come. */
+function shown(envelope: Envelope, form: SendForm): Shown[] {
+  const fields = new Map(form.fields.map((f) => [f.id, f]));
+  const given = new Set(envelope.values.map((v) => v.field_id));
+  return [
+    ...envelope.values.flatMap((v) => {
+      const field = fields.get(v.field_id);
+      return field ? [{ places: field.places, holds: field.holds, value: v.value }] : [];
+    }),
+    // A party's name fields: the name its signer signs as, once they sign.
+    ...form.fields.flatMap((f) => {
+      const recipient = envelope.recipients.find((r) => r.party_id === f.party_id);
+      return f.from_recipient === "name" && recipient && !given.has(f.id)
+        ? [{ places: f.places, holds: f.holds, value: recipient.name, atSigning: true }]
+        : [];
+    }),
+  ];
 }
 
 /** When the person last moved: "Signed Nov 9", "Sent Nov 9", "Waiting". */
@@ -175,7 +203,6 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
         <StatusPill status={status.pill} label={status.label} />
         <span>{`Sent ${day(data.sent_at)}`}</span>
         <span>{data.cancelled_at ? `Withdrawn ${day(data.cancelled_at)}` : `Expires ${day(data.expires_at)}`}</span>
-        <span>{data.require_email_code ? "Email code on" : "Email code off"}</span>
       </ActionBar>
       {remind.error ? <Notice tone="warning">{formError(remind.error)}</Notice> : null}
       {failed.length > 0 ? (
@@ -184,93 +211,88 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
         </Notice>
       ) : null}
 
-      <div className={styles.envelope}>
-        <Section title="Recipients">
-          <ul className={styles.recipients} aria-label="Recipients">
-            {data.recipients.map((recipient) => (
-              <li key={recipient.id} className={styles.recipient}>
-                {editing === recipient.id ? (
-                  <ChangeRecipient
-                    envelopeId={envelopeId}
-                    recipient={recipient}
-                    onDone={(updated) => {
-                      setEditing(null);
-                      if (updated) refresh(updated);
-                    }}
-                  />
-                ) : (
-                  <>
-                    <div className={styles.who}>
-                      <span className={styles.name}>{recipient.name}</span>
-                      <span className={styles.sub}>{`${recipient.email} · ${role(recipient)}`}</span>
-                      {recipient.delivery?.status === "failed" ? (
-                        <span className={styles.error}>{`Email not delivered: ${recipient.delivery.error ?? "unknown reason"}`}</span>
-                      ) : null}
-                    </div>
-                    <span className={styles.state}>{when(recipient)}</span>
-                    {open && LIVE.has(recipient.status) ? (
-                      <span className={styles.rowActions}>
-                        <TextButton onClick={() => void copy(recipient)}>Copy link</TextButton>
-                        <TextButton disabled={resend.isPending} onClick={() => resend.mutate(recipient.id)}>
-                          Send again
-                        </TextButton>
-                        {recipient.kind !== "countersigner" ? (
-                          <IconButton icon="edit" label={`Change ${recipient.name}'s email`} onClick={() => setEditing(recipient.id)} />
-                        ) : null}
-                      </span>
-                    ) : null}
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-          {resend.error ? <Notice tone="warning">{formError(resend.error)}</Notice> : null}
-        </Section>
-
-        <Section title="Document">
+      <ViewerLayout underBar>
+        <ViewerPane>
           {form.data ? (
-            <div className={styles.preview}>
-              <PdfViewer
-                url={`/api/v1/documents/${data.document_id}/versions/${data.version_id}/pdf`}
-                pages={form.data.pages.map((p) => ({ width: p.width, height: p.height, rotation: 0 }))}
-                label={`${data.document_name} as sent`}
-                renderOverlay={({ page, scale }: PdfOverlayArgs) => {
-                  const fields = new Map(form.data.fields.map((f) => [f.id, f]));
-                  return (
-                    <ValuesOverlay
-                      page={page}
-                      scale={scale}
-                      font={data.font}
-                      fit={form.data.fit}
-                      shown={[
-                        ...data.values.flatMap((v) => {
-                          const field = fields.get(v.field_id);
-                          return field ? [{ places: field.places, holds: field.holds, value: v.value }] : [];
-                        }),
-                        // A party's name fields: the name its signer signs as, once they sign.
-                        ...form.data.fields.flatMap((f) => {
-                          const recipient = data.recipients.find((r) => r.party_id === f.party_id);
-                          const given = data.values.some((v) => v.field_id === f.id);
-                          return f.from_recipient === "name" && recipient && !given
-                            ? [{ places: f.places, holds: f.holds, value: recipient.name, atSigning: true }]
-                            : [];
-                        }),
-                      ]}
-                    />
-                  );
-                }}
-              />
-            </div>
+            <PdfViewer
+              url={`/api/v1/documents/${data.document_id}/versions/${data.version_id}/pdf`}
+              pages={form.data.pages.map((p) => ({ width: p.width, height: p.height, rotation: 0 }))}
+              label={`${data.document_name} as sent`}
+              renderOverlay={({ page, scale }: PdfOverlayArgs) => (
+                <ValuesOverlay page={page} scale={scale} font={data.font} fit={form.data.fit} shown={shown(data, form.data)} />
+              )}
+            />
           ) : (
             <SmallText>{`${data.values.length} ${data.values.length === 1 ? "value" : "values"} filled in before sending.`}</SmallText>
           )}
-        </Section>
+        </ViewerPane>
 
+        <DetailsPane>
+          <Section title="Recipients">
+            <ItemList label="Recipients" ordered>
+              {data.recipients.map((recipient) => (
+                <Item key={recipient.id}>
+                  {editing === recipient.id ? (
+                    <ChangeRecipient
+                      envelopeId={envelopeId}
+                      recipient={recipient}
+                      onDone={(updated) => {
+                        setEditing(null);
+                        if (updated) refresh(updated);
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <ItemHead>
+                        <span className={styles.name}>{recipient.name}</span>
+                        <span className={styles.state}>{when(recipient)}</span>
+                      </ItemHead>
+                      <span className={styles.sub}>{role(recipient)}</span>
+                      <span className={styles.sub}>{recipient.email}</span>
+                      {recipient.delivery?.status === "failed" ? (
+                        <span className={styles.error}>{`Email not delivered: ${recipient.delivery.error ?? "unknown reason"}`}</span>
+                      ) : null}
+                      {open && LIVE.has(recipient.status) ? (
+                        <ItemActions
+                          end={
+                            recipient.kind !== "countersigner" ? (
+                              <IconButton icon="edit" label={`Change ${recipient.name}'s email`} onClick={() => setEditing(recipient.id)} />
+                            ) : null
+                          }
+                        >
+                          <ItemAction onClick={() => void copy(recipient)}>Copy link</ItemAction>
+                          <ItemAction disabled={resend.isPending} onClick={() => resend.mutate(recipient.id)}>
+                            Send again
+                          </ItemAction>
+                        </ItemActions>
+                      ) : null}
+                    </>
+                  )}
+                </Item>
+              ))}
+            </ItemList>
+            {resend.error ? <Notice tone="warning">{formError(resend.error)}</Notice> : null}
+          </Section>
+
+          <Section title="Settings">
+            <ul className={styles.facts} aria-label="Settings">
+              <li>{data.require_email_code ? "Signers confirm a code sent to their email" : "No email code"}</li>
+              <li>{`Reminders every ${data.reminder_interval_hours} hours, up to ${data.max_reminders}`}</li>
+              <li>{data.cancelled_at ? `Withdrawn ${day(data.cancelled_at)}` : `Expires ${day(data.expires_at)}`}</li>
+              {data.notify_emails.length > 0 ? <li>{`Also told: ${data.notify_emails.join(", ")}`}</li> : null}
+            </ul>
+          </Section>
+        </DetailsPane>
+      </ViewerLayout>
+
+      <div className={styles.below}>
         <Section title="Timeline">
           <ol className={styles.timeline} aria-label="Timeline">
             {data.timeline.map((entry, index) => (
               <li key={index}>
-                <span className={styles.sub}>{new Date(entry.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                <span className={styles.sub}>
+                  {new Date(entry.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                </span>
                 <span>{happened(entry, data)}</span>
                 {entry.by ? <span className={styles.sub}>{entry.by}</span> : null}
               </li>

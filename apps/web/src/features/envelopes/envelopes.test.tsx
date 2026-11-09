@@ -153,7 +153,8 @@ describe("envelopes", () => {
     expect(screen.getByText("Email not delivered: mailbox full")).toBeTruthy();
     expect(screen.getByText("Emailed Ben Ode again")).toBeTruthy();
     expect(screen.getByText("Sent to 2 signers")).toBeTruthy();
-    expect(within(screen.getByRole("region", { name: "Envelope" })).getByText("Email code on")).toBeTruthy();
+    // The settings sit beside the recipients; the action bar keeps the state and the dates.
+    expect(within(screen.getByRole("list", { name: "Settings" })).getByText("Signers confirm a code sent to their email")).toBeTruthy();
 
     await user.click(within(rows[0] as HTMLElement).getByRole("button", { name: "Copy link" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://signora.example/s/abc"));
