@@ -345,3 +345,129 @@ def test_flags_keys_and_sensitive_values() -> None:
     nothing, opened = _open(data)
     flat = derive(nothing, _answer([], roles=[]), opened, problems=[], repaired=False)
     assert flat.flags.no_fields and flat.fields == []
+
+
+def _glyphs(page: pymupdf.Page, at: tuple[float, float], text: str) -> None:
+    writer = pymupdf.TextWriter(page.rect)
+    writer.append(at, text, font=pymupdf.Font("cjk"), fontsize=11)  # has the ballot box glyph
+    writer.write_text(page)
+
+
+def test_two_checkbox_groups_with_one_label_are_two_choices() -> None:
+    """Review fix: groups were told apart by their label, so two "Yes or no" questions became one
+    choice with four options (and signing could tick one box across both)."""
+    document = pymupdf.open()
+    page = document.new_page()
+    _glyphs(page, (50, 100), "Q1  ☐ Yes   ☐ No")
+    _glyphs(page, (50, 130), "Q2  ☐ Yes   ☐ No")
+    reading, opened = _open(document.tobytes())
+    first, second = [f.id for f in reading.asked][:2], [f.id for f in reading.asked][2:]
+    answer = _answer(
+        [
+            _field(i, "checkbox", "client", "Yes" if n % 2 == 0 else "No")
+            for n, i in enumerate(first + second)
+        ],
+        roles=[{"slug": "client", "kind": "signer"}],
+        checkbox_groups=[
+            {"ids": first, "label": "Yes or no"},
+            {"ids": second, "label": "Yes or no"},
+        ],
+    )
+    result = derive(reading, answer, opened, problems=[], repaired=False)
+    assert [(f.key, f.label, f.ids) for f in result.fields] == [
+        ("client.yes_or_no", "Yes or no", first),
+        ("client.yes_or_no_2", "Yes or no", second),
+    ]
+
+
+def test_a_dependency_on_a_grouped_checkbox_without_words_names_its_option_as_stored() -> None:
+    """Review fix: a grouped checkbox with no words beside it stood for its label as an option,
+    while a field depending on it still said "checked", which no option matched."""
+    document = pymupdf.open()
+    page = document.new_page()
+    _glyphs(page, (50, 100), "Entity: ☐")  # no words after the glyph
+    _glyphs(page, (300, 100), "☐ Person")
+    page.insert_text((50, 130), "Tax id: __________", fontsize=11)
+    reading, opened = _open(document.tobytes())
+    business, person, tax_id = (f.id for f in reading.asked)
+    answer = _answer(
+        [
+            _field(business, "checkbox", "client", "Business"),
+            _field(person, "checkbox", "vendor", "Person"),  # the vendor's only box
+            _field(
+                tax_id,
+                "tax_id",
+                "client",
+                "Tax id",
+                depends_on={"id": business, "option": "checked"},
+            ),
+        ],
+        roles=[{"slug": "client", "kind": "signer"}, {"slug": "vendor", "kind": "signer"}],
+        checkbox_groups=[{"ids": [business, person], "label": "Entity type"}],
+    )
+    result = derive(reading, answer, opened, problems=[], repaired=False)
+    choice = next(f for f in result.fields if f.key == "client.entity_type")
+    assert [p.option_value for p in choice.placements] == ["Business", "Person"]
+    tax = next(f for f in result.fields if f.key == "client.tax_id")
+    assert tax.depends_on is not None and tax.depends_on.option == "Business"
+    # Review fix: roles were counted before the merge, so the vendor (whose only checkbox joined
+    # the client's choice) was stored as a signer with no fields.
+    assert [r.slug for r in result.roles] == ["client"]
+    assert "roles that fill nothing dropped: ['vendor']" in result.notes
+
+
+def test_a_signature_box_holding_the_wrong_value_falls_back_to_a_signature() -> None:
+    """Review fix: a signature widget had no default, so one the AI mislabelled was stored as
+    text in a signature box."""
+    document = pymupdf.open()
+    widget = pymupdf.Widget()
+    widget.field_name, widget.field_type = "Sig", pymupdf.PDF_WIDGET_TYPE_SIGNATURE  # type: ignore[attr-defined]
+    widget.rect = pymupdf.Rect(50, 50, 200, 90)
+    document.new_page().add_widget(widget)
+    reading, opened = _open(document.tobytes())
+    (signature,) = reading.asked
+    answer = _answer(
+        [_field(signature.id, "party_name", "client", "Client signs")],
+        roles=[{"slug": "client", "kind": "signer"}],
+    )
+    problems = check(answer, reading, opened)
+    (field,) = derive(reading, answer, opened, problems=problems, repaired=True).fields
+    assert (field.key, field.holds, field.placements[0].kind) == (
+        "client.signature",
+        "signature",
+        "signature",
+    )
+    assert field.needs_review == "a signature cannot hold party_name"
+
+
+def test_one_value_whose_places_disagree_on_their_condition_applies_always_and_is_flagged() -> None:
+    """Review fix: a shared value kept only its first place's condition, so initials inside an
+    optional addendum lost theirs silently. A field applies as a whole: it applies always, and the
+    person is told to check."""
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((50, 100), "Initials: ______", fontsize=11)
+    _glyphs(page, (50, 130), "Addendum ☐ applies")
+    page.insert_text((50, 160), "Initials: ______", fontsize=11)
+    reading, opened = _open(document.tobytes())
+    first, addendum, second = (f.id for f in reading.asked)
+    answer = _answer(
+        [
+            _field(first, "initials", "client", "Initials"),
+            _field(addendum, "checkbox", "client", "Addendum applies"),
+            _field(
+                second,
+                "initials",
+                "client",
+                "Initials",
+                depends_on={"id": addendum, "option": "checked"},
+            ),
+        ],
+        roles=[{"slug": "client", "kind": "signer"}],
+    )
+    result = derive(reading, answer, opened, problems=[], repaired=False)
+    initials = next(f for f in result.fields if f.key == "client.initials")
+    assert initials.ids == [first, second] and initials.depends_on is None
+    assert initials.needs_review == (
+        "its places do not all apply under the same option; check when it applies"
+    )

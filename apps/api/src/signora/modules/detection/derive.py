@@ -39,7 +39,9 @@ ADDRESSED_TO_AI = re.compile(
     r"|as an ai\b",
     re.IGNORECASE,
 )
+# What a box holds when the AI's answer is not allowed for its kind (a text box or blank: text).
 KIND_DEFAULT = {
+    "signature": "signature",
     "checkbox": "checkbox",
     "radio": "choice",
     "combobox": "choice",
@@ -251,7 +253,8 @@ class _Item:
             order,
             review,
         )
-        self.group: str | None = None
+        self.group: int | None = None  # the checkbox group it is one option of, by number
+        self.group_label: str | None = None
         self.depends: tuple[str, str, Literal["layout", "ai"]] | None = None
 
 
@@ -380,32 +383,33 @@ def derive(
             review=["placed from the words around it: check its position"],
         )
 
-    # Checkbox groups: one choice, its options the checkboxes (§4.3).
-    for group in answer["checkbox_groups"]:
+    # Checkbox groups: one choice, its options the checkboxes (§4.3). Each group is its own
+    # choice, by number: two groups may well share a label ("Yes or no" asked twice).
+    for number, group in enumerate(answer["checkbox_groups"]):
         members = [
             m for m in group["ids"] if m in items and asked.get(m) and asked[m].kind == "checkbox"
         ]
-        if len(members) < 2 or any(items[m].group for m in members):
+        if len(members) < 2 or any(items[m].group is not None for m in members):
             notes.append(f"checkbox group {group['label']!r} not used")
             continue
         for member in members:
-            items[member].group = group["label"]
+            items[member].group, items[member].group_label = number, group["label"]
 
+    fields = _keyed(items)
     # Roles in signing order: signers by where they first appear, then countersigners (§4.5).
-    used = {item.filled_by for item in items.values()} & set(listed)
-    first_seen = {
-        slug: min(item.order for item in items.values() if item.filled_by == slug) for slug in used
-    }
-    order = sorted(used, key=lambda slug: (listed[slug] != "signer", first_seen[slug]))
+    # From the fields as stored, so a party whose only boxes merged into another's fills nothing.
+    first_seen: dict[str, int] = {}
+    for position, field in enumerate(fields):
+        if field.role is not None:
+            first_seen.setdefault(field.role, position)
+    order = sorted(first_seen, key=lambda slug: (listed[slug] != "signer", first_seen[slug]))
     roles = [
         RoleOut(slug=slug, kind=listed[slug], label=role_label(slug), position=n)
         for n, slug in enumerate(order, start=1)
     ]
-    dropped = set(listed) - used
+    dropped = set(listed) - set(first_seen)
     if dropped:
         notes.append(f"roles that fill nothing dropped: {sorted(dropped)}")
-
-    fields = _keyed(items)
     if reading.asked and not fields:
         notes.append("nothing to store")
     meta = answer["document"]
@@ -457,19 +461,25 @@ def _name_words(label: str, role: str | None) -> str:
     return words or "field"
 
 
+def _option_value(item: _Item, placement: PlacementOut) -> str:
+    """What a checkbox in a group stands for as an option: its own words, else the AI's label."""
+    return placement.option_text or item.label
+
+
 def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
     """One field per key, in reading order: shared values and checkbox groups merged (§4.3)."""
     ordered = sorted(items.values(), key=lambda item: item.order)
     key_of: dict[int, str] = {}
     taken: set[str] = set()
     shared: dict[str, str] = {}  # (role, holds) -> key for values given once
-    groups: dict[str, str] = {}
+    groups: dict[int, str] = {}
     for item in ordered:
         _, role = _owner(item)
         owner = role or "agreement"
         if item.group is not None:
             if item.group not in groups:
-                groups[item.group] = _unique(f"{owner}.{_name_words(item.group, role)}", taken)
+                words = _name_words(item.group_label or "choice", role)
+                groups[item.group] = _unique(f"{owner}.{words}", taken)
             key_of[id(item)] = groups[item.group]
         elif role and item.holds in SHARED:
             share = f"{role}.{item.holds}"
@@ -484,14 +494,14 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
     item_by_id = {i: item for item in ordered for i in item.ids}
 
     fields: dict[str, FieldOut] = {}
+    disagree: set[str] = set()  # keys whose places' conditions differ: noted once
     for item in ordered:
         key = key_of[id(item)]
         filled_by, role = _owner(item)
         placements = list(item.placements)
         if item.group is not None:
             placements = [
-                p.model_copy(update={"option_value": p.option_text or item.label})
-                for p in placements
+                p.model_copy(update={"option_value": _option_value(item, p)}) for p in placements
             ]
         dependency = None
         if item.depends is not None:
@@ -500,15 +510,15 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
             if parent_key is not None and parent_key != key:
                 parent_item = item_by_id[parent]
                 if parent_item.group is not None and option == "checked":
-                    # A checkbox in a group: the choice of that option.
-                    option = parent_item.placements[0].option_text or option
+                    # A checkbox in a group: the choice of that option, named as its placement is.
+                    option = _option_value(parent_item, parent_item.placements[0])
                 dependency = Dependency(key=parent_key, option=option, source=source)
         existing = fields.get(key)
         if existing is None:
             fields[key] = FieldOut(
                 key=key,
-                label=item.group or item.label,
-                holds="choice" if item.group else item.holds,
+                label=item.group_label or item.label,
+                holds="choice" if item.group is not None else item.holds,
                 filled_by=filled_by,  # type: ignore[arg-type]
                 role=role,
                 required=item.required,
@@ -524,6 +534,14 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
         existing.required = existing.required or item.required
         if item.review:
             existing.needs_review = "; ".join(filter(None, [existing.needs_review, *item.review]))
+        if dependency != existing.depends_on and key not in disagree:
+            # One value in many places, not all under the same option (initials on every page,
+            # one of them in an optional addendum): a field applies as a whole, so it applies
+            # always, and a person decides.
+            disagree.add(key)
+            existing.depends_on = None
+            note = "its places do not all apply under the same option; check when it applies"
+            existing.needs_review = "; ".join(filter(None, [existing.needs_review, note]))
     _break_loops(fields)
     return list(fields.values())
 
