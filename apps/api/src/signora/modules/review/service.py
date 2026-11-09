@@ -32,6 +32,7 @@ from signora.modules.review.fieldset import ApproveRequest, FieldSet, Revised
 from signora.modules.review.metrics import ApprovedPlace, measure
 from signora.modules.review.store import (
     begin_review,
+    lock_review,
     read_baseline,
     read_review,
     read_set,
@@ -77,11 +78,7 @@ def save(
         raise FieldsApproved
     if version.status != "ready":
         raise VersionNotInReview
-    revision = session.execute(
-        text("SELECT revision FROM version_reviews WHERE version_id = :v FOR UPDATE"),
-        {"v": version_id},
-    ).scalar_one_or_none()
-    edit = _edit(session, version, revision if revision is not None else -1, fieldset)
+    edit = _edit(session, version, lock_review(session, version_id), fieldset)
     write_set(
         session,
         workspace_id=version.workspace_id,
@@ -124,16 +121,13 @@ def approve(
     version = version_for_review(session, actor, document_id, version_id, edit=True, lock=True)
     if version.status != "ready":
         raise VersionNotInReview
-    revision = session.execute(
-        text("SELECT revision FROM version_reviews WHERE version_id = :v FOR UPDATE"),
-        {"v": version_id},
-    ).scalar_one_or_none()
+    revision = lock_review(session, version_id)
     if revision != approval.revision:
         raise FieldsChanged
     roles, fields = read_set(session, version_id)
     _, flags = read_review(session, version_id)
     warnings = warnings_for(roles, fields, flags)
-    if {w.code for w in warnings} != set(approval.accepted):
+    if {w.code for w in warnings} != approval.accepted:
         raise WarningsChanged
     baseline_id, proposed = read_baseline(session, version_id)
     approved = [

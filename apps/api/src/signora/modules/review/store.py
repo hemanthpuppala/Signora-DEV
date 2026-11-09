@@ -258,6 +258,17 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
     return roles, views
 
 
+def lock_review(session: Session, version_id: uuid.UUID) -> int:
+    """A version's revision under its row lock, for a Save or an Approve deciding on it. Every
+    version in review or approved has a row (``replace_fields`` or ``begin_review`` made it), so
+    none is an invariant broken, not a state to answer for."""
+    revision: int = session.execute(
+        text("SELECT revision FROM version_reviews WHERE version_id = :v FOR UPDATE"),
+        {"v": version_id},
+    ).scalar_one()
+    return revision
+
+
 def read_review(session: Session, version_id: uuid.UUID) -> tuple[int, dict[str, bool]]:
     """A version's revision and the document's flags (0 and none before detection stored any)."""
     row = session.execute(
