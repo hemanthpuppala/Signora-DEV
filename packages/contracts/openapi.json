@@ -646,10 +646,6 @@
             ],
             "title": "Page Count"
           },
-          "require_email_code": {
-            "title": "Require Email Code",
-            "type": "boolean"
-          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -674,7 +670,6 @@
           "updated_at",
           "archived_at",
           "department_id",
-          "require_email_code",
           "created_by",
           "created_at",
           "access",
@@ -2353,17 +2348,6 @@
               }
             ],
             "title": "Name"
-          },
-          "require_email_code": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Require Email Code"
           }
         },
         "title": "UpdateDocument",

@@ -57,7 +57,6 @@ class DocumentRow:
     department_id: uuid.UUID
     name: str
     description: str
-    require_email_code: bool
     current_version_id: uuid.UUID | None
     created_by_id: uuid.UUID
     created_by_name: str
@@ -115,7 +114,7 @@ class Duplicate:
 
 
 _DOCUMENT_SELECT = """
-    SELECT d.id, d.department_id, d.name, d.description, d.require_email_code,
+    SELECT d.id, d.department_id, d.name, d.description,
            d.current_version_id, d.created_by AS created_by_id, u.name AS created_by_name,
            d.created_at, d.updated_at, d.archived_at,
            c.version_no AS current_version_no,
@@ -426,7 +425,6 @@ def update_document(
     document_id: uuid.UUID,
     name: str | None = None,
     description: str | None = None,
-    require_email_code: bool | None = None,
 ) -> DocumentRow:
     """A person's change: their name or description is never replaced by the AI (topic 1)."""
     session = uow.session
@@ -448,10 +446,6 @@ def update_document(
         assignments.append("description = :description, description_source = 'person'")
         values["description"] = new_description
         events.append(("document.description_changed", {"by": "person"}))
-    if require_email_code is not None and require_email_code != current.require_email_code:
-        assignments.append("require_email_code = :code")
-        values["code"] = require_email_code
-        events.append(("document.email_code_changed", {"require_email_code": require_email_code}))
     if not assignments:
         return current
     try:

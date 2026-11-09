@@ -238,7 +238,6 @@ class VersionView(BaseModel):
 
 class DocumentDetail(DocumentSummary):
     department_id: uuid.UUID
-    require_email_code: bool
     created_by: PersonRef
     created_at: datetime
     access: Literal["edit", "read"]  # the caller's, in this document's department
@@ -331,7 +330,6 @@ def detail(
     return DocumentDetail(
         **summary(row).model_dump(),
         department_id=row.department_id,
-        require_email_code=row.require_email_code,
         created_by=PersonRef(id=row.created_by_id, name=row.created_by_name),
         created_at=row.created_at,
         access=rights.level(row.department_id),
@@ -357,7 +355,6 @@ class AddVersion(_Body):
 class UpdateDocument(_Body):
     name: NameInput | None = None
     description: Annotated[str, Field(max_length=DESCRIPTION_MAX * 2)] | None = None
-    require_email_code: bool | None = None
 
 
 @router.get("/departments/{department_id}/documents", summary="Documents of a department")
@@ -421,7 +418,6 @@ def update_document(
             document_id=document_id,
             name=body.name,
             description=body.description,
-            require_email_code=body.require_email_code,
         )
         return detail(request, uow.session, actor, row)
 

@@ -224,9 +224,10 @@ envelope_values
   PRIMARY KEY (envelope_id, field_id)
 ```
 
-- **Pinned content (NFR-E5)**: a trigger refuses any change to an envelope's `version_id`, document, department and
-  settings, and to the sender's rows of `envelope_values`, once it exists. Only the title can still change (a
-  rename). The version itself is already immutable once approved (Phase 6 trigger).
+- **Pinned content (NFR-E5)**: a trigger refuses any change to an envelope's company, department, document,
+  version, sender, sending time and settings (email code, reminders, also notify), and to the sender's rows of
+  `envelope_values`. Its title may be renamed, its state moves on, and its expiry may be extended (as DocuSign
+  allows; Phase 10). The version itself is already immutable once approved (Phase 6 trigger).
 - **Version must be approved**: checked in the transaction under the version's row lock (`FOR SHARE`).
 - **`documents.require_email_code`** is dropped (with its audit action kept in history).
 - **Email delivery** reuses `email_messages` (Phase 2) with new categories and dedupe keys (§11.4); no new table.
@@ -281,11 +282,10 @@ list's length are left for the sender to choose. O(R).
 - **Context**: a link must be shown again (Copy signing link, resend) without changing it, revoked on change of email,
   and never rebuildable from the database (NFR-E3). Storing only `sha256(token)` (platform §9) cannot show a link
   again; storing the token, even encrypted, puts every live link in the database.
-- **Decision**: the link carries `recipient_id`, `link_version` and `HMAC-SHA256(SIGNING_LINK_SECRET, recipient_id ‖
-  link_version)`, base64url: `/s/{token}`. Showing it again recomputes it; checking it recomputes and compares in
+- **Decision**: the link carries `recipient_id`, `link_version` and `HMAC-SHA256(link_key, recipient_id ‖ link_version)`, base64url: `/s/{token}`. Showing it again recomputes it; checking it recomputes and compares in
   constant time, then requires `link_version` to equal the row's and the recipient not revoked. Change of email
-  increments `link_version`, revoking every earlier link. The secret lives in `.env` only (new
-  `SIGNING_LINK_SECRET`, 32 bytes, required in production).
+  increments `link_version`, revoking every earlier link. `link_key = HMAC-SHA256(SECRET_KEY, "signora signing link v1")`: a key
+  derived for this one purpose from the application secret already in `.env` (32+ characters), so no new secret.
 - **Consequences**: O(1) lookup by the id in the token, no token table, no stored secret per link; rotating the secret
   revokes every outstanding link (documented). Phase 8 exchanges the link for a short session cookie and a token-free
   URL (platform §9).
@@ -389,9 +389,9 @@ Decided by the owner's "complete everything, follow industry practice" (2026-11-
 | # | Task | Status | Evidence |
 |---|---|---|---|
 | 7.1 | This design, owner decisions §1–§6, open questions §15 answered | in progress | this document |
-| 7.2 | Migration 0019 (envelopes, recipients, values; drop `documents.require_email_code`); models; triggers | todo | — |
+| 7.2 | Migration 0019 (envelopes, recipients, values; drop `documents.require_email_code`); models; triggers | done | `0019_envelopes.py`, `envelopes/models.py` (composite keys keep every row in one company and one version; a copy has no party, a countersigner a colleague); `email_messages.reply_to`; triggers keep what was sent; the document's email code removed from its model, service and API (PATCH answers 422). Tests: migration up, triggers, downgrade; schema matches models; document tests updated |
 | 7.3 | `review.formats` (§11.3) | todo | — |
-| 7.4 | Links (ADR-E1), `SIGNING_LINK_SECRET` | todo | — |
+| 7.4 | Links (ADR-E1), key derived from `SECRET_KEY` | todo | — |
 | 7.5 | Send form (§2, §11.1) | todo | — |
 | 7.6 | Send: validation, prefill, values, recipients, emails, audit, idempotency | todo | — |
 | 7.7 | Remind, resend, change email, cancel, retry | todo | — |

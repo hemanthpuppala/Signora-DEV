@@ -56,7 +56,8 @@ def test_an_upload_becomes_a_document_with_its_first_version_processing(
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["name"] == "Engagement letter"
-    assert (body["access"], body["require_email_code"], body["description"]) == ("edit", True, "")
+    assert (body["access"], body["description"]) == ("edit", "")
+    assert "require_email_code" not in body  # a send's setting (Phase 7 §4)
     assert body["current_version"] is None  # not ready yet (topic 4)
     assert body["latest_version"]["number"] == 1
     assert body["latest_version"]["status"] == "processing"
@@ -150,9 +151,7 @@ def test_versions_are_numbered_in_upload_order(owner: TestClient) -> None:
     assert third.json()["versions"][0]["kind"] == "docx"
 
 
-def test_people_rename_describe_and_set_the_email_code(
-    owner: TestClient, committing_db: Database
-) -> None:
+def test_people_rename_and_describe(owner: TestClient, committing_db: Database) -> None:
     department = create_department(owner)
     document = new_document(owner, department["id"], pdf_bytes()).json()
 
@@ -161,29 +160,29 @@ def test_people_rename_describe_and_set_the_email_code(
         json={
             "name": "Retainer",
             "description": "Signed before work starts",
-            "require_email_code": False,
         },
         headers=csrf_headers(owner),
     )
 
     assert changed.status_code == 200, changed.text
     body = changed.json()
-    assert (body["name"], body["description"], body["require_email_code"]) == (
-        "Retainer",
-        "Signed before work starts",
-        False,
-    )
+    assert (body["name"], body["description"]) == ("Retainer", "Signed before work starts")
     with committing_db.unit_of_work() as uow:
         sources = uow.session.execute(
             text("SELECT name_source, description_source FROM documents WHERE id = :id"),
             {"id": document["id"]},
         ).one()
     assert tuple(sources) == ("person", "person")  # the AI never replaces them (topic 1)
-    assert _actions(committing_db, document["id"])[-3:] == [
+    assert _actions(committing_db, document["id"])[-2:] == [
         "document.renamed",
         "document.description_changed",
-        "document.email_code_changed",
     ]
+    moved = owner.patch(
+        f"{DOCUMENTS}/{document['id']}",
+        json={"require_email_code": False},
+        headers=csrf_headers(owner),
+    )
+    assert moved.status_code == 422  # a send's setting now (Phase 7 §4)
     too_long = owner.patch(
         f"{DOCUMENTS}/{document['id']}", json={"name": "x" * 121}, headers=csrf_headers(owner)
     )

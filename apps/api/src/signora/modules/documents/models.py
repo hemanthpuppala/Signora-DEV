@@ -60,7 +60,6 @@ documents = Table(
     Column("name_source", Text, nullable=False, server_default=text("'upload'")),
     Column("description", Text, nullable=False, server_default=text("''")),
     Column("description_source", Text, nullable=False, server_default=text("'none'")),
-    Column("require_email_code", Boolean, nullable=False, server_default=text("true")),
     Column("current_version_id", UUID(as_uuid=True)),
     Column("created_by", UUID(as_uuid=True), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),

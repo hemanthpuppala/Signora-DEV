@@ -1102,8 +1102,6 @@ export interface components {
             name: string;
             /** Page Count */
             page_count: number | null;
-            /** Require Email Code */
-            require_email_code: boolean;
             /**
              * Updated At
              * Format: date-time
@@ -1709,8 +1707,6 @@ export interface components {
             description?: string | null;
             /** Name */
             name?: string | null;
-            /** Require Email Code */
-            require_email_code?: boolean | null;
         };
         /** UploadView */
         UploadView: {

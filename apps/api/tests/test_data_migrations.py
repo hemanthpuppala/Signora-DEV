@@ -8,6 +8,7 @@ from collections.abc import Iterator
 import pytest
 from alembic import command
 from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.exc import IntegrityError
 
 from signora.kernel.config import DatabaseSettings
 from signora.kernel.migrations import alembic_config
@@ -245,4 +246,69 @@ def test_0018_keeps_ready_versions_in_review_without_a_current_one_and_back(
             ).scalar_one()
             == "Mutual NDA"
         )
+    engine.dispose()
+
+
+def test_0019_moves_the_email_code_to_envelopes_which_keep_what_they_sent_and_back(
+    scratch: DatabaseSettings,
+) -> None:
+    """Phase 7 §4, §9: the document's "Require email code" goes (a send's setting now); an
+    envelope's version, settings and the sender's values cannot change once sent."""
+    config = alembic_config(scratch)
+    command.upgrade(config, "0018")
+    engine = create_engine(scratch.url)
+    version = _processed_version(engine, status="ready")
+
+    command.upgrade(config, "0019")
+
+    with engine.begin() as connection:
+        columns = connection.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'documents'"
+            )
+        ).scalars()
+        assert "require_email_code" not in set(columns)
+        row = connection.execute(
+            text(
+                "SELECT v.workspace_id, v.document_id, d.department_id, d.created_by "
+                "FROM document_versions v JOIN documents d ON d.id = v.document_id WHERE v.id = :v"
+            ),
+            {"v": version},
+        ).one()
+        envelope = connection.execute(
+            text(
+                "INSERT INTO envelopes (workspace_id, department_id, document_id, version_id, "
+                "title, require_email_code, reminder_interval_hours, max_reminders, expires_at, "
+                "notify_emails, sent_by) VALUES (:w, :dep, :doc, :v, 'NDA · Maya', true, 24, 5, "
+                "now() + interval '14 days', '{}', :u) RETURNING id"
+            ),
+            {
+                "w": row.workspace_id,
+                "dep": row.department_id,
+                "doc": row.document_id,
+                "v": version,
+                "u": row.created_by,
+            },
+        ).scalar_one()
+    # Its expiry may be extended later (as DocuSign allows); what was sent may not change.
+    for change in (
+        "UPDATE envelopes SET require_email_code = false WHERE id = :e",
+        "UPDATE envelopes SET max_reminders = 1 WHERE id = :e",
+        "UPDATE envelopes SET notify_emails = '{a@example.com}' WHERE id = :e",
+    ):
+        with engine.begin() as connection, pytest.raises(IntegrityError):
+            connection.execute(text(change), {"e": envelope})
+    with engine.begin() as connection:  # a rename is allowed; the state moves on
+        connection.execute(
+            text("UPDATE envelopes SET title = 'Renamed', status = 'opened' WHERE id = :e"),
+            {"e": envelope},
+        )
+        connection.execute(text("DELETE FROM envelopes WHERE id = :e"), {"e": envelope})
+
+    command.downgrade(config, "0018")
+
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT require_email_code FROM documents WHERE id = :d"), {"d": row.document_id}
+        ).scalar_one()
     engine.dispose()
