@@ -66,7 +66,8 @@ def request_for(
             {
                 "party_id": doc.party("Client")["id"],
                 "name": "Maya Chen",
-                "email": "Maya@Example.com",
+                # Its own address: the test database keeps every earlier test's mail.
+                "email": f"Maya-{uuid.uuid4().hex[:8]}@Example.com",
             }
         ]
     if "countersigners" not in override:
@@ -111,11 +112,9 @@ def test_sending_writes_the_envelope_emails_every_signer_and_waits_for_the_firm(
     assert (envelope["reminder_interval_hours"], envelope["max_reminders"]) == (48, 3)
     assert envelope["notify_emails"] == ["desk@firm.example"]
     signer, firm, copy = envelope["recipients"]
-    assert (signer["kind"], signer["status"], signer["email"]) == (
-        "signer",
-        "sent",
-        "maya@example.com",
-    )
+    address = signer["email"]
+    assert (signer["kind"], signer["status"]) == ("signer", "sent")
+    assert address.startswith("maya-") and address.endswith("@example.com")  # normalised
     assert signer["party_label"] == "Client"
     assert signer["delivery"]["status"] == "queued"
     assert (firm["kind"], firm["status"], firm["email"]) == (
@@ -133,7 +132,7 @@ def test_sending_writes_the_envelope_emails_every_signer_and_waits_for_the_firm(
         if f["party_id"] == signer["party_id"] and f["holds"] == "email"
     ]
     for field in client_email:  # prefilled from the signer, as DocuSign does
-        assert values[field["id"]] == "maya@example.com"
+        assert values[field["id"]] == address
     assert envelope["timeline"][0]["action"] == "envelope.sent"
     assert owner.get(f"/api/v1/envelopes/{envelope['id']}").json() == envelope
 
@@ -141,9 +140,9 @@ def test_sending_writes_the_envelope_emails_every_signer_and_waits_for_the_firm(
         emails = uow.session.execute(
             text(
                 "SELECT to_address, subject, text_body, reply_to, category FROM email_messages "
-                "WHERE category = 'sign_request' AND to_address IN ('maya@example.com', :firm)"
+                "WHERE category = 'sign_request' AND to_address IN (:signer, :firm)"
             ),
-            {"firm": company.email},
+            {"signer": address, "firm": company.email},
         ).all()
     (email,) = emails  # the signer only
     assert email.reply_to == company.email  # a reply reaches the sender
@@ -165,8 +164,9 @@ def test_a_retried_send_makes_one_envelope(
     doc = sendable(owner, run, detect)
     key = idempotency_key()
 
-    first = send(owner, doc, request_for(owner, doc, company), key)
-    again = send(owner, doc, request_for(owner, doc, company), key)
+    body = request_for(owner, doc, company)
+    first = send(owner, doc, body, key)
+    again = send(owner, doc, body, key)  # the same request: answered with the first envelope
 
     assert (first.status_code, again.status_code) == (201, 201)
     assert again.json()["id"] == first.json()["id"]
