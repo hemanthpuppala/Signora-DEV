@@ -108,7 +108,6 @@ export function ReviewLayout({
   view: loaded,
   canEdit,
   top,
-  side,
   onOpen,
 }: {
   document: DocumentDetail;
@@ -116,7 +115,6 @@ export function ReviewLayout({
   view: VersionFields | undefined;
   canEdit: boolean;
   top: ReactNode;
-  side: ReactNode;
   onOpen: (versionId: string | null) => void;
 }) {
   const view = loaded ?? LOADING;
@@ -431,8 +429,7 @@ export function ReviewLayout({
               editing={panelEditing}
             />
           ) : null}
-          {side}
-          <Section title="Versions" info={VERSIONS_HELP}>
+            <Section title="Versions" info={VERSIONS_HELP}>
             <Versions
               document={document}
               viewing={version.id}

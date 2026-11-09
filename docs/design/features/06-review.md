@@ -294,7 +294,9 @@ click replace the panel with its form, and gave party warnings no way forward. R
 - **A "?" on each section** (owner decision, 2026-11-09): Things to check, Who signs, Fields, Versions and a field's
   Places say what they are and what their less obvious buttons do (`review/help.tsx`, one home for the words). It
   opens on hover, click or tap, closes with Escape or a press elsewhere, and is read by screen readers (`InfoTip`,
-  `Section info`). Signing has none: its one setting is explained under it already.
+  `Section info`).
+- **Signing leaves the document page** (owner decision, 2026-11-09): "Require email code" is per envelope, set on
+  the send form in Phase 7 (Phase 3 §5.1 and Phase 4 §1.1 updated).
 - **"+ Add field" is the first row of the field list**: it opens into a row with a Type dropdown (grouped, every
   type) and who fills it (the filtered party by default), then "Place on the page": click where it goes, or drag to
   draw it. The viewer's toolbar says so while placing. On phones it is placed on page 1 and moved with the numbers.

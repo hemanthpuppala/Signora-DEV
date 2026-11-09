@@ -7,7 +7,6 @@ import { api, unwrap } from "@/shared/api/client";
 import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import {
   Button,
-  Checkbox,
   ClampedText,
   Dialog,
   HeadAction,
@@ -15,7 +14,6 @@ import {
   Heading1,
   Notice,
   Section,
-  SmallText,
   TextArea,
   TextButton,
   TextField,
@@ -31,7 +29,7 @@ import { ReviewLayout } from "./review/ReviewLayout";
 import { Versions } from "./Versions";
 import { VersionState } from "./VersionState";
 
-type Patch = { name?: string; description?: string; require_email_code?: boolean };
+type Patch = { name?: string; description?: string };
 
 function useDocumentAction(id: string) {
   const queryClient = useQueryClient();
@@ -63,7 +61,7 @@ function useDocumentAction(id: string) {
  */
 export function DocumentPage({ departmentId, documentId }: { departmentId: string; documentId: string }) {
   const document = useDocument(documentId);
-  const { patch, archive } = useDocumentAction(documentId);
+  const { archive } = useDocumentAction(documentId);
   const [editing, setEditing] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -105,18 +103,6 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
         <VersionState document={data} version={newest} canEdit={canEdit} />
       ) : null}
     </>
-  );
-  const signing = (
-    <Section title="Signing">
-      <Checkbox
-        checked={data.require_email_code}
-        disabled={!canEdit || patch.isPending}
-        onChange={(event) => patch.mutate({ require_email_code: event.target.checked })}
-      >
-        Require email code
-      </Checkbox>
-      <SmallText>Clients enter a code sent to their email before they can sign. Each send keeps this setting.</SmallText>
-    </Section>
   );
 
   return (
@@ -206,14 +192,12 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
           view={fields.data}
           canEdit={canEdit}
           top={progress}
-          side={signing}
           onOpen={setViewing}
         />
       ) : (
         <div className={styles.layout}>
           <div className={styles.main}>{progress}</div>
           <div className={styles.side}>
-            {signing}
             <Section title="Versions">
               <Versions document={data} viewing={shownId} onOpen={setViewing} canEdit={canEdit} />
             </Section>

@@ -207,24 +207,22 @@ describe("document page", () => {
     expect(screen.queryByRole("button", { name: "Make current" })).toBeNull();
     expect(screen.queryByRole("button", { name: "New version" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Archive document" })).toBeNull();
-    expect((screen.getByRole("checkbox", { name: "Require email code" }) as HTMLInputElement).disabled).toBe(true);
+    expect(screen.queryByRole("checkbox", { name: "Require email code" })).toBeNull(); // a send's setting (Phase 7)
     expect(screen.getAllByRole("link", { name: "Download original" })).toHaveLength(2);
   });
 
-  it("saves the email code and only the fields a person changed", async () => {
+  it("saves only the fields a person changed", async () => {
     serve(READY, { "/documents/doc-1": () => reply(200, READY) });
     open();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("checkbox", { name: "Require email code" }));
-    await vi.waitFor(() => expect(posts("/documents/doc-1")[0]?.body).toEqual({ require_email_code: false }));
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
     const name = screen.getByLabelText("Name");
     await user.clear(name);
     await user.type(name, "Retainer");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    await vi.waitFor(() => expect(posts("/documents/doc-1")[1]?.body).toEqual({ name: "Retainer" }));
+    await vi.waitFor(() => expect(posts("/documents/doc-1")[0]?.body).toEqual({ name: "Retainer" }));
   });
 
   it("archives only after confirming", async () => {

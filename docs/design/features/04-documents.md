@@ -39,7 +39,9 @@ One agreement inside one department. It has:
 - **Versions**: each upload is a new, immutable version (topic 4). Each version carries the uploader's
   **instructions for the AI** for that upload (§1.3).
 - **Require email code**: on by default (carried from Phase 3 topic 5). Per document, not per version; each send
-  copies the value it had when sent (Phase 7), so a later change never affects a send already out.
+  copies the value it had when sent (Phase 7), so a later change never affects a send already out. **Superseded
+  (owner decision, 2026-11-09): per envelope only, on the send form (Phase 7); the document page no longer shows it
+  and the column and its PATCH field are removed with Phase 7.**
 
 ### 1.2 Rules
 

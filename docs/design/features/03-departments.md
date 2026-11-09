@@ -355,6 +355,9 @@ How a client proves who they are before signing. The checks run in Phase 8 (sign
   setting "Require email code" (default on), copied onto each send (Phase 7) so a later change never affects a send
   already out. Trade-off recorded: with the code off, possession of the link is enough to sign (a forwarded email
   suffices), as in DocuSign's default.
+  **Superseded (owner decision, 2026-11-09): per envelope only.** An envelope can hold several documents and the
+  code is a decision about one send, so "Require email code" is a setting of the send form (Phase 7), on by default,
+  stored with each envelope. The document page no longer shows it; the document's stored value goes with Phase 7.
 - **Department access code** (a code shared outside email): **deferred** (future feature). When it returns, each
   send keeps the code it was sent with, so changing the code never locks out a client already told the old one
   (agreed).
