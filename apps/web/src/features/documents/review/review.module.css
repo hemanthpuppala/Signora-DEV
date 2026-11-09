@@ -138,6 +138,12 @@
   border-top: 1px solid var(--sep);
 }
 
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .groupTitle {
   margin: 0;
   font: 500 10px/1.4 var(--sans);

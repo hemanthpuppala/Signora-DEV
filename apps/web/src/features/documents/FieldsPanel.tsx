@@ -10,6 +10,7 @@ import styles from "./fields.module.css";
 import { AddField, PlacingRow } from "./review/AddField";
 import type { Draft, DraftField } from "./review/editor";
 import { FieldForm } from "./review/FieldForm";
+import { FIELDS_HELP, THINGS_TO_CHECK_HELP, WHO_SIGNS_HELP } from "./review/help";
 import { PartyList } from "./review/PartyList";
 import { PlaceChips } from "./review/PlaceChips";
 import { ThingsToCheck } from "./review/ThingsToCheck";
@@ -156,7 +157,7 @@ export function FieldsPanel({
   return (
     <>
       {inReview && view.warnings.length > 0 ? (
-        <Section title="Things to check">
+        <Section title="Things to check" info={THINGS_TO_CHECK_HELP}>
           <ThingsToCheck
             warnings={view.warnings}
             stale={(editing?.review.changes ?? 0) > 0}
@@ -169,10 +170,10 @@ export function FieldsPanel({
           />
         </Section>
       ) : null}
-      <Section title="Who signs">
+      <Section title="Who signs" info={WHO_SIGNS_HELP}>
         <PartyList parties={draft.parties} fields={draft.fields} sender={sender} edit={editing ? editing.review.edit : null} />
       </Section>
-      <Section title={`Fields · ${draft.fields.length}`}>
+      <Section title={`Fields · ${draft.fields.length}`} info={FIELDS_HELP}>
         {view.flags.no_fields && draft.fields.length === 0 ? (
           <Notice>{editing ? "We couldn't find places to fill or sign. Add them below." : "We couldn't find places to fill or sign."}</Notice>
         ) : null}

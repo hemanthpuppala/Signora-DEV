@@ -291,6 +291,10 @@ click replace the panel with its form, and gave party warnings no way forward. R
   "Make separate field" and "Remove place" under them; the exact numbers folded under "Position and size". The key
   is never shown. Design system: `Button icon`, `Chip` / `ChipGroup` (also the list's filters), icons `close`,
   `pages`, `split`, `trash`; corners stay square (`--radius`), rounded chips remain an option.
+- **A "?" on each section** (owner decision, 2026-11-09): Things to check, Who signs, Fields, Versions and a field's
+  Places say what they are and what their less obvious buttons do (`review/help.tsx`, one home for the words). It
+  opens on hover, click or tap, closes with Escape or a press elsewhere, and is read by screen readers (`InfoTip`,
+  `Section info`). Signing has none: its one setting is explained under it already.
 - **"+ Add field" is the first row of the field list**: it opens into a row with a Type dropdown (grouped, every
   type) and who fills it (the filtered party by default), then "Place on the page": click where it goes, or drag to
   draw it. The viewer's toolbar says so while placing. On phones it is placed on page 1 and moved with the numbers.

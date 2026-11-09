@@ -258,6 +258,9 @@ describe("field review", () => {
     const user = userEvent.setup();
     const check = await screen.findByRole("list", { name: "Things to check" });
     expect(within(check).getByText("1 field needs a look; approving accepts them as found")).toBeTruthy();
+    for (const section of ["Things to check", "Who signs", "Fields · 2", "Versions"]) {
+      expect(screen.getByRole("button", { name: `About ${section}` })).toBeTruthy(); // each section explains itself
+    }
     expect(within(bar()).getByText("1 thing to check")).toBeTruthy();
     expect(within(bar()).getByText("Needs approval")).toBeTruthy();
 
@@ -356,6 +359,9 @@ describe("field review", () => {
     expect(within(form).getByRole("button", { name: "Add a place" })).toBeTruthy(); // clear actions, with icons
     expect(within(form).getByRole("button", { name: "On every page" })).toBeTruthy();
     expect(within(form).getByText("Position and size · page 1")).toBeTruthy(); // folded away
+    await user.click(within(form).getByRole("button", { name: "About places" }));
+    expect(within(form).getByRole("note").textContent).toContain("Add a place: click on the document to show this field there too.");
+    await user.keyboard("{Escape}");
     expect((within(form).getByLabelText("Width") as HTMLInputElement).value).toBe("180"); // the default size
     const left = Number((within(form).getByLabelText("Left") as HTMLInputElement).value);
     (document.activeElement as HTMLElement | null)?.blur();

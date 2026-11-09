@@ -74,3 +74,66 @@
   color: var(--t30);
   cursor: not-allowed;
 }
+
+/* InfoTip: a "?" beside a title, and what it explains, opening under it. */
+.info {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.infoButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--r25);
+  border-radius: 50%;
+  background: transparent;
+  font: 500 11px/1 var(--sans);
+  letter-spacing: 0;
+  color: var(--t60);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.infoButton:hover,
+.infoButton[aria-expanded="true"] {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.infoButton:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.infoTip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -8px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--r15);
+  background: var(--surface-3);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  font: 400 13px/1.45 var(--sans);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--t75);
+  white-space: normal;
+}
+
+.infoTip strong {
+  font-weight: 500;
+  color: var(--ink);
+}

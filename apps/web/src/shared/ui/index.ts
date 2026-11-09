@@ -31,6 +31,7 @@ export { ExpandableList, ExpandableRow } from "./Expandable";
 export { EmailField, type EmailFieldProps } from "./EmailField";
 export { SearchField, TextArea, TextField } from "./Field";
 export { Icon, type IconName } from "./Icon";
+export { InfoTip } from "./InfoTip";
 export { IconButton, Tooltip, type IconButtonProps } from "./Tooltip";
 export { BackLink, Block, Blocks, FieldAction, FieldGrid, HeadRow, PageForm, Section, type Back } from "./Layout";
 export { AddCard, CardGrid, StatCard, type CardStat } from "./Card";

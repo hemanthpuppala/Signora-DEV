@@ -32,6 +32,7 @@ import {
   type Rect,
 } from "./editor";
 import { placingMessage, type Tool } from "./AddField";
+import { VERSIONS_HELP } from "./help";
 import { ReviewActionBar, SaveProblem } from "./ReviewBar";
 import { useLeaveGuard } from "./useLeaveGuard";
 import { useReview, type PanelEditing } from "./useReview";
@@ -431,7 +432,7 @@ export function ReviewLayout({
             />
           ) : null}
           {side}
-          <Section title="Versions">
+          <Section title="Versions" info={VERSIONS_HELP}>
             <Versions
               document={document}
               viewing={version.id}

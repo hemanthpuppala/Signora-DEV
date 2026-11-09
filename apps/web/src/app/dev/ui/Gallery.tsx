@@ -16,6 +16,7 @@ import {
   ExpandableRow,
   Heading1,
   Heading2,
+  InfoTip,
   MetricGrid,
   MetricTile,
   Mono,
@@ -146,7 +147,15 @@ export function Gallery() {
       </section>
 
       <section className={styles.section}>
-        <Eyebrow>Action bar, rows that open in place</Eyebrow>
+        <div className={styles.row}>
+          <Eyebrow>Action bar, rows that open in place</Eyebrow>
+          <InfoTip label="this section">
+            <span>What a section is for, in a line or two.</span>
+            <span>
+              <strong>A button</strong>: what it does, when its name does not say it all.
+            </span>
+          </InfoTip>
+        </div>
         <ActionBar label="Review" actions={<Button compact>Approve version</Button>}>
           <span>Version 2</span>
           <span>Needs approval</span>

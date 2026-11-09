@@ -11,6 +11,7 @@ import {
   ExpandableList,
   ExpandableRow,
   IconButton,
+  InfoTip,
   SearchField,
   Select,
   StatusPill,
@@ -323,5 +324,35 @@ describe("ExpandableList, scrolling", () => {
     await userEvent.click(screen.getByRole("button", { name: "C" }));
     expect(list.style.maxHeight).toBe("");
     vi.restoreAllMocks();
+  });
+});
+
+describe("InfoTip", () => {
+  it("opens on hover, stays open after a click until Escape or a press elsewhere, and is read when open", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <InfoTip label="Places">Where this field appears.</InfoTip>
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+    const button = screen.getByRole("button", { name: "About Places" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("note")).toBeNull();
+
+    await user.hover(button);
+    expect(screen.getByRole("note")).toHaveTextContent("Where this field appears.");
+    await user.unhover(button);
+    expect(screen.queryByRole("note")).toBeNull();
+
+    await user.click(button); // a tap on a phone: stays open
+    await user.unhover(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("note")).toBeNull();
+
+    await user.click(button);
+    await user.click(screen.getByRole("button", { name: "Elsewhere" }));
+    expect(screen.queryByRole("note")).toBeNull();
   });
 });

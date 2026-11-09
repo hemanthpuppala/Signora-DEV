@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 
-import { Button, Checkbox, Notice, Select, SmallText, TextField } from "@/shared/ui";
+import { Button, Checkbox, InfoTip, Notice, Select, SmallText, TextField } from "@/shared/ui";
 
 import { HOLD_GROUPS, HOLDS, whoFills } from "../fields";
+import { PLACES_HELP } from "./help";
 import { PlaceChips } from "./PlaceChips";
 import type { PanelEditing } from "./useReview";
 import type { Selection } from "../FieldBoxes";
@@ -192,7 +193,10 @@ export function FieldForm({
       ) : null}
 
       <section className={styles.places} aria-label="Places">
-        <p className={styles.groupTitle}>{field.places.length > 1 ? `Places · ${field.places.length}` : "Place"}</p>
+        <div className={styles.groupHead}>
+          <p className={styles.groupTitle}>{field.places.length > 1 ? `Places · ${field.places.length}` : "Place"}</p>
+          <InfoTip label="places">{PLACES_HELP}</InfoTip>
+        </div>
         <PlaceChips places={field.places} place={place} onPlace={onPlace} choice={field.holds === "choice"} />
         <div className={styles.toolRow}>
           {editing.canDraw ? (

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { FormHTMLAttributes, ReactNode } from "react";
 
+import { InfoTip } from "./InfoTip";
 import styles from "./layout.module.css";
 import { Eyebrow } from "./Typography";
 
@@ -78,11 +79,18 @@ export function Block({ title, hint, children }: { title: string; hint?: string;
   );
 }
 
-/** A titled block of a console page (prototype .section). */
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+/** A titled block of a console page (prototype .section); ``info`` adds a "?" that explains it. */
+export function Section({ title, info, children }: { title: string; info?: ReactNode; children: ReactNode }) {
   return (
     <section className={styles.section} aria-label={title}>
-      <Eyebrow>{title}</Eyebrow>
+      {info ? (
+        <div className={styles.sectionTitle}>
+          <Eyebrow>{title}</Eyebrow>
+          <InfoTip label={title}>{info}</InfoTip>
+        </div>
+      ) : (
+        <Eyebrow>{title}</Eyebrow>
+      )}
       {children}
     </section>
   );
