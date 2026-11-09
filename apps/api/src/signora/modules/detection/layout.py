@@ -32,7 +32,9 @@ def layout_text(document: pymupdf.Document, reading: Reading) -> str:
     for number, page in pages(document):
         markers: list[tuple[str, Box, bool]] = []  # (text, box, is a marker)
         hidden: list[Box] = []
-        for field in reading.fields:
+        # Markers only for the fields the AI is asked about; a field nobody fills (read-only,
+        # calculated, hidden) reads as the text drawn in it.
+        for field in reading.asked:
             for placement in field.placements:
                 if placement.page != number:
                     continue
