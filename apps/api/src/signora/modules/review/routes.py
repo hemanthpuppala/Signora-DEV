@@ -60,7 +60,12 @@ def approve(
 ) -> None:
     with _db(request).unit_of_work() as uow:
         service.approve(
-            uow, actor=actor, document_id=document_id, version_id=version_id, approval=approval
+            uow,
+            actor=actor,
+            document_id=document_id,
+            version_id=version_id,
+            approval=approval,
+            blobs=request.app.state.blob_store,
         )
 
 
