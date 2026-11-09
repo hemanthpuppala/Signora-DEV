@@ -29,7 +29,7 @@ const summary = (overrides: Record<string, unknown> = {}) => ({
   kind: "pdf",
   page_count: 7,
   current_version: { id: "v-1", number: 2 },
-  latest_version: { id: "v-1", number: 2, status: "ready", created_at: "2026-11-07T10:00:00Z" },
+  latest_version: { id: "v-1", number: 2, status: "ready", created_at: "2026-11-07T10:00:00Z", field_count: 12 },
   updated_at: "2026-11-07T10:00:00Z",
   archived_at: null,
   ...overrides,
@@ -124,12 +124,12 @@ describe("documents", () => {
   });
 
   it("lists documents with their version and status in plain words", async () => {
-    serve({ documents: [summary(), summary({ id: "doc-2", name: "NDA", kind: "docx", page_count: 1, latest_version: { id: "v-9", number: 3, status: "needs_password", created_at: "2026-11-07T10:00:00Z" } })] });
+    serve({ documents: [summary(), summary({ id: "doc-2", name: "NDA", kind: "docx", page_count: 1, latest_version: { id: "v-9", number: 3, status: "needs_password", created_at: "2026-11-07T10:00:00Z", field_count: null } })] });
     wrap(<DocumentsSection departmentId="d-1" canEdit={false} />);
 
     const list = await screen.findByRole("region", { name: "Documents list" });
     const letter = within(list).getByText("Engagement letter").closest("tr") as HTMLElement;
-    expect(within(letter).getByText("PDF · 7 pages")).toBeTruthy();
+    expect(within(letter).getByText("PDF · 7 pages · 12 fields")).toBeTruthy();
     expect(within(letter).getByText("v2")).toBeTruthy();
     expect(within(letter).getByText("Ready")).toBeTruthy();
     expect(within(list).getByText("Word → PDF · 1 page")).toBeTruthy();

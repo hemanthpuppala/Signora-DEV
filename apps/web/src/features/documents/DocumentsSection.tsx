@@ -65,7 +65,15 @@ export function DocumentsSection({ departmentId, canEdit }: { departmentId: stri
                       </Link>
                       {document.kind && document.page_count !== null ? (
                         <SmallText>
-                          {`${document.kind === "docx" ? "Word → PDF" : "PDF"} · ${document.page_count} ${document.page_count === 1 ? "page" : "pages"}`}
+                          {[
+                            document.kind === "docx" ? "Word → PDF" : "PDF",
+                            `${document.page_count} ${document.page_count === 1 ? "page" : "pages"}`,
+                            latest.status === "ready" && latest.field_count !== null
+                              ? `${latest.field_count} ${latest.field_count === 1 ? "field" : "fields"}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </SmallText>
                       ) : null}
                     </td>

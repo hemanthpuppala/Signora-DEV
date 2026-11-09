@@ -11,10 +11,12 @@ import {
   cssSize,
   fitScale,
   pageAt,
+  focusTop,
   pageOffsets,
   stepZoom,
   wheelFactor,
   type PageSize,
+  type Rect,
 } from "./view";
 
 /** Re-render pages sharp once a zoom gesture has paused this long (ms); meanwhile the existing
@@ -40,6 +42,9 @@ export type PdfViewerProps = {
   label: string;
   /** Drawn over each page, in a box the size of the painted page (field review, signing). */
   renderOverlay?: (args: PdfOverlayArgs) => ReactNode;
+  /** A box to bring into the middle of the view (a field chosen in a list); a new ``token``
+   * scrolls to it again. */
+  focus?: { page: number; rect: Rect; token: number } | null;
 };
 
 /**
@@ -48,7 +53,7 @@ export type PdfViewerProps = {
  * wheel, trackpad pinch) and page navigation. Only pages near the viewport are rendered, so 200
  * pages stay light. pdf.js is loaded on first use, never with the page bundle.
  */
-export function PdfViewer({ url, pages, label, renderOverlay }: PdfViewerProps) {
+export function PdfViewer({ url, pages, label, renderOverlay, focus }: PdfViewerProps) {
   const paneRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [paneWidth, setPaneWidth] = useState(0);
@@ -168,6 +173,19 @@ export function PdfViewer({ url, pages, label, renderOverlay }: PdfViewerProps) 
     pane.addEventListener("wheel", onWheel, { passive: false });
     return () => pane.removeEventListener("wheel", onWheel);
   }, []);
+
+  // Bring a chosen box into view (Phase 5 §6.2: a field picked in the list). Only a new focus
+  // scrolls; the live layout is read through a ref, so zooming afterwards keeps the reader's place.
+  const offsetsRef = useRef(offsets);
+  useLayoutEffect(() => {
+    offsetsRef.current = offsets;
+  }, [offsets]);
+  useEffect(() => {
+    const pane = paneRef.current;
+    if (!pane || !focus) return;
+    const top = focusTop(offsetsRef.current, focus.page, focus.rect, scaleRef.current, pane.clientHeight);
+    pane.scrollTo({ top, behavior: "smooth" });
+  }, [focus]);
 
   const goTo = (page: number) => {
     const pane = paneRef.current;

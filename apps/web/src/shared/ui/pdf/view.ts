@@ -67,6 +67,19 @@ export function pageOffsets(pages: readonly PageSize[], scale: number): number[]
   return offsets;
 }
 
+/** A box in PDF points on a page: x0, y0, x1, y1, origin top-left, as displayed. */
+export type Rect = readonly [number, number, number, number];
+
+/**
+ * Where to scroll so a box sits in the middle of the viewport: the page's offset plus the box's
+ * position at this scale, centred; never above the top.
+ */
+export function focusTop(offsets: readonly number[], page: number, rect: Rect, scale: number, viewportHeight: number): number {
+  const pageTop = offsets[page - 1] ?? 0;
+  const middle = pageTop + ((rect[1] + rect[3]) / 2) * scale;
+  return Math.max(0, middle - viewportHeight / 2);
+}
+
 /** The 1-based page whose area covers the middle of the viewport. */
 export function pageAt(offsets: readonly number[], scrollTop: number, viewportHeight: number): number {
   const middle = scrollTop + viewportHeight / 2;

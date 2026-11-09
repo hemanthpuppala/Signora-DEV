@@ -34,6 +34,7 @@ const version = (number: number, overrides: Record<string, unknown> = {}) => ({
   uploaded_by: { id: "u", name: "Rosa Hale" },
   created_at: "2026-11-07T10:00:00Z",
   processed_at: "2026-11-07T10:00:05Z",
+  field_count: 0,
   is_current: false,
   ...overrides,
 });
@@ -45,7 +46,7 @@ const documentWith = (versions: unknown[], overrides: Record<string, unknown> = 
   kind: "pdf",
   page_count: 2,
   current_version: { id: "v-2", number: 2 },
-  latest_version: { id: "v-2", number: 2, status: "ready", created_at: "2026-11-07T10:00:00Z" },
+  latest_version: { id: "v-2", number: 2, status: "ready", created_at: "2026-11-07T10:00:00Z", field_count: 0 },
   updated_at: "2026-11-07T10:00:00Z",
   archived_at: null,
   department_id: "d-1",
@@ -58,6 +59,16 @@ const documentWith = (versions: unknown[], overrides: Record<string, unknown> = 
 });
 
 const READY = documentWith([version(2, { is_current: true }), version(1)]);
+
+const NO_FIELDS = {
+  status: "ready",
+  stage: "done",
+  fields_from: "form_fields",
+  roles: [],
+  fields: [],
+  pending: [],
+  flags: { no_fields: false, addressed_to_ai: false, xfa: false, already_signed: false, repaired: false },
+};
 
 function reply(status: number, body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }));
@@ -75,13 +86,14 @@ describe("document page", () => {
   const fetchMock = vi.fn<typeof fetch>();
   const sent: { method: string; path: string; body: unknown; key: string | null }[] = [];
 
-  function serve(document: unknown, answers: Record<string, () => Promise<Response>> = {}) {
+  function serve(document: unknown, answers: Record<string, () => Promise<Response>> = {}, fields: unknown = NO_FIELDS) {
     fetchMock.mockImplementation(async (input) => {
       const request = input as Request;
       const path = new URL(request.url).pathname;
       const body = request.method === "GET" ? undefined : await request.clone().json().catch(() => undefined);
       sent.push({ method: request.method, path, body, key: request.headers.get("Idempotency-Key") });
       if (path.endsWith("/meta")) return reply(200, META);
+      if (path.endsWith("/fields")) return reply(200, fields);
       const answer = Object.entries(answers).find(([suffix]) => path.endsWith(suffix));
       if (request.method !== "GET" && answer) return answer[1]();
       return reply(200, document);
@@ -230,5 +242,169 @@ describe("document page", () => {
 
     expect(await screen.findByText("This file is already here as Engagement letter, version 1. It can only be added as a separate document.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add version" })).toBeNull();
+  });
+
+  describe("fields", () => {
+    const placement = (page: number, y: number, extra: Record<string, unknown> = {}) => ({
+      page,
+      rect: [100, y, 300, y + 20],
+      kind: "text",
+      option_value: null,
+      option_text: null,
+      ...extra,
+    });
+    const field = (key: string, label: string, extra: Record<string, unknown> = {}) => ({
+      id: `id-${key}`,
+      key,
+      label,
+      holds: "text",
+      filled_by: "sender",
+      role: null,
+      required: true,
+      sensitive: false,
+      depends_on: null,
+      needs_review: null,
+      placements: [placement(1, 100)],
+      ...extra,
+    });
+    const FIELDS = {
+      ...NO_FIELDS,
+      roles: [
+        { slug: "client", label: "Client", kind: "signer", position: 1, field_count: 3 },
+        { slug: "firm", label: "Firm", kind: "countersigner", position: 2, field_count: 1 },
+      ],
+      fields: [
+        field("agreement.term", "Term", {
+          holds: "choice",
+          placements: [
+            placement(1, 200, { kind: "radio", option_value: "Choice1", option_text: "Expires … from Effective Date." }),
+            placement(1, 230, { kind: "radio", option_value: "Choice2", option_text: "Continues until terminated." }),
+          ],
+        }),
+        field("agreement.term_years", "Term in years", { depends_on: { key: "agreement.term", option: "Choice1" } }),
+        field("client.signature", "Client signature", { holds: "signature", filled_by: "role", role: "client" }),
+        field("client.initials", "Client initials", {
+          holds: "initials",
+          filled_by: "role",
+          role: "client",
+          placements: [placement(1, 700), placement(2, 700), placement(2, 720)],
+        }),
+        field("client.tax_id", "Client tax number", { filled_by: "role", role: "client", sensitive: true, needs_review: "not assigned to anyone" }),
+        field("firm.signature", "Firm signature", { holds: "signature", filled_by: "role", role: "firm" }),
+      ],
+    };
+    const scrolled = vi.fn();
+    beforeEach(() => {
+      scrolled.mockReset();
+      Element.prototype.scrollTo = scrolled as unknown as Element["scrollTo"];
+    });
+
+    it("lists every field beside the PDF: parties, needs a look first, choices as a tree", async () => {
+      serve(READY, {}, FIELDS);
+      open();
+
+      expect(await screen.findByText("6 fields for 2 parties")).toBeTruthy();
+      const parties = screen.getByRole("list", { name: "Who signs" });
+      expect(within(parties).getByText("countersigns")).toBeTruthy();
+      expect(within(parties).getByText("Filled in before sending")).toBeTruthy();
+      expect(screen.getByText("1 field needs a look. They are listed first.")).toBeTruthy();
+      const options = within(screen.getByRole("listbox", { name: "Fields" })).getAllByRole("option");
+      expect(options[0]?.textContent).toContain("Client tax number"); // needs a look: first
+      const term = options.findIndex((option) => option.textContent?.startsWith("Term") && !option.textContent.startsWith("Term in"));
+      expect(options[term + 1]?.textContent).toContain("Term in years"); // under its choice
+    });
+
+    it("picks a field in the list, says what it is and brings it into view; steps through its places", async () => {
+      serve(READY, {}, FIELDS);
+      open();
+      const user = userEvent.setup();
+      const list = await screen.findByRole("listbox", { name: "Fields" });
+
+      await user.click(within(list).getByText("Term in years"));
+      const about = screen.getByRole("region", { name: "About Term in years" });
+      expect(within(about).getByText("Only when “Expires … from Effective Date.” is chosen")).toBeTruthy();
+      expect(scrolled).toHaveBeenCalled();
+
+      await user.click(within(list).getByText("Client initials"));
+      expect(screen.getByText("Place 1 of 3")).toBeTruthy();
+      await user.click(screen.getByRole("button", { name: "Next place" }));
+      expect(screen.getByText("Place 2 of 3")).toBeTruthy();
+      expect(scrolled).toHaveBeenCalledTimes(3);
+
+      await user.click(within(list).getByText("Client tax number"));
+      expect(screen.getByText("Private to Client: shown to nobody else")).toBeTruthy();
+      expect(screen.getByText("Needs a look: not assigned to anyone.")).toBeTruthy();
+    });
+
+    it("chooses a field from its box on the PDF, and filters, finds and moves through the list", async () => {
+      serve(READY, {}, FIELDS);
+      open();
+      const user = userEvent.setup();
+      const list = await screen.findByRole("listbox", { name: "Fields" });
+      const box = document.querySelector('button[title="Firm signature"]') as HTMLButtonElement;
+
+      await user.click(box);
+      expect(within(list).getByRole("option", { selected: true }).textContent).toContain("Firm signature");
+
+      await user.click(screen.getByRole("button", { name: "Client" }));
+      expect(within(list).getAllByRole("option")).toHaveLength(3);
+      await user.click(screen.getByRole("button", { name: "All" }));
+      await user.type(screen.getByLabelText("Find a field"), "signature");
+      expect(within(list).getAllByRole("option").map((o) => o.textContent?.slice(0, 16))).toEqual([
+        "Client signature",
+        "Firm signatureFi",
+      ]);
+      list.focus(); // the firm's signature, chosen from its box, is last: up moves to the client's
+      await user.keyboard("{ArrowUp}");
+      expect(within(list).getByRole("option", { selected: true }).textContent).toContain("Client signature");
+    });
+
+    it("draws the places found while the AI says who fills them, with its progress", async () => {
+      const detecting = documentWith([version(1, { status: "detecting", is_current: false, field_count: null })], {
+        current_version: null,
+        latest_version: { id: "v-1", number: 1, status: "detecting", created_at: new Date().toISOString(), field_count: null },
+      });
+      serve(detecting, {}, {
+        ...NO_FIELDS,
+        status: "detecting",
+        stage: "ai",
+        pending: [
+          { id: "f1", label: "Print Name", kind: "text", placements: [placement(1, 100)] },
+          { id: "f2", label: null, kind: "blank", placements: [placement(2, 300)] },
+        ],
+      });
+      open();
+
+      const steps = await screen.findByRole("list", { name: "Finding fields" });
+      expect(within(steps).getByText("Read the document: 2 places to fill")).toBeTruthy();
+      expect(within(steps).getByText("Finding who fills each field")).toBeTruthy();
+      expect(screen.getAllByText("Finding who fills this…")).toHaveLength(2);
+      expect(document.querySelector('button[title="Print Name"]')).toBeTruthy(); // drawn already
+      expect(screen.getByRole("region", { name: "Engagement letter, version 1" })).toBeTruthy();
+    });
+
+    it("says when nothing was found and when the document speaks to an AI", async () => {
+      serve(READY, {}, { ...NO_FIELDS, flags: { ...NO_FIELDS.flags, no_fields: true, addressed_to_ai: true } });
+      open();
+      expect(await screen.findByText("We couldn't find places to fill or sign. Add them in review.")).toBeTruthy();
+      expect(screen.getByText("This document contains text addressed to an AI. Check its fields with care.")).toBeTruthy();
+    });
+
+    it("finds fields again only after confirming, and shows each version's field count", async () => {
+      const counted = documentWith([version(2, { is_current: true, field_count: 6 }), version(1, { field_count: 1 })]);
+      serve(counted, { "/detection": () => reply(202, { mode: "restart" }) }, FIELDS);
+      open();
+      const user = userEvent.setup();
+      const versions = await screen.findByRole("list", { name: "Versions" });
+      expect(within(versions).getByText(/6 fields/)).toBeTruthy();
+      expect(within(versions).getByText(/1 field ·/)).toBeTruthy();
+
+      await user.click(within(versions).getAllByRole("button", { name: "Find fields again" })[0] as HTMLElement);
+      expect(posts("/detection")).toHaveLength(0);
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText("The fields found now will replace the current ones.")).toBeTruthy();
+      await user.click(within(dialog).getByRole("button", { name: "Find fields again" }));
+      await vi.waitFor(() => expect(posts("/v-2/detection")).toHaveLength(1));
+    });
   });
 });
