@@ -20,6 +20,7 @@ from signora.modules.review.editing import (
     StoredParty,
     StoredPlace,
     is_sensitive,
+    option_text_of,
     unchanged,
 )
 from signora.modules.review.metrics import BaselinePlace, Metrics
@@ -515,7 +516,7 @@ def write_set(
             "kind": place.kind,
             "pdf_field": stored.places[place.id].pdf_field if place.id in stored.places else None,
             "option_value": place.option_value,
-            "option_text": place.option_text,
+            "option_text": option_text_of(place, stored.places.get(place.id)),
         }
         for item, _ in settled.fields
         for place in item.places

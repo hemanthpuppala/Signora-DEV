@@ -346,6 +346,118 @@ def test_two_thousand_fields_save_in_under_a_second(
     assert max(timings) < 1.0, [f"{t:.2f} s" for t in timings]
 
 
+def test_a_pdf_boxs_option_keeps_its_value_and_its_words_through_a_save(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """§4: the editor sees an option's words with the field inside them read as "…"; sent back so,
+    the stored words (with the field) stay. A PDF radio's value is its widget's: never changed."""
+    document_id, version_id = _in_review(owner, run, detect)
+    view = _view(owner, document_id, version_id)
+    choice = next(f for f in view["fields"] if f["holds"] == "choice")
+    shown = next(p for p in choice["placements"] if "…" in (p["option_text"] or ""))
+
+    def stored() -> str:
+        with committing_db.unit_of_work() as uow:
+            words: str = uow.session.execute(
+                text("SELECT option_text FROM field_placements WHERE id = :p"), {"p": shown["id"]}
+            ).scalar_one()
+        return words
+
+    before = stored()
+    assert "{f" in before and "…" not in before
+    assert _save(owner, document_id, version_id, _body(view)).status_code == 200
+    assert stored() == before
+
+    body = _body(_view(owner, document_id, version_id))
+    field = next(f for f in body["fields"] if f["id"] == choice["id"])
+    at = body["fields"].index(field)
+    field["places"][0]["option_value"] = "Something the widget has not got"
+    refused = _save(owner, document_id, version_id, body)
+    assert refused.status_code == 422, refused.text
+    # The field asked under that option also says its option is gone.
+    assert f"fields[{at}].places[0].option_value" in {e["field"] for e in refused.json()["errors"]}
+
+
+def test_making_an_other_value_private_is_a_change() -> None:
+    """§1.4, §2.2: a field's privacy is one of its attributes: turning it on clears the field's
+    flag and is one change in the audit entry."""
+    from signora.modules.review.editing import (
+        Stored,
+        StoredField,
+        StoredPlace,
+        changes,
+        settle,
+        unchanged,
+    )
+    from signora.modules.review.fieldset import FieldSet
+
+    field_id, place_id = uuid.uuid4(), uuid.uuid4()
+    stored = Stored(
+        parties={},
+        fields={
+            field_id: StoredField(
+                id=field_id,
+                label="Matter",
+                holds="other",
+                holds_label="Matter number",
+                filled_by="sender",
+                party_id=None,
+                required=True,
+                sensitive=False,
+                depends_on=None,
+                needs_review="check it",
+                origin="added",
+            )
+        },
+        places={
+            place_id: StoredPlace(
+                id=place_id,
+                field_id=field_id,
+                page=1,
+                rect=(1.0, 2.0, 30.0, 40.0),
+                kind="blank",
+                pdf_field=None,
+                option_value=None,
+                option_text=None,
+            )
+        },
+    )
+    fieldset = FieldSet.model_validate(
+        {
+            "revision": 1,
+            "parties": [],
+            "fields": [
+                {
+                    "id": str(field_id),
+                    "label": "Matter",
+                    "holds": "other",
+                    "holds_label": "Matter number",
+                    "filled_by": "sender",
+                    "party_id": None,
+                    "required": True,
+                    "sensitive": True,
+                    "depends_on": None,
+                    "places": [
+                        {
+                            "id": str(place_id),
+                            "page": 1,
+                            "rect": [1, 2, 30, 40],
+                            "kind": "blank",
+                            "option_value": None,
+                            "option_text": None,
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    assert not unchanged(fieldset.fields[0], stored.fields[field_id], stored)
+    assert changes(stored, settle(fieldset))["changed"] == 1
+
+
 def test_a_drawn_box_can_hold_anything_a_pdf_box_keeps_its_nature(
     owner: TestClient, run: Callable[..., None], detect: Callable[..., None]
 ) -> None:

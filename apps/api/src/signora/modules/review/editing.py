@@ -12,9 +12,17 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from signora.kernel.errors import FieldError
-from signora.modules.review.fieldset import MAX_PLACES, MIN_SIDE, FieldIn, FieldSet, PartyIn
+from signora.modules.review.fieldset import (
+    MAX_PLACES,
+    MIN_SIDE,
+    FieldIn,
+    FieldSet,
+    PartyIn,
+    PlaceIn,
+)
 from signora.modules.review.keys import name_words, slug, unique
 from signora.modules.review.values import MANUAL_ALLOWED, PARTY_VALUES, SENSITIVE, SHARED
+from signora.modules.review.views import option_words
 
 EDGE_TOLERANCE = 0.5  # points: a box may touch its page's edge
 CHANGES_KEPT = 200  # the audit entry lists at most this many changes, then counts the rest
@@ -115,6 +123,14 @@ def check(
             before = stored.places.get(place.id)
             if before is not None and place.kind != before.kind:
                 errors.append(FieldError(f"{where}.kind", "A box from the PDF keeps its kind"))
+            if (  # its widget's export value, which filling the PDF needs
+                before is not None
+                and before.kind != "blank"
+                and place.option_value != before.option_value
+            ):
+                errors.append(
+                    FieldError(f"{where}.option_value", "A box from the PDF keeps its option")
+                )
             if before is None and place.kind != "blank":
                 errors.append(FieldError(f"{where}.kind", "A new box is drawn (blank)"))
             if item.holds not in MANUAL_ALLOWED[place.kind]:
@@ -293,6 +309,15 @@ def is_sensitive(item: FieldIn) -> bool:
     return item.holds in SENSITIVE or (item.holds == "other" and item.sensitive)
 
 
+def option_text_of(place: PlaceIn, before: StoredPlace | None) -> str | None:
+    """An option's words as they are written. The editor sees a stored place's words with any
+    field inside them read as "…" (``option_words``); sent back so, they are unchanged and the
+    stored words stay, so a Save never writes the "…" over the field."""
+    if before is not None and place.option_text == option_words(before.option_text):
+        return before.option_text
+    return place.option_text
+
+
 # --- the record of changes (§1.4) ---------------------------------------------------------------
 
 _FIELD_ATTRS = ("label", "holds", "holds_label", "filled_by", "party_id", "required", "depends_on")
@@ -303,12 +328,26 @@ def _field_attrs(item: FieldIn | StoredField) -> dict[str, Any]:
         depends = (
             (str(item.depends_on.field_id), item.depends_on.option) if item.depends_on else None
         )
+        sensitive = is_sensitive(item)
     else:
         depends = (str(item.depends_on[0]), item.depends_on[1]) if item.depends_on else None
+        sensitive = item.sensitive
     values = {name: getattr(item, name) for name in _FIELD_ATTRS if name != "depends_on"}
     values["party_id"] = str(values["party_id"]) if values["party_id"] else None
     values["depends_on"] = list(depends) if depends else None
+    values["sensitive"] = sensitive
     return values
+
+
+def _moved(place: PlaceIn, before: StoredPlace) -> bool:
+    return (place.page, place.rect) != (before.page, before.rect)
+
+
+def _reworded(place: PlaceIn, before: StoredPlace) -> bool:
+    return (place.option_value, option_text_of(place, before)) != (
+        before.option_value,
+        before.option_text,
+    )
 
 
 def unchanged(item: FieldIn, before: StoredField | None, stored: Stored) -> bool:
@@ -316,8 +355,8 @@ def unchanged(item: FieldIn, before: StoredField | None, stored: Stored) -> bool
     if before is None or _field_attrs(item) != _field_attrs(before):
         return False
     places = stored.places_of(item.id)
-    return {p.id for p in item.places} == set(places) and all(
-        places[p.id].page == p.page and places[p.id].rect == p.rect for p in item.places
+    return {p.id for p in item.places} == set(places) and not any(
+        _moved(p, places[p.id]) or _reworded(p, places[p.id]) for p in item.places
     )
 
 
@@ -372,14 +411,16 @@ def changes(stored: Stored, settled: Settled) -> dict[str, Any]:
         new_places = {p.id: p for p in item.places}
         added = len(new_places.keys() - old_places.keys())
         removed = len(old_places.keys() - new_places.keys())
-        moved = sum(
-            1
-            for pid in new_places.keys() & old_places.keys()
-            if (new_places[pid].page, new_places[pid].rect)
-            != (old_places[pid].page, old_places[pid].rect)
-        )
-        if added or removed or moved:
-            field_diff["places"] = {"added": added, "removed": removed, "moved": moved}
+        kept = new_places.keys() & old_places.keys()
+        moved = sum(1 for pid in kept if _moved(new_places[pid], old_places[pid]))
+        reworded = sum(1 for pid in kept if _reworded(new_places[pid], old_places[pid]))
+        if added or removed or moved or reworded:
+            field_diff["places"] = {
+                "added": added,
+                "removed": removed,
+                "moved": moved,
+                "reworded": reworded,
+            }
         if field_diff:
             note("field", "changed", field_id, item.label, attributes=field_diff)
     for field_id, gone in stored.fields.items():
