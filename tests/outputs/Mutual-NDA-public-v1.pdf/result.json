@@ -149,15 +149,15 @@
       ]
     },
     {
-      "key": "agreement.confidentiality_term_duration",
-      "label": "Confidentiality term duration",
+      "key": "agreement.term_of_confidentiality_duration",
+      "label": "Term of confidentiality duration",
       "holds": "text",
       "filled_by": "sender",
       "role": null,
       "required": true,
       "sensitive": false,
       "depends_on": {
-        "key": "agreement.term_of_confidentiality",
+        "key": "agreement.term_of_confidentiality_option",
         "option": "Choice1",
         "source": "layout"
       },
@@ -182,15 +182,15 @@
       ]
     },
     {
-      "key": "agreement.confidentiality_term_starts_from",
-      "label": "Confidentiality term starts from",
+      "key": "agreement.start_point_for_confidentiality_term",
+      "label": "Start point for confidentiality term",
       "holds": "choice",
       "filled_by": "sender",
       "role": null,
       "required": true,
       "sensitive": false,
       "depends_on": {
-        "key": "agreement.term_of_confidentiality",
+        "key": "agreement.term_of_confidentiality_option",
         "option": "Choice1",
         "source": "layout"
       },
@@ -228,8 +228,8 @@
       ]
     },
     {
-      "key": "agreement.term_of_confidentiality",
-      "label": "Term of confidentiality",
+      "key": "agreement.term_of_confidentiality_option",
+      "label": "Term of confidentiality option",
       "holds": "choice",
       "filled_by": "sender",
       "role": null,
@@ -299,8 +299,8 @@
       ]
     },
     {
-      "key": "agreement.jurisdiction_state_and_or_county",
-      "label": "Jurisdiction state and/or county",
+      "key": "agreement.jurisdiction_location",
+      "label": "Jurisdiction location",
       "holds": "text",
       "filled_by": "sender",
       "role": null,
@@ -589,9 +589,9 @@
       ]
     },
     {
-      "key": "party_1.notice_address_or_email",
-      "label": "Party 1 notice address or email",
-      "holds": "text",
+      "key": "party_1.address",
+      "label": "Party 1 notice address",
+      "holds": "address",
       "filled_by": "role",
       "role": "party_1",
       "required": true,
@@ -618,9 +618,9 @@
       ]
     },
     {
-      "key": "party_2.notice_address_or_email",
-      "label": "Party 2 notice address or email",
-      "holds": "text",
+      "key": "party_2.address",
+      "label": "Party 2 notice address",
+      "holds": "address",
       "filled_by": "role",
       "role": "party_2",
       "required": true,
@@ -708,7 +708,7 @@
   "not_asked": [],
   "document": {
     "name": "Mutual Non-Disclosure Agreement",
-    "description": "A mutual non-disclosure agreement between two parties. It covers the purpose and term of sharing information, confidentiality duration, governing law, jurisdiction and changes to the standard terms. Both parties sign; no countersignature."
+    "description": "A mutual non-disclosure agreement between Party 1 and Party 2. It covers permitted use, effective date and term, confidentiality duration, governing law, jurisdiction and changes to the standard terms. Both parties sign; no countersignature."
   },
   "flags": {
     "no_fields": false,

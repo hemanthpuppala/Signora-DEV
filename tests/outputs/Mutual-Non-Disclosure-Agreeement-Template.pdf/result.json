@@ -2,25 +2,25 @@
   "fields_from": "form_fields",
   "roles": [
     {
-      "slug": "first_party",
+      "slug": "party_1",
       "kind": "signer",
-      "label": "First Party",
+      "label": "Party 1",
       "position": 1
     },
     {
-      "slug": "second_party",
+      "slug": "party_2",
       "kind": "signer",
-      "label": "Second Party",
+      "label": "Party 2",
       "position": 2
     }
   ],
   "fields": [
     {
-      "key": "first_party.party_name",
-      "label": "First Party legal name",
+      "key": "party_1.party_name",
+      "label": "1st Party name",
       "holds": "party_name",
       "filled_by": "role",
-      "role": "first_party",
+      "role": "party_1",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -45,11 +45,11 @@
       ]
     },
     {
-      "key": "first_party.address",
-      "label": "First Party mailing address",
+      "key": "party_1.address",
+      "label": "1st Party mailing address",
       "holds": "address",
       "filled_by": "role",
-      "role": "first_party",
+      "role": "party_1",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -74,11 +74,11 @@
       ]
     },
     {
-      "key": "second_party.party_name",
-      "label": "Second Party legal name",
+      "key": "party_2.party_name",
+      "label": "2nd Party name",
       "holds": "party_name",
       "filled_by": "role",
-      "role": "second_party",
+      "role": "party_2",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -103,11 +103,11 @@
       ]
     },
     {
-      "key": "second_party.address",
-      "label": "Second Party mailing address",
+      "key": "party_2.address",
+      "label": "2nd Party mailing address",
       "holds": "address",
       "filled_by": "role",
-      "role": "second_party",
+      "role": "party_2",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -161,11 +161,11 @@
       ]
     },
     {
-      "key": "first_party.signature",
-      "label": "First Party signature",
+      "key": "party_1.signature",
+      "label": "1st Party signature",
       "holds": "signature",
       "filled_by": "role",
-      "role": "first_party",
+      "role": "party_1",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -190,11 +190,11 @@
       ]
     },
     {
-      "key": "first_party.full_name",
-      "label": "First Party print name",
+      "key": "party_1.full_name",
+      "label": "1st Party printed name",
       "holds": "full_name",
       "filled_by": "role",
-      "role": "first_party",
+      "role": "party_1",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -219,11 +219,11 @@
       ]
     },
     {
-      "key": "first_party.date_signed",
-      "label": "First Party signing date",
+      "key": "party_1.date_signed",
+      "label": "1st Party signing date",
       "holds": "date_signed",
       "filled_by": "role",
-      "role": "first_party",
+      "role": "party_1",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -248,11 +248,11 @@
       ]
     },
     {
-      "key": "second_party.signature",
-      "label": "Second Party signature",
+      "key": "party_2.signature",
+      "label": "2nd Party signature",
       "holds": "signature",
       "filled_by": "role",
-      "role": "second_party",
+      "role": "party_2",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -277,11 +277,11 @@
       ]
     },
     {
-      "key": "second_party.full_name",
-      "label": "Second Party print name",
+      "key": "party_2.full_name",
+      "label": "2nd Party printed name",
       "holds": "full_name",
       "filled_by": "role",
-      "role": "second_party",
+      "role": "party_2",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -306,11 +306,11 @@
       ]
     },
     {
-      "key": "second_party.date_signed",
-      "label": "Second Party signing date",
+      "key": "party_2.date_signed",
+      "label": "2nd Party signing date",
       "holds": "date_signed",
       "filled_by": "role",
-      "role": "second_party",
+      "role": "party_2",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -338,7 +338,7 @@
   "not_asked": [],
   "document": {
     "name": "Mutual Non-Disclosure Agreement",
-    "description": "A mutual non-disclosure agreement between two parties. It covers identifying the parties, handling confidential information, exclusions, and the period of confidentiality. Both parties sign; there is no countersignature."
+    "description": "A mutual non-disclosure agreement between two parties. It covers confidential information, restrictions on disclosure, and the protection period. Both parties sign; there is no countersignature."
   },
   "flags": {
     "no_fields": false,

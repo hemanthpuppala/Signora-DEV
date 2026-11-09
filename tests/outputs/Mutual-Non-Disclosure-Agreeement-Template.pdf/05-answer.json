@@ -1,11 +1,11 @@
 {
   "roles": [
     {
-      "slug": "first_party",
+      "slug": "party_1",
       "kind": "signer"
     },
     {
-      "slug": "second_party",
+      "slug": "party_2",
       "kind": "signer"
     }
   ],
@@ -13,32 +13,32 @@
     {
       "id": "f1",
       "holds": "party_name",
-      "filled_by": "first_party",
-      "label": "First Party legal name",
+      "filled_by": "party_1",
+      "label": "1st Party name",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f2",
       "holds": "address",
-      "filled_by": "first_party",
-      "label": "First Party mailing address",
+      "filled_by": "party_1",
+      "label": "1st Party mailing address",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f3",
       "holds": "party_name",
-      "filled_by": "second_party",
-      "label": "Second Party legal name",
+      "filled_by": "party_2",
+      "label": "2nd Party name",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f4",
       "holds": "address",
-      "filled_by": "second_party",
-      "label": "Second Party mailing address",
+      "filled_by": "party_2",
+      "label": "2nd Party mailing address",
       "must_fill": true,
       "depends_on": null
     },
@@ -53,48 +53,48 @@
     {
       "id": "f6",
       "holds": "signature",
-      "filled_by": "first_party",
-      "label": "First Party signature",
+      "filled_by": "party_1",
+      "label": "1st Party signature",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f7",
       "holds": "full_name",
-      "filled_by": "first_party",
-      "label": "First Party print name",
+      "filled_by": "party_1",
+      "label": "1st Party printed name",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f8",
       "holds": "date_signed",
-      "filled_by": "first_party",
-      "label": "First Party signing date",
+      "filled_by": "party_1",
+      "label": "1st Party signing date",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f9",
       "holds": "signature",
-      "filled_by": "second_party",
-      "label": "Second Party signature",
+      "filled_by": "party_2",
+      "label": "2nd Party signature",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f10",
       "holds": "full_name",
-      "filled_by": "second_party",
-      "label": "Second Party print name",
+      "filled_by": "party_2",
+      "label": "2nd Party printed name",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f11",
       "holds": "date_signed",
-      "filled_by": "second_party",
-      "label": "Second Party signing date",
+      "filled_by": "party_2",
+      "label": "2nd Party signing date",
       "must_fill": true,
       "depends_on": null
     }
@@ -103,6 +103,6 @@
   "extra_fields": [],
   "document": {
     "name": "Mutual Non-Disclosure Agreement",
-    "description": "A mutual non-disclosure agreement between two parties. It covers identifying the parties, handling confidential information, exclusions, and the period of confidentiality. Both parties sign; there is no countersignature."
+    "description": "A mutual non-disclosure agreement between two parties. It covers confidential information, restrictions on disclosure, and the protection period. Both parties sign; there is no countersignature."
   }
 }

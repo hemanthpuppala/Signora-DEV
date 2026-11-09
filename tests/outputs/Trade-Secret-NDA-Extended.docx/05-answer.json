@@ -17,7 +17,7 @@
     {
       "id": "f1",
       "holds": "party_name",
-      "filled_by": "sender",
+      "filled_by": "company",
       "label": "Company legal name",
       "must_fill": true,
       "depends_on": null
@@ -25,7 +25,7 @@
     {
       "id": "f2",
       "holds": "address",
-      "filled_by": "sender",
+      "filled_by": "company",
       "label": "Company mailing address",
       "must_fill": true,
       "depends_on": null
@@ -144,9 +144,9 @@
     },
     {
       "id": "f17",
-      "holds": "number",
+      "holds": "text",
       "filled_by": "sender",
-      "label": "Consideration cents",
+      "label": "Additional consideration amount wording",
       "must_fill": true,
       "depends_on": null
     },
@@ -161,8 +161,8 @@
     {
       "id": "f19",
       "holds": "email",
-      "filled_by": "sender",
-      "label": "Company notice email",
+      "filled_by": "company",
+      "label": "Company notices email",
       "must_fill": true,
       "depends_on": null
     },
@@ -202,7 +202,7 @@
       "id": "f24",
       "holds": "full_name",
       "filled_by": "recipient",
-      "label": "Recipient printed name",
+      "label": "Recipient signer's printed name",
       "must_fill": true,
       "depends_on": null
     },
@@ -275,7 +275,7 @@
       "holds": "checkbox",
       "filled_by": "recipient",
       "label": "Recipient type: individual",
-      "must_fill": false,
+      "must_fill": true,
       "depends_on": null
     },
     {
@@ -283,7 +283,7 @@
       "holds": "checkbox",
       "filled_by": "recipient",
       "label": "Recipient type: business entity",
-      "must_fill": false,
+      "must_fill": true,
       "depends_on": null
     },
     {
@@ -339,7 +339,7 @@
       "holds": "date_of_birth",
       "filled_by": "recipient",
       "label": "Recipient date of birth",
-      "must_fill": true,
+      "must_fill": false,
       "depends_on": {
         "id": "f33",
         "option": "checked"
@@ -350,14 +350,14 @@
       "holds": "tax_id",
       "filled_by": "recipient",
       "label": "Recipient taxpayer identification number",
-      "must_fill": true,
+      "must_fill": false,
       "depends_on": null
     },
     {
       "id": "f43",
       "holds": "email",
       "filled_by": "recipient",
-      "label": "Recipient email",
+      "label": "Recipient notices email",
       "must_fill": true,
       "depends_on": null
     },
@@ -384,7 +384,7 @@
       "id": "f46",
       "holds": "title",
       "filled_by": "recipient",
-      "label": "Business contact person's title",
+      "label": "Recipient business contact title",
       "must_fill": false,
       "depends_on": {
         "id": "f34",
@@ -436,7 +436,7 @@
       "holds": "checkbox",
       "filled_by": "sender",
       "label": "Payment method: bank transfer",
-      "must_fill": false,
+      "must_fill": true,
       "depends_on": null
     },
     {
@@ -444,7 +444,7 @@
       "holds": "checkbox",
       "filled_by": "sender",
       "label": "Payment method: check",
-      "must_fill": false,
+      "must_fill": true,
       "depends_on": null
     },
     {
@@ -500,7 +500,7 @@
       "id": "f59",
       "holds": "checkbox",
       "filled_by": "recipient",
-      "label": "Acknowledges receipt and reading of security policy",
+      "label": "Acknowledgement of Information Security Policy",
       "must_fill": false,
       "depends_on": null
     },
@@ -508,7 +508,7 @@
       "id": "f60",
       "holds": "checkbox",
       "filled_by": "recipient",
-      "label": "Consents to email notices",
+      "label": "Consent to email notices",
       "must_fill": false,
       "depends_on": null
     },
@@ -516,7 +516,7 @@
       "id": "f61",
       "holds": "checkbox",
       "filled_by": "recipient",
-      "label": "Acknowledges disclosure of prior knowledge",
+      "label": "Acknowledgement of prior knowledge disclosure",
       "must_fill": false,
       "depends_on": null
     },
@@ -524,7 +524,7 @@
       "id": "f62",
       "holds": "signature",
       "filled_by": "recipient",
-      "label": "Recipient signature",
+      "label": "Recipient acknowledgement signature",
       "must_fill": true,
       "depends_on": null
     },
@@ -532,7 +532,7 @@
       "id": "f63",
       "holds": "date_signed",
       "filled_by": "recipient",
-      "label": "Recipient signing date",
+      "label": "Recipient acknowledgement signing date",
       "must_fill": true,
       "depends_on": null
     },
@@ -572,6 +572,6 @@
   "extra_fields": [],
   "document": {
     "name": "Trade Secret Non-Disclosure Agreement",
-    "description": "A trade secret non-disclosure agreement between Company and Recipient. It covers permitted use, confidentiality, fees, non-solicitation, security, notices and return of information. Recipient signs first; Company countersigns, with a witness signature."
+    "description": "A trade secret nondisclosure agreement between a Company and a Recipient, with a witness. It covers confidentiality, permitted use, fees, non-solicitation, security, return of information, notices and acknowledgements. The Recipient signs first, and the Company countersigns; a witness also signs."
   }
 }

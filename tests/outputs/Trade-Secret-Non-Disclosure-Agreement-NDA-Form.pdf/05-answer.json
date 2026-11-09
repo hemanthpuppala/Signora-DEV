@@ -23,7 +23,7 @@
       "holds": "address",
       "filled_by": "company",
       "label": "Company mailing address",
-      "must_fill": true,
+      "must_fill": false,
       "depends_on": null
     },
     {
@@ -39,7 +39,7 @@
       "holds": "address",
       "filled_by": "recipient",
       "label": "Recipient mailing address",
-      "must_fill": true,
+      "must_fill": false,
       "depends_on": null
     },
     {
@@ -52,7 +52,7 @@
     },
     {
       "id": "f6",
-      "holds": "text",
+      "holds": "state",
       "filled_by": "sender",
       "label": "Governing law state",
       "must_fill": true,
@@ -102,7 +102,7 @@
       "id": "f12",
       "holds": "full_name",
       "filled_by": "company",
-      "label": "Company signer's printed name",
+      "label": "Company representative printed name",
       "must_fill": true,
       "depends_on": null
     }
@@ -111,6 +111,6 @@
   "extra_fields": [],
   "document": {
     "name": "Trade Secret Non-Disclosure Agreement",
-    "description": "A one-way non-disclosure agreement between a Company and a Recipient. It covers confidential information, the Recipient’s confidentiality and non-use obligations, exclusions, governing law and remedies. The Recipient signs first and the Company countersigns."
+    "description": "A non-disclosure agreement between a Company and a Recipient. It covers confidential information, restrictions on its use and disclosure, the confidentiality period, governing law and related terms. The Recipient signs first, and the Company countersigns."
   }
 }
