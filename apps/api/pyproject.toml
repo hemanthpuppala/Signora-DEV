@@ -288,5 +288,7 @@ source_modules = [
     "signora.modules.review.values",
     # What a value of each type may be: judged the same way when sending and when signing.
     "signora.modules.review.formats",
+    # Signing links: made and read from a key, never stored.
+    "signora.modules.envelopes.links",
 ]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]
