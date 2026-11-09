@@ -35,6 +35,7 @@ def _field(label: str, holds: str, party: uuid.UUID | None, **extra: Any) -> Fie
             "label": label,
             "holds": holds,
             "holds_label": extra.pop("holds_label", None),
+            "format": extra.pop("format", None),
             "filled_by": extra.pop("filled_by", "role" if party else "sender"),
             "role": None,
             "party_id": party,

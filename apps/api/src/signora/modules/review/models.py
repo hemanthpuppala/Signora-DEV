@@ -60,6 +60,7 @@ version_fields = Table(
     Column("label", Text, nullable=False),
     Column("holds", Text, nullable=False),  # the manual layer of review.values (Phase 6 §4.1)
     Column("holds_label", Text),  # the typed text of an Other type
+    Column("format", Text),  # how a date or a part of one is written (7c); null for other types
     Column("filled_by", Text, nullable=False),
     Column("role_id", UUID(as_uuid=True)),
     Column("required", Boolean, nullable=False),
