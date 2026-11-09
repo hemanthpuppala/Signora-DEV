@@ -81,3 +81,57 @@
   text-decoration: none;
   cursor: default;
 }
+
+/* Cards (ItemList cards): each row a card of its own, as document cards are. */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cards > .item {
+  padding: 18px 20px;
+  border: 1px solid var(--sep);
+  background: var(--surface);
+  transition: border-color 0.15s;
+}
+
+.cards > .item:hover,
+.cards > .item:focus-within {
+  border-color: var(--r40);
+}
+
+.cards > .item:has(> .actions) {
+  padding-bottom: 0;
+}
+
+/* A card's actions: its foot, edge to edge under a rule. */
+.cards .actions {
+  margin: 14px -20px 0;
+  padding: 8px 13px;
+}
+
+/* A row with something at its start: that, then the row's words beside it. */
+.withLeading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 16px;
+}
+
+.withLeading > .actions {
+  grid-column: 1 / -1;
+}
+
+.leading {
+  display: flex;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}

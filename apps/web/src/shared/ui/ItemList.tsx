@@ -8,18 +8,49 @@ import styles from "./items.module.css";
  * is under it, and its actions on their own line under a rule (``ItemActions``), set apart from
  * what it says. ``ordered`` for a list whose order means something.
  */
-export function ItemList({ label, ordered = false, children }: { label: string; ordered?: boolean; children: ReactNode }) {
+export function ItemList({
+  label,
+  ordered = false,
+  cards = false,
+  children,
+}: {
+  label: string;
+  ordered?: boolean;
+  /** Each row a card of its own, apart from the next (people, as document cards are). */
+  cards?: boolean;
+  children: ReactNode;
+}) {
   const List = ordered ? "ol" : "ul";
   return (
-    <List className={styles.items} aria-label={label}>
+    <List className={cards ? styles.cards : styles.items} aria-label={label}>
       {children}
     </List>
   );
 }
 
-/** One row of an ``ItemList``; ``current`` marks the one on screen. */
-export function Item({ current = false, children }: { current?: boolean; children: ReactNode }) {
-  return <li className={current ? `${styles.item} ${styles.current}` : styles.item}>{children}</li>;
+/**
+ * One row of an ``ItemList``; ``current`` marks the one on screen. ``leading`` sits at the start
+ * of the row (a monogram, a page), ``actions`` (an ``ItemActions``) across its foot.
+ */
+export function Item({
+  current = false,
+  leading,
+  actions,
+  children,
+}: {
+  current?: boolean;
+  leading?: ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  const classes = [styles.item, current && styles.current, leading ? styles.withLeading : null].filter(Boolean).join(" ");
+  return (
+    <li className={classes}>
+      {leading ? <div className={styles.leading}>{leading}</div> : null}
+      {leading ? <div className={styles.body}>{children}</div> : children}
+      {actions}
+    </li>
+  );
 }
 
 /** A row's title and its state, on one line. */

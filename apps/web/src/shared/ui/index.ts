@@ -34,6 +34,7 @@ export { SearchField, TextArea, TextField } from "./Field";
 export { Icon, type IconName } from "./Icon";
 export { InfoTip } from "./InfoTip";
 export { IconButton, Tooltip, type IconButtonProps } from "./Tooltip";
+export { FactList, type Fact } from "./FactList";
 export { Item, ItemAction, ItemActions, ItemHead, ItemList } from "./ItemList";
 export {
   BackLink,

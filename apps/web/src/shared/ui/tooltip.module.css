@@ -20,22 +20,33 @@
   overflow-wrap: anywhere;
   white-space: normal;
   pointer-events: none;
-  opacity: 0;
-  transform: translate(-50%, 2px);
+  /* Hidden, it takes no room: an invisible tip at the page's edge would widen the page. */
+  display: none;
+  transform: translate(-50%, 0);
   transition:
     opacity 0.12s,
-    transform 0.12s;
+    transform 0.12s,
+    display 0.12s allow-discrete;
 }
 
 .anchor:hover > .tip,
 .anchor:has(:focus-visible) > .tip {
+  display: block;
   opacity: 1;
-  transform: translate(-50%, 0);
   transition-delay: 0.25s;
 }
 
+/* Fading in from just below, each time it appears. */
+@starting-style {
+  .anchor:hover > .tip,
+  .anchor:has(:focus-visible) > .tip {
+    opacity: 0;
+    transform: translate(-50%, 2px);
+  }
+}
+
 .anchor > .tip.dismissed {
-  opacity: 0;
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
