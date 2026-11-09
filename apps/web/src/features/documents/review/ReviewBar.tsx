@@ -3,106 +3,87 @@
 import { useState } from "react";
 
 import { ApiError, formError } from "@/shared/api/errors";
-import { Button, Dialog, Notice, SmallText, TextButton } from "@/shared/ui";
+import { ActionBar, Button, Dialog, Notice, TextButton } from "@/shared/ui";
 
+import type { Version } from "../api";
 import type { Review } from "./useReview";
 import styles from "./review.module.css";
 import type { ReviewWarning } from "./ThingsToCheck";
 
-const changesWords = (n: number) => `${n} unsaved ${n === 1 ? "change" : "changes"}`;
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * The top of the fields panel (Phase 6 §7): the save bar while there are unsaved changes, what went
- * wrong with a save, and Approve, which is disabled until the changes are saved (what is approved
- * is what is saved). An approved version offers "Edit fields"; saving that edit makes the next
- * version, and the bar says so.
+ * The review's action bar (Phase 6 §7.1): where the version stands on the left, what can be done
+ * on the right. In review: Approve (it waits while changes are unsaved: what is approved is what
+ * is saved). With changes: Undo, Discard, Save; for an approved version Save makes the next one,
+ * and the bar says so. Read-only members see the state only.
  */
-export function ReviewBar({
+export function ReviewActionBar({
   review,
-  number,
+  version,
   nextNumber,
   warnings,
-  onShow,
+  canEdit,
 }: {
   review: Review;
-  number: number;
+  version: Version;
   nextNumber: number;
   warnings: readonly ReviewWarning[];
-  onShow: (fieldId: string) => void;
+  canEdit: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const { changes, editing, approved, inReview, problem } = review;
+  const { changes, editing, approved, inReview } = review;
+  const state = approved
+    ? version.approved
+      ? `Approved by ${version.approved.by.name} on ${new Date(version.approved.at).toLocaleDateString()}`
+      : "Approved"
+    : inReview
+      ? "Needs approval"
+      : null;
+  const facts = [
+    `Version ${version.number}`,
+    state,
+    inReview && warnings.length > 0 ? plural(warnings.length, "thing to check", "things to check") : null,
+    changes > 0 ? plural(changes, "unsaved change", "unsaved changes") : null,
+    approved && editing ? `Saving makes version ${nextNumber}; version ${version.number} stays as it is` : null,
+  ].filter(Boolean);
+
+  const actions =
+    !canEdit ? null : editing && changes > 0 ? (
+      <>
+        <TextButton disabled={!review.canUndo} onClick={review.undo}>
+          Undo
+        </TextButton>
+        <TextButton onClick={review.discard}>Discard</TextButton>
+        <Button compact loading={review.saving} loadingLabel="Saving…" onClick={review.save}>
+          {approved ? `Save as version ${nextNumber}` : "Save"}
+        </Button>
+      </>
+    ) : review.canApprove ? (
+      <Button compact onClick={() => setConfirming(true)}>
+        Approve version
+      </Button>
+    ) : approved && !editing ? (
+      <Button variant="quiet" compact onClick={review.startEditing}>
+        Edit fields
+      </Button>
+    ) : approved && editing ? (
+      <TextButton onClick={review.stopEditing}>Stop editing</TextButton>
+    ) : null;
 
   return (
-    <div className={styles.bar}>
-      {approved && !editing ? (
-        <div className={styles.barLine}>
-          <span>Approved: its fields are frozen.</span>
-          <Button variant="quiet" compact onClick={review.startEditing}>
-            Edit fields
-          </Button>
-        </div>
-      ) : null}
-      {approved && editing ? (
-        <SmallText>{`Saving makes version ${nextNumber}. Version ${number} stays approved as it is.`}</SmallText>
-      ) : null}
-      {editing && changes > 0 ? (
-        <div className={styles.saveBar} role="group" aria-label="Unsaved changes">
-          <span className={styles.count}>{changesWords(changes)}</span>
-          <TextButton disabled={!review.canUndo} onClick={review.undo}>
-            Undo
-          </TextButton>
-          <TextButton onClick={review.discard}>Discard</TextButton>
-          <Button compact loading={review.saving} loadingLabel="Saving…" onClick={review.save}>
-            {approved ? `Save as version ${nextNumber}` : "Save"}
-          </Button>
-        </div>
-      ) : null}
-      {approved && editing && changes === 0 ? (
-        <TextButton onClick={review.stopEditing}>Stop editing</TextButton>
-      ) : null}
-      {problem ? (
-        <Notice
-          tone="warning"
-          title={problem.message}
-          action={
-            problem.stale ? (
-              <Button variant="quiet" compact onClick={() => void review.reload()}>
-                Reload
-              </Button>
-            ) : undefined
-          }
-        >
-          {problem.stale ? (
-            "Reloading shows their changes; yours will be lost."
-          ) : problem.items.length > 0 ? (
-            <ul className={styles.problems}>
-              {problem.items.map((item, index) => (
-                <li key={index}>
-                  {item.fieldId ? (
-                    <TextButton onClick={() => onShow(item.fieldId ?? "")}>{item.message}</TextButton>
-                  ) : (
-                    item.message
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </Notice>
-      ) : null}
-      {inReview && review.canApprove ? (
-        <div className={styles.barLine}>
-          <span>{warnings.length > 0 ? `${warnings.length} ${warnings.length === 1 ? "thing" : "things"} to check` : null}</span>
-          <Button compact disabled={changes > 0} onClick={() => setConfirming(true)}>
-            Approve version
-          </Button>
-        </div>
-      ) : null}
-      {inReview && review.canApprove && changes > 0 ? <SmallText>Save your changes to approve them.</SmallText> : null}
+    <>
+      <ActionBar label="Review" actions={actions}>
+        {facts.map((fact, index) => (
+          <span key={index} className={index === 0 ? styles.barVersion : undefined}>
+            {fact}
+          </span>
+        ))}
+      </ActionBar>
       {confirming ? (
         <ApproveDialog
           review={review}
-          number={number}
+          number={version.number}
           warnings={warnings}
           onClose={() => {
             setConfirming(false);
@@ -110,7 +91,38 @@ export function ReviewBar({
           }}
         />
       ) : null}
-    </div>
+    </>
+  );
+}
+
+/** What went wrong with a save: someone else saved (Reload), or which fields to fix (each opens it). */
+export function SaveProblem({ review, onShow }: { review: Review; onShow: (fieldId: string) => void }) {
+  const { problem } = review;
+  if (!problem) return null;
+  return (
+    <Notice
+      tone="warning"
+      title={problem.message}
+      action={
+        problem.stale ? (
+          <Button variant="quiet" compact onClick={() => void review.reload()}>
+            Reload
+          </Button>
+        ) : undefined
+      }
+    >
+      {problem.stale ? (
+        "Reloading shows their changes; yours will be lost."
+      ) : problem.items.length > 0 ? (
+        <ul className={styles.problems}>
+          {problem.items.map((item, index) => (
+            <li key={index}>
+              {item.fieldId ? <TextButton onClick={() => onShow(item.fieldId ?? "")}>{item.message}</TextButton> : item.message}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Notice>
   );
 }
 

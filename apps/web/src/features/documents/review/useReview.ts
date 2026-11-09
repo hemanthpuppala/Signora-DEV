@@ -8,6 +8,7 @@ import { ApiError } from "@/shared/api/errors";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
 
 import { documentKey, type Version } from "../api";
+import type { Tool } from "./AddField";
 import type { VersionFields } from "../fields";
 import {
   apply,
@@ -176,4 +177,8 @@ export type PanelEditing = {
   onAddPlace: (fieldId: string) => void;
   onDeleteField: (fieldId: string) => void;
   canDraw: boolean;
+  /** Placing a new field or place (§5, §7.1): what the next press on a page makes. */
+  tool: Tool | null;
+  startPlacing: (tool: Tool) => void;
+  cancelPlacing: () => void;
 };

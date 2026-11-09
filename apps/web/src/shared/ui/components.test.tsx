@@ -4,9 +4,12 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ActionBar,
   Button,
   ClampedText,
   EmailField,
+  ExpandableList,
+  ExpandableRow,
   IconButton,
   SearchField,
   Select,
@@ -244,5 +247,44 @@ describe("ClampedText", () => {
     overflow(200);
     render(<ClampedText>Short.</ClampedText>);
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("ExpandableRow", () => {
+  it("opens its details in place under its button, and says so", async () => {
+    function Rows() {
+      const [open, setOpen] = useState(false);
+      return (
+        <ExpandableList label="Fields">
+          <ExpandableRow id="f" title="Company" meta="Required" expanded={open} regionLabel="Details of Company" onToggle={() => setOpen(!open)}>
+            Page 1
+          </ExpandableRow>
+        </ExpandableList>
+      );
+    }
+    render(<Rows />);
+    const row = screen.getByRole("button", { name: "Company" }); // the title alone; the facts describe it
+    expect(row).toHaveAccessibleDescription("Required");
+    expect(row).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: "Details of Company" })).toBeNull();
+
+    await userEvent.click(row);
+    expect(row).toHaveAttribute("aria-expanded", "true");
+    expect(row).toHaveAttribute("aria-controls", "f-details");
+    expect(screen.getByRole("region", { name: "Details of Company" })).toHaveTextContent("Page 1");
+  });
+});
+
+describe("ActionBar", () => {
+  it("is a named region with the state and the actions", () => {
+    render(
+      <ActionBar label="Review" actions={<Button compact>Approve version</Button>}>
+        <span>Version 2</span>
+        <span>Needs approval</span>
+      </ActionBar>,
+    );
+    const bar = screen.getByRole("region", { name: "Review" });
+    expect(bar).toHaveTextContent("Version 2Needs approval");
+    expect(screen.getByRole("button", { name: "Approve version" })).toBeInTheDocument();
   });
 });

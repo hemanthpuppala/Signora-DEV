@@ -3,12 +3,15 @@
 import { useState } from "react";
 
 import {
+  ActionBar,
   BodyText,
   Button,
   Cap,
   Checkbox,
   Display,
   Eyebrow,
+  ExpandableList,
+  ExpandableRow,
   Heading1,
   Heading2,
   MetricGrid,
@@ -42,6 +45,7 @@ export function Gallery() {
   const toast = useToast();
   const [access, setAccess] = useState<string | null>("read");
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState<string | null>("company");
 
   return (
     <>
@@ -136,6 +140,34 @@ export function Gallery() {
             </tbody>
           </table>
         </TablePanel>
+      </section>
+
+      <section className={styles.section}>
+        <Eyebrow>Action bar, rows that open in place</Eyebrow>
+        <ActionBar label="Review" actions={<Button compact>Approve version</Button>}>
+          <span>Version 2</span>
+          <span>Needs approval</span>
+          <span>1 thing to check</span>
+        </ActionBar>
+        <ExpandableList label="Fields">
+          <ExpandableRow id="gallery-add" tone="add" title="Add field" expanded={false} regionLabel="New field" onToggle={() => undefined} />
+          {[
+            { id: "company", title: "Company", meta: "Filled in before sending · Company · Required" },
+            { id: "signature", title: "Client signature", meta: "Client · Signature · Required" },
+          ].map((row) => (
+            <ExpandableRow
+              key={row.id}
+              id={`gallery-${row.id}`}
+              title={row.title}
+              meta={row.meta}
+              expanded={open === row.id}
+              regionLabel={`Details of ${row.title}`}
+              onToggle={() => setOpen(open === row.id ? null : row.id)}
+            >
+              <SmallText>Page 1</SmallText>
+            </ExpandableRow>
+          ))}
+        </ExpandableList>
       </section>
     </>
   );

@@ -355,79 +355,74 @@ describe("document page", () => {
     const scrolled = vi.fn();
     beforeEach(() => {
       scrolled.mockReset();
-      Element.prototype.scrollTo = scrolled as unknown as Element["scrollTo"];
+      Element.prototype.scrollTo = vi.fn() as unknown as Element["scrollTo"];
+      Element.prototype.scrollIntoView = scrolled as unknown as Element["scrollIntoView"];
     });
+    /** The fields list's rows, as their text (each is a row that opens in place). */
+    const rows = (list: HTMLElement) => [...list.children].map((row) => row.querySelector("button")?.textContent ?? "");
+    const row = (list: HTMLElement, label: string) => within(list).getByText(label).closest("button") as HTMLButtonElement;
 
-    it("lists every field beside the PDF: parties, needs a look first, choices as a tree", async () => {
+    it("lists every field beside the PDF in sections: who signs, then the fields, needs a look first, choices as a tree", async () => {
       serve(APPROVED, {}, APPROVED_FIELDS);
       open();
 
-      expect(await screen.findByText("6 fields for 2 parties")).toBeTruthy();
+      const list = await screen.findByRole("list", { name: "Fields" });
+      expect(screen.getByRole("region", { name: "Fields · 6" })).toBeTruthy();
       const parties = screen.getByRole("list", { name: "Who signs" });
-      expect(within(parties).getByText("countersigns")).toBeTruthy();
+      expect(within(parties).getByText("Countersigner")).toBeTruthy();
       expect(within(parties).getByText("Filled in before sending")).toBeTruthy();
-      const options = within(screen.getByRole("listbox", { name: "Fields" })).getAllByRole("option");
-      expect(options[0]?.textContent).toContain("Client tax number"); // needs a look: first
-      const term = options.findIndex((option) => option.textContent?.startsWith("Term") && !option.textContent.startsWith("Term in"));
-      expect(options[term + 1]?.textContent).toContain("Term in years"); // under its choice
+      expect(within(parties).queryByRole("button", { name: /^Edit/ })).toBeNull(); // approved: nothing to edit
+      const texts = rows(list);
+      expect(texts[0]).toContain("Client tax number"); // needs a look: first
+      const term = texts.findIndex((text) => text.startsWith("Term") && !text.startsWith("Term in"));
+      expect(texts[term + 1]).toContain("Term in years"); // under its choice
     });
 
-    it("picks a field in the list, says what it is and brings it into view; steps through its places", async () => {
+    it("opens a field's row in place, says what it is and brings its box into view; steps through its places", async () => {
       serve(APPROVED, {}, APPROVED_FIELDS);
       open();
       const user = userEvent.setup();
-      const list = await screen.findByRole("listbox", { name: "Fields" });
+      const list = await screen.findByRole("list", { name: "Fields" });
 
-      await user.click(within(list).getByText("Term in years"));
-      const about = screen.getByRole("region", { name: "More about Term in years" });
+      await user.click(row(list, "Term in years"));
+      expect(row(list, "Term in years").getAttribute("aria-expanded")).toBe("true");
+      const about = screen.getByRole("region", { name: "Details of Term in years" });
       expect(within(about).getByText("Only when “Expires … from Effective Date.” is chosen")).toBeTruthy();
       expect(scrolled).toHaveBeenCalled();
 
-      await user.click(within(list).getByText("Client initials"));
+      await user.click(row(list, "Client initials"));
+      expect(screen.queryByRole("region", { name: "Details of Term in years" })).toBeNull(); // one open at a time
       expect(screen.getByText("Place 1 of 3")).toBeTruthy();
       const marked = () => [...document.querySelectorAll('button[title="Client initials"]')].map((box) => box.classList.contains("chosen"));
       expect(marked()).toEqual([true, false, false]);
       await user.click(screen.getByRole("button", { name: "Next place" }));
       expect(screen.getByText("Place 2 of 3")).toBeTruthy();
       expect(marked()).toEqual([false, true, false]); // review fix: every place was marked, so the step showed nothing
-      expect(scrolled).toHaveBeenCalledTimes(3);
 
-      await user.click(within(list).getByText("Client signature"));
-      expect(screen.queryByRole("region", { name: /^More about/ })).toBeNull(); // nothing the row doesn't say
+      await user.click(row(list, "Client initials")); // again: it closes
+      expect(screen.queryByRole("region", { name: "Details of Client initials" })).toBeNull();
 
-      await user.click(within(list).getByText("Client tax number"));
+      await user.click(row(list, "Client tax number"));
       expect(screen.getByText("Private to Client: shown to nobody else")).toBeTruthy();
       expect(screen.getByText("Needs a look: not assigned to anyone.")).toBeTruthy();
     });
 
-    it("chooses a field from its box on the PDF, and filters, finds and moves through the list", async () => {
+    it("opens a field from its box on the PDF, and filters and finds in the list", async () => {
       serve(APPROVED, {}, APPROVED_FIELDS);
       open();
       const user = userEvent.setup();
-      const list = await screen.findByRole("listbox", { name: "Fields" });
-      const box = document.querySelector('button[title="Firm signature"]') as HTMLButtonElement;
-      // The list shows 0–100px; the firm's signature row sits below it.
-      const rect = (top: number, height: number) => ({ top, bottom: top + height, left: 0, right: 0, width: 0, height, x: 0, y: top, toJSON: () => ({}) });
-      vi.spyOn(list, "getBoundingClientRect").mockReturnValue(rect(0, 100));
-      vi.spyOn(within(list).getByText("Firm signature").closest("li") as HTMLElement, "getBoundingClientRect").mockReturnValue(rect(140, 40));
-      const scrollTo = vi.fn();
-      list.scrollTo = scrollTo as unknown as typeof list.scrollTo;
+      const list = await screen.findByRole("list", { name: "Fields" });
 
-      await user.click(box);
-      expect(within(list).getByRole("option", { selected: true }).textContent).toContain("Firm signature");
-      expect(scrollTo).toHaveBeenCalledWith({ top: 80, behavior: "smooth" }); // within the list, smoothly
+      await user.click(document.querySelector('button[title="Firm signature"]') as HTMLButtonElement);
+      expect(screen.getByRole("region", { name: "Details of Firm signature" })).toBeTruthy();
+      expect(scrolled).toHaveBeenCalledWith({ block: "nearest", behavior: "smooth" }); // its row, smoothly
 
-      await user.click(screen.getByRole("button", { name: "Client" }));
-      expect(within(list).getAllByRole("option")).toHaveLength(3);
-      await user.click(screen.getByRole("button", { name: "All" }));
+      const chips = screen.getByRole("group", { name: "Show fields of" });
+      await user.click(within(chips).getByRole("button", { name: "Client" }));
+      expect(rows(list)).toHaveLength(3);
+      await user.click(within(chips).getByRole("button", { name: "All" }));
       await user.type(screen.getByLabelText("Find a field"), "signature");
-      expect(within(list).getAllByRole("option").map((o) => o.textContent?.slice(0, 16))).toEqual([
-        "Client signature",
-        "Firm signatureFi",
-      ]);
-      list.focus(); // the firm's signature, chosen from its box, is last: up moves to the client's
-      await user.keyboard("{ArrowUp}");
-      expect(within(list).getByRole("option", { selected: true }).textContent).toContain("Client signature");
+      expect(rows(list).map((text) => text.slice(0, 16))).toEqual(["Client signature", "Firm signatureFi"]);
     });
 
     it("draws the places found while the AI says who fills them, with its progress", async () => {
@@ -464,17 +459,18 @@ describe("document page", () => {
         ],
       });
       open();
-      expect(await screen.findByText("We couldn't find places to fill or sign. Add them with Add field above the document.")).toBeTruthy();
-      const check = screen.getByRole("region", { name: "Things to check" });
+      expect(await screen.findByText("We couldn't find places to fill or sign. Add them below.")).toBeTruthy();
+      const check = screen.getByRole("list", { name: "Things to check" });
       expect(within(check).getByText("No party signs this version")).toBeTruthy();
-      expect(screen.getByText("2 things to check")).toBeTruthy();
+      expect(within(screen.getByRole("region", { name: "Review" })).getByText("2 things to check")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Add field" })).toBeTruthy(); // the list's first row
     });
 
     it("says when finding the fields again failed, and shows the fields found before", async () => {
       serve(READY, {}, { ...FIELDS, found_again_failed: "Field detection couldn't reach the AI" });
       open();
       expect(await screen.findByText("Field detection couldn't reach the AI. These are the fields found before.")).toBeTruthy();
-      expect(within(screen.getByRole("listbox", { name: "Fields" })).getAllByRole("option").length).toBeGreaterThan(0);
+      expect(rows(screen.getByRole("list", { name: "Fields" })).length).toBeGreaterThan(1);
     });
 
     it("finds fields again only after confirming, and shows each version's field count", async () => {

@@ -22,6 +22,7 @@ import {
   type Holds,
   type Rect,
 } from "./editor";
+import { filler, fillerOptions } from "./AddField";
 import { NewParty } from "./PartyList";
 import styles from "./review.module.css";
 
@@ -54,7 +55,7 @@ function conditionOptions(field: DraftField, draft: Draft) {
 }
 
 /**
- * One field's form (Phase 6 §4, §5), in place of the overview until "Done". Its type offers only
+ * One field's form (Phase 6 §4, §5, §7.1), inside its open row in the list. Its type offers only
  * what every one of its boxes may hold (the server's rule, sent with the fields); position and
  * size are numbers, so a box can be placed without a mouse. Every change is one undo step; typing
  * in one box is one.
@@ -88,20 +89,14 @@ export function FieldForm({
       .filter((holds) => [...kinds].every((kind) => editing.allowed[kind]?.includes(holds)))
       .map((holds) => ({ value: holds, label: `${HOLDS[holds]} · ${group.label}` })),
   );
-  const fillers = [
-    ...draft.parties.map((party) => ({ value: `party:${party.id}`, label: party.label })),
-    { value: "sender", label: "Filled in before sending" },
-    { value: "none", label: "Not asked" },
-    { value: NEW_PARTY, label: "Someone else…" },
-  ];
+  const fillers = [...fillerOptions(draft.parties), { value: NEW_PARTY, label: "Someone else…" }];
   const conditions = conditionOptions(field, draft);
   const conditionValue = field.depends_on ? `${field.depends_on.field_id}|${field.depends_on.option}` : "";
   const privateByType = PRIVATE.has(field.holds);
 
   const setFiller = (value: string) => {
     if (value === NEW_PARTY) setNewParty(true);
-    else if (value.startsWith("party:")) change({ filled_by: "role", party_id: value.slice("party:".length) });
-    else change({ filled_by: value as "sender" | "none", party_id: null });
+    else change(filler(value));
   };
   const setNumber = (index: 0 | 1 | 2 | 3, value: string) => {
     if (!current) return;
@@ -115,10 +110,7 @@ export function FieldForm({
   };
 
   return (
-    <section className={styles.form} aria-label={`Edit ${field.label || "field"}`}>
-      <div className={styles.formHead}>
-        <TextButton onClick={onDone}>‹ All fields</TextButton>
-      </div>
+    <div className={styles.form}>
       {field.needs_review ? <Notice tone="warning">{`Needs a look: ${field.needs_review}. Any change clears this.`}</Notice> : null}
       <TextField
         label="Label"
@@ -260,6 +252,6 @@ export function FieldForm({
         </Button>
         <TextButton onClick={onDone}>Done</TextButton>
       </div>
-    </section>
+    </div>
   );
 }

@@ -1,40 +1,7 @@
-/* Field review and approval (Phase 6 LLD §7): the bar above the panel, the forms, the palette. */
+/* Field review and approval (Phase 6 LLD §7.1): the action bar's facts, rows, forms, adding a field. */
 
-/* --- the bar above the panel ----------------------------------------------------------------- */
-.bar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.bar:empty {
-  display: none;
-}
-
-.barLine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  font-size: 14px;
-  color: var(--t75);
-}
-
-.saveBar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  padding: 10px 12px;
-  border: 1px solid var(--r25);
-  background: var(--surface-2);
-  font-size: 14px;
-}
-
-.count {
-  margin-right: auto;
+/* --- the action bar's facts and a save problem -------------------------------------------- */
+.barVersion {
   color: var(--ink);
 }
 
@@ -51,58 +18,77 @@
   margin: 0 0 12px;
 }
 
-/* --- things to check ------------------------------------------------------------------------- */
-.check {
-  padding: 12px;
-  border: 1px solid var(--r15);
-}
-
-.checkTitle {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.checkList {
+/* --- rows of text (who signs, things to check): hairlines between --------------------------- */
+.rows {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 0 0 8px;
+  margin: 0;
   padding: 0;
+  border-top: 1px solid var(--sep);
   list-style: none;
-  font-size: 13px;
-  color: var(--t75);
 }
 
-.checkList li {
+.line {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 0 6px 12px;
+  border-bottom: 1px solid var(--sep);
+  font-size: 14px;
+}
+
+.name {
+  min-width: 0;
+  flex: 1;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.kind {
+  font-size: 12px;
+  color: var(--t60);
+}
+
+.number {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--t60);
+}
+
+.editingRow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--sep);
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--ink);
+}
+
+.empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--t60);
+}
+
+/* --- adding a field ---------------------------------------------------------------------------- */
+.addField {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-/* --- parties ----------------------------------------------------------------------------------- */
-.inlineName {
-  min-width: 0;
-  flex: 1;
-  padding: 2px 0;
-  border: 0;
-  border-bottom: 1px solid var(--r25);
-  background: transparent;
-  font: inherit;
+.placing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 13px;
   color: var(--ink);
 }
 
-.inlineName:focus {
-  border-bottom-color: var(--ink);
-  outline: none;
-}
-
-.rowTools {
-  display: flex;
-  gap: 4px;
-}
+/* --- parties ----------------------------------------------------------------------------------- */
 
 .inlineForm {
   display: flex;
@@ -142,11 +128,6 @@
   gap: 14px;
 }
 
-.formHead {
-  display: flex;
-  justify-content: space-between;
-}
-
 .numbers {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -155,14 +136,4 @@
 
 .numbers > :first-child {
   grid-column: 1 / -1;
-}
-
-/* --- the palette in the viewer's toolbar --------------------------------------------------- */
-.palette {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  font-size: 13px;
-  color: var(--t75);
 }

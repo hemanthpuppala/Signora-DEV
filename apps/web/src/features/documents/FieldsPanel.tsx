@@ -1,38 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Notice, SearchField, SmallText } from "@/shared/ui";
+import { ExpandableList, ExpandableRow, Notice, SearchField, Section, SmallText } from "@/shared/ui";
 
 import { HOLDS, toneOf, whoFills, type PartyRef, type VersionFields } from "./fields";
 import type { Selection } from "./FieldBoxes";
 import styles from "./fields.module.css";
+import { AddField, PlacingStatus } from "./review/AddField";
 import type { Draft, DraftField } from "./review/editor";
 import { FieldForm } from "./review/FieldForm";
 import { PartyList } from "./review/PartyList";
-import { ThingsToCheck } from "./review/ThingsToCheck";
 import { PlaceStepper } from "./review/PlaceStepper";
+import { ThingsToCheck } from "./review/ThingsToCheck";
 import type { PanelEditing } from "./review/useReview";
 
 const STEPS = ["Read the document", "Finding who fills each field", "Checking"] as const;
 const STEP_OF_STAGE: Record<string, number> = { read: 0, ai: 1, derive: 2, store: 2, done: 3 };
+const ADD_ROW = "add-field";
 
 export type Filter = { kind: "all" } | { kind: "party"; id: string } | { kind: "sender" };
 type Row = { id: string; field: DraftField; depth: number };
 
-/**
- * Scrolls a list just enough to show one of its rows, leaving the page where it is: smoothly,
- * unless the person asked for less motion.
- */
-function showWithin(list: HTMLElement, row: Element) {
-  const outer = list.getBoundingClientRect();
-  const inner = row.getBoundingClientRect();
-  const by = inner.top < outer.top ? inner.top - outer.top : inner.bottom > outer.bottom ? inner.bottom - outer.bottom : 0;
-  if (by === 0) return;
-  const top = list.scrollTop + by;
+/** Brings a chosen field's row into view, unless the person asked for less motion (smoothly). */
+function bringIntoView(row: Element) {
   const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-  if (typeof list.scrollTo === "function") list.scrollTo({ top, behavior: still ? "auto" : "smooth" });
-  else list.scrollTop = top;
+  row.scrollIntoView?.({ block: "nearest", behavior: still ? "auto" : "smooth" });
 }
 
 function placesFound(view: VersionFields): string {
@@ -52,12 +45,14 @@ export function condition(field: DraftField, byId: ReadonlyMap<string, DraftFiel
   return `Only when “${place?.option_text ?? field.depends_on.option}” is chosen`;
 }
 
+const typeOf = (field: DraftField) => (field.holds === "other" ? field.holds_label || HOLDS.other : HOLDS[field.holds]);
+
 /**
- * Every field of a version, linked with the PDF (Phase 5 LLD §6.2-6.4, Phase 6 §7): pick one here
- * and the viewer brings it into view; pick a box there and it is chosen here. Fields that need a
- * look come first; choices list their options with the fields that only apply under each. While
- * the AI works, the places already found are listed and drawn. When editing, the parties can be
- * changed and a chosen field's form takes the overview's place until "Done".
+ * A version's fields beside the PDF (Phase 5 LLD §6.2-6.4, Phase 6 §7.1), in three sections:
+ * Things to check (in review), Who signs, and Fields. Each field is a row that opens in place:
+ * choosing it here or its box on the PDF opens it and brings the box into view; its details are
+ * editable for people with edit access. "+ Add field" is the list's first row. While the AI works,
+ * the places already found are listed and drawn.
  */
 export function FieldsPanel({
   view,
@@ -79,15 +74,14 @@ export function FieldsPanel({
   editing: PanelEditing | null;
 }) {
   const [search, setSearch] = useState("");
+  const [adding, setAdding] = useState(false);
   const parties: PartyRef[] = draft.parties;
   const byId = useMemo(() => new Map(draft.fields.map((field) => [field.id, field])), [draft.fields]);
-  // A field chosen on the PDF (or with the keys) is brought into view in the list too.
-  const listRef = useRef<HTMLUListElement>(null);
+  // A field chosen on the PDF (or from a warning) is brought into view in the list too.
   const rowId = selected ? (selected.kind === "field" ? `field-${selected.id}` : `pending-${selected.id}`) : null;
   useEffect(() => {
-    const list = listRef.current;
-    const row = rowId ? [...(list?.children ?? [])].find((child) => child.id === rowId) : undefined;
-    if (list && row) showWithin(list, row);
+    const row = rowId ? document.getElementById(rowId) : null;
+    if (row) bringIntoView(row);
   }, [rowId]);
 
   const rows = useMemo<Row[]>(() => {
@@ -124,7 +118,7 @@ export function FieldsPanel({
   if (view.status === "detecting") {
     const step = STEP_OF_STAGE[view.stage ?? "read"] ?? 0;
     return (
-      <div className={styles.panel}>
+      <Section title="Fields">
         <ol className={styles.steps} aria-label="Finding fields">
           {STEPS.map((label, index) => (
             <li key={label} className={index < step ? styles.done : index === step ? styles.running : styles.next}>
@@ -134,159 +128,162 @@ export function FieldsPanel({
           ))}
         </ol>
         {view.pending.length > 0 ? (
-          <ul ref={listRef} className={styles.list} aria-label="Places found">
+          <ExpandableList label="Places found">
             {view.pending.map((found) => (
-              <li key={found.id} id={`pending-${found.id}`}>
-                <button
-                  type="button"
-                  className={`${styles.item}${selected?.kind === "pending" && selected.id === found.id ? ` ${styles.selected}` : ""}`}
-                  onClick={() => onSelect({ kind: "pending", id: found.id, place: 0 })}
-                >
-                  <span className={styles.label}>{found.label ?? "A place to fill"}</span>
-                  <span className={styles.meta}>Finding who fills this…</span>
-                </button>
-              </li>
+              <ExpandableRow
+                key={found.id}
+                id={`pending-${found.id}`}
+                title={found.label ?? "A place to fill"}
+                meta="Finding who fills this…"
+                expanded={selected?.kind === "pending" && selected.id === found.id}
+                regionLabel={found.label ?? "A place to fill"}
+                onToggle={() => onSelect({ kind: "pending", id: found.id, place: 0 })}
+              />
             ))}
-          </ul>
+          </ExpandableList>
         ) : null}
-      </div>
+      </Section>
     );
   }
 
   const chosen = selected?.kind === "field" ? byId.get(selected.id) : undefined;
-  if (editing && chosen && selected?.kind === "field") {
-    return (
-      <FieldForm
-        key={chosen.id}
-        field={chosen}
-        draft={draft}
-        place={selected.place}
-        editing={editing}
-        onPlace={(place) => onSelect({ kind: "field", id: chosen.id, place })}
-        onSelect={onSelect}
-        onDone={onClear}
-      />
-    );
-  }
-
   const sender = draft.fields.filter((field) => field.filled_by === "sender").length;
-  const move = (event: KeyboardEvent<HTMLUListElement>) => {
-    const index = rows.findIndex((row) => row.id === chosen?.id);
-    const next =
-      event.key === "ArrowDown" ? Math.min(index + 1, rows.length - 1) : event.key === "ArrowUp" ? Math.max(index - 1, 0) : null;
-    if (event.key === "Enter" && chosen) {
-      event.preventDefault();
-      onSelect({ kind: "field", id: chosen.id, place: 0 });
-    } else if (next !== null && rows[next]) {
-      event.preventDefault();
-      onSelect({ kind: "field", id: rows[next].id, place: 0 });
-    }
-  };
   const inReview = view.status === "ready";
+  const tool = editing?.tool ?? null;
+  const filteredParty = filter.kind === "party" ? filter.id : null;
 
   return (
-    <div className={styles.panel}>
-      {draft.fields.length > 0 ? (
-        <p className={styles.headline}>
-          {`${draft.fields.length} ${draft.fields.length === 1 ? "field" : "fields"} for ${parties.length} ${parties.length === 1 ? "party" : "parties"}`}
-        </p>
+    <>
+      {inReview && view.warnings.length > 0 ? (
+        <Section title="Things to check">
+          <ThingsToCheck
+            warnings={view.warnings}
+            stale={(editing?.review.changes ?? 0) > 0}
+            onShow={(fieldId) => onSelect({ kind: "field", id: fieldId, place: 0 })}
+            onAddSignature={
+              editing
+                ? (partyId) => editing.startPlacing({ kind: "field", holds: "signature", filled_by: "role", party_id: partyId })
+                : null
+            }
+          />
+        </Section>
       ) : null}
-      {view.flags.no_fields && draft.fields.length === 0 ? (
-        <Notice>
-          {editing?.canDraw
-            ? "We couldn't find places to fill or sign. Add them with Add field above the document."
-            : "We couldn't find places to fill or sign."}
-        </Notice>
-      ) : null}
-      {view.found_again_failed ? (
-        <Notice tone="warning">{`${view.found_again_failed}. These are the fields found before.`}</Notice>
-      ) : null}
-      {inReview ? (
-        <ThingsToCheck
-          warnings={view.warnings}
-          stale={(editing?.review.changes ?? 0) > 0}
-          onShow={(fieldId) => onSelect({ kind: "field", id: fieldId, place: 0 })}
-        />
-      ) : null}
-      {editing && !editing.canDraw ? (
-        <SmallText>Adding and moving boxes on the document needs a larger screen. Everything else works here.</SmallText>
-      ) : null}
-      <PartyList
-        parties={draft.parties}
-        fields={draft.fields}
-        sender={sender}
-        edit={editing ? editing.review.edit : null}
-      />
-      {draft.fields.length > 0 ? (
-        <>
-          <div className={styles.filters} role="group" aria-label="Show fields of">
-            <FilterChip active={filter.kind === "all"} onClick={() => onFilter({ kind: "all" })}>
-              All
-            </FilterChip>
-            {parties.map((party) => (
-              <FilterChip
-                key={party.id}
-                active={filter.kind === "party" && filter.id === party.id}
-                onClick={() => onFilter({ kind: "party", id: party.id })}
-              >
-                {party.label}
+      <Section title="Who signs">
+        <PartyList parties={draft.parties} fields={draft.fields} sender={sender} edit={editing ? editing.review.edit : null} />
+      </Section>
+      <Section title={`Fields · ${draft.fields.length}`}>
+        {view.flags.no_fields && draft.fields.length === 0 ? (
+          <Notice>{editing ? "We couldn't find places to fill or sign. Add them below." : "We couldn't find places to fill or sign."}</Notice>
+        ) : null}
+        {view.found_again_failed ? (
+          <Notice tone="warning">{`${view.found_again_failed}. These are the fields found before.`}</Notice>
+        ) : null}
+        {editing && !editing.canDraw ? (
+          <SmallText>Moving boxes on the document needs a larger screen; their numbers can be changed here.</SmallText>
+        ) : null}
+        {draft.fields.length > 0 ? (
+          <>
+            <div className={styles.filters} role="group" aria-label="Show fields of">
+              <FilterChip active={filter.kind === "all"} onClick={() => onFilter({ kind: "all" })}>
+                All
               </FilterChip>
-            ))}
-            {sender > 0 ? (
-              <FilterChip active={filter.kind === "sender"} onClick={() => onFilter({ kind: "sender" })}>
-                Before sending
-              </FilterChip>
-            ) : null}
-          </div>
-          <SearchField label="Find a field" value={search} onChange={(event) => setSearch(event.target.value)} />
-          <ul
-            ref={listRef}
-            className={styles.list}
-            role="listbox"
-            aria-label="Fields"
-            tabIndex={0}
-            aria-activedescendant={chosen ? `field-${chosen.id}` : undefined}
-            onKeyDown={move}
-          >
-            {rows.map((row) => (
-              <li
+              {parties.map((party) => (
+                <FilterChip
+                  key={party.id}
+                  active={filter.kind === "party" && filter.id === party.id}
+                  onClick={() => onFilter({ kind: "party", id: party.id })}
+                >
+                  {party.label || "Unnamed party"}
+                </FilterChip>
+              ))}
+              {sender > 0 ? (
+                <FilterChip active={filter.kind === "sender"} onClick={() => onFilter({ kind: "sender" })}>
+                  Before sending
+                </FilterChip>
+              ) : null}
+            </div>
+            <SearchField label="Find a field" value={search} onChange={(event) => setSearch(event.target.value)} />
+          </>
+        ) : null}
+        <ExpandableList label="Fields">
+          {editing ? (
+            <ExpandableRow
+              id={ADD_ROW}
+              tone="add"
+              title={tool?.kind === "field" ? "Placing a new field" : "Add field"}
+              expanded={adding || tool?.kind === "field"}
+              regionLabel="New field"
+              onToggle={() => {
+                if (tool?.kind === "field") return editing.cancelPlacing();
+                setAdding(!adding);
+                onClear();
+              }}
+            >
+              {tool?.kind === "field" ? (
+                <PlacingStatus tool={tool} onCancel={editing.cancelPlacing} />
+              ) : (
+                <AddField
+                  parties={draft.parties}
+                  partyId={filteredParty}
+                  canDraw={editing.canDraw}
+                  onPlace={(next) => {
+                    setAdding(false);
+                    editing.startPlacing(next);
+                  }}
+                />
+              )}
+            </ExpandableRow>
+          ) : null}
+          {rows.map((row) => {
+            const open = chosen?.id === row.id && selected?.kind === "field";
+            return (
+              <ExpandableRow
                 key={row.id}
                 id={`field-${row.id}`}
-                role="option"
-                aria-selected={chosen?.id === row.id}
-                className={`${styles.item}${chosen?.id === row.id ? ` ${styles.selected}` : ""}`}
-                style={{ paddingLeft: 12 + row.depth * 16 }}
-                onClick={() => onSelect({ kind: "field", id: row.id, place: 0 })}
+                depth={row.depth}
+                lead={<span className={`${styles.dot} ${styles[toneOf(row.field, parties)]}`} aria-hidden="true" />}
+                title={row.field.label || "Unnamed field"}
+                meta={[
+                  whoFills(row.field, parties),
+                  typeOf(row.field),
+                  row.field.required ? "Required" : "Optional",
+                  row.field.places.length > 1 ? `${row.field.places.length} places` : null,
+                  row.field.needs_review ? "Needs a look" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+                expanded={open}
+                regionLabel={`Details of ${row.field.label || "field"}`}
+                onToggle={() => (open ? onClear() : onSelect({ kind: "field", id: row.id, place: 0 }))}
               >
-                <span className={`${styles.dot} ${styles[toneOf(row.field, parties)]}`} aria-hidden="true" />
-                <span className={styles.label}>{row.field.label}</span>
-                <span className={styles.meta}>
-                  {[
-                    whoFills(row.field, parties),
-                    row.field.holds === "other" ? row.field.holds_label || HOLDS.other : HOLDS[row.field.holds],
-                    row.field.required ? "Required" : "Optional",
-                    row.field.places.length > 1 ? `${row.field.places.length} places` : null,
-                    row.field.needs_review ? "Needs a look" : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {rows.length === 0 ? <SmallText>No field matches.</SmallText> : null}
-          {chosen && selected?.kind === "field" ? (
-            <FieldDetails
-              field={chosen}
-              parties={parties}
-              byId={byId}
-              place={selected.place}
-              onPlace={(place) => onSelect({ kind: "field", id: chosen.id, place })}
-            />
-          ) : null}
-        </>
-      ) : null}
-    </div>
+                {open && selected?.kind === "field" ? (
+                  editing ? (
+                    <FieldForm
+                      field={row.field}
+                      draft={draft}
+                      place={selected.place}
+                      editing={editing}
+                      onPlace={(place) => onSelect({ kind: "field", id: row.id, place })}
+                      onSelect={onSelect}
+                      onDone={onClear}
+                    />
+                  ) : (
+                    <FieldDetails
+                      field={row.field}
+                      parties={parties}
+                      byId={byId}
+                      place={selected.place}
+                      onPlace={(place) => onSelect({ kind: "field", id: row.id, place })}
+                    />
+                  )
+                ) : null}
+              </ExpandableRow>
+            );
+          })}
+        </ExpandableList>
+        {draft.fields.length > 0 && rows.length === 0 ? <SmallText>No field matches.</SmallText> : null}
+      </Section>
+    </>
   );
 }
 
@@ -298,6 +295,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
+/** A field's details as text, for people who read the fields (the row's line names the rest). */
 function FieldDetails({
   field,
   parties,
@@ -314,10 +312,10 @@ function FieldDetails({
   const places = field.places.length;
   const options = field.holds === "choice" ? field.places : [];
   const when = condition(field, byId);
-  // The list's row already names the field and who fills it: this says only what the row can't.
-  if (!when && !field.sensitive && !field.needs_review && options.length === 0 && places <= 1) return null;
+  const current = field.places[Math.min(place, places - 1)];
   return (
-    <section className={styles.details} aria-label={`More about ${field.label}`} aria-live="polite">
+    <>
+      <SmallText>{current ? `Page ${current.page}${places > 1 ? `, place ${place + 1} of ${places}` : ""}` : null}</SmallText>
       {when ? <SmallText>{when}</SmallText> : null}
       {field.sensitive ? <SmallText>{`Private to ${whoFills(field, parties)}: shown to nobody else`}</SmallText> : null}
       {field.needs_review ? <Notice tone="warning">{`Needs a look: ${field.needs_review}.`}</Notice> : null}
@@ -338,6 +336,6 @@ function FieldDetails({
         </ul>
       ) : null}
       {places > 1 ? <PlaceStepper place={place} places={places} onPlace={onPlace} /> : null}
-    </section>
+    </>
   );
 }

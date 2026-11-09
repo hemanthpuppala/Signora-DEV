@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 
-import { Button, Dialog, Radio, Select, TextButton, TextField } from "@/shared/ui";
+import { Button, Dialog, IconButton, Radio, Select, TextButton, TextField } from "@/shared/ui";
 
 import { toneOf } from "../fields";
 import fieldStyles from "../fields.module.css";
@@ -14,23 +14,22 @@ import {
   updateParty,
   type DraftField,
   type DraftParty,
+  type Edit,
   type PartyFate,
   type PartyKind,
-  type Edit,
 } from "./editor";
 import styles from "./review.module.css";
 
-
-/** "countersigns", or an Other kind's own words ("Witness"). */
-function kindWords(party: DraftParty): string | null {
-  if (party.kind_label) return party.kind_label;
-  return party.kind === "countersigner" ? "countersigns" : null;
+/** How a party signs, in words: "Signer", "Countersigner", or an Other kind's own ("Witness"). */
+function kindWords(party: DraftParty): string {
+  return party.kind_label ?? (party.kind === "countersigner" ? "Countersigner" : "Signer");
 }
 
 /**
- * "Who signs" (Phase 6 §3): each party with its tone and field count, and the fields filled in
- * before sending. Editing adds rename, order within its group (signers sign first), remove (asking
- * what becomes of its fields) and a new party.
+ * "Who signs" (Phase 6 §3, §7.1): each party as a line of text (tone, name, how they sign, field
+ * count) and the fields filled in before sending. With edit access a pencil turns one row into
+ * its editor: name, kind, order within its group (signers sign first), remove (asking what
+ * becomes of its fields).
  */
 export function PartyList({
   parties,
@@ -43,78 +42,67 @@ export function PartyList({
   sender: number;
   edit: Edit | null;
 }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<DraftParty | null>(null);
   const [adding, setAdding] = useState(false);
   const count = (id: string) => fields.filter((field) => field.filled_by === "role" && field.party_id === id).length;
-  if (parties.length === 0 && sender === 0 && !edit) return null;
+  const fieldsWord = (n: number) => `${n} ${n === 1 ? "field" : "fields"}`;
+
   return (
     <>
-      <ul className={fieldStyles.parties} aria-label="Who signs">
+      {parties.length === 0 && sender === 0 ? <p className={styles.empty}>No parties yet.</p> : null}
+      <ul className={styles.rows} aria-label="Who signs">
         {parties.map((party, index) => {
           const n = count(party.id);
-          const before = parties[index - 1];
-          const after = parties[index + 1];
+          const tone = <span className={`${fieldStyles.dot} ${fieldStyles[toneOf({ filled_by: "role", party_id: party.id }, parties)]}`} aria-hidden="true" />;
+          if (edit && editingId === party.id) {
+            const before = parties[index - 1];
+            const after = parties[index + 1];
+            return (
+              <li key={party.id} className={styles.editingRow}>
+                <PartyEditor party={party} edit={edit} />
+                <div className={styles.actions}>
+                  <TextButton disabled={before?.kind !== party.kind} onClick={() => edit((draft) => moveParty(draft, party.id, -1))}>
+                    Move up
+                  </TextButton>
+                  <TextButton disabled={after?.kind !== party.kind} onClick={() => edit((draft) => moveParty(draft, party.id, 1))}>
+                    Move down
+                  </TextButton>
+                  <TextButton
+                    onClick={() => {
+                      if (n === 0) {
+                        edit((draft) => removeParty(draft, party.id, { kind: "none" }));
+                        setEditingId(null);
+                      } else setRemoving(party);
+                    }}
+                  >
+                    Remove
+                  </TextButton>
+                  <Button variant="quiet" compact onClick={() => setEditingId(null)}>
+                    Done
+                  </Button>
+                </div>
+              </li>
+            );
+          }
           return (
-            <li key={party.id}>
-              <span className={`${fieldStyles.dot} ${fieldStyles[toneOf({ filled_by: "role", party_id: party.id }, parties)]}`} aria-hidden="true" />
-              {edit ? (
-                <input
-                  className={styles.inlineName}
-                  aria-label={`Name of ${party.label || "this party"}`}
-                  value={party.label}
-                  maxLength={80}
-                  onChange={(event) => {
-                    const label = event.target.value;
-                    edit((draft) => updateParty(draft, party.id, { label }), `party-label:${party.id}`);
-                  }}
-                />
-              ) : (
-                <span className={fieldStyles.label}>{party.label}</span>
-              )}
-              {kindWords(party) ? <span className={fieldStyles.meta}>{kindWords(party)}</span> : null}
-              <span className={fieldStyles.count}>{`${n} ${n === 1 ? "field" : "fields"}`}</span>
-              {edit ? (
-                <span className={styles.rowTools}>
-                  <TextButton
-                    aria-label={`Move ${party.label} up`}
-                    disabled={before?.kind !== party.kind}
-                    onClick={() => edit((draft) => moveParty(draft, party.id, -1))}
-                  >
-                    ↑
-                  </TextButton>
-                  <TextButton
-                    aria-label={`Move ${party.label} down`}
-                    disabled={after?.kind !== party.kind}
-                    onClick={() => edit((draft) => moveParty(draft, party.id, 1))}
-                  >
-                    ↓
-                  </TextButton>
-                  <TextButton
-                    aria-label={`Remove ${party.label}`}
-                    onClick={() =>
-                      n === 0 ? edit((draft) => removeParty(draft, party.id, { kind: "none" })) : setRemoving(party)
-                    }
-                  >
-                    ✕
-                  </TextButton>
-                </span>
-              ) : null}
+            <li key={party.id} className={styles.line}>
+              {tone}
+              <span className={styles.name}>{party.label || "Unnamed party"}</span>
+              <span className={styles.kind}>{kindWords(party)}</span>
+              <span className={styles.number}>{fieldsWord(n)}</span>
+              {edit ? <IconButton icon="edit" label={`Edit ${party.label || "party"}`} onClick={() => setEditingId(party.id)} /> : null}
             </li>
           );
         })}
         {sender > 0 ? (
-          <li>
+          <li className={styles.line}>
             <span className={`${fieldStyles.dot} ${fieldStyles.sender}`} aria-hidden="true" />
-            <span className={fieldStyles.label}>Filled in before sending</span>
-            <span className={fieldStyles.count}>{`${sender} ${sender === 1 ? "field" : "fields"}`}</span>
+            <span className={styles.name}>Filled in before sending</span>
+            <span className={styles.number}>{fieldsWord(sender)}</span>
           </li>
         ) : null}
       </ul>
-      {edit && !adding ? (
-        parties.length < MAX_PARTIES ? (
-          <TextButton onClick={() => setAdding(true)}>+ Add party</TextButton>
-        ) : null
-      ) : null}
       {edit && adding ? (
         <NewParty
           onAdd={(party) => {
@@ -124,6 +112,11 @@ export function PartyList({
           onCancel={() => setAdding(false)}
         />
       ) : null}
+      {edit && !adding && parties.length < MAX_PARTIES ? (
+        <div>
+          <TextButton onClick={() => setAdding(true)}>+ Add party</TextButton>
+        </div>
+      ) : null}
       {edit && removing ? (
         <RemoveParty
           party={removing}
@@ -132,6 +125,7 @@ export function PartyList({
           onRemove={(fate) => {
             edit((draft) => removeParty(draft, removing.id, fate));
             setRemoving(null);
+            setEditingId(null);
           }}
           onCancel={() => setRemoving(null)}
         />
@@ -150,7 +144,61 @@ const SIGNS_LIKE = [
   { value: "countersigner", label: "Signs like a countersigner" },
 ];
 
-/** A party's name and kind; Other is typed words on one of the two ways of signing (§3). */
+/** A party's name and kind, changed as you type (one undo step per box). */
+function PartyEditor({ party, edit }: { party: DraftParty; edit: Edit }) {
+  const [other, setOther] = useState(party.kind_label !== null);
+  return (
+    <>
+      <TextField
+        label="Name"
+        required
+        maxLength={80}
+        value={party.label}
+        onChange={(event) => {
+          const label = event.target.value;
+          edit((draft) => updateParty(draft, party.id, { label }), `party-label:${party.id}`);
+        }}
+      />
+      <Select
+        label="Kind"
+        options={KINDS}
+        value={other ? "other" : party.kind}
+        onChange={(value) => {
+          if (value === "other") {
+            setOther(true);
+            edit((draft) => updateParty(draft, party.id, { kind_label: party.kind_label ?? "" }));
+          } else {
+            setOther(false);
+            edit((draft) => updateParty(draft, party.id, { kind: value as PartyKind, kind_label: null }));
+          }
+        }}
+      />
+      {other ? (
+        <>
+          <TextField
+            label="Kind, in your words"
+            hint="Witness, Guarantor…"
+            required
+            maxLength={40}
+            value={party.kind_label ?? ""}
+            onChange={(event) => {
+              const kind_label = event.target.value;
+              edit((draft) => updateParty(draft, party.id, { kind_label }), `party-kind:${party.id}`);
+            }}
+          />
+          <Select
+            label="When they sign"
+            options={SIGNS_LIKE}
+            value={party.kind}
+            onChange={(value) => edit((draft) => updateParty(draft, party.id, { kind: value as PartyKind }))}
+          />
+        </>
+      ) : null}
+    </>
+  );
+}
+
+/** A new party's name and kind; Other is typed words on one of the two ways of signing (§3). */
 export function NewParty({
   onAdd,
   onCancel,

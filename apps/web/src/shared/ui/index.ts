@@ -1,4 +1,5 @@
 /** Design-system components (single source of styling; backbone LLD §8.6). */
+export { ActionBar } from "./ActionBar";
 export { AppShell, TopBar, type AppShellProps, type NavItem } from "./AppShell";
 export { AuthPanel, type AuthPanelProps } from "./AuthPanel";
 export {
@@ -25,6 +26,7 @@ export {
 } from "./Display";
 export { Dialog } from "./Dialog";
 export { Dropzone } from "./Dropzone";
+export { ExpandableList, ExpandableRow } from "./Expandable";
 export { EmailField, type EmailFieldProps } from "./EmailField";
 export { SearchField, TextArea, TextField } from "./Field";
 export { Icon, type IconName } from "./Icon";

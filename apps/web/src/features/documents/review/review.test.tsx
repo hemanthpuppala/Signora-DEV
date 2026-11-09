@@ -164,9 +164,10 @@ describe("field review", () => {
     state = { document: documentWith([version(1)]), fields: { "v-1": fieldsView() } };
   };
   const chooseField = async (label: string) => {
-    const list = await screen.findByRole("listbox", { name: "Fields" });
-    await userEvent.click(within(list).getByText(label));
+    const list = await screen.findByRole("list", { name: "Fields" });
+    await userEvent.click(within(list).getByRole("button", { name: label }));
   };
+  const bar = () => screen.getByRole("region", { name: "Review" });
 
   it("edits a field, saves it in place, and approves only what is saved", async () => {
     inReview();
@@ -177,17 +178,16 @@ describe("field review", () => {
     open();
     const user = userEvent.setup();
     await chooseField("Company");
-    const form = screen.getByRole("region", { name: "Edit Company" });
+    const form = screen.getByRole("region", { name: "Details of Company" });
     expect(within(form).getByText("Needs a look: not sure who fills it. Any change clears this.")).toBeTruthy();
 
     const label = within(form).getByLabelText("Label");
     await user.clear(label);
     await user.type(label, "Company name");
-    expect(screen.getByText("1 unsaved change")).toBeTruthy(); // typing is one change
-    expect((screen.getByRole("button", { name: "Approve version" }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText("Save your changes to approve them.")).toBeTruthy();
+    expect(within(bar()).getByText("1 unsaved change")).toBeTruthy(); // typing is one change
+    expect(within(bar()).queryByRole("button", { name: "Approve version" })).toBeNull(); // saved first
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(within(bar()).getByRole("button", { name: "Save" }));
     const [saved] = sentTo("PUT /api/v1/documents/doc-1/versions/v-1/fields");
     expect(saved?.body).toMatchObject({
       revision: 0,
@@ -199,7 +199,7 @@ describe("field review", () => {
     });
     // Reloaded at revision 1 with nothing to check: Approve is open.
     await waitFor(() => expect(screen.queryByText(/unsaved change/)).toBeNull());
-    expect((screen.getByRole("button", { name: "Approve version" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(within(bar()).getByRole("button", { name: "Approve version" })).toBeTruthy();
   });
 
   it("undoes and discards unsaved changes", async () => {
@@ -242,7 +242,7 @@ describe("field review", () => {
     refuse = "invalid";
     await user.click(screen.getByRole("button", { name: "Save" }));
     await user.click(await screen.findByRole("button", { name: "Company: The box must stay on its page" }));
-    expect(screen.getByRole("region", { name: "Edit Company" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Details of Company" })).toBeTruthy();
   });
 
   it("approves after listing the things to check, with the revision and the warnings seen", async () => {
@@ -256,9 +256,10 @@ describe("field review", () => {
     };
     open();
     const user = userEvent.setup();
-    const check = await screen.findByRole("region", { name: "Things to check" });
+    const check = await screen.findByRole("list", { name: "Things to check" });
     expect(within(check).getByText("1 field needs a look; approving accepts them as found")).toBeTruthy();
-    expect(screen.getByText("1 thing to check")).toBeTruthy();
+    expect(within(bar()).getByText("1 thing to check")).toBeTruthy();
+    expect(within(bar()).getByText("Needs approval")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Approve version" }));
     const dialog = screen.getByRole("dialog", { name: "Approve version 1?" });
@@ -266,7 +267,8 @@ describe("field review", () => {
     await user.click(within(dialog).getByRole("button", { name: "Approve anyway" }));
 
     expect(sentTo("POST /api/v1/documents/doc-1/versions/v-1/approve")[0]?.body).toEqual({ revision: 0, accepted: ["needs_a_look"] });
-    expect(await screen.findByText("Approved: its fields are frozen.")).toBeTruthy();
+    await waitFor(() => expect(within(bar()).getByText(/^Approved by Rosa Hale on /)).toBeTruthy());
+    expect(within(bar()).getByRole("button", { name: "Edit fields" })).toBeTruthy();
   });
 
   it("edits an approved version into the next version, sent once", async () => {
@@ -290,17 +292,17 @@ describe("field review", () => {
     open();
     const user = userEvent.setup();
     await chooseField("Company");
-    expect(screen.queryByRole("region", { name: "Edit Company" })).toBeNull(); // frozen until Edit fields
-    await user.click(screen.getByRole("button", { name: "Edit fields" }));
-    expect(screen.getByText("Saving makes version 2. Version 1 stays approved as it is.")).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Edit Company" })).toBeTruthy(); // the chosen field, now editable
+    expect(screen.queryByLabelText("Label")).toBeNull(); // frozen until Edit fields: details as text
+    await user.click(within(bar()).getByRole("button", { name: "Edit fields" }));
+    expect(within(bar()).getByText("Saving makes version 2; version 1 stays as it is")).toBeTruthy();
+    expect(screen.getByLabelText("Label")).toBeTruthy(); // the open field, now editable
     await user.click(screen.getByLabelText("Required"));
-    await user.click(screen.getByRole("button", { name: "Save as version 2" }));
+    await user.click(within(bar()).getByRole("button", { name: "Save as version 2" }));
 
     const [revised] = sentTo("POST /api/v1/documents/doc-1/versions/v-1/revisions");
     expect(revised?.key).toBeTruthy();
     expect(revised?.body).toMatchObject({ revision: 0, fields: [{ id: "f-sign" }, { id: "f-company", required: false }] });
-    expect(await screen.findByText("Fields · version 2")).toBeTruthy(); // the new version opens
+    await waitFor(() => expect(within(bar()).getByText("Version 2")).toBeTruthy()); // the new version opens
     expect(screen.getByText(/from version 1/)).toBeTruthy();
   });
 
@@ -308,20 +310,23 @@ describe("field review", () => {
     inReview();
     open();
     const user = userEvent.setup();
-    await screen.findByRole("listbox", { name: "Fields" });
+    await screen.findByRole("list", { name: "Fields" });
     await user.click(screen.getByRole("button", { name: "+ Add party" }));
     const form = screen.getByRole("form", { name: "New party" });
     await user.type(within(form).getByLabelText("Name"), "Guarantor");
     await user.click(within(form).getByRole("button", { name: "Add party" }));
-    expect(screen.getByLabelText("Name of Guarantor")).toBeTruthy();
+    const parties = screen.getByRole("list", { name: "Who signs" });
+    expect(within(parties).getByText("Guarantor")).toBeTruthy();
 
-    await user.click(screen.getByRole("button", { name: "Remove Client" }));
+    await user.click(within(parties).getByRole("button", { name: "Edit Client" }));
+    expect(within(parties).getByLabelText("Name")).toHaveProperty("value", "Client");
+    await user.click(within(parties).getByRole("button", { name: "Remove" }));
     const dialog = screen.getByRole("dialog", { name: "Remove Client?" });
     expect(within(dialog).getByText("What happens to their 1 field?")).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "Remove party" }));
-    expect(screen.queryByLabelText("Name of Client")).toBeNull();
+    expect(within(parties).queryByText("Client")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(within(bar()).getByRole("button", { name: "Save" }));
     const body = sentTo("PUT /api/v1/documents/doc-1/versions/v-1/fields")[0]?.body as {
       parties: { id: string; label: string }[];
       fields: { party_id: string | null }[];
@@ -334,16 +339,18 @@ describe("field review", () => {
     inReview();
     open();
     const user = userEvent.setup();
-    await screen.findByRole("listbox", { name: "Fields" });
-    await user.click(screen.getByRole("button", { name: "+ Add field" }));
-    await user.click(screen.getByRole("button", { name: "Signature" }));
-    expect(screen.getByText("Click on a page to place a Signature, or drag to draw it")).toBeTruthy();
+    await screen.findByRole("list", { name: "Fields" });
+    await user.click(screen.getByRole("button", { name: "Add field" })); // the list's first row
+    const row = screen.getByRole("region", { name: "New field" });
+    expect(within(row).getByRole("combobox", { name: "Type" }).textContent).toContain("Signature · Signing"); // one dropdown
+    await user.click(within(row).getByRole("button", { name: "Place on the page" }));
+    expect(screen.getAllByText("Click where the signature goes, or drag to draw it")).toHaveLength(2); // row and viewer
 
     const layer = document.querySelector('[data-page="1"] [data-layer="fields"]') as HTMLElement;
     fireEvent.pointerDown(layer, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
     fireEvent.pointerUp(layer, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
 
-    const form = await screen.findByRole("region", { name: "Edit Signature" });
+    const form = await screen.findByRole("region", { name: "Details of Signature" });
     expect((within(form).getByLabelText("Width") as HTMLInputElement).value).toBe("180"); // the default size
     const left = Number((within(form).getByLabelText("Left") as HTMLInputElement).value);
     (document.activeElement as HTMLElement | null)?.blur();
@@ -354,7 +361,26 @@ describe("field review", () => {
     await user.keyboard("{Delete}");
     const ask = screen.getByRole("dialog", { name: "Delete Signature?" });
     await user.click(within(ask).getByRole("button", { name: "Delete field" }));
-    expect(screen.queryByRole("region", { name: "Edit Signature" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Details of Signature" })).toBeNull();
+  });
+
+  it("a party with no place to sign gets one from its warning", async () => {
+    inReview();
+    state.fields["v-1"] = fieldsView({
+      warnings: [{ code: "party_cannot_sign", message: "Client has no place to sign", party_id: "party-client" }],
+    });
+    open();
+    const user = userEvent.setup();
+    const check = await screen.findByRole("list", { name: "Things to check" });
+    await user.click(within(check).getByRole("button", { name: "Add signature" }));
+    expect(screen.getAllByText("Click where the signature goes, or drag to draw it").length).toBeGreaterThan(0);
+
+    const layer = document.querySelector('[data-page="2"] [data-layer="fields"]') as HTMLElement;
+    fireEvent.pointerDown(layer, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
+    fireEvent.pointerUp(layer, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
+
+    const form = await screen.findByRole("region", { name: "Details of Client signature" });
+    expect(within(form).getByRole("combobox", { name: "Who fills it" }).textContent).toContain("Client"); // the party named
   });
 
   it("asks before leaving with unsaved changes", async () => {
@@ -380,16 +406,16 @@ describe("field review", () => {
     };
     open();
     const user = userEvent.setup();
-    await screen.findByText("Fields · version 1");
+    await within(await screen.findByRole("region", { name: "Review" })).findByText("Version 1");
     await user.click(screen.getByRole("button", { name: "Open" }));
-    await screen.findByText("Fields · version 2");
+    await waitFor(() => expect(within(bar()).getByText("Version 2")).toBeTruthy());
     await chooseField("Company");
     await user.click(screen.getByLabelText("Required"));
     await user.click(screen.getByRole("button", { name: "Back to the current version" }));
 
     const dialog = screen.getByRole("dialog", { name: "Discard 1 unsaved change?" });
     await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
-    expect(screen.getByText("Fields · version 2")).toBeTruthy();
+    expect(within(bar()).getByText("Version 2")).toBeTruthy();
   });
 
   it("gives read-only members the fields without any way to change them", async () => {
@@ -397,10 +423,11 @@ describe("field review", () => {
     state.document = documentWith([version(1)], { access: "read" });
     open();
     await chooseField("Company");
-    expect(screen.queryByRole("region", { name: "Edit Company" })).toBeNull();
-    expect(screen.getByRole("region", { name: "More about Company" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Details of Company" })).toBeTruthy();
+    expect(screen.queryByLabelText("Label")).toBeNull();
     expect(screen.queryByRole("button", { name: "Approve version" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "+ Add field" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add field" })).toBeNull();
     expect(screen.queryByRole("button", { name: "+ Add party" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit Client" })).toBeNull();
   });
 });

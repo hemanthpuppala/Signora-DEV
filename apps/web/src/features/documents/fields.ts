@@ -28,6 +28,9 @@ export function useVersionFields(documentId: string, version: Version | undefine
       ),
     refetchInterval: (query) =>
       query.state.data?.status === "detecting" ? processingInterval([version?.created_at ?? ""]) : false,
+    // When the same version changes state (approved, fields found) its last fields stay on screen
+    // until the new ones arrive, so the panel never blinks; another version's never stand in.
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === version?.id ? previous : undefined),
   });
 }
 

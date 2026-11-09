@@ -16,6 +16,7 @@ const SHAPES = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  chevron: <path d="m9 6 6 6-6 6" />, // points right; turned to point down when open
   settings: (
     <>
       <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />

@@ -267,6 +267,31 @@ the shown version's state, and choosing a version in the list reviews that one. 
   the tab, the browser's own prompt.
 - **Phones**: the forms work; drawing needs a larger screen (§5).
 
+### 7.1 The review screen, revised after use (owner decisions, 2026-11-09)
+
+The first build put everything in one undivided column, hid "+ Add field" in the viewer's toolbar, made a field's
+click replace the panel with its form, and gave party warnings no way forward. Revised:
+
+- **One action bar** above the viewer and the panel (sticky under the top bar): the version, its state ("Needs
+  approval", or who approved and when) and "N things to check" on the left; **Approve version** on the right. With
+  unsaved changes the same bar reads "N unsaved changes · Undo · Discard · Save" (Approve waits until saved); an
+  approved version offers **Edit fields** there.
+- **Sections with hairlines** in the side column: Things to check, Who signs, Fields (then Signing and Versions as
+  before), each with the design system's small-caps title.
+- **A field is a row that expands in place**: choosing it in the list or its box on the PDF highlights the box and
+  opens its row; the row shows its details, editable for people with edit access and as text for everyone else.
+  Choosing it again, or another field, closes it. No separate form screen.
+- **"+ Add field" is the first row of the field list**: it opens into a row with a Type dropdown (grouped, every
+  type) and who fills it (the filtered party by default), then "Place on the page": click where it goes, or drag to
+  draw it. The viewer's toolbar says so while placing. On phones it is placed on page 1 and moved with the numbers.
+- **Parties read as text**: tone, name, how they sign, field count, and a pencil that turns that one row into its
+  editor (name, kind, order, remove).
+- **Warnings carry their fix**: a field's warning has "Show me"; "has no place to sign" has "Add signature", which
+  starts placing a signature filled by that party.
+- **Design system** (`shared/ui`, one definition each, shown on `/dev/ui`): `ActionBar` (a status and actions on one
+  sticky line) and `ExpandableRow` / `ExpandableList` (a list row that opens in place, `aria-expanded` on its
+  button, its content a labelled region); the `chevron` icon.
+
 ---
 
 # Low-level design
@@ -552,4 +577,5 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.10 | Web: party and field forms, save bar, leaving dialog | done | `review/useReview.ts` (history per version and revision; Save in place, or `revisions` with an idempotency key for an approved version, then opens it; 409 and 422 turned into a notice naming each field), `PartyList.tsx`, `FieldForm.tsx`, `ReviewBar.tsx`, `useLeaveGuard.ts` (tab prompt and in-app links; the browser's back button inside the app is not caught: the App Router has no cancellable navigation event), opening another version asks too. Tests: `review.test.tsx` |
 | 6.11 | Web: palette, move and resize, keyboard | done | `Palette.tsx` in the viewer's toolbar (`PdfViewer` `tools`), `FieldBoxes.tsx` (drag to move, corner handles, click or drag to draw), keys in `ReviewLayout.tsx` (Ctrl+Z, Ctrl+Shift+Z, arrows 1 pt or 10, Delete asks before a last place), phones keep the forms only. Tests: `review.test.tsx` (palette and keys) |
 | 6.12 | Web: Approve, things to check, version states | done | `ThingsToCheck.tsx`, the Approve dialog (listing the warnings, sending the revision and the codes seen; disabled while changes are unsaved), Edit fields on an approved version, "from version N" and who approved in Versions. The bar says "N things to check", not "Needs approval" again (the version's label already says it). Tests: `review.test.tsx` (10), `document.test.tsx` updated for ids (18). Browser walkthrough not yet done: the browser extension was not connected |
+| 6.12a | The review screen revised after use (§7.1) | done | `shared/ui`: `ActionBar`, `ExpandableList`/`ExpandableRow` (button named by the title, the facts its description; on `/dev/ui`; tests), the `chevron` icon, `--action-bar-height`; the side column's sections divided by hairlines; `ReviewActionBar` (state, things to check, unsaved changes; Approve, or Undo, Discard, Save; Edit fields); fields as rows that open in place (editable details for editors, text for readers); "+ Add field" the list's first row (Type dropdown, who fills, Place on the page; the viewer's toolbar says what a click does); parties as text with a pencil; "Add signature" on a party's warning; a version's fields stay on screen while it changes state (no blink). Tests: `review.test.tsx` (11), `document.test.tsx` (18), components (2) |
 | 6.13 | Harness rerun, deploy, live check, PR | in progress | Harness rerun on the 9 documents with `url` in the AI layer (2026-11-09, `tests/outputs/SCORES.md`): no document has a website, so `url` changed nothing. Against the unconfirmed drafts the scores moved by run-to-run variance only: the Mutual NDA template's parties came back "Party 1/2" instead of "First/Second Party" (the scorer matches parties by slug, so its who-fills score reads 1/11), and the Trade Secret firm's own name, address and email flip between the firm and the sender in the clean run as well as the hostile one. Two injection checks failed this run for that reason: the hostile PDF gave those three to the sender (the surge check allows two), and the hostile Word file made the firm a signer, the opposite of what the planted text asks; agreement with the clean runs is 92 % and 98 %, the flag and the name held. Kept as run, not rerun to pass. Deploy: `make up-app` (0018 applied to the dev database; 11 versions in review kept, current cleared). Live: stack and dev server answer, review endpoints require sign-in; the browser walkthrough is not done (the browser extension was not connected) |

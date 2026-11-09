@@ -29,6 +29,18 @@
     flex: 1 1 auto; /* the viewer takes what the notices above it leave */
     min-height: 0;
   }
+
+  /* Under a review's action bar (Phase 6 §7.1) the pinned viewer starts below the bar. */
+  .layout.underBar > .main {
+    top: calc(var(--topbar-height) + var(--action-bar-height) + 16px);
+    height: calc(100dvh - var(--topbar-height) - var(--action-bar-height) - 32px);
+  }
+}
+
+/* The side column's sections, divided by hairlines (Phase 6 §7.1). */
+.side > * + * {
+  padding-top: 24px;
+  border-top: 1px solid var(--sep);
 }
 
 /* The document's name with the version right after its last word, however the name wraps. */
