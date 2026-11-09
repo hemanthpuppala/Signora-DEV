@@ -372,7 +372,7 @@ def create_document(
     return get_document(session, actor.workspace_id, document_id), version_id
 
 
-def _lock_document(session: Session, actor: Actor, document_id: uuid.UUID) -> DocumentRow:
+def lock_document(session: Session, actor: Actor, document_id: uuid.UUID) -> DocumentRow:
     """The document under its row lock (version numbers, name changes), for changing."""
     locked = session.execute(
         text("SELECT id FROM documents WHERE id = :id AND workspace_id = :w FOR NO KEY UPDATE"),
@@ -396,7 +396,7 @@ def add_version(
     """The next version (processing). The same bytes as any version in the department are
     refused: they can only ever become a separate document (§2.3)."""
     session = uow.session
-    document = _lock_document(session, actor, document_id)
+    document = lock_document(session, actor, document_id)
     if document.archived_at is not None:
         raise DocumentArchived
     instructions = _valid_text("ai_instructions", ai_instructions, AI_INSTRUCTIONS_MAX)
@@ -430,7 +430,7 @@ def update_document(
 ) -> DocumentRow:
     """A person's change: their name or description is never replaced by the AI (topic 1)."""
     session = uow.session
-    current = _lock_document(session, actor, document_id)
+    current = lock_document(session, actor, document_id)
     if current.archived_at is not None:
         raise DocumentArchived
     assignments: list[str] = []
@@ -475,7 +475,7 @@ def update_document(
 def archive_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -> DocumentRow:
     """Repeat-safe: archiving an archived document returns it unchanged."""
     session = uow.session
-    _lock_document(session, actor, document_id)
+    lock_document(session, actor, document_id)
     changed = session.execute(
         text(
             "UPDATE documents SET archived_at = now(), archived_by = :u, updated_at = now() "
@@ -491,7 +491,7 @@ def archive_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -
 def restore_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -> DocumentRow:
     """Repeat-safe; ``409 document-name-taken`` when an active document now has the name."""
     session = uow.session
-    _lock_document(session, actor, document_id)
+    lock_document(session, actor, document_id)
     try:
         with session.begin_nested():
             changed = session.execute(
@@ -515,7 +515,7 @@ def restore_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -
 def changeable_version(
     session: Session, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> VersionRow:
-    document = _lock_document(session, actor, document_id)
+    document = lock_document(session, actor, document_id)
     if document.archived_at is not None:
         raise DocumentArchived
     return get_version(session, actor.workspace_id, document_id, version_id)

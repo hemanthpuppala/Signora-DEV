@@ -37,6 +37,7 @@ from signora.modules.documents.service import (
     audit,
     changeable_version,
     get_document,
+    lock_document,
     require_edit,
 )
 from signora.modules.identity_access import Actor
@@ -146,10 +147,14 @@ def version_for_review(
         document_id=row.document_id,
         version_no=row.version_no,
         status=row.status,
-        pages=[(float(page["width"]), float(page["height"])) for page in row.pages or []],
+        pages=_page_sizes(row.pages),
         name=row.name,
         description=row.description,
     )
+
+
+def _page_sizes(pages: list[dict[str, Any]] | None) -> list[tuple[float, float]]:
+    return [(float(page["width"]), float(page["height"])) for page in pages or []]
 
 
 def derived_name(source_name: str, source_no: int, source_derived: bool, version_no: int) -> str:
@@ -168,17 +173,21 @@ def derive_version(
     """The version an edit of an approved version becomes (Phase 6 §1.2): the next number, the
     same stored file and its facts (no upload, so no "already here" check), named after the source,
     with its description, recording where it came from, in review. Its fields are review's to
-    write. Numbered under the document's row lock, as an upload is."""
+    write. Numbered under the document's row lock, as an upload is; the document and the source
+    are each read once, and the new version is returned from what was written."""
     session = uow.session
-    changeable_version(session, actor, document_id, source_id)  # locks; edit access; not archived
-    document = get_document(session, actor.workspace_id, document_id)
+    document = lock_document(session, actor, document_id)  # the number's lock; edit access
+    if document.archived_at is not None:
+        raise DocumentArchived
     source = session.execute(
         text(
-            "SELECT version_no, status, name, description, derived_from_version_id "
-            "FROM document_versions WHERE id = :id"
+            "SELECT workspace_id, version_no, status, name, description, pages, "
+            "derived_from_version_id FROM document_versions WHERE id = :id AND document_id = :d"
         ),
-        {"id": source_id},
-    ).one()
+        {"id": source_id, "d": document_id},
+    ).one_or_none()
+    if source is None:
+        raise NotFound
     if source.status != "approved":
         raise VersionNotApproved
     version_no = document.latest_version_no + 1
@@ -210,7 +219,16 @@ def derive_version(
         derived_from=source.version_no,
         name=name,
     )
-    return version_for_review(session, actor, document_id, version_id, edit=True)
+    return VersionForReview(
+        id=version_id,
+        workspace_id=source.workspace_id,
+        document_id=document_id,
+        version_no=version_no,
+        status="ready",
+        pages=_page_sizes(source.pages),
+        name=name,
+        description=source.description,
+    )
 
 
 def record_field_count(uow: UnitOfWork, version_id: uuid.UUID, field_count: int) -> None:
