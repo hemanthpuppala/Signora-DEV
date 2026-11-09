@@ -4,5 +4,6 @@ Public interface — other modules import only from here.
 """
 
 from signora.modules.envelopes.routes import router
+from signora.modules.envelopes.store import count_sends
 
-__all__ = ["router"]
+__all__ = ["count_sends", "router"]

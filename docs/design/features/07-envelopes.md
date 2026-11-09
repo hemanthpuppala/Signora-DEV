@@ -137,6 +137,9 @@ The document's old `require_email_code` column and its PATCH field are removed i
 
 - **Envelopes** on the department page (a tab beside Documents): document, recipients, status, sent; filtered by
   status. Read-only members see none (platform §5.6: envelopes hold clients' details).
+- **Counts** on the department page and the home cards (Sent, Signed, Pending) are real: every send not withdrawn,
+  the completed ones, those in progress. Envelopes registers how it counts with departments (`provide_send_counts`,
+  like identity's member-removal hooks), so departments never imports envelopes.
 - **The envelope page**: an action bar (status, expiry; Remind now, Cancel envelope); the recipients (name, email,
   party, status, when, Copy signing link, Resend, Change email); a notice for any email not delivered, with Retry; the
   document as sent, with the sender's values in place; the timeline (from the audit chain).

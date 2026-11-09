@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from signora.modules.departments import SendCounts
 from signora.modules.envelopes.sending import Person, Plan, SettingsIn
 from signora.modules.envelopes.views import (
     Delivery,
@@ -283,3 +285,26 @@ def list_envelopes(
         )
         for row in rows
     ]
+
+
+def count_sends(
+    session: Session, workspace_id: uuid.UUID, department_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, SendCounts]:
+    """Each department's sends (departments.sends): every send not withdrawn, the completed ones,
+    and those still in progress. One grouped query over the list's index."""
+    if not department_ids:
+        return {}
+    rows = session.execute(
+        text(
+            "SELECT department_id, count(*) FILTER (WHERE status <> 'cancelled') AS sent, "
+            "count(*) FILTER (WHERE status = 'completed') AS signed, "
+            "count(*) FILTER (WHERE status IN ('sent', 'opened', 'viewed', 'signed')) AS pending "
+            "FROM envelopes WHERE workspace_id = :w AND department_id = ANY(:ids) "
+            "GROUP BY department_id"
+        ),
+        {"w": workspace_id, "ids": list(department_ids)},
+    )
+    return {
+        row.department_id: SendCounts(sent=row.sent, signed=row.signed, pending=row.pending)
+        for row in rows
+    }

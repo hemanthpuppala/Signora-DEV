@@ -154,6 +154,7 @@ def create_app(
     # removal's own transaction.
     identity_access.on_member_removed(departments.drop_removed_member)
     identity_access.on_member_removed(departments.revoke_removed_member)
+    departments.provide_send_counts(envelopes.count_sends)
     return app
 
 

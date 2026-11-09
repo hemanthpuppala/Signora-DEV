@@ -169,6 +169,7 @@ protected_modules = [
     "signora.modules.departments.errors",
     "signora.modules.departments.models",
     "signora.modules.departments.routes",
+    "signora.modules.departments.sends",
     "signora.modules.departments.service",
 ]
 allowed_importers = ["signora.modules.departments", "signora.models", "signora.handlers"]

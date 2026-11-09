@@ -43,6 +43,10 @@ def test_the_list_is_newest_first_with_its_signers_filtered_and_paged(
     assert (newest["signers"], newest["signed"], newest["status"]) == (["Cy"], 0, "sent")
     cancelled = owner.get(listing, params={"status": "cancelled"}).json()["envelopes"]
     assert [e["id"] for e in cancelled] == [ids[0]]
+    counts = owner.get(f"{DEPARTMENTS}/{doc.department_id}").json()["counts"]
+    assert counts == {"sent": 2, "signed": 0, "pending": 2}  # a withdrawn send is not counted
+    home = {d["id"]: d["counts"] for d in owner.get(DEPARTMENTS).json()}
+    assert home[doc.department_id] == counts
 
     monkeypatch.setattr(store, "PAGE", 2)
     first = owner.get(listing).json()
