@@ -9,6 +9,7 @@ import { Button, Dialog, Notice, StatusPill, TextButton } from "@/shared/ui";
 
 import { documentKey, formatBytes, hasWorkingCopy, type DocumentDetail, type Version } from "./api";
 import styles from "./document.module.css";
+import { VersionLabel } from "./VersionLabel";
 import { VERSION_STATUS } from "./status";
 
 const dateTime = (iso: string) =>
@@ -70,7 +71,9 @@ export function Versions({
           return (
             <li key={version.id} className={styles.version}>
               <div className={styles.versionHead}>
-                <span className={styles.number}>{`v${version.number}${version.is_current ? " · Current" : ""}`}</span>
+                <span className={styles.number}>
+                  <VersionLabel number={version.number} current={version.is_current} />
+                </span>
                 <StatusPill status={status.pill} label={status.label} />
               </div>
               <span className={styles.detail}>

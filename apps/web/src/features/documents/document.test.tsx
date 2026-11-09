@@ -121,7 +121,8 @@ describe("document page", () => {
     expect(await screen.findByRole("heading", { name: "Engagement letter" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Engagement letter, version 2" })).toBeTruthy();
     const versions = screen.getByRole("list", { name: "Versions" });
-    expect(within(versions).getByText("v2 · Current")).toBeTruthy();
+    expect(within(versions).getByText("V2")).toBeTruthy();
+    expect(within(versions).getAllByRole("img", { name: "Current" })).toHaveLength(1); // a star on the current one only
     expect(within(versions).getAllByText("Download original")).toHaveLength(2);
     expect(within(versions).getAllByRole("button", { name: "Open" })).toHaveLength(1); // v1 only
   });
@@ -181,6 +182,8 @@ describe("document page", () => {
     await screen.findByRole("heading", { name: "Engagement letter" });
 
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    // the way back is the "Document" eyebrow itself, so everyone has it
+    expect(screen.getByRole("link", { name: /^Document: back to the department/ }).getAttribute("href")).toBe("/departments/d-1");
     expect(screen.queryByRole("button", { name: "Make current" })).toBeNull();
     expect(screen.queryByRole("region", { name: "New version" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Archive document" })).toBeNull();

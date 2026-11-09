@@ -47,6 +47,7 @@
 
 .headTitle {
   display: flex;
+  flex: 1 1 auto; /* fills the row, so a line inside it can put something at its end */
   flex-direction: column;
   gap: 12px;
   min-width: 0;

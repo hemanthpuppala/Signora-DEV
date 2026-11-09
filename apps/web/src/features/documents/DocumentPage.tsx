@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
@@ -12,7 +13,6 @@ import {
   Eyebrow,
   HeadRow,
   Heading1,
-  LinkButton,
   Notice,
   PdfViewer,
   RowActions,
@@ -28,6 +28,7 @@ import { documentKey, hasWorkingCopy, useDocument, type DocumentDetail } from ".
 import styles from "./document.module.css";
 import { FieldBoxes, type Selection } from "./FieldBoxes";
 import { useVersionFields, type VersionFields } from "./fields";
+import { VersionLabel } from "./VersionLabel";
 import { FieldsPanel } from "./FieldsPanel";
 import { NewVersion } from "./NewVersion";
 import { Versions } from "./Versions";
@@ -97,21 +98,20 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
 
   return (
     <>
-      <HeadRow
-        actions={
-          <>
-            {canEdit && !editing ? (
-              <Button variant="quiet" onClick={() => setEditing(true)}>
-                Edit
-              </Button>
-            ) : null}
-            <LinkButton href={back} variant="quiet">
-              Back
-            </LinkButton>
-          </>
-        }
-      >
-        <Eyebrow>Document</Eyebrow>
+      <HeadRow>
+        {/* The way back and Edit share the eyebrow's line, so the title block is one line shorter. */}
+        <div className={styles.topLine}>
+          <Eyebrow>
+            <Link href={back} className={styles.back} aria-label="Document: back to the department">
+              <span aria-hidden="true">‹</span> Document
+            </Link>
+          </Eyebrow>
+          {canEdit && !editing ? (
+            <Button variant="quiet" compact onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          ) : null}
+        </div>
         <Heading1>{data.name}</Heading1>
         {data.description && !editing ? <ClampedText>{data.description}</ClampedText> : null}
       </HeadRow>
@@ -138,7 +138,7 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
           {shown ? (
             <>
               <div className={styles.caption}>
-                <span>{`Version ${shown.number}${shown.is_current ? " · Current" : ""}`}</span>
+                <VersionLabel number={shown.number} current={shown.is_current} />
                 {shown.id !== data.current_version?.id && data.current_version ? (
                   <TextButton onClick={() => setViewing(null)}>Back to the current version</TextButton>
                 ) : null}
