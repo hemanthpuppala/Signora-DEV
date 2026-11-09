@@ -174,3 +174,28 @@ def risky_pdf() -> bytes:
     data = document.tobytes()
     document.close()
     return bytes(data)
+
+
+def links_reaching_outside() -> bytes:
+    """Links whose actions reach outside the document in ways a top-level check misses: a link
+    that opens another file (/GoToR), a safe link with a launch chained after it (/Next), and a
+    link whose action is its own object (an indirect /A). An ordinary link stays alongside."""
+    document = pymupdf.open()
+    page = document.new_page()
+    link_annot = pymupdf.PDF_ANNOT_LINK  # type: ignore[attr-defined]
+    actions = (
+        "<</S/GoToR/F(\\\\\\\\host\\\\share\\\\x.pdf)/D[0/Fit]>>",
+        "<</S/URI/URI(https://example.com)/Next<</S/Launch/F(cmd.exe)>>>>",
+        None,  # an indirect action object, below
+        "<</S/URI/URI(https://example.org)>>",
+    )
+    indirect = document.get_new_xref()
+    document.update_object(indirect, "<</S/Launch/F(calc.exe)>>")
+    for index, action in enumerate(actions):
+        top = 100 + index * 40
+        page.insert_link(
+            {"kind": pymupdf.LINK_URI, "from": pymupdf.Rect(72, top, 200, top + 20), "uri": "x"}
+        )
+        xref = [x for x, kind, *_ in page.annot_xrefs() if kind == link_annot][-1]
+        document.xref_set_key(xref, "A", action or f"{indirect} 0 R")
+    return bytes(document.tobytes())

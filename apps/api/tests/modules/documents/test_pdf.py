@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 
 import pymupdf
@@ -18,11 +19,26 @@ from signora.modules.documents.pdf import (
 from tests.support.files import (
     encrypted_pdf,
     form_with_scripts,
+    links_reaching_outside,
     pdf_bytes,
     pdf_with_scan,
     pdf_with_signature_block,
     risky_pdf,
 )
+
+
+def test_no_link_reaches_outside_the_document_however_it_is_written() -> None:
+    """Review fix: a link opening another file (/GoToR), a launch chained after a safe link
+    (/Next) and a launch kept as its own object all survived the working copy."""
+    working = prepare(links_reaching_outside(), max_pages=200).pdf
+    with pymupdf.open(stream=working, filetype="pdf") as document:
+        objects = " ".join(document.xref_object(x) for x in range(1, document.xref_length()))
+        assert "/Launch" not in objects
+        assert "/GoToR" not in objects
+        # No chain left: "/Next null" is the same as no entry.
+        assert re.search(r"/Next\s*(<<|\[|\d+ 0 R)", objects) is None
+        uris = [link.get("uri") for link in document.load_page(0).get_links()]
+        assert "https://example.org" in uris  # an ordinary link stays
 
 
 def test_pages_are_measured_as_displayed() -> None:
