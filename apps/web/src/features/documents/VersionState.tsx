@@ -10,9 +10,9 @@ import { Button, FieldAction, FieldGrid, Notice, TextField } from "@/shared/ui";
 import { documentKey, type DocumentDetail, type Version } from "./api";
 
 /**
- * Why a version is not ready, and what the person can do (Phase 4 LLD §6.4): wait while it
- * processes, enter the PDF's password (only in that state), try again after a passing failure, or
- * read which pages are scans.
+ * Why a version stopped before ready, and what the person can do (Phase 4 LLD §6.4): enter the
+ * PDF's password (only in that state), try again after a passing failure, or read which pages are
+ * scans. While it is on its way, ``VersionProgress`` shows its steps instead.
  */
 export function VersionState({
   document,
@@ -32,9 +32,6 @@ export function VersionState({
   });
   const label = `Version ${version.number}`;
 
-  if (version.status === "processing") {
-    return <Notice title={label}>Processing… This page updates by itself.</Notice>;
-  }
   if (version.status === "needs_password") {
     return (
       <Notice title={label}>

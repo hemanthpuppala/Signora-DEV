@@ -240,6 +240,30 @@
 
 .selected {
   box-shadow: inset 2px 0 0 var(--ink);
+  animation: chosenRow 0.9s ease-out 1; /* brightens, then settles: where the eye should land */
+}
+
+@keyframes chosenRow {
+  from {
+    background: var(--r15);
+  }
+  to {
+    background: var(--r05);
+  }
+}
+
+.item {
+  transition: background 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selected {
+    animation: none;
+  }
+
+  .item {
+    transition: none;
+  }
 }
 
 .details {

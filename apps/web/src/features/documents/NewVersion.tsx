@@ -1,32 +1,47 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError, formError } from "@/shared/api/errors";
-import { Button, Dropzone, Notice, TextArea, TextButton } from "@/shared/ui";
 
-import { documentKey, formatBytes, uploadFile, type DocumentDetail, type Upload } from "./api";
-import styles from "./document.module.css";
+import { documentKey, formatBytes, uploadFile } from "./api";
 import { useDocumentLimits } from "./limits";
 
-type State =
-  | { step: "idle" }
-  | { step: "uploading"; file: File; progress: number }
-  | { step: "ready"; file: File; upload: Upload; key: string }
-  | { step: "adding"; file: File; upload: Upload; key: string };
+/** A file on its way up, before it is a version. */
+export type Uploading = { name: string; progress: number };
 
 /**
- * Upload a new version (Phase 4 LLD §6.4). A file identical to any version in the department is
- * never a version (§2.3): the person is told where it already is.
+ * Add a new version straight from a file (Phase 4 LLD §6.4): upload it, then add it, with no form
+ * in between; the version's own status carries on from there. A file identical to any version in
+ * the department is never a version (§2.3): the person is told where it already is.
  */
-export function NewVersion({ document }: { document: DocumentDetail }) {
+export function useNewVersion(departmentId: string, documentId: string) {
   const queryClient = useQueryClient();
   const limits = useDocumentLimits();
-  const [state, setState] = useState<State>({ step: "idle" });
-  const [instructions, setInstructions] = useState("");
+  const [uploading, setUploading] = useState<Uploading | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+
+  const add = async (file: File) => {
+    const upload = await uploadFile(departmentId, file, (progress) => setUploading({ name: file.name, progress }));
+    if (upload.duplicate) {
+      const where = upload.duplicate;
+      setProblem(
+        `This file is already here as ${where.document_name}${where.archived ? " (archived)" : ""}, version ${where.version_number}. It can only be added as a separate document.`,
+      );
+      return;
+    }
+    const updated = await unwrap(
+      api.POST("/api/v1/documents/{document_id}/versions", {
+        params: { path: { document_id: documentId } },
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+        body: { upload_id: upload.id, ai_instructions: "" },
+      }),
+    );
+    queryClient.setQueryData(documentKey(documentId), updated);
+    void queryClient.invalidateQueries({ queryKey: ["documents"] });
+  };
 
   const start = (file: File) => {
     setProblem(null);
@@ -34,77 +49,11 @@ export function NewVersion({ document }: { document: DocumentDetail }) {
       setProblem(`Upload a file of ${formatBytes(limits.maxBytes)} or less`);
       return;
     }
-    setState({ step: "uploading", file, progress: 0 });
-    uploadFile(document.department_id, file, (progress) =>
-      setState((current) => (current.step === "uploading" ? { ...current, progress } : current)),
-    )
-      .then((upload) => {
-        if (upload.duplicate) {
-          const where = upload.duplicate;
-          setState({ step: "idle" });
-          setProblem(
-            `This file is already here as ${where.document_name}${where.archived ? " (archived)" : ""}, version ${where.version_number}. It can only be added as a separate document.`,
-          );
-          return;
-        }
-        setState({ step: "ready", file, upload, key: crypto.randomUUID() });
-      })
-      .catch((error: unknown) => {
-        setState({ step: "idle" });
-        setProblem(error instanceof ApiError ? error.problem.title : formError(error));
-      });
+    setUploading({ name: file.name, progress: 0 });
+    add(file)
+      .catch((error: unknown) => setProblem(error instanceof ApiError ? error.problem.title : formError(error)))
+      .finally(() => setUploading(null));
   };
 
-  const add = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (state.step !== "ready") return;
-    setState({ ...state, step: "adding" });
-    unwrap(
-      api.POST("/api/v1/documents/{document_id}/versions", {
-        params: { path: { document_id: document.id } },
-        headers: { "Idempotency-Key": state.key },
-        body: { upload_id: state.upload.id, ai_instructions: instructions },
-      }),
-    )
-      .then((updated) => {
-        queryClient.setQueryData(documentKey(document.id), updated);
-        void queryClient.invalidateQueries({ queryKey: ["documents"] });
-        setState({ step: "idle" });
-        setInstructions("");
-      })
-      .catch((error: unknown) => {
-        setState({ ...state, step: "ready" });
-        setProblem(formError(error));
-      });
-  };
-
-  return (
-    <div className={styles.stack}>
-      {problem ? <Notice tone="warning">{problem}</Notice> : null}
-      {state.step === "idle" ? (
-        <Dropzone title="Drop the new version" hint={limits.hint} accept=".pdf,.docx" onFile={start} />
-      ) : null}
-      {state.step === "uploading" ? (
-        <progress value={state.progress} max={1} aria-label={`Uploading ${state.file.name}`} />
-      ) : null}
-      {state.step === "ready" || state.step === "adding" ? (
-        <form onSubmit={add} noValidate className={styles.stack}>
-          <span className={styles.detail}>{state.file.name}</span>
-          <TextArea
-            label="Instructions for the AI"
-            hint="Optional. What changed, or what to look for."
-            maxLength={1000}
-            value={instructions}
-            onChange={(event) => setInstructions(event.target.value)}
-          />
-          <div className={styles.links}>
-            <Button type="submit" loading={state.step === "adding"} loadingLabel="Adding…">
-              Add version
-            </Button>
-            <TextButton onClick={() => setState({ step: "idle" })}>Cancel</TextButton>
-          </div>
-        </form>
-      ) : null}
-    </div>
-  );
+  return { start, uploading, problem };
 }

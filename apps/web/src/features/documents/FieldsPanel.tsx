@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
-import { Notice, SmallText, TextButton, TextField } from "@/shared/ui";
+import { Notice, SearchField, SmallText, TextButton } from "@/shared/ui";
 
 import { HOLDS, toneOf, whoFills, type FieldView, type RoleView, type VersionFields } from "./fields";
 import type { Selection } from "./FieldBoxes";
@@ -13,6 +13,21 @@ const STEP_OF_STAGE: Record<string, number> = { read: 0, ai: 1, derive: 2, store
 
 type Filter = { kind: "all" } | { kind: "role"; slug: string } | { kind: "sender" };
 type Row = { key: string; field: FieldView; depth: number; under?: string };
+
+/**
+ * Scrolls a list just enough to show one of its rows, leaving the page where it is: smoothly,
+ * unless the person asked for less motion.
+ */
+function showWithin(list: HTMLElement, row: Element) {
+  const outer = list.getBoundingClientRect();
+  const inner = row.getBoundingClientRect();
+  const by = inner.top < outer.top ? inner.top - outer.top : inner.bottom > outer.bottom ? inner.bottom - outer.bottom : 0;
+  if (by === 0) return;
+  const top = list.scrollTop + by;
+  const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  if (typeof list.scrollTo === "function") list.scrollTo({ top, behavior: still ? "auto" : "smooth" });
+  else list.scrollTop = top;
+}
 
 function placesFound(view: VersionFields): string {
   const places = view.pending.reduce((sum, found) => sum + found.placements.length, 0);
@@ -50,6 +65,14 @@ export function FieldsPanel({
   const [search, setSearch] = useState("");
   const roles = view.roles;
   const byKey = useMemo(() => new Map(view.fields.map((field) => [field.key, field])), [view.fields]);
+  // A field chosen on the PDF (or with the keys) is brought into view in the list too.
+  const listRef = useRef<HTMLUListElement>(null);
+  const rowId = selected ? (selected.kind === "field" ? `field-${selected.key}` : `pending-${selected.id}`) : null;
+  useEffect(() => {
+    const list = listRef.current;
+    const row = rowId ? [...(list?.children ?? [])].find((child) => child.id === rowId) : undefined;
+    if (list && row) showWithin(list, row);
+  }, [rowId]);
 
   const rows = useMemo<Row[]>(() => {
     const query = search.trim().toLowerCase();
@@ -91,9 +114,9 @@ export function FieldsPanel({
           ))}
         </ol>
         {view.pending.length > 0 ? (
-          <ul className={styles.list} aria-label="Places found">
+          <ul ref={listRef} className={styles.list} aria-label="Places found">
             {view.pending.map((found) => (
-              <li key={found.id}>
+              <li key={found.id} id={`pending-${found.id}`}>
                 <button
                   type="button"
                   className={`${styles.item}${selected?.kind === "pending" && selected.id === found.id ? ` ${styles.selected}` : ""}`}
@@ -190,8 +213,9 @@ export function FieldsPanel({
               </FilterChip>
             ) : null}
           </div>
-          <TextField label="Find a field" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <SearchField label="Find a field" value={search} onChange={(event) => setSearch(event.target.value)} />
           <ul
+            ref={listRef}
             className={styles.list}
             role="listbox"
             aria-label="Fields"
@@ -215,6 +239,7 @@ export function FieldsPanel({
                   {[
                     whoFills(row.field, roles),
                     HOLDS[row.field.holds] ?? row.field.holds,
+                    row.field.required ? "Required" : "Optional",
                     row.field.placements.length > 1 ? `${row.field.placements.length} places` : null,
                     row.field.needs_review ? "Needs a look" : null,
                   ]
@@ -263,13 +288,12 @@ function FieldDetails({
 }) {
   const places = field.placements.length;
   const options = field.holds === "choice" ? field.placements : [];
+  const when = condition(field, byKey);
+  // The list's row already names the field and who fills it: this says only what the row can't.
+  if (!when && !field.sensitive && !field.needs_review && options.length === 0 && places <= 1) return null;
   return (
-    <section className={styles.details} aria-label={`About ${field.label}`} aria-live="polite">
-      <p className={styles.label}>{field.label}</p>
-      <SmallText>
-        {[whoFills(field, roles), HOLDS[field.holds] ?? field.holds, field.required ? "Required" : "Optional"].join(" · ")}
-      </SmallText>
-      {condition(field, byKey) ? <SmallText>{condition(field, byKey)}</SmallText> : null}
+    <section className={styles.details} aria-label={`More about ${field.label}`} aria-live="polite">
+      {when ? <SmallText>{when}</SmallText> : null}
       {field.sensitive ? (
         <SmallText>{`Private to ${whoFills(field, roles)}: shown to nobody else`}</SmallText>
       ) : null}
