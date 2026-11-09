@@ -20,7 +20,7 @@ from signora.kernel.jobs import JobRegistry, registry
 from signora.modules.detection import jobs as detection_jobs
 from signora.modules.detection import run as detection_run
 from signora.modules.detection.ai import AiError
-from signora.modules.detection.jobs import RUN, SUBSCRIBER
+from signora.modules.detection.jobs import SUBSCRIBER
 from signora.modules.detection.run import restart_run, settle_dead_run
 from signora.modules.documents import DocumentVersionProcessed, version_for_detection
 from tests.modules.documents.conftest import create_department, csrf_headers, new_document
@@ -235,14 +235,14 @@ def test_nothing_to_fill_is_ready_with_no_fields_and_no_ai_call(
     assert _run_row(committing_db, version_id).result["flags"]["no_fields"] is True
 
 
-def test_detection_is_wired_to_processing_and_to_runs_by_hand() -> None:
+def test_every_detection_runs_through_the_processing_event() -> None:
     register_all(registry)
     kind = registry.get(EventBus.job_kind(DocumentVersionProcessed.name, SUBSCRIBER))
     assert SUBSCRIBER in bus.subscribers(DocumentVersionProcessed)
     assert kind.on_dead is settle_dead_run
     fresh = JobRegistry()
     register_all(fresh)
-    assert fresh.get(RUN).on_dead is settle_dead_run
+    assert "detection.run" not in fresh  # one path: runs by hand publish the event too
 
 
 def test_a_worker_runs_detection_after_processing_through_the_event(

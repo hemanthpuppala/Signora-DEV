@@ -13,8 +13,6 @@ from sqlalchemy.orm import Session
 
 from signora.kernel.db import Database
 from signora.kernel.errors import NotFound
-from signora.kernel.jobs import enqueue
-from signora.modules.detection.jobs import RUN
 from signora.modules.detection.reading import Reading
 from signora.modules.detection.run import restart_run
 from signora.modules.documents import start_detection, version_for_detection, version_status
@@ -119,21 +117,11 @@ def run_detection_by_hand(
         if mode == "running":
             response.status_code = status.HTTP_200_OK
             return DetectionStarted(mode=mode)
-        version = version_for_detection(uow.session, version_id)
-        if version is None:
-            raise NotFound
-        if mode == "restart":
-            run_id = restart_run(uow.session, version, requested_by=actor.user_id)
-        else:  # resume the failed run where it stopped
-            run_id = uow.session.execute(
-                text("SELECT run_id FROM detection_runs WHERE version_id = :v"), {"v": version_id}
-            ).scalar_one_or_none() or restart_run(uow.session, version, requested_by=actor.user_id)
-        enqueue(
-            uow.session,
-            RUN,
-            {"version_id": str(version_id), "run_id": str(run_id)},
-            dedupe_key=f"detection.run:{run_id}:{mode}",
-        )
+        if mode == "restart":  # a new run from the start; a resume continues the failed one
+            version = version_for_detection(uow.session, version_id)
+            if version is None:
+                raise NotFound
+            restart_run(uow.session, version, requested_by=actor.user_id)
     return DetectionStarted(mode=mode)
 
 

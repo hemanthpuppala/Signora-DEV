@@ -128,18 +128,14 @@ def _save(
 
 
 def run_detection(
-    context: JobContext,
-    version_id: uuid.UUID,
-    *,
-    run_id: uuid.UUID | None,
-    store: BlobStore,
-    assigner: Assigner,
+    context: JobContext, version_id: uuid.UUID, *, store: BlobStore, assigner: Assigner
 ) -> None:
-    """Detection for one version, resuming at the saved stage. ``run_id`` is None for the run that
-    follows processing (found or created here), set for a run started by hand."""
+    """Detection for one version, resuming at the saved stage: the unfinished run (a failed one,
+    or one a person has just restarted), else a new one."""
+    run_id: uuid.UUID | None = None
     with context.unit_of_work() as uow:
         version = version_for_detection(uow.session, version_id)
-        if version is not None and version.status == "detecting" and run_id is None:
+        if version is not None and version.status == "detecting":
             run_id = ensure_run(uow.session, version)
     if version is None or version.status != "detecting" or run_id is None:
         with context.complete():  # nothing to do: no longer detecting

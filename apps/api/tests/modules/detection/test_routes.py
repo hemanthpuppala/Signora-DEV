@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from signora.kernel.db import Database
 from signora.modules.detection.ai import AiError
-from signora.modules.detection.jobs import RUN
+from tests.modules.detection.conftest import KIND
 from tests.modules.documents.conftest import create_department, csrf_headers, new_document
 from tests.modules.identity_access.conftest import Account, log_in
 from tests.support import forms
@@ -40,16 +40,27 @@ def _fields(api: TestClient, document_id: str, version_id: str) -> Any:
     return response.json()
 
 
-def _queued_run(db: Database, version_id: str) -> str:
+def _run_id(db: Database, version_id: str) -> str:
     with db.unit_of_work() as uow:
-        payload = uow.session.execute(
-            text(
-                "SELECT payload FROM jobs WHERE kind = :k AND payload->>'version_id' = :v "
-                "ORDER BY created_at DESC LIMIT 1"
-            ),
-            {"k": RUN, "v": version_id},
-        ).scalar_one()
-    return str(payload["run_id"])
+        return str(
+            uow.session.execute(
+                text("SELECT run_id FROM detection_runs WHERE version_id = :v"), {"v": version_id}
+            ).scalar_one()
+        )
+
+
+def _queued(db: Database, version_id: str) -> int:
+    """Detection jobs waiting for this version (each request is its own)."""
+    with db.unit_of_work() as uow:
+        return int(
+            uow.session.execute(
+                text(
+                    "SELECT count(*) FROM jobs WHERE kind = :k AND status = 'queued' "
+                    "AND payload->>'version_id' = :v"
+                ),
+                {"k": KIND, "v": version_id},
+            ).scalar_one()
+        )
 
 
 def test_a_ready_versions_fields_with_their_roles_places_and_dependencies(
@@ -112,17 +123,28 @@ def test_detection_runs_again_by_hand_and_resumes_after_a_failure(
     document_id, version_id = _processed(owner, run)
     detect(version_id, FakeAssigner())
 
+    first_run = _run_id(committing_db, version_id)
+    before = _queued(committing_db, version_id)
+
     again = _run_by_hand(owner, document_id, version_id)
     assert (again.status_code, again.json()) == (202, {"mode": "restart"})
     assert _run_by_hand(owner, document_id, version_id).json() == {"mode": "running"}
-    run_id = _queued_run(committing_db, version_id)
+    assert _queued(committing_db, version_id) == before + 1  # one job, not one per click
+    run_id = _run_id(committing_db, version_id)
+    assert run_id != first_run
     assert _fields(owner, document_id, version_id)["stage"] == "read"  # a new run from the start
 
-    detect(version_id, FakeAssigner(AiError("ai_not_configured", "no key")), run_id=run_id)
-    resumed = _run_by_hand(owner, document_id, version_id)
-    assert (resumed.status_code, resumed.json()) == (202, {"mode": "resume"})
-    assert _queued_run(committing_db, version_id) == run_id  # the same run, where it stopped
-    detect(version_id, FakeAssigner(), run_id=run_id)
+    # Failing and resuming twice: each resume is its own job (review fix: a reused job key once
+    # dropped the second one, leaving the version "Finding fields" for good).
+    for _ in range(2):
+        detect(version_id, FakeAssigner(AiError("ai_not_configured", "no key")))
+        assert _fields(owner, document_id, version_id)["status"] == "failed"
+        queued = _queued(committing_db, version_id)
+        resumed = _run_by_hand(owner, document_id, version_id)
+        assert (resumed.status_code, resumed.json()) == (202, {"mode": "resume"})
+        assert _queued(committing_db, version_id) == queued + 1
+        assert _run_id(committing_db, version_id) == run_id  # the same run, where it stopped
+    detect(version_id, FakeAssigner())
     assert _fields(owner, document_id, version_id)["status"] == "ready"
 
 

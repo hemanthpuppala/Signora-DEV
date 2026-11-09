@@ -26,6 +26,7 @@ from signora.modules.departments import normalize_name
 from signora.modules.documents.current import promote_if_newest
 from signora.modules.documents.domain import DESCRIPTION_MAX, DETECTION_FAILURE_CODES, NAME_MAX
 from signora.modules.documents.errors import VersionNotProcessed
+from signora.modules.documents.processing import publish_processed
 from signora.modules.documents.service import (
     audit,
     changeable_version,
@@ -114,7 +115,11 @@ def start_detection(
     uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> StartMode:
     """A person runs detection (§1.3): ``resume`` a failed run, ``restart`` a ready version from the
-    beginning, or nothing while it is ``running``. Refused before processing has finished."""
+    beginning, or nothing while it is ``running``. Refused before processing has finished.
+
+    It goes the way of every detection: the version is detecting and ``DocumentVersionProcessed``
+    is published again, as Try again does, so each request is a new job (one path, never a job
+    deduplicated away while the version waits). The caller resets the run first for a restart."""
     session = uow.session
     version = changeable_version(session, actor, document_id, version_id)
     if version.status == "detecting":
@@ -132,6 +137,7 @@ def start_detection(
         ),
         {"id": version_id},
     )
+    publish_processed(session, actor.workspace_id, document_id, version_id)
     audit(
         uow,
         actor,
