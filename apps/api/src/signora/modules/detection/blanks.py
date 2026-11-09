@@ -50,14 +50,39 @@ def _runs(page: pymupdf.Page) -> list[Box]:
 
 def _placeholders(page: pymupdf.Page) -> list[tuple[Box, str, list[Box]]]:
     """Each placeholder: its first box, its text, and the boxes of its other lines when it wraps
-    ("[Describe the permitted" / "purpose]")."""
+    ("[Describe the permitted" / "purpose]"). A placeholder is matched in its block's text, then
+    each line's part of it is looked up on that line, so the same placeholder twice on a page (or
+    twice on a line: "[Name] … [Name]") gets a box of its own each time."""
     found: list[tuple[Box, str, list[Box]]] = []
     for block in page.get_text("dict")["blocks"]:
-        lines = ["".join(span["text"] for span in line["spans"]) for line in block.get("lines", [])]
-        for match in PLACEHOLDER.finditer(" ".join(lines)):
-            hits = page.search_for(match.group(0), clip=_grown(block["bbox"]))
-            if hits:
-                found.append((tuple(hits[0]), match.group(0), [tuple(h) for h in hits[1:]]))
+        lines = [
+            ("".join(span["text"] for span in line["spans"]), tuple(line["bbox"]))
+            for line in block.get("lines", [])
+        ]
+        starts: list[int] = []
+        at = 0
+        for text, _ in lines:
+            starts.append(at)
+            at += len(text) + 1  # the lines are joined by one space
+        joined = " ".join(text for text, _ in lines)
+        taken: dict[tuple[int, str], int] = {}  # (line, part) -> boxes of it already used
+        for match in PLACEHOLDER.finditer(joined):
+            boxes: list[Box] = []
+            for index, (text, bbox) in enumerate(lines):
+                low, high = (
+                    max(match.start(), starts[index]),
+                    min(match.end(), starts[index] + len(text)),
+                )
+                if low >= high:
+                    continue
+                part = joined[low:high]
+                hits = page.search_for(part, clip=_grown(bbox))  # in reading order along the line
+                used = taken.get((index, part), 0)
+                taken[(index, part)] = used + 1
+                if used < len(hits):
+                    boxes.append(tuple(hits[used]))
+            if boxes:
+                found.append((boxes[0], match.group(0), boxes[1:]))
     return found
 
 

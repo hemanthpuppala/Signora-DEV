@@ -170,3 +170,18 @@ def test_two_hundred_pages_are_read_quickly() -> None:
     reading = read_document(document.tobytes())
     assert len(reading.fields) == 400
     assert time.monotonic() - started < 30  # NFR: far inside the 30-60 s for the whole step
+
+
+def test_the_same_placeholder_twice_on_a_line_is_two_blanks_each_in_its_place() -> None:
+    """Review fix: a placeholder was looked up in its whole block, so "[Name]" twice on one line
+    gave two blanks on the first box, the second one's words hidden as the first's continuation."""
+    document = pymupdf.open()
+    document.new_page().insert_text(
+        (50, 100), "Between [Name] (Discloser) and [Name] (Recipient)", fontsize=11
+    )
+    reading = read_document(document.tobytes())
+    first, second = (f for f in reading.fields if f.value == "[Name]")
+    assert first.placements[0].rect[0] < second.placements[0].rect[0]
+    assert first.placements[0].continued == [] and second.placements[0].continued == []
+    assert second.label_left is not None and "(Discloser) and" in second.label_left
+    assert reading.layout.count("⟦f") == 2
