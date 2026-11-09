@@ -210,11 +210,12 @@ def upgrade() -> None:
         sa.Column("recipient_id", UUID, nullable=True),
         sa.Column("given_at", TS, server_default=sa.func.now(), nullable=False),
         sa.CheckConstraint(
-            "given_by IN ('sender', 'recipient')", name=op.f("ck_envelope_values_given_by_known")
+            "given_by IN ('sender', 'prefill', 'recipient')",
+            name=op.f("ck_envelope_values_given_by_known"),
         ),
         sa.CheckConstraint(
-            "(given_by = 'recipient') = (recipient_id IS NOT NULL)",
-            name=op.f("ck_envelope_values_recipient_when_theirs"),
+            "(given_by = 'sender') = (recipient_id IS NULL)",
+            name=op.f("ck_envelope_values_recipient_unless_sender"),
         ),
         sa.CheckConstraint(
             "char_length(value) <= 2000", name=op.f("ck_envelope_values_value_length")

@@ -8,7 +8,7 @@ maps by id: O(R + F + V).
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -81,7 +81,8 @@ class Plan:
     signers: list[Person]  # in signing order
     countersigners: list[Person]
     copies: list[Person]
-    values: dict[uuid.UUID, str]  # the sender's, prefilled names and emails included
+    values: dict[uuid.UUID, str]  # the sender's own
+    prefill: dict[uuid.UUID, dict[uuid.UUID, str]]  # per signer party: their name and email
     notify_emails: list[str]
     shared_emails: list[str] = field(default_factory=list)  # the same person on two parties
 
@@ -95,6 +96,28 @@ def _asked(item: FormField, values: Mapping[uuid.UUID, str]) -> bool:
     return given == item.depends_on.option or (
         item.depends_on.option == "checked" and given == "true"
     )
+
+
+def prefill(
+    fields: Iterable[FormField],
+    party_id: uuid.UUID,
+    person: Person,
+    typed: Mapping[uuid.UUID, str],
+) -> dict[uuid.UUID, str]:
+    """What a signer's name and email fill in their party's fields, as DocuSign does: their email
+    in every Email field; their name in each Full name, First name and Last name field the sender
+    left empty (a Legal name may be a company's, so only when typed)."""
+    first, last = split_name(person.name)
+    by_holds = {"full_name": person.name, "first_name": first, "last_name": last}
+    filled: dict[uuid.UUID, str] = {}
+    for item in fields:
+        if item.party_id != party_id:
+            continue
+        if item.holds == "email":
+            filled[item.id] = person.email
+        elif item.holds in NAME_HOLDS and item.id not in typed and by_holds[item.holds]:
+            filled[item.id] = by_holds[item.holds]
+    return filled
 
 
 def split_name(name: str) -> tuple[str, str]:
@@ -212,17 +235,13 @@ def plan_send(
             errors.append(FieldError(f"fields.{item.id}", "Fill this in before sending"))
 
     # Prefill (§2): a signer's email in their Email fields; their name in Name fields left empty.
-    for item in form.fields:
-        person = given_signers.get(item.party_id) if item.party_id else None
-        if person is None:
-            continue
-        if item.holds == "email":
-            values[item.id] = person.email
-        elif item.holds in NAME_HOLDS and item.id not in values:
-            first, last = split_name(person.name)
-            prefill = {"full_name": person.name, "first_name": first, "last_name": last}[item.holds]
-            if prefill:
-                values[item.id] = prefill
+    prefilled = {
+        party_id: prefill(form.fields, party_id, person, values)
+        for party_id, person in given_signers.items()
+    }
+    for fills in prefilled.values():
+        for field_id in fills:
+            values.pop(field_id, None)  # the signer's own details, not the sender's
 
     notify = [
         email(f"settings.notify_emails[{i}]", raw)
@@ -245,6 +264,7 @@ def plan_send(
         countersigners=countersigners,
         copies=copies,
         values=values,
+        prefill=prefilled,
         notify_emails=list(dict.fromkeys(notify)),
         shared_emails=sorted(address for address, count in seen.items() if count > 1),
     )

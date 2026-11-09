@@ -44,7 +44,7 @@ class RecipientView(BaseModel):
 class ValueView(BaseModel):
     field_id: uuid.UUID
     value: str
-    given_by: Literal["sender", "recipient"]
+    given_by: Literal["sender", "prefill", "recipient"]
 
 
 class TimelineEntry(BaseModel):

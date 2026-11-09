@@ -87,7 +87,9 @@ def plan(values: dict[uuid.UUID, str]) -> dict[uuid.UUID, str]:
             "settings": {"reminder_interval_hours": 24, "max_reminders": 5, "expiry_days": 14},
         }
     )
-    return plan_send(FORM, request, colleagues={}, normalize_email=normalize_email).values
+    planned = plan_send(FORM, request, colleagues={}, normalize_email=normalize_email)
+    assert not planned.values.keys() & planned.prefill.get(CLIENT, {}).keys()  # never both
+    return {**planned.values, **planned.prefill.get(CLIENT, {})}
 
 
 def test_a_field_under_a_condition_is_asked_only_when_it_is_met() -> None:

@@ -134,8 +134,9 @@ envelope_recipients = Table(
     Index(None, "envelope_id"),
 )
 
-# Values given before signing (§2): the sender's and, from Phase 8, the signers'. The sender's
-# never change (a trigger).
+# Values given before signing (§2): the sender's own (never change, a trigger); a signer's name and
+# email prefilled into their fields ("prefill", tied to that recipient: they follow a corrected
+# email); from Phase 8, what each signer gives ("recipient").
 envelope_values = Table(
     "envelope_values",
     metadata,
@@ -147,9 +148,9 @@ envelope_values = Table(
     Column("given_by", Text, nullable=False),
     Column("recipient_id", UUID(as_uuid=True)),
     Column("given_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-    CheckConstraint("given_by IN ('sender', 'recipient')", name="given_by_known"),
+    CheckConstraint("given_by IN ('sender', 'prefill', 'recipient')", name="given_by_known"),
     CheckConstraint(
-        "(given_by = 'recipient') = (recipient_id IS NOT NULL)", name="recipient_when_theirs"
+        "(given_by = 'sender') = (recipient_id IS NULL)", name="recipient_unless_sender"
     ),
     CheckConstraint("char_length(value) <= 2000", name="value_length"),
     PrimaryKeyConstraint("envelope_id", "field_id"),

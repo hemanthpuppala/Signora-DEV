@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 from signora.kernel.db import Database
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
@@ -62,3 +63,105 @@ def send_envelope(
 def get_envelope(envelope_id: uuid.UUID, request: Request, actor: Member) -> EnvelopeView:
     with _db(request).unit_of_work() as uow:
         return service.get_envelope(uow.session, actor, envelope_id)
+
+
+class RecipientChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: str | None = Field(default=None, max_length=254)
+    name: str | None = Field(default=None, max_length=120)
+
+
+class SigningLink(BaseModel):
+    url: str
+
+
+class Reminded(BaseModel):
+    reminded: int  # how many people were emailed
+
+
+@router.post(
+    "/envelopes/{envelope_id}/remind",
+    response_model=Reminded,
+    summary="Remind everyone who still has to sign (requires Idempotency-Key)",
+)
+def remind(
+    envelope_id: uuid.UUID,
+    request: Request,
+    actor: Member,
+    guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
+) -> JSONResponse:
+    with _db(request).unit_of_work() as uow:
+        if (replay := guard.begin(uow)) is not None:
+            return replay
+        count = service.remind(uow, actor=actor, envelope_id=envelope_id)
+        return guard.finish(uow, status.HTTP_200_OK, {"reminded": count})
+
+
+class Resent(BaseModel):
+    recipient_id: uuid.UUID
+
+
+@router.post(
+    "/envelopes/{envelope_id}/recipients/{recipient_id}/resend",
+    response_model=Resent,
+    summary="Email one person their link again, or retry a failed email (requires Idempotency-Key)",
+)
+def resend(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    request: Request,
+    actor: Member,
+    guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
+) -> JSONResponse:
+    with _db(request).unit_of_work() as uow:
+        if (replay := guard.begin(uow)) is not None:
+            return replay
+        service.resend(uow, actor=actor, envelope_id=envelope_id, recipient_id=recipient_id)
+        return guard.finish(uow, status.HTTP_200_OK, {"recipient_id": str(recipient_id)})
+
+
+@router.patch(
+    "/envelopes/{envelope_id}/recipients/{recipient_id}",
+    summary="Correct a person's email (a new link is emailed) or, before they open it, their name",
+)
+def change_recipient(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    body: RecipientChange,
+    request: Request,
+    actor: Member,
+) -> EnvelopeView:
+    with _db(request).unit_of_work() as uow:
+        service.change_recipient(
+            uow,
+            actor=actor,
+            envelope_id=envelope_id,
+            recipient_id=recipient_id,
+            email=body.email,
+            name=body.name,
+        )
+        return service.get_envelope(uow.session, actor, envelope_id)
+
+
+@router.post(
+    "/envelopes/{envelope_id}/cancel",
+    summary="Withdraw a send: every link stops working (repeat-safe)",
+)
+def cancel(envelope_id: uuid.UUID, request: Request, actor: Member) -> EnvelopeView:
+    with _db(request).unit_of_work() as uow:
+        service.cancel(uow, actor=actor, envelope_id=envelope_id)
+        return service.get_envelope(uow.session, actor, envelope_id)
+
+
+@router.get(
+    "/envelopes/{envelope_id}/recipients/{recipient_id}/link",
+    summary="A person's current signing link (Copy signing link); the copy is audited",
+)
+def signing_link(
+    envelope_id: uuid.UUID, recipient_id: uuid.UUID, request: Request, actor: Member
+) -> SigningLink:
+    with _db(request).unit_of_work() as uow:
+        url = service.signing_link(
+            uow, actor=actor, envelope_id=envelope_id, recipient_id=recipient_id
+        )
+    return SigningLink(url=url)

@@ -13,16 +13,21 @@ from sqlalchemy.orm import Session
 
 from signora.kernel.config import get_settings
 from signora.kernel.db import UnitOfWork
-from signora.kernel.errors import NotFound
+from signora.kernel.errors import FieldError, NotFound, ValidationFailed
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, list_countersigners, load_access
 from signora.modules.documents import VersionNotApproved, version_for_review
 from signora.modules.envelopes import emails
-from signora.modules.envelopes.errors import SamePerson
+from signora.modules.envelopes.errors import (
+    EnvelopeClosed,
+    NotTheirTurn,
+    RecipientSigned,
+    SamePerson,
+)
 from signora.modules.envelopes.form import Colleague, FormSettings, SendForm, build_form
 from signora.modules.envelopes.links import link_key, make_token, signing_url
-from signora.modules.envelopes.sending import Person, SendRequest, plan_send
+from signora.modules.envelopes.sending import Person, SendRequest, plan_send, split_name
 from signora.modules.envelopes.store import read_envelope, record_email, write_send
 from signora.modules.envelopes.views import EnvelopeView
 from signora.modules.identity_access import Actor, Permission, normalize_email
@@ -216,3 +221,295 @@ def get_envelope(session: Session, actor: Actor, envelope_id: uuid.UUID) -> Enve
         raise NotFound
     load_access(session, actor).require(Permission.DOCUMENTS_VIEW_SENDS, view.department_id)
     return view
+
+
+# --- following a send (§6) -----------------------------------------------------------------------
+
+CLOSED = frozenset({"completed", "declined", "expired", "cancelled"})
+LIVE = frozenset({"sent", "opened", "viewed"})  # holds a working link and has not signed yet
+
+
+@dataclass(frozen=True)
+class _Locked:
+    id: uuid.UUID
+    status: str
+    department_id: uuid.UUID
+    document_name: str
+    expires_at: datetime
+    sent_by: uuid.UUID
+
+
+def _lock(session: Session, actor: Actor, envelope_id: uuid.UUID) -> _Locked:
+    """The envelope under its row lock, for someone who may send in its department; ``404`` for
+    another company's."""
+    row = session.execute(
+        text(
+            "SELECT e.id, e.status, e.department_id, d.name AS document_name, e.expires_at, "
+            "e.sent_by FROM envelopes e JOIN documents d ON d.id = e.document_id "
+            "WHERE e.id = :e AND e.workspace_id = :w FOR UPDATE OF e"
+        ),
+        {"e": envelope_id, "w": actor.workspace_id},
+    ).one_or_none()
+    if row is None:
+        raise NotFound
+    load_access(session, actor).require(Permission.DOCUMENTS_SEND, row.department_id)
+    return _Locked(**row._mapping)
+
+
+def _open(session: Session, actor: Actor, envelope_id: uuid.UUID) -> _Locked:
+    envelope = _lock(session, actor, envelope_id)
+    if envelope.status in CLOSED:
+        raise EnvelopeClosed
+    return envelope
+
+
+@dataclass(frozen=True)
+class _Recipient:
+    id: uuid.UUID
+    kind: str
+    status: str
+    name: str
+    email: str
+    link_version: int
+    reminders_sent: int
+
+
+def _recipients(
+    session: Session, envelope_id: uuid.UUID, recipient_id: uuid.UUID | None = None
+) -> list[_Recipient]:
+    rows = session.execute(
+        text(
+            "SELECT id, kind, status, name, email, link_version, reminders_sent "
+            "FROM envelope_recipients WHERE envelope_id = :e "
+            + ("AND id = :r " if recipient_id else "")
+            + "ORDER BY stage, position FOR UPDATE"
+        ),
+        {"e": envelope_id, "r": recipient_id},
+    )
+    return [_Recipient(**row._mapping) for row in rows]
+
+
+def _one(session: Session, envelope_id: uuid.UUID, recipient_id: uuid.UUID) -> _Recipient:
+    found = _recipients(session, envelope_id, recipient_id)
+    if not found:
+        raise NotFound
+    return found[0]
+
+
+def remind(uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID) -> int:
+    """Remind now: everyone who still has to act and holds a link (signers; countersigners once
+    it is their turn). Returns how many were emailed."""
+    session = uow.session
+    envelope = _open(session, actor, envelope_id)
+    sender = _from(session, actor, envelope.sent_by)
+    due = [r for r in _recipients(session, envelope_id) if r.status in LIVE]
+    for recipient in due:
+        count = recipient.reminders_sent + 1
+        letter = emails.sign_reminder(
+            company=sender.company,
+            signer=recipient.name,
+            document=envelope.document_name,
+            url=_link(recipient.id, recipient.link_version),
+            expires_at=envelope.expires_at,
+        )
+        email_id = send_email(
+            uow,
+            to=recipient.email,
+            subject=letter.subject,
+            text=letter.body.text,
+            html=letter.body.html,
+            category="sign_reminder",
+            workspace_id=actor.workspace_id,
+            dedupe_key=f"sign_reminder:{recipient.id}:{count}",
+            reply_to=sender.sender_email,
+        )
+        session.execute(
+            text("UPDATE envelope_recipients SET reminders_sent = :n WHERE id = :r"),
+            {"n": count, "r": recipient.id},
+        )
+        record_email(session, recipient.id, email_id)
+    _audit(uow, actor, "envelope.reminded", envelope_id, recipients=len(due))
+    return len(due)
+
+
+def resend(
+    uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID, recipient_id: uuid.UUID
+) -> None:
+    """Email one person their link again (also how a failed email is retried, §15.3)."""
+    session = uow.session
+    envelope = _open(session, actor, envelope_id)
+    recipient = _one(session, envelope_id, recipient_id)
+    if recipient.status == "signed":
+        raise RecipientSigned
+    if recipient.status not in LIVE:
+        raise NotTheirTurn
+    sender = _from(session, actor, envelope.sent_by)
+    letter = emails.sign_request(
+        company=sender.company,
+        sender=sender.sender,
+        signer=recipient.name,
+        document=envelope.document_name,
+        url=_link(recipient.id, recipient.link_version),
+        expires_at=envelope.expires_at,
+    )
+    email_id = send_email(
+        uow,
+        to=recipient.email,
+        subject=letter.subject,
+        text=letter.body.text,
+        html=letter.body.html,
+        category="sign_request",
+        workspace_id=actor.workspace_id,
+        reply_to=sender.sender_email,
+    )
+    record_email(session, recipient.id, email_id)
+    _audit(uow, actor, "envelope.resent", envelope_id, recipient_id=str(recipient_id))
+
+
+def change_recipient(
+    uow: UnitOfWork,
+    *,
+    actor: Actor,
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    email: str | None,
+    name: str | None,
+) -> None:
+    """Correct a signer's or a copy's email (their old link stops working and a new one is
+    emailed) or, before they open it, their name. A countersigner is a colleague: their account
+    has their email."""
+    session = uow.session
+    envelope = _open(session, actor, envelope_id)
+    recipient = _one(session, envelope_id, recipient_id)
+    if recipient.status == "signed":
+        raise RecipientSigned
+    errors: list[FieldError] = []
+    if recipient.kind == "countersigner":
+        errors.append(FieldError("email", "A countersigner's email is their account's"))
+    new_email = recipient.email
+    if email is not None:
+        try:
+            new_email = normalize_email(email)
+        except ValueError:
+            errors.append(FieldError("email", "Enter a valid email address"))
+    new_name = recipient.name
+    if name is not None:
+        new_name = name.strip()
+        if not 1 <= len(new_name) <= 120:
+            errors.append(FieldError("name", "Enter a name"))
+        elif new_name != recipient.name and recipient.status not in ("sent", "waiting"):
+            errors.append(FieldError("name", "They have opened it: their name stays as sent"))
+    if errors:
+        raise ValidationFailed(errors)
+    email_changed = new_email != recipient.email
+    if not email_changed and new_name == recipient.name:
+        return
+    live = recipient.kind == "signer" and recipient.status in LIVE
+    link_version = recipient.link_version + 1 if email_changed and live else recipient.link_version
+    session.execute(
+        text(
+            "UPDATE envelope_recipients SET email = :email, name = :name, link_version = :v, "
+            "status = CASE WHEN :restart THEN 'sent' ELSE status END, "
+            "opened_at = CASE WHEN :restart THEN NULL ELSE opened_at END, "
+            "viewed_at = CASE WHEN :restart THEN NULL ELSE viewed_at END, "
+            "sent_at = CASE WHEN :restart THEN now() ELSE sent_at END WHERE id = :r"
+        ),
+        {
+            "email": new_email,
+            "name": new_name,
+            "v": link_version,
+            "restart": email_changed and live,
+            "r": recipient_id,
+        },
+    )
+    _refill(session, recipient_id, new_name, new_email)
+    if email_changed and live:
+        _email_sign_request(
+            uow,
+            sender=_from(session, actor, envelope.sent_by),
+            workspace_id=actor.workspace_id,
+            recipient_id=recipient_id,
+            link_version=link_version,
+            person=Person(new_name, new_email),
+            document=envelope.document_name,
+            expires_at=envelope.expires_at,
+        )
+    _audit(
+        uow,
+        actor,
+        "envelope.recipient_changed",
+        envelope_id,
+        recipient_id=str(recipient_id),
+        email_changed=email_changed,
+        name_changed=new_name != recipient.name,
+    )
+
+
+def _refill(session: Session, recipient_id: uuid.UUID, name: str, email: str) -> None:
+    """Their prefilled fields follow a corrected name or email (§2)."""
+    first, last = split_name(name)
+    session.execute(
+        text(
+            "UPDATE envelope_values v SET value = CASE f.holds WHEN 'email' THEN :email "
+            "WHEN 'full_name' THEN :name WHEN 'first_name' THEN :first ELSE :last END "
+            "FROM version_fields f WHERE f.id = v.field_id AND v.recipient_id = :r "
+            "AND v.given_by = 'prefill'"
+        ),
+        {"r": recipient_id, "email": email, "name": name, "first": first, "last": last},
+    )
+
+
+def cancel(uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID) -> None:
+    """Withdraw a send (repeat-safe): every link stops working, and signers who were emailed and
+    have not signed are told (§6, §15)."""
+    session = uow.session
+    envelope = _lock(session, actor, envelope_id)
+    if envelope.status == "cancelled":
+        return
+    if envelope.status in CLOSED:
+        raise EnvelopeClosed
+    session.execute(
+        text(
+            "UPDATE envelopes SET status = 'cancelled', cancelled_at = now(), cancelled_by = :by "
+            "WHERE id = :e"
+        ),
+        {"e": envelope_id, "by": actor.user_id},
+    )
+    told = [r for r in _recipients(session, envelope_id) if r.kind == "signer" and r.status in LIVE]
+    session.execute(
+        text(
+            "UPDATE envelope_recipients SET revoked_at = now(), next_reminder_at = NULL "
+            "WHERE envelope_id = :e"
+        ),
+        {"e": envelope_id},
+    )
+    sender = _from(session, actor, envelope.sent_by)
+    for recipient in told:
+        letter = emails.sign_withdrawn(
+            company=sender.company, signer=recipient.name, document=envelope.document_name
+        )
+        email_id = send_email(
+            uow,
+            to=recipient.email,
+            subject=letter.subject,
+            text=letter.body.text,
+            html=letter.body.html,
+            category="sign_withdrawn",
+            workspace_id=actor.workspace_id,
+            dedupe_key=f"sign_withdrawn:{recipient.id}",
+            reply_to=sender.sender_email,
+        )
+        record_email(session, recipient.id, email_id)
+    _audit(uow, actor, "envelope.cancelled", envelope_id, told=len(told))
+
+
+def signing_link(
+    uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID, recipient_id: uuid.UUID
+) -> str:
+    """Copy signing link: the person's current link, shown again unchanged (ADR-E1)."""
+    envelope = _open(uow.session, actor, envelope_id)
+    recipient = _one(uow.session, envelope_id, recipient_id)
+    if recipient.status not in LIVE:
+        raise RecipientSigned if recipient.status == "signed" else NotTheirTurn
+    _audit(uow, actor, "envelope.link_copied", envelope.id, recipient_id=str(recipient_id))
+    return _link(recipient.id, recipient.link_version)

@@ -95,6 +95,22 @@ def write_send(
             {"w": workspace_id, "e": envelope.id, "v": version_id, "rows": json.dumps(rows)},
         )
     }
+    signer_ids = {person.party_id: ids[(1, i)] for i, person in enumerate(plan.signers, start=1)}
+    prefilled = [
+        {"field_id": str(field_id), "value": value, "recipient_id": str(signer_ids[party_id])}
+        for party_id, fills in plan.prefill.items()
+        for field_id, value in fills.items()
+    ]
+    if prefilled:
+        session.execute(
+            text(
+                "INSERT INTO envelope_values (envelope_id, workspace_id, version_id, field_id, "
+                "value, given_by, recipient_id) SELECT :e, :w, :v, x.field_id, x.value, "
+                "'prefill', x.recipient_id FROM jsonb_to_recordset(CAST(:values AS jsonb)) "
+                "AS x(field_id uuid, value text, recipient_id uuid)"
+            ),
+            {"e": envelope.id, "w": workspace_id, "v": version_id, "values": json.dumps(prefilled)},
+        )
     if plan.values:
         session.execute(
             text(
