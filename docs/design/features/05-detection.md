@@ -84,7 +84,10 @@ read ──► ai ──► derive ──► store
   hook (backbone §1.4 "Settling a dead job", added in Phase 4's review) fails the version with the stage's code, so a
   version never stays on "Finding fields".
 - **Try again** is Phase 4's endpoint (`POST …/versions/{version_id}/retry`): it moves the version back to `detecting`
-  and re-queues the job, which resumes at the saved stage. A failed AI call never re-reads the document.
+  and re-queues the job, which resumes at the saved stage. A failed AI call never re-reads the document. A run that
+  failed in **our own code** (`detection_failed`: a refusal or cut-short answer, a stage that raised, a job that died
+  outside the AI call) starts over with a new run instead (review fix): the same saved reading or answer would fail
+  the same way, so resuming it could never finish, however often it was tried.
 
 ### 1.3 Running detection by hand (owner decision)
 
@@ -95,7 +98,7 @@ needs it again can be run from the document page.
 
 | Version is | What happens | Answer |
 |---|---|---|
-| `failed` with a detection code | as Try again: resumes at the saved stage | `202`, the version `detecting` |
+| `failed` with a detection code | as Try again: resumes at the saved stage (a `detection_failed` run starts over, §1.2) | `202`, the version `detecting` |
 | `ready` | **runs again from the start** (`read`): a new run replaces the stored fields | `202`, the version `detecting` |
 | `detecting` | nothing (repeat-safe) | `200` |
 | anything else (`processing`, `needs_password`, `needs_ocr`, a Phase 4 failure) | refused: processing has to finish first | `409 version-not-processed` |
@@ -129,8 +132,8 @@ CREATE TABLE detection_runs (
   stage         text NOT NULL DEFAULT 'read'
                 CHECK (stage IN ('read', 'ai', 'derive', 'store', 'done')),  -- the next stage to run
   fields_from   text CHECK (fields_from IN ('form_fields', 'blanks', 'none')),
-  parsed        jsonb,   -- read: every field with its kind, positions, options, labels and flags
-  layout        text,    -- read: the document as the AI reads it, with ⟦fN⟧ markers
+  parsed        jsonb,   -- read: every field with its kind, positions, options, labels and flags (not the layout)
+  layout        text,    -- read: the document as the AI reads it, with ⟦fN⟧ markers; stored here only
   calls         jsonb,   -- ai: per call: request id, latency, tokens, the problems the checks found
   answer        jsonb,   -- ai: the final answer, parsed against the schema
   result        jsonb,   -- derive: the checked result with keys, values and flags (topic 4)
@@ -173,9 +176,13 @@ CREATE TABLE detection_runs (
   that job's memory until it is written to that version's row. No result is ever shared between jobs or matched up
   afterwards.
 - **A stale writer cannot overwrite.** Every stage writes with `WHERE version_id = :v AND run_id = :r AND stage =
-  :expected`; no row changed means the run was replaced (a manual run) or another worker took the job (an expired
-  lease), and the job stops without writing. The `store` stage commits together with the job's guarded completion
-  (backbone §1.4), so a version is never marked ready by a job that lost its lease.
+  :expected`. No row changed means one of two things, told apart by reading the run again: the run was **replaced**
+  (a manual run, a new `run_id`) and the job stops without writing; or another worker **moved the same run on** (an
+  expired lease, so the job was claimed twice) and the job continues from the stage the run is at now, so no stage is
+  written twice and none is left behind (review fix: it used to stop, which could leave a run at `store` and its
+  version "Finding fields" for good when the other worker then lost its lease). The `store` stage commits together
+  with the job's guarded completion (backbone §1.4), so a version is never marked ready by a job that lost its lease.
+  The source file is read once, by the first stage that needs it; a resume at `store` reads none.
 - **Cost of everything around the AI call** (W words, F fields of the document):
 
   | Step | Cost |
@@ -499,7 +506,11 @@ may differ between versions and between runs (the label wording drifts: `agreeme
 
 **Shared values: one value, many places.** A party gives each of these once, and it fills every place it is asked:
 `signature`, `initials`, `date_signed` and `party_name` of the same party; and a group of checkboxes that are one choice
-is one key (`holds: choice`) whose value is the ticked option (`recipient.type`, `agreement.payment_method`). In the tests
+is one key (`holds: choice`) whose value is the ticked option (`recipient.type`, `agreement.payment_method`); each
+group the AI lists is its own choice, two groups with one label ("Yes or no" asked twice) being two (`_2`). A grouped
+checkbox with no words beside it stands for its label as an option, in its placement and in any condition on it alike.
+A shared value whose places do not all apply under the same option (initials on every page, one of them inside an
+optional addendum) applies always and needs a look: a field applies as a whole, and a person decides. In the tests
 the initials in nine footers became one value, an exhibit's second signature and its date joined the first, and the
 legal name in an exhibit joined the opening's. Other repeats stay separate because they can differ (two addresses, a
 contact person and the signer). This is how DocuSign and Adobe Sign treat adopted signatures and initials.
@@ -519,7 +530,7 @@ Phase 8's signing order uses: signers in the order they first appear in the docu
 
 | Flag | On | Set when |
 |---|---|---|
-| `needs_review` with the reason in words | a field | a problem left after the repair round; a field the AI did not answer (unassigned); a field with no label |
+| `needs_review` with the reason in words | a field | a problem left after the repair round; a field the AI did not answer (unassigned); a field with no label; one value whose places' conditions differ (§4.3); a dependency loop broken |
 | `no_fields` | the version | nothing to fill was found (§1.4) |
 | `addressed_to_ai` | the version | the document contains text addressed to an AI (§3.5) |
 | `xfa`, `already_signed` | the version | from reading the PDF (§2.3) |
@@ -849,3 +860,4 @@ decisions (`medium` against `low`, layout text against Markdown).
 | 5.10 | Web: statuses, the linked fields panel and viewer (boxes before the AI), progress, Find fields again, field counts | done | `FieldsPanel` (progress steps and the places found while detecting; headline, "Who signs", notices, filter chips, search, a keyboard listbox with needs-a-look first and choices as a tree, details with the condition in the option's words, privacy for sensitive values, a place stepper) and `FieldBoxes` (a box per place in its party's tone, dashed for signature and initials, dotted for needs a look, grey before the AI; for sight and the mouse, the list being the accessible version), linked both ways through one selection; the shared viewer gains `focus` (`view.focusTop`, read through refs). The document page shows a first version while its fields are found; Find fields again behind a confirmation; field counts in the versions and the department's list; field types taken from what the typed client returns. 7 tests: the panel and its tree; picking a field explains it, scrolls to it and steps through its places; a box chooses its field, filters, search and keys; the places drawn with progress while detecting; notices; Find fields again after confirming, with counts; and `focusTop` |
 | 5.11 | Hostile-document test (real AI) and the scorer with drafted expected answers for the owner to confirm | done | `tests/detection/score.py`: per document the §7.1 measures against `tests/expected/<document>.json` (seven drafted, `confirmed: false`, for the owner to correct), `score.json` per folder and `tests/outputs/SCORES.md`. Injection (§3.5 test 7), both hostile documents passed every check: same parties and kinds, flagged `addressed_to_ai`, the name not "Approved", no rise in sender fields (11 against 14; 10 against 11), and agreement with the clean run on what each field holds and who fills it of 61/65 (Word) and 56/64 (fillable), above the 80 % two clean runs reach. The differences are the ones clean runs also vary on: the company's own details filled by the sender or the company, currency or number, who picks the payment method |
 | 5.12 | Deploy and live check by uploading in the interface | in-progress | deployed with `make up-app` (migration to head); the 7 existing versions moved to `detecting` were detected and became `ready` (`no_fields`); PR #6 open. Left: the owner's upload check in the interface |
+| 5.13 | Fixes from the pull request's review (xhigh) | done | `derive`: a signature box falls back to `signature`, not text; checkbox groups by number (two with one label are two choices); a grouped checkbox without words names its option the same way in its placement and in conditions on it; roles are counted after the merge (a party whose only box joined another's choice fills nothing); a shared value whose places disagree on their condition applies always and is flagged. `blanks`: a placeholder is looked up per line, so "[Name] … [Name]" gives two blanks in their own places. `run`: a stage another worker saved first continues from the run's current stage instead of completing the job; a `detection_failed` run starts over on Try again (§1.2); `parsed` no longer repeats the layout; the source is read only by a stage that needs it; `_ask` inlined. `geometry`: one `displayed`/`unrotated` and one pair of text limits (SSoT; three copies before). Web: only the stepped place of the chosen field is marked on the PDF; a new version takes the AI's instructions after its file has arrived, before it is added (owner decision: the rework had dropped them, so every later version was detected without the first one's facts). 11 regression tests (8 API, 3 web), each failing on the code before the fix. Left as they were: three row tolerances tuned for different purposes keep their values |
