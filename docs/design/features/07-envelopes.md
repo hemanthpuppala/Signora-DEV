@@ -37,9 +37,11 @@ Phase 10. This phase lays the envelope down so those phases only add behaviour.
   left out.
 - **Bulk sending** (one envelope per spreadsheet row, platform FR-19) is deferred to the "later" list with Presidio
   PII redaction.
-- **Additional signers** beyond the document's parties (platform FR-18): the send's signers step can add people
-  the document has no party for; each signs an added signature page (name, signature, date) appended to the final
-  PDF in Phase 9 (decided, §15.1).
+- **Signers are the document's parties** (industry practice, owner decision 2026-11-09): as with a DocuSign or Adobe
+  template, the send never adds a signer the document has no fields for; a new signer is a party added in review,
+  with their signature placed. The platform design's added signature page (FR-18) is dropped.
+- **Receives a copy** (DocuSign's "carbon copy"): the sender can add and remove people who do not sign but receive
+  the completed document (Phase 9). Up to 10.
 
 ### 1.1 States (platform §5.1, narrowed to one document)
 
@@ -73,8 +75,8 @@ reduced motion). Closing asks first once anything is filled.
    to fill when signing. Signatures, initials and signing dates are never asked here. Required "Filled in before sending" fields stay required (§15.2).
 3. **Signers**: one row per signer party in signing order, "Signer 1 · Client", with name and email. Emails and names
    typed in step 2 for that party are proposed here to confirm; a party with no email field in the document is
-   asked here. **Add signer** adds a person the document has no party for (§1); added signers can be
-   removed, the document's parties cannot (their fields need someone).
+   asked here. **Receives a copy**: add or remove people who get the completed document without signing (§1). The
+   document's parties are not removed or added here (§1).
 4. **Countersigners**: one row per countersigner party, defaulting to the department's countersigners in order
    (Phase 3 §4.1), each with their name and email shown; changeable to any active member.
 5. **Review**: the document in the PDF viewer with every prefilled value drawn in its box, the recipients and the
@@ -135,6 +137,7 @@ The document's old `require_email_code` column and its PATCH field are removed i
 - **The envelope page**: an action bar (status, expiry; Remind now, Cancel envelope); the recipients (name, email,
   party, status, when, Copy signing link, Resend, Change email); a notice for any email not delivered, with Retry; the
   document as sent, with the sender's values in place; the timeline (from the audit chain).
+- **Retry** a failed email: that person is emailed afresh (§15.3).
 - **Remind now** emails everyone who still has to act (signers now; countersigners once it is their turn).
 - **Resend** emails one person their link again.
 - **Change email** (a mistyped address): the old link stops working, a new one is emailed.
@@ -196,9 +199,9 @@ envelopes
 
 envelope_recipients
   id                uuid PK, workspace_id, envelope_id   -- FK (envelope_id, workspace_id)
-  party_id          uuid NOT NULL       -- the version's party (version_roles.id); unique per envelope
-  kind              text NOT NULL       -- signer | countersigner
-  stage             int  NOT NULL       -- 1 signers, 2 countersigners
+  party_id          uuid                -- the version's party (version_roles.id); NULL for a copy; unique per envelope
+  kind              text NOT NULL       -- signer | countersigner | copy (receives the completed document)
+  stage             int  NOT NULL       -- 1 signers, 2 countersigners, 3 copies
   name              text NOT NULL, email citext NOT NULL
   user_id           uuid                -- countersigners: the colleague; NULL for signers
   status            text NOT NULL       -- waiting | sent | opened | viewed | signed | declined
@@ -207,7 +210,9 @@ envelope_recipients
   reminders_sent    int NOT NULL DEFAULT 0, next_reminder_at timestamptz   -- Phase 10 schedules
   sent_at, opened_at, viewed_at, signed_at timestamptz
   CHECK ((kind = 'countersigner') = (user_id IS NOT NULL))
-  CHECK (kind = 'signer' AND stage = 1 OR kind = 'countersigner' AND stage = 2)
+  CHECK (kind = 'signer' AND stage = 1 OR kind = 'countersigner' AND stage = 2 OR kind = 'copy' AND stage = 3)
+  CHECK ((kind = 'copy') = (party_id IS NULL))
+  last_email_id     uuid                -- FK email_messages: the last email sent to them (delivery state)
   UNIQUE (envelope_id, party_id)
 
 envelope_values
@@ -232,7 +237,7 @@ envelope_values
 | Method and path | What | Notes |
 |---|---|---|
 | `GET /documents/{d}/versions/{v}/send-form` | the generated form: signers (`party_id`, label, asks `name` or `first_name`+`last_name`, `email`), countersigners (`party_id`, label, default `user_id`, choices), sender fields (`field_id`, label, holds, required, options, condition), settings with defaults | `409 version-not-approved`; edit access |
-| `POST /documents/{d}/envelopes` | send: `{version_id, title?, signers: [{party_id, name, email}], countersigners: [{party_id, user_id}], values: [{field_id, value}], settings}` → `201 Envelope` | `Idempotency-Key`; `422` naming each item; `409 version-not-approved`, `document-archived` |
+| `POST /documents/{d}/envelopes` | send: `{version_id, title?, signers: [{party_id, name, email}], countersigners: [{party_id, user_id}], copies: [{name, email}], values: [{field_id, value}], settings, confirm_same_person?}` → `201 Envelope` | `Idempotency-Key`; `422` naming each item; `409 version-not-approved`, `document-archived` |
 | `GET /departments/{dep}/envelopes?status=&cursor=` | list, newest first, 50 a page | edit access |
 | `GET /envelopes/{e}` | envelope, recipients (with delivery state of their last email), values, timeline | edit access |
 | `GET /envelopes/{e}/recipients/{r}/link` | the signing link (Copy signing link) | audited as `envelope.link_copied` |
@@ -240,7 +245,6 @@ envelope_values
 | `POST /envelopes/{e}/recipients/{r}/resend` | email this person their link again | `Idempotency-Key` |
 | `PATCH /envelopes/{e}/recipients/{r}` | `{email}` (and `name` while not opened): new link, old one revoked, emailed | `409 recipient-signed` |
 | `POST /envelopes/{e}/cancel` | cancel: links revoked, signers already emailed told | guarded, repeat-safe |
-| `POST /emails/{id}/retry` | queue a failed email again | Phase 2 delivery record |
 
 `PATCH /documents/{d}` stops accepting `require_email_code` (422 as an unknown field).
 
@@ -369,12 +373,16 @@ Decided (owner, 2026-11-09): no drafts; the same email on two parties is refused
 parties; prefilling is optional, every field offered (§2); the title defaults to "{document} · {first signer's name}",
 editable; on cancel, signers who were emailed and have not signed get a short "withdrawn" email.
 
-Confirmed by the owner's "complete everything" (2026-11-09), with the recommendations:
+Decided by the owner's "complete everything, follow industry practice" (2026-11-09):
 
-1. **Add signer** (§2 step 3): people the document has no party for, each signing an added signature page appended
-   to the final PDF (Phase 9). Recommendation: yes, as the owner asked ("add and remove more signers"). Decided: yes.
-2. **Required "Filled in before sending" fields**: nobody but the sender can fill them, so a blank one stays blank on
-   the signed copy. Decided: these stay required in step 2 (marked so); everything else is optional.
+1. **No added signers**: signers are the document's parties (§1). The send adds and removes people who **receive a
+   copy** instead, as DocuSign and Adobe do.
+2. **Required "Filled in before sending" fields stay required** in step 2 (DocuSign's behaviour for sender-filled
+   fields); every other field is optional.
+3. **Retry of a failed email** sends that person a fresh email (a delivered or failed email keeps no body, Phase 2
+   §1a, because it held a link); each recipient refers to their last email, whose delivery state the envelope page
+   shows.
+4. **Reply-To** is a new column on `email_messages`, set by both transports.
 
 ## 16. Task tracker
 
