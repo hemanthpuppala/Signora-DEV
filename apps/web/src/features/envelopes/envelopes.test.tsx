@@ -59,7 +59,6 @@ const ENVELOPE = {
   sent_at: "2026-11-09T10:00:00Z",
   expires_at: "2026-11-23T10:00:00Z",
   cancelled_at: null,
-  require_email_code: true,
   reminder_interval_hours: 24,
   max_reminders: 5,
   notify_emails: [],

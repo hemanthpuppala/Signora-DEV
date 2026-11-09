@@ -55,7 +55,6 @@ const documentWith = (versions: unknown[], overrides: Record<string, unknown> = 
   updated_at: "2026-11-07T10:00:00Z",
   archived_at: null,
   department_id: "d-1",
-  require_email_code: true,
   created_by: { id: "u", name: "Rosa Hale" },
   created_at: "2026-11-07T10:00:00Z",
   access: "edit",

@@ -39,7 +39,6 @@ const summary = (overrides: Record<string, unknown> = {}) => ({
 const detail = (status: string) => ({
   ...summary({ current_version: null, latest_version: { id: "v-1", number: 1, status, created_at: new Date().toISOString() } }),
   department_id: "d-1",
-  require_email_code: true,
   created_by: { id: "u", name: "Rosa Hale" },
   created_at: "2026-11-07T10:00:00Z",
   access: "edit",
