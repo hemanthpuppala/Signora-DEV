@@ -115,3 +115,95 @@
   color: var(--paper-ink);
   white-space: nowrap;
 }
+
+/* The list: a row's title opens its envelope; a quieter second line under each cell. */
+.rowLink {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rowLink:hover,
+.rowLink:focus-visible {
+  text-decoration: underline;
+}
+
+.sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--t60);
+}
+
+/* The envelope page: sections one under another, recipients as rows with their actions. */
+.envelope {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-top: 24px;
+}
+
+.recipients {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--sep);
+  list-style: none;
+}
+
+.recipient {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--sep);
+}
+
+.who {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 240px;
+  flex-direction: column;
+}
+
+.name {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.state {
+  font-size: 13px;
+  color: var(--t75);
+}
+
+.rowActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.change {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--t75);
+}
+
+.timeline li {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) 1fr auto;
+  gap: 4px 16px;
+}

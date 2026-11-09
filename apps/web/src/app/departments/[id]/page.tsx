@@ -6,11 +6,12 @@ import { useState } from "react";
 import { useDirectory } from "@/features/departments/api";
 import { DepartmentPage } from "@/features/departments/DepartmentPage";
 import { useDocuments } from "@/features/documents/api";
+import { EnvelopesList } from "@/features/envelopes/EnvelopesList";
 import { SendModal } from "@/features/envelopes/SendModal";
 import { ConsoleShell } from "@/shared/session";
 import { SmallText } from "@/shared/ui";
 
-/** A department opens on its envelopes (the prototype's project page); New envelope opens the send. */
+/** A department opens on its envelopes (the prototype's screen 07); New envelope opens the send. */
 export default function DepartmentRoute() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -28,7 +29,13 @@ export default function DepartmentRoute() {
             documentCount={documents.data?.length}
             onAddEnvelope={() => setSending(true)}
           >
-            {() => <SmallText>No envelopes yet. Envelopes sent from this department appear here.</SmallText>}
+            {(department) =>
+              department.access === "edit" ? (
+                <EnvelopesList departmentId={id} />
+              ) : (
+                <SmallText>Envelopes and their clients&apos; details are for people who can send.</SmallText>
+              )
+            }
           </DepartmentPage>
           {sending && documents.data ? (
             <SendModal

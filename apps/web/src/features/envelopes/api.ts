@@ -1,7 +1,7 @@
 "use client";
 
 import type { components } from "@signora/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { api, unwrap } from "@/shared/api/client";
 import type { Status } from "@/shared/ui";
@@ -29,15 +29,21 @@ export function useSendForm(documentId: string | null, versionId: string | null)
   });
 }
 
+/** A department's envelopes, newest first, 50 a page ("Show more" asks for the next). */
 export function useEnvelopes(departmentId: string, status: EnvelopeStatus | null) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: [...envelopesKey(departmentId), status],
-    queryFn: () =>
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
       unwrap(
         api.GET("/api/v1/departments/{department_id}/envelopes", {
-          params: { path: { department_id: departmentId }, query: status ? { status } : {} },
+          params: {
+            path: { department_id: departmentId },
+            query: { ...(status ? { status } : {}), ...(pageParam ? { cursor: pageParam } : {}) },
+          },
         }),
       ),
+    getNextPageParam: (last) => last.next_cursor ?? null,
   });
 }
 
