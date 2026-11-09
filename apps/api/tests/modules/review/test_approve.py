@@ -171,6 +171,26 @@ def test_a_stale_approval_or_unseen_warnings_are_refused(
     assert _version(owner, document_id, 1)["status"] == "ready"
 
 
+def test_more_warnings_than_kinds_of_warning_are_accepted(
+    owner: TestClient, run: Callable[..., None], detect: Callable[..., None]
+) -> None:
+    """§2.1: the page lists every warning (ten private values are ten); what is accepted is the
+    set of their kinds, however many of each, so such a version can still be approved."""
+    document_id, version_id = _in_review(owner, run, detect)
+    body = _body(_view(owner, document_id, version_id))
+    party = body["parties"][0]["id"]
+    for n in range(10):
+        body["fields"].append(
+            _drawn(f"Tax number {n}", party, holds="tax_id", x=300, y=600 + 16 * n)
+        )
+    assert _save(owner, document_id, version_id, body).status_code == 200
+    warnings = _view(owner, document_id, version_id)["warnings"]
+    assert sum(1 for w in warnings if w["code"] == "private_value") == 10
+
+    assert _approve(owner, document_id, version_id).status_code == 204  # one code per warning
+    assert _version(owner, document_id, 1)["status"] == "approved"
+
+
 def test_two_thousand_fields_approve_in_under_a_second(
     owner: TestClient,
     run: Callable[..., None],

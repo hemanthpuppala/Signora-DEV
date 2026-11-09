@@ -849,7 +849,8 @@ export interface components {
         };
         /**
          * ApproveRequest
-         * @description Approve with the revision the page shows and the warnings the person saw (§2.1).
+         * @description Approve with the revision the page shows and the warnings the person saw (§2.1): their
+         *     codes as a set, so a page listing ten warnings of three kinds sends what it likes.
          */
         ApproveRequest: {
             /** Accepted */

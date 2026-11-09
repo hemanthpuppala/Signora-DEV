@@ -63,10 +63,11 @@ class FieldSet(_In):
 
 
 class ApproveRequest(_In):
-    """Approve with the revision the page shows and the warnings the person saw (§2.1)."""
+    """Approve with the revision the page shows and the warnings the person saw (§2.1): their
+    codes as a set, so a page listing ten warnings of three kinds sends what it likes."""
 
     revision: int = Field(ge=0)
-    accepted: list[WarningCode] = Field(max_length=len(get_args(WarningCode)))
+    accepted: set[WarningCode] = Field(max_length=len(get_args(WarningCode)))
 
 
 class Saved(BaseModel):

@@ -87,7 +87,7 @@
       },
       "ApproveRequest": {
         "additionalProperties": false,
-        "description": "Approve with the revision the page shows and the warnings the person saw (§2.1).",
+        "description": "Approve with the revision the page shows and the warnings the person saw (§2.1): their\ncodes as a set, so a page listing ten warnings of three kinds sends what it likes.",
         "properties": {
           "accepted": {
             "items": {
@@ -106,7 +106,8 @@
             },
             "maxItems": 9,
             "title": "Accepted",
-            "type": "array"
+            "type": "array",
+            "uniqueItems": true
           },
           "revision": {
             "minimum": 0.0,

@@ -120,7 +120,8 @@ export function useReview({
       unwrap(
         api.POST("/api/v1/documents/{document_id}/versions/{version_id}/approve", {
           params: { path },
-          body: { revision: view.revision, accepted: view.warnings.map((warning) => warning.code) },
+          // The kinds of warning seen, each once (ten warnings of three kinds are three codes).
+          body: { revision: view.revision, accepted: [...new Set(view.warnings.map((warning) => warning.code))] },
         }),
       ),
     onSuccess: reload,
