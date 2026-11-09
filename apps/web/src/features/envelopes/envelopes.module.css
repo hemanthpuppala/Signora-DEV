@@ -130,23 +130,27 @@
   color: var(--t60);
 }
 
-/* The envelope page: the document beside its recipients and settings (ViewerLayout); the
-   timeline under both. */
-.below {
-  margin-top: 40px;
-  padding-top: 24px;
-  border-top: 1px solid var(--sep);
+/* The envelope page: the document beside its recipients, settings and timeline (ViewerLayout). */
+
+/* A person's initials, where a document card shows its page. */
+.monogram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--r25);
+  font: 400 15px/1 var(--serif);
+  letter-spacing: 0.04em;
+  color: var(--t75);
 }
 
-.facts {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 14px;
-  color: var(--t75);
+/* A person's moments: sent, read, signed, time left. */
+.times {
+  margin-top: 2px;
+  font: 400 11px/1.5 var(--mono);
+  letter-spacing: 0.02em;
+  color: var(--t55);
 }
 
 .who {
@@ -161,10 +165,6 @@
   color: var(--ink);
 }
 
-.state {
-  font-size: 13px;
-  color: var(--t75);
-}
 
 .change {
   display: flex;
@@ -173,19 +173,59 @@
   gap: 12px;
 }
 
+/* The timeline: a thin rail, a dot at each event, the time small above what happened. */
 .timeline {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
   margin: 0;
-  padding: 0;
+  padding: 2px 0 2px 20px;
   list-style: none;
-  font-size: 14px;
-  color: var(--t75);
 }
 
-.timeline li {
-  display: grid;
-  grid-template-columns: minmax(110px, auto) 1fr auto;
-  gap: 4px 16px;
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 3px;
+  width: 1px;
+  background: var(--sep);
+}
+
+.event {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.event::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: -20px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--r40);
+}
+
+.event:first-child::before {
+  background: var(--ink); /* the latest */
+  box-shadow: none;
+}
+
+.at {
+  font: 400 11px/1.4 var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--t55);
+}
+
+.what {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
 }
