@@ -2,3 +2,7 @@
 
 Public interface — other modules import only from here.
 """
+
+from signora.modules.detection.routes import router
+
+__all__ = ["router"]

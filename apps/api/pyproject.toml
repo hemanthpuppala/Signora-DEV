@@ -208,6 +208,7 @@ protected_modules = [
     "signora.modules.detection.prompt",
     "signora.modules.detection.read",
     "signora.modules.detection.reading",
+    "signora.modules.detection.routes",
     "signora.modules.detection.run",
     "signora.modules.detection.schema",
     "signora.modules.detection.untrusted",

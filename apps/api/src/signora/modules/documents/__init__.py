@@ -13,6 +13,7 @@ from signora.modules.documents.lifecycle import (
     require_document,
     start_detection,
     version_for_detection,
+    version_status,
 )
 from signora.modules.documents.processing import DocumentVersionProcessed
 from signora.modules.documents.routes import router
@@ -28,4 +29,5 @@ __all__ = [
     "router",
     "start_detection",
     "version_for_detection",
+    "version_status",
 ]

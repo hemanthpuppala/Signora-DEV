@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from signora.kernel.blobstore import BlobRef
 from signora.kernel.db import UnitOfWork
+from signora.kernel.errors import NotFound
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import normalize_name
@@ -90,6 +91,24 @@ def require_document(session: Session, actor: Actor, document_id: uuid.UUID, *, 
     document = get_document(session, actor.workspace_id, document_id)
     if edit:
         require_edit(session, actor, document.department_id)
+
+
+def version_status(
+    session: Session, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+) -> str:
+    """A version's status, for anyone in the company who may read the document; ``404`` for a
+    version that is not this document's (or not this company's)."""
+    require_document(session, actor, document_id, edit=False)
+    status = session.execute(
+        text(
+            "SELECT status FROM document_versions WHERE id = :id AND document_id = :d "
+            "AND workspace_id = :w"
+        ),
+        {"id": version_id, "d": document_id, "w": actor.workspace_id},
+    ).scalar_one_or_none()
+    if status is None:
+        raise NotFound
+    return str(status)
 
 
 StartMode = Literal["resume", "restart", "running"]

@@ -402,6 +402,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/versions/{version_id}/detection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Find a version's fields again, or resume after a failure (repeat-safe) */
+        post: operations["run_detection_by_hand_api_v1_documents__document_id__versions__version_id__detection_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/versions/{version_id}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A version's fields, who fills them and where they are; the places found so far while its fields are being found */
+        get: operations["version_fields_api_v1_documents__document_id__versions__version_id__fields_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/versions/{version_id}/original": {
         parameters: {
             query?: never;
@@ -931,6 +965,21 @@ export interface components {
              */
             status: "active" | "archived";
         };
+        /** DependencyView */
+        DependencyView: {
+            /** Key */
+            key: string;
+            /** Option */
+            option: string;
+        };
+        /** DetectionStarted */
+        DetectionStarted: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "resume" | "restart" | "running";
+        };
         /** DirectoryEntryView */
         DirectoryEntryView: {
             /** Email */
@@ -1045,6 +1094,64 @@ export interface components {
             /** Email */
             email: string;
         };
+        /** FieldView */
+        FieldView: {
+            depends_on: components["schemas"]["DependencyView"] | null;
+            /**
+             * Filled By
+             * @enum {string}
+             */
+            filled_by: "role" | "sender" | "none";
+            /** Holds */
+            holds: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Needs Review */
+            needs_review: string | null;
+            /** Placements */
+            placements: components["schemas"]["PlacementView"][];
+            /** Required */
+            required: boolean;
+            /** Role */
+            role: string | null;
+            /** Sensitive */
+            sensitive: boolean;
+        };
+        /** Flags */
+        Flags: {
+            /**
+             * Addressed To Ai
+             * @default false
+             */
+            addressed_to_ai: boolean;
+            /**
+             * Already Signed
+             * @default false
+             */
+            already_signed: boolean;
+            /**
+             * No Fields
+             * @default false
+             */
+            no_fields: boolean;
+            /**
+             * Repaired
+             * @default false
+             */
+            repaired: boolean;
+            /**
+             * Xfa
+             * @default false
+             */
+            xfa: boolean;
+        };
         /** Grant */
         Grant: {
             /**
@@ -1157,7 +1264,7 @@ export interface components {
              * @description Effective permissions; drives what the UI shows
              */
             permissions: components["schemas"]["Permission"][];
-            role: components["schemas"]["RoleView"];
+            role: components["schemas"]["signora__modules__identity_access__routes__schemas__RoleView"];
             user: components["schemas"]["UserView"];
             workspace: components["schemas"]["WorkspaceView"];
         };
@@ -1216,6 +1323,20 @@ export interface components {
             width: number;
         };
         /**
+         * PendingField
+         * @description A place found by the read stage, before the AI has said who fills it (§6.3).
+         */
+        PendingField: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string | null;
+            /** Placements */
+            placements: components["schemas"]["PlacementView"][];
+        };
+        /**
          * Permission
          * @enum {string}
          */
@@ -1229,6 +1350,24 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** PlacementView */
+        PlacementView: {
+            /** Kind */
+            kind: string;
+            /** Option Text */
+            option_text: string | null;
+            /** Option Value */
+            option_value: string | null;
+            /** Page */
+            page: number;
+            /** Rect */
+            rect: [
+                number,
+                number,
+                number,
+                number
+            ];
         };
         /**
          * Problem
@@ -1307,20 +1446,6 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Name */
-            name: string;
-        };
-        /** RoleView */
-        RoleView: {
-            /** Description */
-            description: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Key */
-            key: string;
             /** Name */
             name: string;
         };
@@ -1423,6 +1548,22 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** VersionFields */
+        VersionFields: {
+            /** Fields */
+            fields: components["schemas"]["FieldView"][];
+            /** Fields From */
+            fields_from: ("form_fields" | "blanks" | "none") | null;
+            flags: components["schemas"]["Flags"];
+            /** Pending */
+            pending: components["schemas"]["PendingField"][];
+            /** Roles */
+            roles: components["schemas"]["signora__modules__detection__routes__RoleView"][];
+            /** Stage */
+            stage: ("read" | "ai" | "derive" | "store" | "done") | null;
+            /** Status */
+            status: string;
+        };
         /** VersionRef */
         VersionRef: {
             /**
@@ -1485,6 +1626,36 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Name */
+            name: string;
+        };
+        /** RoleView */
+        signora__modules__detection__routes__RoleView: {
+            /** Field Count */
+            field_count: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signer" | "countersigner";
+            /** Label */
+            label: string;
+            /** Position */
+            position: number;
+            /** Slug */
+            slug: string;
+        };
+        /** RoleView */
+        signora__modules__identity_access__routes__schemas__RoleView: {
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
             /** Name */
             name: string;
         };
@@ -2915,6 +3086,119 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    run_detection_by_hand_api_v1_documents__document_id__versions__version_id__detection_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Already finding fields: nothing changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionStarted"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    version_fields_api_v1_documents__document_id__versions__version_id__fields_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionFields"];
                 };
             };
             /** @description Validation failed (problem details) */
