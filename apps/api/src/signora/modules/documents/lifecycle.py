@@ -46,7 +46,6 @@ class VersionForDetection:
     page_count: int
     ai_instructions: str
     document_name: str
-    write_name_and_description: bool  # Phase 4 §1.3: until a person or the AI has written them
 
 
 def version_for_detection(session: Session, version_id: uuid.UUID) -> VersionForDetection | None:
@@ -55,8 +54,7 @@ def version_for_detection(session: Session, version_id: uuid.UUID) -> VersionFor
         text(
             "SELECT v.id, v.workspace_id, v.document_id, v.version_no, v.status, v.source_kind, "
             "v.source_sha256, v.source_bytes, v.unlocked_sha256, v.pdf_sha256, v.pdf_bytes, "
-            "v.page_count, v.ai_instructions, d.name AS document_name, d.name_source, "
-            "d.description_source FROM document_versions v "
+            "v.page_count, v.ai_instructions, d.name AS document_name FROM document_versions v "
             "JOIN documents d ON d.id = v.document_id WHERE v.id = :id"
         ),
         {"id": version_id},
@@ -80,8 +78,6 @@ def version_for_detection(session: Session, version_id: uuid.UUID) -> VersionFor
         page_count=found.page_count,
         ai_instructions=found.ai_instructions,
         document_name=found.document_name,
-        write_name_and_description=found.name_source == "upload"
-        or found.description_source == "none",
     )
 
 
@@ -158,15 +154,23 @@ def _system_audit(uow: UnitOfWork, version: VersionForDetection, action: str, **
     )
 
 
-def finish_detection(uow: UnitOfWork, version: VersionForDetection, *, field_count: int) -> bool:
-    """The version is ready (§1.2 store); it becomes current when no higher-numbered version is
-    ready (Phase 4 §4.2). False when it was no longer detecting (nothing changed)."""
+def finish_detection(
+    uow: UnitOfWork,
+    version: VersionForDetection,
+    *,
+    field_count: int,
+    name: str | None,
+    description: str | None,
+) -> bool:
+    """The version is ready (§1.2 store), with the name and description the AI wrote for it (none
+    when nothing was asked); it becomes current when no higher-numbered version is ready (Phase 4
+    §4.2). False when it was no longer detecting (nothing changed)."""
     changed = uow.session.execute(
         text(
-            "UPDATE document_versions SET status = 'ready', field_count = :n "
-            "WHERE id = :id AND status = 'detecting' RETURNING id"
+            "UPDATE document_versions SET status = 'ready', field_count = :n, ai_name = :name, "
+            "ai_description = :description WHERE id = :id AND status = 'detecting' RETURNING id"
         ),
-        {"id": version.id, "n": field_count},
+        {"id": version.id, "n": field_count, "name": name, "description": description},
     ).one_or_none()
     if changed is None:
         return False

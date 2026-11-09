@@ -143,6 +143,6 @@ def ready(run: Callable[..., None], committing_db: Database) -> Callable[..., No
         with committing_db.unit_of_work() as uow:
             version = lifecycle.version_for_detection(uow.session, uuid.UUID(version_id))
             if version is not None and version.status == "detecting":
-                lifecycle.finish_detection(uow, version, field_count=0)
+                lifecycle.finish_detection(uow, version, field_count=0, name=None, description=None)
 
     return go

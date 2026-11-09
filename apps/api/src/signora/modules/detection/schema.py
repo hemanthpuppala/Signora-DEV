@@ -173,7 +173,8 @@ class ExtraField(Strict):
 
 
 class DocumentMeta(Strict):
-    """The agreement's name and description, written once from its first version."""
+    """The agreement's name and description, written for every version: the version keeps them, and
+    the document takes them while nobody has written its own (Phase 4 §1.3)."""
 
     name: str = Field(
         description=(
@@ -266,13 +267,5 @@ def answer_model(field_ids: list[str]) -> type[BaseModel]:
             list[ExtraField],
             Field(description="Blanks with no field marker; empty when there are none."),
         ),
-        document=(
-            DocumentMeta | None,
-            Field(
-                description=(
-                    "The name and description when <write_name_and_description> is true; null "
-                    "when it is false."
-                )
-            ),
-        ),
+        document=(DocumentMeta, Field(description="This agreement's name and description.")),
     )

@@ -2019,6 +2019,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "field_count": {
             "anyOf": [
               {
@@ -2050,6 +2061,17 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "number": {
             "title": "Number",
@@ -2134,6 +2156,8 @@
           "created_at",
           "processed_at",
           "field_count",
+          "name",
+          "description",
           "is_current"
         ],
         "title": "VersionView",

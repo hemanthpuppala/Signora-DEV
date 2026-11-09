@@ -245,7 +245,6 @@ def _ask(
         assigner,
         current_name=version.document_name,
         instructions=version.ai_instructions,
-        write_name_and_description=version.write_name_and_description,
     )
 
 
@@ -256,7 +255,6 @@ def ask(
     *,
     current_name: str,
     instructions: str,
-    write_name_and_description: bool,
 ) -> tuple[list[JsonDict], dict[str, Any], str | None]:
     """The AI step (§3.4): one call, and one repair call when the checks find problems; nothing to
     ask, no call. Returns each call's facts (with the problems found), the last answer, the model.
@@ -269,12 +267,7 @@ def ask(
         {"role": "system", "content": SYSTEM_PROMPT},
         {
             "role": "user",
-            "content": user_message(
-                reading,
-                current_name=current_name,
-                instructions=instructions,
-                write_name_and_description=write_name_and_description,
-            ),
+            "content": user_message(reading, current_name=current_name, instructions=instructions),
         },
     ]
     calls: list[JsonDict] = []
@@ -313,17 +306,16 @@ def _store(
 ) -> None:
     """The version's roles, fields and placements, its name and description, and ready (§1.2),
     in the transaction that completes the job."""
+    name = result.document.name if result.document else None
+    description = result.document.description if result.document else None
     with context.complete() as uow:
         _save(uow.session, _SAVE_DONE, version.id, run_id)
         write_fields(uow.session, version, result)
         if result.document is not None:
-            apply_name_and_description(
-                uow,
-                version,
-                name=result.document.name or "",
-                description=result.document.description or "",
-            )
-        finish_detection(uow, version, field_count=len(result.fields))
+            apply_name_and_description(uow, version, name=name or "", description=description or "")
+        finish_detection(
+            uow, version, field_count=len(result.fields), name=name, description=description
+        )
         _audit(uow, version, result, row)
     log.info(
         "detection.done",

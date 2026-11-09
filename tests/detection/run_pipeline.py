@@ -121,12 +121,7 @@ def run(source: Path, *, instructions: str, effort: str | None, out: Path) -> Pa
         out / "03-request.json",
         {
             "system": SYSTEM_PROMPT,
-            "user": user_message(
-                reading,
-                current_name=source.stem,
-                instructions=instructions,
-                write_name_and_description=True,
-            ),
+            "user": user_message(reading, current_name=source.stem, instructions=instructions),
         },
     )
     with pymupdf.open(stream=data, filetype="pdf") as document:
@@ -136,7 +131,6 @@ def run(source: Path, *, instructions: str, effort: str | None, out: Path) -> Pa
             OpenAIAssigner(ai),
             current_name=source.stem,
             instructions=instructions,
-            write_name_and_description=True,
         )
         result = derive(
             reading,
