@@ -838,24 +838,24 @@ export interface components {
              */
             upload_id: string;
         };
-        /**
-         * Approval
-         * @description Approve with the revision the page shows and the warnings the person saw (§2.1).
-         */
-        "Approval-Input": {
-            /** Accepted */
-            accepted: ("no_signer" | "party_cannot_sign" | "own_value_not_a_partys" | "needs_a_look" | "already_signed" | "xfa" | "addressed_to_ai" | "overlapping_places" | "private_value")[];
-            /** Revision */
-            revision: number;
-        };
         /** Approval */
-        "Approval-Output": {
+        Approval: {
             /**
              * At
              * Format: date-time
              */
             at: string;
             by: components["schemas"]["PersonRef"];
+        };
+        /**
+         * ApproveRequest
+         * @description Approve with the revision the page shows and the warnings the person saw (§2.1).
+         */
+        ApproveRequest: {
+            /** Accepted */
+            accepted: ("no_signer" | "party_cannot_sign" | "own_value_not_a_partys" | "needs_a_look" | "already_signed" | "xfa" | "addressed_to_ai" | "overlapping_places" | "private_value")[];
+            /** Revision */
+            revision: number;
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
@@ -1750,6 +1750,92 @@ export interface components {
         };
         /** VersionFields */
         VersionFields: {
+            /**
+             * Allowed
+             * @default {
+             *       "blank": [
+             *         "signature",
+             *         "initials",
+             *         "date_signed",
+             *         "party_name",
+             *         "full_name",
+             *         "first_name",
+             *         "last_name",
+             *         "company",
+             *         "title",
+             *         "date_of_birth",
+             *         "email",
+             *         "phone",
+             *         "address",
+             *         "city",
+             *         "state",
+             *         "postal_code",
+             *         "country",
+             *         "url",
+             *         "tax_id",
+             *         "bank_account",
+             *         "date",
+             *         "number",
+             *         "currency",
+             *         "amount_in_words",
+             *         "percent",
+             *         "text",
+             *         "checkbox",
+             *         "choice",
+             *         "note",
+             *         "other"
+             *       ],
+             *       "checkbox": [
+             *         "checkbox"
+             *       ],
+             *       "combobox": [
+             *         "choice"
+             *       ],
+             *       "listbox": [
+             *         "choice"
+             *       ],
+             *       "radio": [
+             *         "choice"
+             *       ],
+             *       "signature": [
+             *         "signature",
+             *         "initials"
+             *       ],
+             *       "text": [
+             *         "signature",
+             *         "initials",
+             *         "date_signed",
+             *         "party_name",
+             *         "full_name",
+             *         "first_name",
+             *         "last_name",
+             *         "company",
+             *         "title",
+             *         "date_of_birth",
+             *         "email",
+             *         "phone",
+             *         "address",
+             *         "city",
+             *         "state",
+             *         "postal_code",
+             *         "country",
+             *         "url",
+             *         "tax_id",
+             *         "bank_account",
+             *         "date",
+             *         "number",
+             *         "currency",
+             *         "amount_in_words",
+             *         "percent",
+             *         "text",
+             *         "note",
+             *         "other"
+             *       ]
+             *     }
+             */
+            allowed: {
+                [key: string]: ("signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other")[];
+            };
             /** Fields */
             fields: components["schemas"]["FieldView"][];
             /** Fields From */
@@ -1790,7 +1876,7 @@ export interface components {
         VersionView: {
             /** Ai Instructions */
             ai_instructions: string;
-            approved: components["schemas"]["Approval-Output"] | null;
+            approved: components["schemas"]["Approval"] | null;
             /** Bytes */
             bytes: number;
             /**
@@ -3358,7 +3444,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Approval-Input"];
+                "application/json": components["schemas"]["ApproveRequest"];
             };
         };
         responses: {

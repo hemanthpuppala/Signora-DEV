@@ -62,7 +62,7 @@ class FieldSet(_In):
     fields: list[FieldIn] = Field(max_length=MAX_FIELDS)
 
 
-class Approval(_In):
+class ApproveRequest(_In):
     """Approve with the revision the page shows and the warnings the person saw (§2.1)."""
 
     revision: int = Field(ge=0)

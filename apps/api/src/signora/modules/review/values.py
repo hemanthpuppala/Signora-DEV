@@ -67,6 +67,10 @@ ALLOWED: dict[str, frozenset[str]] = {
     "combobox": frozenset({"choice"}),
     "listbox": frozenset({"choice"}),
 }
+# What a person may make each kind of box hold (§4, §5): a PDF's own boxes keep their nature, but a
+# blank (drawn by hand, or a gap detection found) can be anything, a checkbox or one option of a
+# choice included. Detection keeps ALLOWED, so the AI never turns a blank line into a checkbox.
+MANUAL_ALLOWED: dict[str, frozenset[str]] = {**ALLOWED, "blank": frozenset(MANUAL_HOLDS)}
 # Values that belong to a party: keyed under its role (``<role>.<holds>``) when a party gives them.
 PARTY_VALUES = frozenset(
     {

@@ -30,6 +30,7 @@ from signora.modules.review import (
     read_set,
     warnings_for,
 )
+from signora.modules.review.values import MANUAL_ALLOWED, MANUAL_HOLDS, ManualHolds, PlaceKind
 
 router = APIRouter(prefix="/api/v1", tags=["detection"])
 Member = Annotated[Actor, Depends(current_actor)]
@@ -73,6 +74,12 @@ class VersionFields(BaseModel):
     found_again_failed: str | None = None
     revision: int = 0  # Phase 6 §1.6: a Save or Approve names the revision it started from
     warnings: list[ReviewWarning] = []  # Phase 6 §2.1: before approving, never a block
+    # Phase 6 §4: what each kind of box may be made to hold, so the editor offers only those (the
+    # rule stays the server's: Save checks it).
+    allowed: dict[PlaceKind, list[ManualHolds]] = {
+        kind: [holds for holds in MANUAL_HOLDS if holds in allowed]  # type: ignore[misc]
+        for kind, allowed in MANUAL_ALLOWED.items()
+    }
 
 
 @router.post(

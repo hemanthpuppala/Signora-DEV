@@ -13,7 +13,7 @@ from signora.kernel.db import Database
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.identity_access import Actor, current_actor
 from signora.modules.review import service
-from signora.modules.review.fieldset import Approval, FieldSet, Revised, Saved
+from signora.modules.review.fieldset import ApproveRequest, FieldSet, Revised, Saved
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
 Member = Annotated[Actor, Depends(current_actor)]
@@ -54,7 +54,7 @@ def save_fields(
 def approve(
     document_id: uuid.UUID,
     version_id: uuid.UUID,
-    approval: Approval,
+    approval: ApproveRequest,
     request: Request,
     actor: Member,
 ) -> None:

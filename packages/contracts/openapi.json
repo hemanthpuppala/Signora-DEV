@@ -67,7 +67,25 @@
         "title": "AddVersion",
         "type": "object"
       },
-      "Approval-Input": {
+      "Approval": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "$ref": "#/components/schemas/PersonRef"
+          }
+        },
+        "required": [
+          "by",
+          "at"
+        ],
+        "title": "Approval",
+        "type": "object"
+      },
+      "ApproveRequest": {
         "additionalProperties": false,
         "description": "Approve with the revision the page shows and the warnings the person saw (§2.1).",
         "properties": {
@@ -100,25 +118,7 @@
           "revision",
           "accepted"
         ],
-        "title": "Approval",
-        "type": "object"
-      },
-      "Approval-Output": {
-        "properties": {
-          "at": {
-            "format": "date-time",
-            "title": "At",
-            "type": "string"
-          },
-          "by": {
-            "$ref": "#/components/schemas/PersonRef"
-          }
-        },
-        "required": [
-          "by",
-          "at"
-        ],
-        "title": "Approval",
+        "title": "ApproveRequest",
         "type": "object"
       },
       "ChangePasswordRequest": {
@@ -2449,6 +2449,139 @@
       },
       "VersionFields": {
         "properties": {
+          "allowed": {
+            "additionalProperties": {
+              "items": {
+                "enum": [
+                  "signature",
+                  "initials",
+                  "date_signed",
+                  "party_name",
+                  "full_name",
+                  "first_name",
+                  "last_name",
+                  "company",
+                  "title",
+                  "date_of_birth",
+                  "email",
+                  "phone",
+                  "address",
+                  "city",
+                  "state",
+                  "postal_code",
+                  "country",
+                  "url",
+                  "tax_id",
+                  "bank_account",
+                  "date",
+                  "number",
+                  "currency",
+                  "amount_in_words",
+                  "percent",
+                  "text",
+                  "checkbox",
+                  "choice",
+                  "note",
+                  "other"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "default": {
+              "blank": [
+                "signature",
+                "initials",
+                "date_signed",
+                "party_name",
+                "full_name",
+                "first_name",
+                "last_name",
+                "company",
+                "title",
+                "date_of_birth",
+                "email",
+                "phone",
+                "address",
+                "city",
+                "state",
+                "postal_code",
+                "country",
+                "url",
+                "tax_id",
+                "bank_account",
+                "date",
+                "number",
+                "currency",
+                "amount_in_words",
+                "percent",
+                "text",
+                "checkbox",
+                "choice",
+                "note",
+                "other"
+              ],
+              "checkbox": [
+                "checkbox"
+              ],
+              "combobox": [
+                "choice"
+              ],
+              "listbox": [
+                "choice"
+              ],
+              "radio": [
+                "choice"
+              ],
+              "signature": [
+                "signature",
+                "initials"
+              ],
+              "text": [
+                "signature",
+                "initials",
+                "date_signed",
+                "party_name",
+                "full_name",
+                "first_name",
+                "last_name",
+                "company",
+                "title",
+                "date_of_birth",
+                "email",
+                "phone",
+                "address",
+                "city",
+                "state",
+                "postal_code",
+                "country",
+                "url",
+                "tax_id",
+                "bank_account",
+                "date",
+                "number",
+                "currency",
+                "amount_in_words",
+                "percent",
+                "text",
+                "note",
+                "other"
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "text",
+                "signature",
+                "checkbox",
+                "radio",
+                "combobox",
+                "listbox",
+                "blank"
+              ]
+            },
+            "title": "Allowed",
+            "type": "object"
+          },
           "fields": {
             "items": {
               "$ref": "#/components/schemas/FieldView"
@@ -2576,7 +2709,7 @@
           "approved": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Approval-Output"
+                "$ref": "#/components/schemas/Approval"
               },
               {
                 "type": "null"
@@ -5091,7 +5224,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Approval-Input"
+                "$ref": "#/components/schemas/ApproveRequest"
               }
             }
           },

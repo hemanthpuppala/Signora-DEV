@@ -28,7 +28,7 @@ from signora.modules.identity_access import Actor
 from signora.modules.review.checks import warnings_for
 from signora.modules.review.editing import Settled, Stored, changes, check, rekey, settle
 from signora.modules.review.errors import FieldsChanged, VersionNotInReview, WarningsChanged
-from signora.modules.review.fieldset import Approval, FieldSet, Revised
+from signora.modules.review.fieldset import ApproveRequest, FieldSet, Revised
 from signora.modules.review.metrics import ApprovedPlace, measure
 from signora.modules.review.store import (
     begin_review,
@@ -115,7 +115,7 @@ def approve(
     actor: Actor,
     document_id: uuid.UUID,
     version_id: uuid.UUID,
-    approval: Approval,
+    approval: ApproveRequest,
 ) -> None:
     """Approve a version in review (§1.3): the revision the page shows, with the warnings the person
     saw. The warnings are recorded as accepted, never a block (§2.1); the metrics compare the set

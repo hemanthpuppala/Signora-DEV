@@ -344,3 +344,29 @@ def test_two_thousand_fields_save_in_under_a_second(
         assert saved.status_code == 200, saved.text[:500]
 
     assert max(timings) < 1.0, [f"{t:.2f} s" for t in timings]
+
+
+def test_a_drawn_box_can_hold_anything_a_pdf_box_keeps_its_nature(
+    owner: TestClient, run: Callable[..., None], detect: Callable[..., None]
+) -> None:
+    """Phase 6 §4, §5: the palette's checkbox and a hand-made choice are drawn boxes."""
+    document_id, version_id = _in_review(owner, run, detect)
+    view = _view(owner, document_id, version_id)
+    assert view["allowed"]["blank"][-2:] == ["note", "other"]
+    assert view["allowed"]["checkbox"] == ["checkbox"]
+    body = _body(view)
+    body["fields"].append(_drawn("Agree", None, holds="checkbox", rect=[300, 40, 312, 52]))
+    choice = _drawn("Plan", None, holds="choice", rect=[300, 80, 312, 92])
+    choice["places"][0] |= {"option_value": "Gold", "option_text": "Gold"}
+    choice["places"].append(
+        {**choice["places"][0], "id": str(uuid.uuid4()), "rect": [300, 100, 312, 112]}
+        | {"option_value": "Silver", "option_text": "Silver"}
+    )
+    body["fields"].append(choice)
+    assert _save(owner, document_id, version_id, body).status_code == 200
+
+    body = _body(_view(owner, document_id, version_id))
+    pdf_text = next(f for f in body["fields"] if any(p["kind"] == "text" for p in f["places"]))
+    pdf_text["holds"] = "checkbox"
+    refused = _save(owner, document_id, version_id, body)
+    assert refused.status_code == 422

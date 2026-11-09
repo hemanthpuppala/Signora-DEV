@@ -14,7 +14,7 @@ from typing import Any
 from signora.kernel.errors import FieldError
 from signora.modules.review.fieldset import MAX_PLACES, MIN_SIDE, FieldIn, FieldSet, PartyIn
 from signora.modules.review.keys import name_words, slug, unique
-from signora.modules.review.values import ALLOWED, PARTY_VALUES, SENSITIVE, SHARED
+from signora.modules.review.values import MANUAL_ALLOWED, PARTY_VALUES, SENSITIVE, SHARED
 
 EDGE_TOLERANCE = 0.5  # points: a box may touch its page's edge
 CHANGES_KEPT = 200  # the audit entry lists at most this many changes, then counts the rest
@@ -117,7 +117,7 @@ def check(
                 errors.append(FieldError(f"{where}.kind", "A box from the PDF keeps its kind"))
             if before is None and place.kind != "blank":
                 errors.append(FieldError(f"{where}.kind", "A new box is drawn (blank)"))
-            if item.holds not in ALLOWED[place.kind]:
+            if item.holds not in MANUAL_ALLOWED[place.kind]:
                 errors.append(FieldError(f"{at}.holds", f"A {place.kind} box cannot hold this"))
             errors.extend(_check_place(where, place.page, place.rect, before, pages))
     errors.extend(_check_loops(fieldset.fields))
