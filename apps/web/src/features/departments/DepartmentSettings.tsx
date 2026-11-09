@@ -8,7 +8,7 @@ import { api, unwrap } from "@/shared/api/client";
 import { INVALID_EMAIL, looksLikeEmail } from "@/shared/lib/email";
 import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import { can, type Me } from "@/shared/session";
-import { ActionCell, ActionHeader, Button, EmailField, FieldAction, FieldGrid, Heading1, HeadRow, LinkButton, Notice, RowActions, Section, Select, SmallText, TablePanel, TextArea, TextButton, TextField, useToast } from "@/shared/ui";
+import { ActionCell, ActionHeader, Block, Blocks, Button, EmailField, FieldAction, FieldGrid, Heading1, HeadRow, LinkButton, Notice, RowActions, Select, SmallText, TablePanel, TextArea, TextButton, TextField, useToast } from "@/shared/ui";
 
 import { departmentKey, useDepartment, type Department } from "./api";
 
@@ -32,15 +32,18 @@ export function DepartmentSettings({ me, id }: { me: Me; id: string }) {
   }
   return (
     <>
-      <HeadRow actions={<LinkButton href={`/departments/${id}`} variant="quiet">Back</LinkButton>}>
-        <Heading1>{data.name}</Heading1>
+      <HeadRow back={{ href: `/departments/${id}`, label: data.name }}>
+        <Heading1>Department settings</Heading1>
       </HeadRow>
-      <AboutForm department={data} />
-      <TimingForm department={data} />
-      <NotifyForm department={data} />
-      <Countersigners department={data} />
-      {can(me, "members.manage") ? <EditAccess departmentId={id} /> : null}
-      <ArchiveSection departmentId={id} />
+      {/* One panel, a row per group: its title on the left, its fields on the right (prototype). */}
+      <Blocks>
+        <AboutForm department={data} />
+        <TimingForm department={data} />
+        <NotifyForm department={data} />
+        <Countersigners department={data} />
+        {can(me, "members.manage") ? <EditAccess departmentId={id} /> : null}
+        <ArchiveSection departmentId={id} />
+      </Blocks>
     </>
   );
 }
@@ -125,7 +128,7 @@ function AboutForm({ department }: { department: Department }) {
   };
   return (
     <form onSubmit={submit} noValidate>
-      <Section title="About">
+      <Block title="About">
         {error && !nameTaken && !Object.keys(errors).length ? <Notice tone="warning">{formError(error)}</Notice> : null}
         <TextField
           label="Name"
@@ -147,7 +150,7 @@ function AboutForm({ department }: { department: Department }) {
             Save
           </Button>
         </div>
-      </Section>
+      </Block>
     </form>
   );
 }
@@ -180,7 +183,7 @@ function TimingForm({ department }: { department: Department }) {
   };
   return (
     <form onSubmit={submit} noValidate>
-      <Section title="Timing">
+      <Block title="Timing">
         <FieldGrid>
           <TextField
             label="Remind every (hours)"
@@ -218,7 +221,7 @@ function TimingForm({ department }: { department: Department }) {
             </Button>
           </FieldAction>
         </FieldGrid>
-      </Section>
+      </Block>
     </form>
   );
 }
@@ -265,8 +268,7 @@ function NotifyForm({ department }: { department: Department }) {
     Object.entries(serverErrors).find(([field]) => field.startsWith("notify_emails"))?.[1] ??
     (save.error && !Object.keys(serverErrors).length ? formError(save.error) ?? undefined : undefined);
   return (
-    <Section title="Also notify">
-      <SmallText>The sender is always notified. Add up to {NOTIFY_MAX} more people.</SmallText>
+    <Block title="Also notify" hint={`The sender is always notified. Add up to ${NOTIFY_MAX} more people.`}>
       {emails.length > 0 ? (
         <TablePanel label="Also notify list">
           <table>
@@ -321,7 +323,7 @@ function NotifyForm({ department }: { department: Department }) {
           </FieldGrid>
         </form>
       ) : null}
-    </Section>
+    </Block>
   );
 }
 
@@ -380,7 +382,7 @@ function PeopleList({
   };
 
   return (
-    <Section title={title}>
+    <Block title={title}>
       {people.length === 0 ? <SmallText>{empty}</SmallText> : null}
       {people.length > 0 ? (
         <TablePanel label={`${title} list`}>
@@ -440,7 +442,7 @@ function PeopleList({
         </FieldAction>
       </FieldGrid>
       {mutation.error ? <Notice tone="warning">{formError(mutation.error)}</Notice> : null}
-    </Section>
+    </Block>
   );
 }
 
@@ -505,8 +507,7 @@ function ArchiveSection({ departmentId }: { departmentId: string }) {
     },
   });
   return (
-    <Section title="Archive">
-      <SmallText>An archived department is read-only and hidden from the list. You can restore it.</SmallText>
+    <Block title="Archive" hint="An archived department is read-only and hidden from the list. You can restore it.">
       <div>
         {confirming ? (
           <RowActions label="Confirm archiving">
@@ -522,6 +523,6 @@ function ArchiveSection({ departmentId }: { departmentId: string }) {
         )}
       </div>
       {archive.error ? <Notice tone="warning">{formError(archive.error)}</Notice> : null}
-    </Section>
+    </Block>
   );
 }

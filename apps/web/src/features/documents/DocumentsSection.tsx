@@ -1,86 +1,83 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { formError } from "@/shared/api/errors";
-import { Dropzone, Notice, Section, SmallText, StatusPill, TablePanel } from "@/shared/ui";
+import { DocumentCard, DocumentGrid, Dropzone, Notice, SmallText, StatusPill } from "@/shared/ui";
 
-import { handOff, useDocuments } from "./api";
-import { VERSION_STATUS } from "./status";
+import { handOff, isWorking, useDocuments, type DocumentSummary } from "./api";
 import { useDocumentLimits } from "./limits";
+import { VERSION_STATUS } from "./status";
+
+const updated = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+/** "Word → PDF · 2 pages · 11 fields · updated Nov 8": what the card says about a document. */
+function facts(document: DocumentSummary): string {
+  const latest = document.latest_version;
+  return [
+    document.kind === "docx" ? "Word → PDF" : document.kind === "pdf" ? "PDF" : null,
+    document.page_count !== null ? `${document.page_count} ${document.page_count === 1 ? "page" : "pages"}` : null,
+    latest.status === "ready" && latest.field_count !== null
+      ? `${latest.field_count} ${latest.field_count === 1 ? "field" : "fields"}`
+      : null,
+    `updated ${updated(document.updated_at)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 /**
- * The department page's documents (Phase 4 LLD §6.1, prototype 10). People with edit access also
- * get a dropzone: a dropped file opens the upload page, already uploading.
+ * A department's Documents tab (Phase 4 LLD §6.1, the prototype's documents screen): each document
+ * as a card leading to its page. With no documents yet, people with edit access get a dropzone: a
+ * dropped file opens the upload page, already uploading.
  */
 export function DocumentsSection({ departmentId, canEdit }: { departmentId: string; canEdit: boolean }) {
   const router = useRouter();
   const documents = useDocuments(departmentId);
   const limits = useDocumentLimits();
-  const uploadPage = `/departments/${departmentId}/upload`;
-  const dropzone = canEdit ? (
-    <Dropzone
-      title="Drop a PDF or Word file"
-      hint={limits.hint}
-      accept=".pdf,.docx"
-      onFile={(file) => {
-        handOff(departmentId, [file]);
-        router.push(uploadPage);
-      }}
-    />
-  ) : null;
 
-  if (documents.isError) {
-    return (
-      <Section title="Documents">
-        <Notice tone="warning">{formError(documents.error)}</Notice>
-      </Section>
+  if (documents.isError) return <Notice tone="warning">{formError(documents.error)}</Notice>;
+  const list = documents.data;
+  if (!list) return null;
+  if (list.length === 0) {
+    return canEdit ? (
+      <Dropzone
+        title="Drop a PDF or Word file"
+        hint={limits.hint}
+        accept=".pdf,.docx"
+        onFile={(file) => {
+          handOff(departmentId, file);
+          router.push(`/departments/${departmentId}/upload`);
+        }}
+      />
+    ) : (
+      <SmallText>No documents yet.</SmallText>
     );
   }
-  const rows = documents.data;
-  if (!rows) return null;
   return (
-    <Section title="Documents">
-      {rows.length === 0 && !canEdit ? <SmallText>No documents yet.</SmallText> : null}
-      {rows.length > 0 ? (
-        <TablePanel label="Documents list">
-          <table>
-            <thead>
-              <tr>
-                <th>Document</th>
-                <th>Version</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((document) => {
-                const latest = document.latest_version;
-                const status = VERSION_STATUS[latest.status];
-                return (
-                  <tr key={document.id}>
-                    <td>
-                      <Link href={`/departments/${departmentId}/documents/${document.id}`}>
-                        <b>{document.name}</b>
-                      </Link>
-                      {document.kind && document.page_count !== null ? (
-                        <SmallText>
-                          {`${document.kind === "docx" ? "Word → PDF" : "PDF"} · ${document.page_count} ${document.page_count === 1 ? "page" : "pages"}`}
-                        </SmallText>
-                      ) : null}
-                    </td>
-                    <td>{`v${document.current_version?.number ?? latest.number}`}</td>
-                    <td>
-                      <StatusPill status={status.pill} label={status.label} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </TablePanel>
-      ) : null}
-      {dropzone}
-    </Section>
+    <DocumentGrid label="Documents list">
+      {list.map((document) => {
+        const latest = document.latest_version;
+        const status = VERSION_STATUS[latest.status];
+        const current = document.current_version;
+        return (
+          <DocumentCard
+            key={document.id}
+            href={`/departments/${departmentId}/documents/${document.id}`}
+            kind={document.kind === "docx" ? "DOC" : "PDF"}
+            title={document.name}
+            version={`V${current?.number ?? latest.number}`}
+            facts={facts(document)}
+            status={<StatusPill status={status.pill} label={status.label} live={isWorking(latest.status)} dotOnly />}
+            // The current version's file as it was uploaded; none until a version is ready.
+            download={
+              current
+                ? { href: `/api/v1/documents/${document.id}/versions/${current.id}/original`, label: "Download original" }
+                : undefined
+            }
+          />
+        );
+      })}
+    </DocumentGrid>
   );
 }

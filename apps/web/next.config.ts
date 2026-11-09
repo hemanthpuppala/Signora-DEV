@@ -10,6 +10,8 @@ const config: NextConfig = {
   poweredByHeader: false,
   // The contracts package ships TypeScript source.
   transpilePackages: ["@signora/contracts"],
+  // `make web` passes the public host name, so the dev server can be reached through a tunnel.
+  allowedDevOrigins: (process.env.WEB_DEV_ORIGINS ?? "").split(",").filter(Boolean),
   // In production Caddy routes /api/* to the API on the same origin. In development there is no
   // Caddy, so `next dev` forwards /api/* to the local API server.
   async rewrites() {

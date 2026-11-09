@@ -182,6 +182,7 @@ protected_modules = [
     "signora.modules.documents.domain",
     "signora.modules.documents.errors",
     "signora.modules.documents.jobs",
+    "signora.modules.documents.lifecycle",
     "signora.modules.documents.models",
     "signora.modules.documents.pdf",
     "signora.modules.documents.processing",
@@ -190,6 +191,35 @@ protected_modules = [
     "signora.modules.documents.uploads",
 ]
 allowed_importers = ["signora.modules.documents", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Public interface only: detection internals are imported only by detection and composition roots"
+type = "protected"
+protected_modules = [
+    "signora.modules.detection.ai",
+    "signora.modules.detection.blanks",
+    "signora.modules.detection.derive",
+    "signora.modules.detection.form_fields",
+    "signora.modules.detection.geometry",
+    "signora.modules.detection.jobs",
+    "signora.modules.detection.layout",
+    "signora.modules.detection.models",
+    "signora.modules.detection.page_text",
+    "signora.modules.detection.prompt",
+    "signora.modules.detection.read",
+    "signora.modules.detection.reading",
+    "signora.modules.detection.routes",
+    "signora.modules.detection.run",
+    "signora.modules.detection.schema",
+    "signora.modules.detection.untrusted",
+]
+allowed_importers = ["signora.modules.detection", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Documents never depend on detection (detection drives documents through documents.lifecycle)"
+type = "forbidden"
+source_modules = ["signora.modules.documents"]
+forbidden_modules = ["signora.modules.detection"]
 
 [[tool.importlinter.contracts]]
 name = "Leaf modules import only the kernel"
@@ -210,5 +240,17 @@ source_modules = [
     "signora.modules.departments.domain",
     "signora.modules.documents.domain",
     "signora.modules.identity_access.domain",
+    # Detection's reading and deriving: from a PDF's bytes and the AI's answer to fields.
+    "signora.modules.detection.blanks",
+    "signora.modules.detection.derive",
+    "signora.modules.detection.form_fields",
+    "signora.modules.detection.geometry",
+    "signora.modules.detection.layout",
+    "signora.modules.detection.page_text",
+    "signora.modules.detection.prompt",
+    "signora.modules.detection.read",
+    "signora.modules.detection.reading",
+    "signora.modules.detection.schema",
+    "signora.modules.detection.untrusted",
 ]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]

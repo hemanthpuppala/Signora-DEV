@@ -4,6 +4,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "@/shared/lib/cx";
 
 import styles from "./button.module.css";
+import { Icon, type IconName } from "./Icon";
 
 export type ButtonVariant = "primary" | "quiet" | "destructive";
 
@@ -88,3 +89,46 @@ export function LinkButton({
   );
 }
 
+
+/**
+ * A page's own action in its head: an icon and its words, small and quiet; on a phone the icon
+ * alone, the words still naming it for assistive technology. A link with ``href``.
+ */
+export function HeadAction({
+  icon,
+  label,
+  variant = "quiet",
+  href,
+  onClick,
+  disabled = false,
+}: {
+  icon: IconName;
+  label: string;
+  variant?: ButtonVariant;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  const className = cx(
+    styles.button,
+    styles.compact,
+    styles.headAction,
+    variant === "quiet" && styles.quiet,
+    variant === "destructive" && styles.destructive,
+  );
+  const content = (
+    <>
+      <Icon name={icon} />
+      <span className={styles.headActionLabel}>{label}</span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <button type="button" className={className} onClick={onClick} disabled={disabled}>
+      {content}
+    </button>
+  );
+}

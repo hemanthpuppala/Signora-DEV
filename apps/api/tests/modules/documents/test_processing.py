@@ -66,10 +66,10 @@ def test_a_pdf_is_processed_into_a_working_copy_with_its_page_facts(
     version_id = document["versions"][0]["id"]
 
     run(version_id)
-    run(version_id)  # repeat-safe: a processed version is left alone
+    run(version_id)  # repeat-safe: a version past processing is left alone
 
     version = _version(owner, document["id"])
-    assert (version["status"], version["page_count"], version["problem"]) == ("processed", 3, None)
+    assert (version["status"], version["page_count"], version["problem"]) == ("detecting", 3, None)
     assert version["pages"][2] == {"width": 595.0, "height": 842.0, "rotation": 0}
     with committing_db.unit_of_work() as uow:
         row = uow.session.execute(
@@ -87,7 +87,7 @@ def test_a_word_file_is_converted_by_gotenberg(owner: TestClient, run: Callable[
     run(document["versions"][0]["id"])
 
     version = _version(owner, document["id"])
-    assert (version["status"], version["kind"], version["page_count"]) == ("processed", "docx", 1)
+    assert (version["status"], version["kind"], version["page_count"]) == ("detecting", "docx", 1)
 
 
 def test_scanned_pages_block_the_version_and_say_which(
@@ -148,7 +148,7 @@ def test_a_passing_outage_retries_then_fails_with_try_again(
     assert retried.json()["versions"][0]["status"] == "processing"
     assert _queued(committing_db, version_id) >= 1
     run(version_id)
-    assert _version(owner, document["id"])["status"] == "processed"
+    assert _version(owner, document["id"])["status"] == "detecting"
 
 
 def test_a_failure_while_saving_on_the_last_attempt_offers_try_again(
@@ -212,7 +212,7 @@ def test_a_password_protected_pdf_is_unlocked_and_processing_continues(
     assert right.json()["versions"][0]["status"] == "processing"
     run(version_id)
 
-    assert _version(owner, document["id"])["status"] == "processed"
+    assert _version(owner, document["id"])["status"] == "detecting"
     with committing_db.unit_of_work() as uow:
         data = uow.session.execute(
             text(

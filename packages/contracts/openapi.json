@@ -403,6 +403,42 @@
         "title": "DepartmentSummary",
         "type": "object"
       },
+      "DependencyView": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "option": {
+            "title": "Option",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "option"
+        ],
+        "title": "DependencyView",
+        "type": "object"
+      },
+      "DetectionStarted": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "resume",
+              "restart",
+              "running"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "DetectionStarted",
+        "type": "object"
+      },
       "DirectoryEntryView": {
         "properties": {
           "email": {
@@ -699,6 +735,129 @@
         "title": "EmailResponse",
         "type": "object"
       },
+      "FieldView": {
+        "properties": {
+          "depends_on": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DependencyView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "filled_by": {
+            "enum": [
+              "role",
+              "sender",
+              "none"
+            ],
+            "title": "Filled By",
+            "type": "string"
+          },
+          "holds": {
+            "title": "Holds",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "needs_review": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs Review"
+          },
+          "placements": {
+            "items": {
+              "$ref": "#/components/schemas/PlacementView"
+            },
+            "title": "Placements",
+            "type": "array"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "sensitive": {
+            "title": "Sensitive",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "label",
+          "holds",
+          "filled_by",
+          "role",
+          "required",
+          "sensitive",
+          "depends_on",
+          "needs_review",
+          "placements"
+        ],
+        "title": "FieldView",
+        "type": "object"
+      },
+      "Flags": {
+        "properties": {
+          "addressed_to_ai": {
+            "default": false,
+            "title": "Addressed To Ai",
+            "type": "boolean"
+          },
+          "already_signed": {
+            "default": false,
+            "title": "Already Signed",
+            "type": "boolean"
+          },
+          "no_fields": {
+            "default": false,
+            "title": "No Fields",
+            "type": "boolean"
+          },
+          "repaired": {
+            "default": false,
+            "title": "Repaired",
+            "type": "boolean"
+          },
+          "xfa": {
+            "default": false,
+            "title": "Xfa",
+            "type": "boolean"
+          }
+        },
+        "title": "Flags",
+        "type": "object"
+      },
       "Grant": {
         "properties": {
           "created_at": {
@@ -852,6 +1011,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "field_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Count"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -867,7 +1037,8 @@
               "needs_password",
               "needs_ocr",
               "failed",
-              "processed"
+              "detecting",
+              "ready"
             ],
             "title": "Status",
             "type": "string"
@@ -877,7 +1048,8 @@
           "id",
           "number",
           "status",
-          "created_at"
+          "created_at",
+          "field_count"
         ],
         "title": "LatestVersion",
         "type": "object"
@@ -938,7 +1110,7 @@
             "type": "array"
           },
           "role": {
-            "$ref": "#/components/schemas/RoleView"
+            "$ref": "#/components/schemas/signora__modules__identity_access__routes__schemas__RoleView"
           },
           "user": {
             "$ref": "#/components/schemas/UserView"
@@ -1079,6 +1251,45 @@
         "title": "PageView",
         "type": "object"
       },
+      "PendingField": {
+        "description": "A place found by the read stage, before the AI has said who fills it (§6.3).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "placements": {
+            "items": {
+              "$ref": "#/components/schemas/PlacementView"
+            },
+            "title": "Placements",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "placements"
+        ],
+        "title": "PendingField",
+        "type": "object"
+      },
       "Permission": {
         "enum": [
           "members.manage",
@@ -1110,6 +1321,69 @@
           "name"
         ],
         "title": "PersonRef",
+        "type": "object"
+      },
+      "PlacementView": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "option_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Text"
+          },
+          "option_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Value"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rect": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Rect",
+            "type": "array"
+          }
+        },
+        "required": [
+          "page",
+          "rect",
+          "kind",
+          "option_value",
+          "option_text"
+        ],
+        "title": "PlacementView",
         "type": "object"
       },
       "Problem": {
@@ -1312,35 +1586,6 @@
           "description"
         ],
         "title": "RoleRef",
-        "type": "object"
-      },
-      "RoleView": {
-        "properties": {
-          "description": {
-            "title": "Description",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "key",
-          "name",
-          "description"
-        ],
-        "title": "RoleView",
         "type": "object"
       },
       "SettingsInput": {
@@ -1663,6 +1908,94 @@
         "title": "UserView",
         "type": "object"
       },
+      "VersionFields": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldView"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "fields_from": {
+            "anyOf": [
+              {
+                "enum": [
+                  "form_fields",
+                  "blanks",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields From"
+          },
+          "flags": {
+            "$ref": "#/components/schemas/Flags"
+          },
+          "found_again_failed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Found Again Failed"
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/PendingField"
+            },
+            "title": "Pending",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/signora__modules__detection__routes__RoleView"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read",
+                  "ai",
+                  "derive",
+                  "store",
+                  "done"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "stage",
+          "fields_from",
+          "roles",
+          "fields",
+          "pending",
+          "flags"
+        ],
+        "title": "VersionFields",
+        "type": "object"
+      },
       "VersionRef": {
         "properties": {
           "id": {
@@ -1697,6 +2030,28 @@
             "title": "Created At",
             "type": "string"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "field_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Count"
+          },
           "filename": {
             "title": "Filename",
             "type": "string"
@@ -1717,6 +2072,17 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "number": {
             "title": "Number",
@@ -1775,7 +2141,8 @@
               "needs_password",
               "needs_ocr",
               "failed",
-              "processed"
+              "detecting",
+              "ready"
             ],
             "title": "Status",
             "type": "string"
@@ -1799,6 +2166,9 @@
           "uploaded_by",
           "created_at",
           "processed_at",
+          "field_count",
+          "name",
+          "description",
           "is_current"
         ],
         "title": "VersionView",
@@ -1821,6 +2191,72 @@
           "name"
         ],
         "title": "WorkspaceView",
+        "type": "object"
+      },
+      "signora__modules__detection__routes__RoleView": {
+        "properties": {
+          "field_count": {
+            "title": "Field Count",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "signer",
+              "countersigner"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "label",
+          "kind",
+          "position",
+          "field_count"
+        ],
+        "title": "RoleView",
+        "type": "object"
+      },
+      "signora__modules__identity_access__routes__schemas__RoleView": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "description"
+        ],
+        "title": "RoleView",
         "type": "object"
       }
     }
@@ -4029,6 +4465,185 @@
         "summary": "Add a version from an upload (requires Idempotency-Key)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/detection": {
+      "post": {
+        "operationId": "run_detection_by_hand_api_v1_documents__document_id__versions__version_id__detection_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Already finding fields: nothing changed"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectionStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Find a version's fields again, or resume after a failure (repeat-safe)",
+        "tags": [
+          "detection"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/fields": {
+      "get": {
+        "operationId": "version_fields_api_v1_documents__document_id__versions__version_id__fields_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionFields"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A version's fields, who fills them and where they are; the places found so far while its fields are being found",
+        "tags": [
+          "detection"
         ]
       }
     },

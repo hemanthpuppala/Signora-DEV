@@ -443,15 +443,17 @@ words, and consequential actions (make current, archive) ask first.
 
 ### 6.2 Upload page `/departments/{id}/upload` (prototype 11)
 
-- A dropzone: "Drop a PDF or Word file · up to 50 MB · up to 200 pages", one file at a time (§2.4).
-- Each file gets a row at once: a progress bar while the bytes travel, the **name** (prefilled, editable),
-  **Instructions for the AI** (optional) and **Add document**. Problems and the duplicate dialog (§2.3) appear on
-  that row. The person can drop the next file while earlier rows are still uploading or processing.
-- After "Add document" the row shows the version's status (Processing, then Ready or what needs doing), linking
-  to the document page.
-- A row still uploading has **Cancel**, which stops the transfer and drops the row; leaving the page stops every
-  transfer still running. Nothing is sent from a department that is archived or that the person cannot edit: the
-  page explains that instead (review fix, 4.19).
+- **One document at a time** (owner decision, revised in Phase 5): the head reads "‹ Documents" (back to the
+  department) over **Upload a document**. A dropzone, "Drop a PDF or Word file · up to 50 MB · up to 200 pages",
+  until a file is chosen; then that file takes the dropzone's place.
+- The file's card: a progress bar while the bytes travel, the **name** (prefilled, editable), **Instructions for
+  the AI** (optional) and **Add document**. Problems and the duplicate dialog (§2.3) appear on it. **Remove** brings
+  the dropzone back.
+- After "Add document" the person is taken to the new document's page, which shows the version's steps (Upload,
+  Process, Find fields, Ready) above the viewer until it is ready or needs something (Phase 5).
+- A file still uploading has **Cancel**, which stops the transfer; leaving the page stops it too. Nothing is sent
+  from a department that is archived or that the person cannot edit: the page explains that instead (review fix,
+  4.19).
 - *Implementation details:* the duplicate question (§2.3) is asked as soon as that file's upload finishes, so
   nobody types a name for a file they will cancel. When "Upload anyway" meets a taken name, the row's name field
   says so and the person renames it there. Statuses read Processing, Needs password, Scanned pages, Failed and
@@ -461,14 +463,26 @@ words, and consequential actions (make current, archive) ask first.
 
 ### 6.3 New department page (carried from Phase 3, owner decision)
 
-- The same dropzone on `/departments/new`. Files dropped there are listed and held in the browser (they cannot be
-  uploaded before the department exists).
-- On **Create department**, the department is created and the page moves to its upload page, where each held file
+- The same dropzone on `/departments/new`, for one file (owner decision, revised in Phase 5): once dropped, the
+  file takes the dropzone's place, with **Remove**, and is held in the browser (it cannot be uploaded before the
+  department exists).
+- On **Create department**, the department is created and the page moves to its upload page, where the held file
   uploads and shows its status until it is done.
+
+### 6.3a The way back (Phase 5, owner decision)
+
+A page below another has no Back button: its head's eyebrow is the way back, "‹ Documents", one shared
+`BackLink` (`HeadRow`'s `back`). The department page leads to Departments, a new department to Departments,
+department settings to the department, the upload and document pages to the department's documents. The pages in
+the navigation (Departments, People, Settings) have none.
 
 ### 6.4 Document page `/departments/{id}/documents/{documentId}`
 
-- **Header**: the name and description (no AI labels, owner decision), Edit for people with edit access, Back.
+- **Header**: "‹ Documents" (§6.3a) with New version, Edit and Archive document at its end for people with edit
+  access; the name with the version shown beside it (V2, a star when current); the description (no AI labels,
+  owner decision). Revised in Phase 5: a new version uploads as soon as it is picked from the file picker; once
+  the file has arrived, a short form above the viewer takes the optional **instructions for the AI** for that
+  version (as the first upload does, §1.3) and **Add version**; then its steps show there until ready.
 - **Main area (left, large)**: the viewer (topic 5) on the current version. When the newest version is not ready,
   its state is shown above the viewer of the current one (or alone, for a first version):
   - Processing: "Processing version 3…";
@@ -479,7 +493,7 @@ words, and consequential actions (make current, archive) ask first.
   - **Require email code** switch (edit access);
   - **Versions**: number, file name, pages, uploaded by and when, status, a *Current* badge; Open, Download
     original, and **Make current** for ready versions, with the confirmation from §4.2;
-  - **Upload new version**: a dropzone with instructions for the AI (edit access);
+  - (the new version is added from the header, see above);
   - **Archive document**, behind a confirmation (edit access); an archived document shows a banner with Restore.
 - **Viewers**: the viewer, the versions list, Open and Download original.
 

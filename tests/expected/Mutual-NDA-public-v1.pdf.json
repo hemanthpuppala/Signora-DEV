@@ -1,0 +1,153 @@
+{
+  "document": "Mutual-NDA-public-v1.pdf",
+  "confirmed": false,
+  "roles": {
+    "party_1": "signer",
+    "party_2": "signer"
+  },
+  "fields": {
+    "f1": {
+      "holds": "text",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": null
+    },
+    "f2": {
+      "holds": "date",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": null
+    },
+    "f3": {
+      "holds": "text",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": [
+        "f4",
+        "Choice1"
+      ]
+    },
+    "f4": {
+      "holds": "choice",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": null
+    },
+    "f5": {
+      "holds": "text",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": [
+        "f7",
+        "Choice1"
+      ]
+    },
+    "f6": {
+      "holds": "choice",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": [
+        "f7",
+        "Choice1"
+      ]
+    },
+    "f7": {
+      "holds": "choice",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": null
+    },
+    "f8": {
+      "holds": "state",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": null
+    },
+    "f9": {
+      "holds": "text",
+      "filled_by": "sender",
+      "required": true,
+      "depends_on": null
+    },
+    "f10": {
+      "holds": "text",
+      "filled_by": "sender",
+      "required": false,
+      "depends_on": null
+    },
+    "f11": {
+      "holds": "signature",
+      "filled_by": "party_1",
+      "required": true,
+      "depends_on": null
+    },
+    "f12": {
+      "holds": "signature",
+      "filled_by": "party_2",
+      "required": true,
+      "depends_on": null
+    },
+    "f13": {
+      "holds": "full_name",
+      "filled_by": "party_1",
+      "required": true,
+      "depends_on": null
+    },
+    "f14": {
+      "holds": "full_name",
+      "filled_by": "party_2",
+      "required": true,
+      "depends_on": null
+    },
+    "f15": {
+      "holds": "title",
+      "filled_by": "party_1",
+      "required": false,
+      "depends_on": null
+    },
+    "f16": {
+      "holds": "title",
+      "filled_by": "party_2",
+      "required": false,
+      "depends_on": null
+    },
+    "f17": {
+      "holds": "company",
+      "filled_by": "party_1",
+      "required": false,
+      "depends_on": null
+    },
+    "f18": {
+      "holds": "company",
+      "filled_by": "party_2",
+      "required": false,
+      "depends_on": null
+    },
+    "f19": {
+      "holds": "text",
+      "filled_by": "party_1",
+      "required": true,
+      "depends_on": null
+    },
+    "f20": {
+      "holds": "text",
+      "filled_by": "party_2",
+      "required": true,
+      "depends_on": null
+    },
+    "f21": {
+      "holds": "date_signed",
+      "filled_by": "party_1",
+      "required": true,
+      "depends_on": null
+    },
+    "f22": {
+      "holds": "date_signed",
+      "filled_by": "party_2",
+      "required": true,
+      "depends_on": null
+    }
+  },
+  "shared": [],
+  "addressed_to_ai": false
+}

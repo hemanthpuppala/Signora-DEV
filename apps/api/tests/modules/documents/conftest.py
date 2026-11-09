@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,7 @@ from signora.kernel.config import DatabaseSettings, Settings, load_settings
 from signora.kernel.db import Database
 from signora.kernel.jobs import JobContext, JobRegistry
 from signora.kernel.jobs.core import ClaimedJob, mark_failed
-from signora.modules.documents import jobs, processing
+from signora.modules.documents import jobs, lifecycle, processing
 from tests.modules.identity_access.conftest import (  # noqa: F401 - fixtures by name
     Account,
     add_member,
@@ -128,5 +129,20 @@ def run(committing_db: Database, settings: Settings) -> Callable[..., None]:
                 job = ClaimedJob(job_id, processing.PROCESS, payload, {}, attempt)
                 mark_failed(uow.session, job, kind, error)
             raise
+
+    return go
+
+
+@pytest.fixture
+def ready(run: Callable[..., None], committing_db: Database) -> Callable[..., None]:
+    """Process a version, then finish its detection with no fields, as the detection module does
+    through ``documents.lifecycle`` (Phase 5 §1.2): for tests of what happens once it is ready."""
+
+    def go(version_id: str, **options: Any) -> None:
+        run(version_id, **options)
+        with committing_db.unit_of_work() as uow:
+            version = lifecycle.version_for_detection(uow.session, uuid.UUID(version_id))
+            if version is not None and version.status == "detecting":
+                lifecycle.finish_detection(uow, version, field_count=0, name=None, description=None)
 
     return go

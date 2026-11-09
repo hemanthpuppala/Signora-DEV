@@ -12,14 +12,14 @@ import { can, ConsoleShell } from "@/shared/session";
 export default function NewDepartmentPage() {
   const router = useRouter();
   const limits = useDocumentLimits();
-  // Held files go to the new department's upload page, which uploads them (Phase 4 LLD §6.3).
+  // A held file goes to the new department's upload page, which uploads it (Phase 4 LLD §6.3).
   const onCreated = useCallback(
-    (department: Department, files: File[]) => {
-      if (files.length === 0) {
+    (department: Department, file: File | null) => {
+      if (!file) {
         router.replace(`/departments/${department.id}`);
         return;
       }
-      handOff(department.id, files);
+      handOff(department.id, file);
       router.replace(`/departments/${department.id}/upload`);
     },
     [router],

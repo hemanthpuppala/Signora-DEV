@@ -1,10 +1,13 @@
-/* PdfViewer: a toolbar over a scrolling column of pages on a dark surface. */
+/* PdfViewer: a quiet toolbar over a scrolling column of pages that float on the page itself (no
+   frame of its own, so the document reads as the page's centre, not a box in it). */
 .viewer {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border: 1px solid var(--sep);
-  background: var(--surface);
+  /* A page can give the viewer a height to fill (--pdf-frame-height) with the pane taking what
+     the toolbar leaves; otherwise the pane has its own height. */
+  height: var(--pdf-frame-height, auto);
+  min-height: 0;
 }
 
 .toolbar {
@@ -13,7 +16,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
-  padding: 8px 12px;
+  padding: 0 4px 10px;
   border-bottom: 1px solid var(--sep);
 }
 
@@ -33,10 +36,14 @@
 }
 
 .pane {
+  flex: 1 1 auto;
+  min-height: 0;
   height: var(--pdf-viewer-height, min(78vh, 1100px));
   overflow: auto;
-  overscroll-behavior: contain;
-  background: var(--surface-2);
+  /* At its end, scrolling carries on to the page, unless the page pins the viewer (--pdf-overscroll). */
+  overscroll-behavior: var(--pdf-overscroll, auto);
+  scrollbar-width: thin;
+  scrollbar-color: var(--r25) transparent;
 }
 
 .pane:focus-visible {
@@ -59,7 +66,10 @@
   position: relative;
   flex: none;
   background: var(--paper);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  /* a sheet resting on the page: a hairline edge and a soft shadow */
+  box-shadow:
+    0 0 0 1px var(--sep),
+    0 12px 32px rgba(0, 0, 0, 0.55);
 }
 
 .canvas {

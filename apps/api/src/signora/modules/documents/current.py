@@ -52,7 +52,7 @@ def promote_if_newest(
     newer_ready = session.execute(
         text(
             "SELECT EXISTS (SELECT 1 FROM document_versions WHERE document_id = :d "
-            "AND version_no > :n AND status = 'processed')"
+            "AND version_no > :n AND status = 'ready')"
         ),
         {"d": document_id, "n": version_no},
     ).scalar_one()

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { cx } from "@/shared/lib/cx";
 
 import styles from "./display.module.css";
+import { Tooltip } from "./Tooltip";
 
 /**
  * A table inside a hairline panel. Long tables scroll inside the panel (the header row stays
@@ -73,20 +74,37 @@ const DEFAULT_LABELS: Record<Status, string> = {
 };
 
 /** Status pill: the dot carries the color (the only color in the product); the label stays white. */
-export function StatusPill({ status, label }: { status: Status; label?: string }) {
-  return (
+/**
+ * A status as its coloured dot and its label. ``live``: the dot pulses while work goes on.
+ * ``dotOnly``: the dot alone, its label in a tooltip and for assistive technology.
+ */
+export function StatusPill({
+  status,
+  label,
+  live = false,
+  dotOnly = false,
+}: {
+  status: Status;
+  label?: string;
+  live?: boolean;
+  dotOnly?: boolean;
+}) {
+  const text = label ?? DEFAULT_LABELS[status];
+  const pill = (
     <span className={cx(styles.status, styles[`st-${status}`])}>
       <i
         className={cx(
           styles.dot,
           status === "expired" && styles.dotDashed,
           status === "cancelled" && styles.dotRing,
+          live && styles.dotLive,
         )}
         aria-hidden="true"
       />
-      {label ?? DEFAULT_LABELS[status]}
+      <span className={dotOnly ? styles.visuallyHidden : undefined}>{text}</span>
     </span>
   );
+  return dotOnly ? <Tooltip label={text}>{pill}</Tooltip> : pill;
 }
 
 export type NoticeProps = {
@@ -126,8 +144,9 @@ export function MetricGrid({ children }: { children: ReactNode }) {
 
 export type TabItem = { href: string; label: string; active?: boolean };
 
-export function Tabs({ items, label }: { items: readonly TabItem[]; label: string }) {
-  return (
+/** Tabs with a hairline underline; ``actions`` sit at the end of the same line (the open tab's own). */
+export function Tabs({ items, label, actions }: { items: readonly TabItem[]; label: string; actions?: ReactNode }) {
+  const tabs = (
     <nav className={styles.tabs} aria-label={label}>
       {items.map((item) => (
         <Link
@@ -140,5 +159,12 @@ export function Tabs({ items, label }: { items: readonly TabItem[]; label: strin
         </Link>
       ))}
     </nav>
+  );
+  if (!actions) return tabs;
+  return (
+    <div className={styles.tabRow}>
+      {tabs}
+      <div className={styles.tabActions}>{actions}</div>
+    </div>
   );
 }

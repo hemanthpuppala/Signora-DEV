@@ -13,7 +13,8 @@ import { FakeUpload } from "./fakeUpload.testing";
 import { UploadPage } from "./UploadPage";
 
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace }) }));
 
 const FINANCE = { id: "d-1", name: "Finance", status: "active", access: "edit" } as const;
 const META = { version: "1", commit: "x", password_min_length: 12, password_rule: "x", document_max_bytes: 50 * 1024 * 1024, document_max_pages: 200 };
@@ -29,7 +30,7 @@ const summary = (overrides: Record<string, unknown> = {}) => ({
   kind: "pdf",
   page_count: 7,
   current_version: { id: "v-1", number: 2 },
-  latest_version: { id: "v-1", number: 2, status: "processed", created_at: "2026-11-07T10:00:00Z" },
+  latest_version: { id: "v-1", number: 2, status: "ready", created_at: "2026-11-07T10:00:00Z", field_count: 12 },
   updated_at: "2026-11-07T10:00:00Z",
   archived_at: null,
   ...overrides,
@@ -123,17 +124,21 @@ describe("documents", () => {
     expect(processingInterval(["2026-11-07T09:00:00Z"], now)).toBe(5_000);
   });
 
-  it("lists documents with their version and status in plain words", async () => {
-    serve({ documents: [summary(), summary({ id: "doc-2", name: "NDA", kind: "docx", page_count: 1, latest_version: { id: "v-9", number: 3, status: "needs_password", created_at: "2026-11-07T10:00:00Z" } })] });
+  it("shows each document as a card: its facts, version, status, a download and a link to it", async () => {
+    serve({ documents: [summary(), summary({ id: "doc-2", name: "NDA", kind: "docx", page_count: 1, current_version: null, latest_version: { id: "v-9", number: 3, status: "needs_password", created_at: "2026-11-07T10:00:00Z", field_count: null } })] });
     wrap(<DocumentsSection departmentId="d-1" canEdit={false} />);
 
-    const list = await screen.findByRole("region", { name: "Documents list" });
-    const letter = within(list).getByText("Engagement letter").closest("tr") as HTMLElement;
-    expect(within(letter).getByText("PDF · 7 pages")).toBeTruthy();
-    expect(within(letter).getByText("v2")).toBeTruthy();
-    expect(within(letter).getByText("Ready")).toBeTruthy();
-    expect(within(list).getByText("Word → PDF · 1 page")).toBeTruthy();
-    expect(within(list).getByText("Needs password")).toBeTruthy();
+    const list = await screen.findByRole("list", { name: "Documents list" });
+    const letter = within(list).getByRole("link", { name: "Engagement letter" }).closest("li") as HTMLElement;
+    expect(within(letter).getByRole("link", { name: "Engagement letter" }).getAttribute("href")).toBe("/departments/d-1/documents/doc-1");
+    expect(within(letter).getByText(/^PDF · 7 pages · 12 fields · updated /)).toBeTruthy();
+    expect(within(letter).getByText("V2")).toBeTruthy();
+    expect(within(letter).getAllByText("Ready").length).toBeGreaterThan(0); // the dot's words
+    expect(within(letter).getByRole("link", { name: "Download original" })).toBeTruthy();
+    const nda = within(list).getByRole("link", { name: "NDA" }).closest("li") as HTMLElement;
+    expect(within(nda).getByText(/^Word → PDF · 1 page · updated /)).toBeTruthy();
+    expect(within(nda).getAllByText("Needs password").length).toBeGreaterThan(0);
+    expect(within(nda).queryByRole("link", { name: "Download original" })).toBeNull(); // nothing ready yet
     expect(screen.queryByLabelText(/Drop a PDF or Word file/)).toBeNull(); // read access: no dropzone
   });
 
@@ -171,12 +176,13 @@ describe("documents", () => {
       allow_duplicate: false,
     });
     expect(posted[0]?.key).toBeTruthy();
-    expect(await screen.findByText("Processing")).toBeTruthy(); // its live status
+    // Added: on to its page, which shows its way to ready.
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith(expect.stringMatching(/^\/departments\/d-1\/documents\//)));
   });
 
   it("starts uploading files handed over from another page at once", async () => {
     serve({});
-    handOff("d-1", [pdf("Handed over.pdf")]);
+    handOff("d-1", pdf("Handed over.pdf"));
     wrap(<UploadPage department={FINANCE} />);
     await vi.waitFor(() => expect(FakeUpload.sent).toHaveLength(1));
     expect(FakeUpload.sent[0]?.url).toContain("filename=Handed%20over.pdf");
@@ -184,7 +190,7 @@ describe("documents", () => {
 
   it("still uploads a handed-over file under development's double mount", async () => {
     serve({});
-    handOff("d-1", [pdf("Handed over.pdf")]);
+    handOff("d-1", pdf("Handed over.pdf"));
     wrap(
       <StrictMode>
         <UploadPage department={FINANCE} />
@@ -196,14 +202,13 @@ describe("documents", () => {
     expect(((await screen.findByLabelText("Name")) as HTMLInputElement).value).toBe("Engagement letter v3");
   });
 
-  it("lets the next file upload while the first is still uploading", async () => {
+  it("takes one document at a time: the file takes the dropzone's place until removed", async () => {
     serve({});
     wrap(<UploadPage department={FINANCE} />);
     const user = userEvent.setup();
     await user.upload(await screen.findByLabelText(/Drop a PDF or Word file/), pdf("One.pdf"));
-    await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), pdf("Two.pdf"));
-    expect(FakeUpload.sent).toHaveLength(2);
-    expect(screen.getAllByRole("progressbar")).toHaveLength(2);
+    expect(screen.queryByLabelText(/Drop a PDF or Word file/)).toBeNull();
+    expect(screen.getAllByRole("progressbar")).toHaveLength(1);
   });
 
   it("asks about a file already in the department, and cancels without adding anything", async () => {
@@ -214,7 +219,8 @@ describe("documents", () => {
     FakeUpload.sent[0]?.answer(201, uploaded({ duplicate: { document_id: "doc-1", document_name: "Engagement letter", version_number: 2, archived: false } }));
 
     expect(await screen.findByText("Engagement letter v3.pdf is already in Finance as Engagement letter, version 2. Upload it anyway as a separate document?")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    // The dialog opens (showModal) in an effect: wait for its button, not only its words.
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
 
     expect(await screen.findByText("Upload cancelled. Nothing was added.")).toBeTruthy();
     expect(posted).toHaveLength(0);
@@ -331,7 +337,7 @@ describe("documents", () => {
 
   it("explains instead of uploading in an archived department, and sends nothing handed over", async () => {
     serve({});
-    handOff("d-1", [pdf("Handed over.pdf")]);
+    handOff("d-1", pdf("Handed over.pdf"));
     wrap(<UploadPage department={{ ...FINANCE, status: "archived" }} />);
     expect(screen.getByText("This department is archived. Restore it to add documents.")).toBeTruthy();
     expect(screen.queryByLabelText(/Drop a PDF or Word file/)).toBeNull();
@@ -339,7 +345,7 @@ describe("documents", () => {
     expect(FakeUpload.sent).toHaveLength(0);
   });
 
-  it("stops an upload when its row is cancelled, and every upload when the page is left", async () => {
+  it("stops an upload when it is cancelled, and when the page is left", async () => {
     serve({});
     const { unmount } = render(
       <QueryClientProvider client={makeQueryClient()}>
@@ -348,13 +354,11 @@ describe("documents", () => {
     );
     const user = userEvent.setup();
     await user.upload(await screen.findByLabelText(/Drop a PDF or Word file/), pdf("One.pdf"));
-    await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), pdf("Two.pdf"));
-
-    await user.click(screen.getAllByRole("button", { name: "Cancel" })[0] as HTMLElement);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(FakeUpload.sent[0]?.aborted).toBe(true);
     expect(screen.queryByText("One.pdf")).toBeNull();
-    expect(FakeUpload.sent[1]?.aborted).toBe(false);
 
+    await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), pdf("Two.pdf"));
     unmount();
     expect(FakeUpload.sent[1]?.aborted).toBe(true);
   });

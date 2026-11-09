@@ -11,10 +11,12 @@ import {
   cssSize,
   fitScale,
   pageAt,
+  focusTop,
   pageOffsets,
   stepZoom,
   wheelFactor,
   type PageSize,
+  type Rect,
 } from "./view";
 
 /** Re-render pages sharp once a zoom gesture has paused this long (ms); meanwhile the existing
@@ -40,6 +42,9 @@ export type PdfViewerProps = {
   label: string;
   /** Drawn over each page, in a box the size of the painted page (field review, signing). */
   renderOverlay?: (args: PdfOverlayArgs) => ReactNode;
+  /** A box to bring into the middle of the view (a field chosen in a list); a new ``token``
+   * scrolls to it again. */
+  focus?: { page: number; rect: Rect; token: number } | null;
 };
 
 /**
@@ -48,7 +53,7 @@ export type PdfViewerProps = {
  * wheel, trackpad pinch) and page navigation. Only pages near the viewport are rendered, so 200
  * pages stay light. pdf.js is loaded on first use, never with the page bundle.
  */
-export function PdfViewer({ url, pages, label, renderOverlay }: PdfViewerProps) {
+export function PdfViewer({ url, pages, label, renderOverlay, focus }: PdfViewerProps) {
   const paneRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [paneWidth, setPaneWidth] = useState(0);
@@ -169,6 +174,25 @@ export function PdfViewer({ url, pages, label, renderOverlay }: PdfViewerProps) 
     return () => pane.removeEventListener("wheel", onWheel);
   }, []);
 
+  // Bring a chosen box into view (Phase 5 §6.2: a field picked in the list). Only a new pick (a
+  // new ``token``) scrolls: the caller may build the focus afresh on every render, and a poll or
+  // any other render must not pull the reader back. The box and the live layout are read through
+  // refs, so zooming afterwards keeps the reader's place.
+  const offsetsRef = useRef(offsets);
+  const focusRef = useRef(focus);
+  useLayoutEffect(() => {
+    offsetsRef.current = offsets;
+    focusRef.current = focus;
+  });
+  const focusToken = focus?.token;
+  useEffect(() => {
+    const pane = paneRef.current;
+    const box = focusRef.current;
+    if (!pane || !box || focusToken === undefined) return;
+    const top = focusTop(offsetsRef.current, box.page, box.rect, scaleRef.current, pane.clientHeight);
+    pane.scrollTo({ top, behavior: "smooth" });
+  }, [focusToken]);
+
   const goTo = (page: number) => {
     const pane = paneRef.current;
     const top = offsets[page - 1];
@@ -198,8 +222,9 @@ export function PdfViewer({ url, pages, label, renderOverlay }: PdfViewerProps) 
           <TextButton aria-label="Zoom in" onClick={() => setZoom(stepZoom(scale, 1))}>
             +
           </TextButton>
-          <TextButton disabled={zoom === "fit"} onClick={() => setZoom("fit")}>
-            Fit width
+          {/* "Fit" keeps the toolbar on one line on a phone; its name says what it fits to. */}
+          <TextButton aria-label="Fit width" disabled={zoom === "fit"} onClick={() => setZoom("fit")}>
+            Fit
           </TextButton>
         </div>
       </div>

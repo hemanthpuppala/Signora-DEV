@@ -99,3 +99,38 @@ textarea.control {
   right: 0;
   top: 22px;
 }
+
+/* A search box (SearchField): the icon sits inside the field, on the left. */
+.search {
+  position: relative;
+  min-width: 0;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  color: var(--t55);
+  pointer-events: none;
+}
+
+.search:focus-within .searchIcon {
+  color: var(--ink);
+}
+
+.searchControl {
+  padding-left: 26px;
+}
+
+.searchControl::placeholder {
+  color: var(--t55);
+}
+
+.searchControl::-webkit-search-cancel-button {
+  filter: grayscale(1);
+}
+
+.hiddenLabel {
+  composes: visuallyHidden from "./display.module.css"; /* one definition of hidden-but-read */
+}

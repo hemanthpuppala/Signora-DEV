@@ -1,0 +1,1640 @@
+{
+  "fields_from": "form_fields",
+  "roles": [
+    {
+      "slug": "recipient",
+      "kind": "signer",
+      "label": "Recipient",
+      "position": 1
+    },
+    {
+      "slug": "witness",
+      "kind": "signer",
+      "label": "Witness",
+      "position": 2
+    },
+    {
+      "slug": "company",
+      "kind": "countersigner",
+      "label": "Company",
+      "position": 3
+    }
+  ],
+  "fields": [
+    {
+      "key": "company.party_name",
+      "label": "Company legal name",
+      "holds": "party_name",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f1"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            199.1,
+            131.5,
+            413.1,
+            148.8
+          ],
+          "kind": "text",
+          "pdf_field": "Text1",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.address",
+      "label": "Company mailing address",
+      "holds": "address",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f2"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            199.1,
+            169.5,
+            413.1,
+            186.8
+          ],
+          "kind": "text",
+          "pdf_field": "Text2",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.party_name",
+      "label": "Recipient legal name",
+      "holds": "party_name",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f3",
+        "f35"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            199.1,
+            232.7,
+            413.1,
+            250.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text3",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 7,
+          "rect": [
+            118.0,
+            109.8,
+            251.1,
+            125.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text30",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.address",
+      "label": "Recipient mailing address",
+      "holds": "address",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f4"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            199.1,
+            270.7,
+            413.1,
+            288.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text4",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.effective_date",
+      "label": "Effective date",
+      "holds": "date",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f5"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            215.7,
+            336.4,
+            319.7,
+            353.7
+          ],
+          "kind": "text",
+          "pdf_field": "Text5",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.initials",
+      "label": "Recipient initials, page 1",
+      "holds": "initials",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f6",
+        "f8",
+        "f10",
+        "f13",
+        "f20",
+        "f31",
+        "f47",
+        "f57",
+        "f64"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text6",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 2,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text8",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 3,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text10",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text13",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text20",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 6,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text28",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 7,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text42",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 8,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text50",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 9,
+          "rect": [
+            139.2,
+            742.8,
+            165.8,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text53",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.initials",
+      "label": "Company initials, page 1",
+      "holds": "initials",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f7",
+        "f9",
+        "f11",
+        "f14",
+        "f21",
+        "f32",
+        "f48",
+        "f58",
+        "f65"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text7",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 2,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text9",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 3,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text11",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text14",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text21",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 6,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text29",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 7,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text43",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 8,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text51",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 9,
+          "rect": [
+            243.8,
+            742.8,
+            270.4,
+            758.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text54",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.governing_law_state",
+      "label": "Governing law state",
+      "holds": "state",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f12"
+      ],
+      "placements": [
+        {
+          "page": 4,
+          "rect": [
+            209.6,
+            474.1,
+            316.7,
+            491.4
+          ],
+          "kind": "text",
+          "pdf_field": "Text12",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.permitted_purpose",
+      "label": "Permitted purpose",
+      "holds": "text",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f15"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            449.5,
+            195.5,
+            533.3,
+            210.7
+          ],
+          "kind": "text",
+          "pdf_field": "Text15",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.consideration_amount",
+      "label": "Consideration amount",
+      "holds": "amount_in_words",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f16"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            72.1,
+            246.5,
+            171.9,
+            261.7
+          ],
+          "kind": "text",
+          "pdf_field": "Text16",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.consideration_payment_details",
+      "label": "Consideration payment details",
+      "holds": "text",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f17"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            206.0,
+            246.5,
+            237.5,
+            261.7
+          ],
+          "kind": "text",
+          "pdf_field": "Text17",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.non_solicitation_period_in_months",
+      "label": "Non-solicitation period in months",
+      "holds": "number",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f18"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            212.8,
+            277.1,
+            239.4,
+            292.3
+          ],
+          "kind": "text",
+          "pdf_field": "Text18",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.email",
+      "label": "Company notices email",
+      "holds": "email",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f19"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            104.0,
+            501.5,
+            202.5,
+            516.7
+          ],
+          "kind": "text",
+          "pdf_field": "Text19",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.signature",
+      "label": "Recipient signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f22",
+        "f62"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            187.6,
+            96.3,
+            352.7,
+            124.6
+          ],
+          "kind": "signature",
+          "pdf_field": "Signature1",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 9,
+          "rect": [
+            147.9,
+            160.0,
+            237.7,
+            186.2
+          ],
+          "kind": "signature",
+          "pdf_field": "Signature4",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.date_signed",
+      "label": "Recipient signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f23",
+        "f63"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            391.2,
+            107.3,
+            482.9,
+            124.6
+          ],
+          "kind": "text",
+          "pdf_field": "Text22",
+          "option_value": null,
+          "option_text": null
+        },
+        {
+          "page": 9,
+          "rect": [
+            264.2,
+            171.0,
+            314.1,
+            186.2
+          ],
+          "kind": "text",
+          "pdf_field": "Text52",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.full_name",
+      "label": "Recipient printed name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f24"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            133.1,
+            132.6,
+            298.3,
+            149.9
+          ],
+          "kind": "text",
+          "pdf_field": "Text23",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.signature",
+      "label": "Company signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f25"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            188.2,
+            210.1,
+            353.3,
+            238.4
+          ],
+          "kind": "signature",
+          "pdf_field": "Signature2",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.date_signed",
+      "label": "Company signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f26"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            391.8,
+            221.1,
+            483.5,
+            238.4
+          ],
+          "kind": "text",
+          "pdf_field": "Text24",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.full_name",
+      "label": "Company representative printed name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f27"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            133.1,
+            246.4,
+            298.3,
+            263.7
+          ],
+          "kind": "text",
+          "pdf_field": "Text25",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "witness.signature",
+      "label": "Witness signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "witness",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f28"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            137.7,
+            291.0,
+            227.6,
+            317.2
+          ],
+          "kind": "signature",
+          "pdf_field": "Signature3",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "witness.date_signed",
+      "label": "Witness signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "witness",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f29"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            254.0,
+            302.0,
+            303.9,
+            317.2
+          ],
+          "kind": "text",
+          "pdf_field": "Text26",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "witness.full_name",
+      "label": "Witness printed name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "witness",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f30"
+      ],
+      "placements": [
+        {
+          "page": 6,
+          "rect": [
+            116.0,
+            322.4,
+            205.9,
+            337.6
+          ],
+          "kind": "text",
+          "pdf_field": "Text27",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.type",
+      "label": "Recipient type",
+      "holds": "choice",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f33",
+        "f34"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            129.8,
+            90.4,
+            136.5,
+            104.2
+          ],
+          "kind": "checkbox",
+          "pdf_field": "Check Box1",
+          "option_value": "Individual",
+          "option_text": "Individual"
+        },
+        {
+          "page": 7,
+          "rect": [
+            183.1,
+            90.4,
+            189.8,
+            104.2
+          ],
+          "kind": "checkbox",
+          "pdf_field": "Check Box2",
+          "option_value": "Business entity",
+          "option_text": "Business entity"
+        }
+      ]
+    },
+    {
+      "key": "recipient.address_2",
+      "label": "Recipient street address",
+      "holds": "address",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f36"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            127.6,
+            130.2,
+            260.6,
+            145.4
+          ],
+          "kind": "text",
+          "pdf_field": "Text31",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.city",
+      "label": "Recipient city",
+      "holds": "city",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f37"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            89.2,
+            150.6,
+            155.8,
+            165.8
+          ],
+          "kind": "text",
+          "pdf_field": "Text32",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.state",
+      "label": "Recipient state",
+      "holds": "state",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f38"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            183.5,
+            150.6,
+            203.5,
+            165.8
+          ],
+          "kind": "text",
+          "pdf_field": "Text33",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.postal_code",
+      "label": "Recipient ZIP code",
+      "holds": "postal_code",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f39"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            244.7,
+            150.6,
+            278.0,
+            165.8
+          ],
+          "kind": "text",
+          "pdf_field": "Text34",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.country",
+      "label": "Recipient country",
+      "holds": "country",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f40"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            104.2,
+            171.0,
+            170.8,
+            186.2
+          ],
+          "kind": "text",
+          "pdf_field": "Text35",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.date_of_birth",
+      "label": "Recipient date of birth",
+      "holds": "date_of_birth",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": false,
+      "sensitive": true,
+      "depends_on": {
+        "key": "recipient.type",
+        "option": "Individual",
+        "source": "ai"
+      },
+      "needs_review": null,
+      "ids": [
+        "f41"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            182.0,
+            191.4,
+            228.6,
+            206.6
+          ],
+          "kind": "text",
+          "pdf_field": "Text36",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.tax_id",
+      "label": "Recipient taxpayer identification number",
+      "holds": "tax_id",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": true,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f42"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            232.6,
+            211.8,
+            305.8,
+            227.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text37",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.email",
+      "label": "Recipient email",
+      "holds": "email",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f43"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            95.3,
+            232.2,
+            195.1,
+            247.4
+          ],
+          "kind": "text",
+          "pdf_field": "Text38",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.phone",
+      "label": "Recipient phone",
+      "holds": "phone",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f44"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            227.5,
+            232.2,
+            294.0,
+            247.4
+          ],
+          "kind": "text",
+          "pdf_field": "Text39",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.full_name_2",
+      "label": "Business contact person",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": false,
+      "sensitive": false,
+      "depends_on": {
+        "key": "recipient.type",
+        "option": "Business entity",
+        "source": "ai"
+      },
+      "needs_review": null,
+      "ids": [
+        "f45"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            211.7,
+            252.6,
+            284.9,
+            267.8
+          ],
+          "kind": "text",
+          "pdf_field": "Text40",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.title",
+      "label": "Business contact person's title",
+      "holds": "title",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": false,
+      "sensitive": false,
+      "depends_on": {
+        "key": "recipient.type",
+        "option": "Business entity",
+        "source": "ai"
+      },
+      "needs_review": null,
+      "ids": [
+        "f46"
+      ],
+      "placements": [
+        {
+          "page": 7,
+          "rect": [
+            309.7,
+            252.6,
+            362.9,
+            267.8
+          ],
+          "kind": "text",
+          "pdf_field": "Text41",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.signing_fee",
+      "label": "Signing fee",
+      "holds": "currency",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f49"
+      ],
+      "placements": [
+        {
+          "page": 8,
+          "rect": [
+            213.7,
+            89.4,
+            261.2,
+            104.6
+          ],
+          "kind": "text",
+          "pdf_field": "Text44",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.annual_confidentiality_fee",
+      "label": "Annual confidentiality fee",
+      "holds": "currency",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f50"
+      ],
+      "placements": [
+        {
+          "page": 8,
+          "rect": [
+            262.0,
+            109.8,
+            309.4,
+            125.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text45",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.total_for_the_first_year",
+      "label": "Total for the first year",
+      "holds": "currency",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": "placed from the words around it: check its position",
+      "ids": [],
+      "placements": [
+        {
+          "page": 8,
+          "rect": [
+            72.1,
+            133.2,
+            203.3,
+            143.4
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.payment_method",
+      "label": "Payment method",
+      "holds": "choice",
+      "filled_by": "sender",
+      "role": null,
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f52",
+        "f53"
+      ],
+      "placements": [
+        {
+          "page": 8,
+          "rect": [
+            140.8,
+            151.6,
+            147.5,
+            165.4
+          ],
+          "kind": "checkbox",
+          "pdf_field": "Check Box3",
+          "option_value": "Bank transfer",
+          "option_text": "Bank transfer"
+        },
+        {
+          "page": 8,
+          "rect": [
+            207.0,
+            151.6,
+            213.7,
+            165.4
+          ],
+          "kind": "checkbox",
+          "pdf_field": "Check Box4",
+          "option_value": "Check",
+          "option_text": "Check"
+        }
+      ]
+    },
+    {
+      "key": "recipient.bank_name",
+      "label": "Recipient bank name",
+      "holds": "text",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": {
+        "key": "agreement.payment_method",
+        "option": "Bank transfer",
+        "source": "ai"
+      },
+      "needs_review": null,
+      "ids": [
+        "f54"
+      ],
+      "placements": [
+        {
+          "page": 8,
+          "rect": [
+            116.8,
+            191.4,
+            216.7,
+            206.6
+          ],
+          "kind": "text",
+          "pdf_field": "Text47",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.bank_account",
+      "label": "Recipient bank account number",
+      "holds": "bank_account",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": true,
+      "depends_on": {
+        "key": "agreement.payment_method",
+        "option": "Bank transfer",
+        "source": "ai"
+      },
+      "needs_review": null,
+      "ids": [
+        "f55"
+      ],
+      "placements": [
+        {
+          "page": 8,
+          "rect": [
+            135.8,
+            211.8,
+            235.5,
+            227.0
+          ],
+          "kind": "text",
+          "pdf_field": "Text48",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.bank_account_2",
+      "label": "Recipient bank routing number",
+      "holds": "bank_account",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": true,
+      "depends_on": {
+        "key": "agreement.payment_method",
+        "option": "Bank transfer",
+        "source": "ai"
+      },
+      "needs_review": null,
+      "ids": [
+        "f56"
+      ],
+      "placements": [
+        {
+          "page": 8,
+          "rect": [
+            135.0,
+            232.2,
+            234.8,
+            247.4
+          ],
+          "kind": "text",
+          "pdf_field": "Text49",
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.received_and_read_the_information",
+      "label": "Recipient received and read the Information Security Policy",
+      "holds": "checkbox",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f59"
+      ],
+      "placements": [
+        {
+          "page": 9,
+          "rect": [
+            72.1,
+            110.8,
+            78.8,
+            124.6
+          ],
+          "kind": "checkbox",
+          "pdf_field": "Check Box5",
+          "option_value": null,
+          "option_text": "Recipient has received and read Company's Information Security Policy."
+        }
+      ]
+    },
+    {
+      "key": "recipient.consents_to_email_notices",
+      "label": "Recipient consents to email notices",
+      "holds": "checkbox",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f60"
+      ],
+      "placements": [
+        {
+          "page": 9,
+          "rect": [
+            72.1,
+            131.2,
+            78.8,
+            145.0
+          ],
+          "kind": "checkbox",
+          "pdf_field": "Check Box6",
+          "option_value": null,
+          "option_text": "Recipient consents to receive notices under this Agreement by email."
+        }
+      ]
+    },
+    {
+      "key": "recipient.disclosed_prior_knowledge_of_the",
+      "label": "Recipient disclosed prior knowledge of the Subject Matter",
+      "holds": "checkbox",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f61"
+      ],
+      "placements": [
+        {
+          "page": 9,
+          "rect": [
+            72.1,
+            151.6,
+            78.8,
+            165.4
+          ],
+          "kind": "checkbox",
+          "pdf_field": "Check Box7",
+          "option_value": null,
+          "option_text": "Recipient has disclosed to Company in writing any prior knowledge of the Subject Matter (optional)."
+        }
+      ]
+    }
+  ],
+  "not_asked": [
+    {
+      "id": "f51",
+      "pdf_field": "Text46",
+      "kind": "text",
+      "why": [
+        "calculated by the PDF from other fields: never asked for"
+      ]
+    }
+  ],
+  "document": {
+    "name": "Trade Secret Non-Disclosure Agreement",
+    "description": "A non-disclosure agreement between a Company and a Recipient, with a witness signature block. It covers confidential information, permitted use, fees, security, return of information, notices and other obligations. The Recipient signs first, the Company countersigns, and a witness also signs."
+  },
+  "flags": {
+    "no_fields": false,
+    "addressed_to_ai": true,
+    "repaired": false,
+    "xfa": false,
+    "already_signed": false,
+    "name_dropped": false
+  },
+  "notes": []
+}

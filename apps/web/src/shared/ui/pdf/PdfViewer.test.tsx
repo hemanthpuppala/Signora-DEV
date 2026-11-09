@@ -81,6 +81,26 @@ describe("PdfViewer", () => {
     expect(screen.getByText("field on 2 at 1")).toBeTruthy();
   });
 
+  it("scrolls to a focus only when it is a new pick, not on every render", () => {
+    loads();
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", { value: scrollTo, configurable: true });
+    try {
+      const at = (token: number) => ({ page: 1, rect: [100, 200, 300, 220] as const, token });
+      const { rerender } = render(<PdfViewer url="/x.pdf" pages={[A4]} label="Letter" focus={at(1)} />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+
+      // Review fix: the page builds the focus afresh on each render (a poll, Edit); the reader stays put.
+      rerender(<PdfViewer url="/x.pdf" pages={[A4]} label="Letter" focus={at(1)} />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+
+      rerender(<PdfViewer url="/x.pdf" pages={[A4]} label="Letter" focus={at(2)} />);
+      expect(scrollTo).toHaveBeenCalledTimes(2);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, "scrollTo");
+    }
+  });
+
   it("opens nothing when it is left before pdf.js has arrived", async () => {
     loads();
     const { unmount } = render(<PdfViewer url="/x.pdf" pages={[A4]} label="Letter" />);

@@ -22,7 +22,7 @@ const A4 = { width: 595, height: 842, rotation: 0 };
 const version = (number: number, overrides: Record<string, unknown> = {}) => ({
   id: `v-${number}`,
   number,
-  status: "processed",
+  status: "ready",
   problem: null,
   kind: "pdf",
   filename: `Letter v${number}.pdf`,
@@ -34,6 +34,9 @@ const version = (number: number, overrides: Record<string, unknown> = {}) => ({
   uploaded_by: { id: "u", name: "Rosa Hale" },
   created_at: "2026-11-07T10:00:00Z",
   processed_at: "2026-11-07T10:00:05Z",
+  field_count: 0,
+  name: null,
+  description: null,
   is_current: false,
   ...overrides,
 });
@@ -45,7 +48,7 @@ const documentWith = (versions: unknown[], overrides: Record<string, unknown> = 
   kind: "pdf",
   page_count: 2,
   current_version: { id: "v-2", number: 2 },
-  latest_version: { id: "v-2", number: 2, status: "processed", created_at: "2026-11-07T10:00:00Z" },
+  latest_version: { id: "v-2", number: 2, status: "ready", created_at: "2026-11-07T10:00:00Z", field_count: 0 },
   updated_at: "2026-11-07T10:00:00Z",
   archived_at: null,
   department_id: "d-1",
@@ -58,6 +61,16 @@ const documentWith = (versions: unknown[], overrides: Record<string, unknown> = 
 });
 
 const READY = documentWith([version(2, { is_current: true }), version(1)]);
+
+const NO_FIELDS = {
+  status: "ready",
+  stage: "done",
+  fields_from: "form_fields",
+  roles: [],
+  fields: [],
+  pending: [],
+  flags: { no_fields: false, addressed_to_ai: false, xfa: false, already_signed: false, repaired: false },
+};
 
 function reply(status: number, body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }));
@@ -75,13 +88,14 @@ describe("document page", () => {
   const fetchMock = vi.fn<typeof fetch>();
   const sent: { method: string; path: string; body: unknown; key: string | null }[] = [];
 
-  function serve(document: unknown, answers: Record<string, () => Promise<Response>> = {}) {
+  function serve(document: unknown, answers: Record<string, () => Promise<Response>> = {}, fields: unknown = NO_FIELDS) {
     fetchMock.mockImplementation(async (input) => {
       const request = input as Request;
       const path = new URL(request.url).pathname;
       const body = request.method === "GET" ? undefined : await request.clone().json().catch(() => undefined);
       sent.push({ method: request.method, path, body, key: request.headers.get("Idempotency-Key") });
       if (path.endsWith("/meta")) return reply(200, META);
+      if (path.endsWith("/fields")) return reply(200, fields);
       const answer = Object.entries(answers).find(([suffix]) => path.endsWith(suffix));
       if (request.method !== "GET" && answer) return answer[1]();
       return reply(200, document);
@@ -109,9 +123,11 @@ describe("document page", () => {
     expect(await screen.findByRole("heading", { name: "Engagement letter" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Engagement letter, version 2" })).toBeTruthy();
     const versions = screen.getByRole("list", { name: "Versions" });
-    expect(within(versions).getByText("v2 · Current")).toBeTruthy();
-    expect(within(versions).getAllByText("Download original")).toHaveLength(2);
+    expect(within(versions).getByText("V2")).toBeTruthy();
+    expect(within(versions).getAllByRole("img", { name: "Current" })).toHaveLength(1); // a star on the current one only
+    expect(within(versions).getAllByRole("link", { name: "Download original" })).toHaveLength(2); // an icon, named
     expect(within(versions).getAllByRole("button", { name: "Open" })).toHaveLength(1); // v1 only
+    expect(within(versions).getAllByRole("button", { name: "Make current" })).toHaveLength(1); // a star on v1 only
   });
 
   it("opens an older version and asks before making it current", async () => {
@@ -124,7 +140,8 @@ describe("document page", () => {
     await user.click(screen.getByRole("button", { name: "Make current" }));
     expect(screen.getByText("New sends will use it. A newer upload takes over again once it is ready.")).toBeTruthy();
     expect(posts("/current-version")).toHaveLength(0);
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Make current" }));
+    // The dialog opens (showModal) in an effect: wait for it before using its buttons.
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Make current" }));
 
     await vi.waitFor(() => expect(posts("/current-version")[0]?.body).toEqual({ version_id: "v-1" }));
   });
@@ -168,11 +185,13 @@ describe("document page", () => {
     await screen.findByRole("heading", { name: "Engagement letter" });
 
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    // the way back is the eyebrow itself ("‹ Documents"), so everyone has it
+    expect(screen.getByRole("link", { name: "Back to Documents" }).getAttribute("href")).toBe("/departments/d-1/documents");
     expect(screen.queryByRole("button", { name: "Make current" })).toBeNull();
-    expect(screen.queryByRole("region", { name: "New version" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "New version" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Archive document" })).toBeNull();
     expect((screen.getByRole("checkbox", { name: "Require email code" }) as HTMLInputElement).disabled).toBe(true);
-    expect(screen.getAllByText("Download original")).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Download original" })).toHaveLength(2);
   });
 
   it("saves the email code and only the fields a person changed", async () => {
@@ -198,25 +217,53 @@ describe("document page", () => {
 
     await user.click(await screen.findByRole("button", { name: "Archive document" }));
     expect(posts("/archive")).toHaveLength(0);
-    await user.click(screen.getByRole("button", { name: "Confirm archive" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Archive this document?" })).getByRole("button", { name: "Confirm archive" }));
 
     expect(await screen.findByText("This document can't get new versions or be sent.")).toBeTruthy();
   });
 
-  it("adds a new version with its instructions", async () => {
+  it("uploads a new version as soon as it is picked, then takes the AI's instructions before adding it", async () => {
     serve(READY, { "/versions": () => reply(201, READY) });
     open();
     const user = userEvent.setup();
     const file = new File(["%PDF-1.7"], "Letter v3.pdf", { type: "application/pdf" });
 
-    await user.upload(await screen.findByLabelText(/Drop the new version/), file);
+    await user.upload(await screen.findByLabelText("New version file"), file);
     expect(FakeUpload.sent[0]?.url).toBe("/api/v1/departments/d-1/uploads?filename=Letter%20v3.pdf");
+    expect(screen.getByRole("list", { name: "New version: Upload" })).toBeTruthy();
+    expect((screen.getByRole("button", { name: "New version" }) as HTMLButtonElement).disabled).toBe(true); // one at a time
     FakeUpload.sent[0]?.answer(201, { id: "up-3", filename: "Letter v3.pdf", kind: "pdf", bytes: 8, suggested_name: "Letter v3", expires_at: "2026-11-08T10:00:00Z", duplicate: null });
-    await user.type(await screen.findByLabelText("Instructions for the AI"), "Fee clause changed");
-    await user.click(screen.getByRole("button", { name: "Add version" }));
 
-    await vi.waitFor(() => expect(posts("/versions")[0]?.body).toEqual({ upload_id: "up-3", ai_instructions: "Fee clause changed" }));
+    // Review fix: the rework posted the version with no instructions; the facts given for the
+    // first version (who countersigns) were lost on every later one.
+    const form = await screen.findByRole("form", { name: "New version" });
+    expect(posts("/versions")).toHaveLength(0);
+    await user.type(within(form).getByLabelText("Instructions for the AI"), "The firm countersigns.");
+    await user.click(within(form).getByRole("button", { name: "Add version" }));
+    await vi.waitFor(() => expect(posts("/versions")[0]?.body).toEqual({ upload_id: "up-3", ai_instructions: "The firm countersigns." }));
     expect(posts("/versions")[0]?.key).toBeTruthy();
+    await vi.waitFor(() => expect(screen.queryByRole("form", { name: "New version" })).toBeNull());
+  });
+
+  it("lets the person drop an uploaded file instead of adding it", async () => {
+    serve(READY);
+    open();
+    const user = userEvent.setup();
+
+    await user.upload(await screen.findByLabelText("New version file"), new File(["%PDF-1.7"], "Letter v3.pdf"));
+    FakeUpload.sent[0]?.answer(201, { id: "up-3", filename: "Letter v3.pdf", kind: "pdf", bytes: 8, suggested_name: "Letter v3", expires_at: "2026-11-08T10:00:00Z", duplicate: null });
+    await user.click(within(await screen.findByRole("form", { name: "New version" })).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("form", { name: "New version" })).toBeNull();
+    expect((screen.getByRole("button", { name: "New version" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(posts("/versions")).toHaveLength(0);
+  });
+
+  it("shows a new version's steps until it is ready", async () => {
+    serve(documentWith([version(3, { status: "processing", processed_at: null }), version(2, { is_current: true }), version(1)]));
+    open();
+
+    expect(await screen.findByRole("list", { name: "New version: Process" })).toBeTruthy();
   });
 
   it("never makes a file already in the department a version", async () => {
@@ -224,10 +271,194 @@ describe("document page", () => {
     open();
     const user = userEvent.setup();
 
-    await user.upload(await screen.findByLabelText(/Drop the new version/), new File(["%PDF-1.7"], "Copy.pdf"));
+    await user.upload(await screen.findByLabelText("New version file"), new File(["%PDF-1.7"], "Copy.pdf"));
     FakeUpload.sent[0]?.answer(201, { id: "up-4", filename: "Copy.pdf", kind: "pdf", bytes: 8, suggested_name: "Copy", expires_at: "2026-11-08T10:00:00Z", duplicate: { document_id: "doc-1", document_name: "Engagement letter", version_number: 1, archived: false } });
 
     expect(await screen.findByText("This file is already here as Engagement letter, version 1. It can only be added as a separate document.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Add version" })).toBeNull();
+    expect(posts("/versions")).toHaveLength(0);
+  });
+
+  describe("fields", () => {
+    const placement = (page: number, y: number, extra: Record<string, unknown> = {}) => ({
+      page,
+      rect: [100, y, 300, y + 20],
+      kind: "text",
+      option_value: null,
+      option_text: null,
+      ...extra,
+    });
+    const field = (key: string, label: string, extra: Record<string, unknown> = {}) => ({
+      id: `id-${key}`,
+      key,
+      label,
+      holds: "text",
+      filled_by: "sender",
+      role: null,
+      required: true,
+      sensitive: false,
+      depends_on: null,
+      needs_review: null,
+      placements: [placement(1, 100)],
+      ...extra,
+    });
+    const FIELDS = {
+      ...NO_FIELDS,
+      roles: [
+        { slug: "client", label: "Client", kind: "signer", position: 1, field_count: 3 },
+        { slug: "firm", label: "Firm", kind: "countersigner", position: 2, field_count: 1 },
+      ],
+      fields: [
+        field("agreement.term", "Term", {
+          holds: "choice",
+          placements: [
+            placement(1, 200, { kind: "radio", option_value: "Choice1", option_text: "Expires … from Effective Date." }),
+            placement(1, 230, { kind: "radio", option_value: "Choice2", option_text: "Continues until terminated." }),
+          ],
+        }),
+        field("agreement.term_years", "Term in years", { depends_on: { key: "agreement.term", option: "Choice1" } }),
+        field("client.signature", "Client signature", { holds: "signature", filled_by: "role", role: "client" }),
+        field("client.initials", "Client initials", {
+          holds: "initials",
+          filled_by: "role",
+          role: "client",
+          placements: [placement(1, 700), placement(2, 700), placement(2, 720)],
+        }),
+        field("client.tax_id", "Client tax number", { filled_by: "role", role: "client", sensitive: true, needs_review: "not assigned to anyone" }),
+        field("firm.signature", "Firm signature", { holds: "signature", filled_by: "role", role: "firm" }),
+      ],
+    };
+    const scrolled = vi.fn();
+    beforeEach(() => {
+      scrolled.mockReset();
+      Element.prototype.scrollTo = scrolled as unknown as Element["scrollTo"];
+    });
+
+    it("lists every field beside the PDF: parties, needs a look first, choices as a tree", async () => {
+      serve(READY, {}, FIELDS);
+      open();
+
+      expect(await screen.findByText("6 fields for 2 parties")).toBeTruthy();
+      const parties = screen.getByRole("list", { name: "Who signs" });
+      expect(within(parties).getByText("countersigns")).toBeTruthy();
+      expect(within(parties).getByText("Filled in before sending")).toBeTruthy();
+      expect(screen.getByText("1 field needs a look. They are listed first.")).toBeTruthy();
+      const options = within(screen.getByRole("listbox", { name: "Fields" })).getAllByRole("option");
+      expect(options[0]?.textContent).toContain("Client tax number"); // needs a look: first
+      const term = options.findIndex((option) => option.textContent?.startsWith("Term") && !option.textContent.startsWith("Term in"));
+      expect(options[term + 1]?.textContent).toContain("Term in years"); // under its choice
+    });
+
+    it("picks a field in the list, says what it is and brings it into view; steps through its places", async () => {
+      serve(READY, {}, FIELDS);
+      open();
+      const user = userEvent.setup();
+      const list = await screen.findByRole("listbox", { name: "Fields" });
+
+      await user.click(within(list).getByText("Term in years"));
+      const about = screen.getByRole("region", { name: "More about Term in years" });
+      expect(within(about).getByText("Only when “Expires … from Effective Date.” is chosen")).toBeTruthy();
+      expect(scrolled).toHaveBeenCalled();
+
+      await user.click(within(list).getByText("Client initials"));
+      expect(screen.getByText("Place 1 of 3")).toBeTruthy();
+      const marked = () => [...document.querySelectorAll('button[title="Client initials"]')].map((box) => box.classList.contains("chosen"));
+      expect(marked()).toEqual([true, false, false]);
+      await user.click(screen.getByRole("button", { name: "Next place" }));
+      expect(screen.getByText("Place 2 of 3")).toBeTruthy();
+      expect(marked()).toEqual([false, true, false]); // review fix: every place was marked, so the step showed nothing
+      expect(scrolled).toHaveBeenCalledTimes(3);
+
+      await user.click(within(list).getByText("Client signature"));
+      expect(screen.queryByRole("region", { name: /^More about/ })).toBeNull(); // nothing the row doesn't say
+
+      await user.click(within(list).getByText("Client tax number"));
+      expect(screen.getByText("Private to Client: shown to nobody else")).toBeTruthy();
+      expect(screen.getByText("Needs a look: not assigned to anyone.")).toBeTruthy();
+    });
+
+    it("chooses a field from its box on the PDF, and filters, finds and moves through the list", async () => {
+      serve(READY, {}, FIELDS);
+      open();
+      const user = userEvent.setup();
+      const list = await screen.findByRole("listbox", { name: "Fields" });
+      const box = document.querySelector('button[title="Firm signature"]') as HTMLButtonElement;
+      // The list shows 0–100px; the firm's signature row sits below it.
+      const rect = (top: number, height: number) => ({ top, bottom: top + height, left: 0, right: 0, width: 0, height, x: 0, y: top, toJSON: () => ({}) });
+      vi.spyOn(list, "getBoundingClientRect").mockReturnValue(rect(0, 100));
+      vi.spyOn(within(list).getByText("Firm signature").closest("li") as HTMLElement, "getBoundingClientRect").mockReturnValue(rect(140, 40));
+      const scrollTo = vi.fn();
+      list.scrollTo = scrollTo as unknown as typeof list.scrollTo;
+
+      await user.click(box);
+      expect(within(list).getByRole("option", { selected: true }).textContent).toContain("Firm signature");
+      expect(scrollTo).toHaveBeenCalledWith({ top: 80, behavior: "smooth" }); // within the list, smoothly
+
+      await user.click(screen.getByRole("button", { name: "Client" }));
+      expect(within(list).getAllByRole("option")).toHaveLength(3);
+      await user.click(screen.getByRole("button", { name: "All" }));
+      await user.type(screen.getByLabelText("Find a field"), "signature");
+      expect(within(list).getAllByRole("option").map((o) => o.textContent?.slice(0, 16))).toEqual([
+        "Client signature",
+        "Firm signatureFi",
+      ]);
+      list.focus(); // the firm's signature, chosen from its box, is last: up moves to the client's
+      await user.keyboard("{ArrowUp}");
+      expect(within(list).getByRole("option", { selected: true }).textContent).toContain("Client signature");
+    });
+
+    it("draws the places found while the AI says who fills them, with its progress", async () => {
+      const detecting = documentWith([version(1, { status: "detecting", is_current: false, field_count: null })], {
+        current_version: null,
+        latest_version: { id: "v-1", number: 1, status: "detecting", created_at: new Date().toISOString(), field_count: null },
+      });
+      serve(detecting, {}, {
+        ...NO_FIELDS,
+        status: "detecting",
+        stage: "ai",
+        pending: [
+          { id: "f1", label: "Print Name", kind: "text", placements: [placement(1, 100)] },
+          { id: "f2", label: null, kind: "blank", placements: [placement(2, 300)] },
+        ],
+      });
+      open();
+
+      const steps = await screen.findByRole("list", { name: "Finding fields" });
+      expect(within(steps).getByText("Read the document: 2 places to fill")).toBeTruthy();
+      expect(within(steps).getByText("Finding who fills each field")).toBeTruthy();
+      expect(screen.getAllByText("Finding who fills this…")).toHaveLength(2);
+      expect(document.querySelector('button[title="Print Name"]')).toBeTruthy(); // drawn already
+      expect(screen.getByRole("region", { name: "Engagement letter, version 1" })).toBeTruthy();
+    });
+
+    it("says when nothing was found and when the document speaks to an AI", async () => {
+      serve(READY, {}, { ...NO_FIELDS, flags: { ...NO_FIELDS.flags, no_fields: true, addressed_to_ai: true } });
+      open();
+      expect(await screen.findByText("We couldn't find places to fill or sign. Add them in review.")).toBeTruthy();
+      expect(screen.getByText("This document contains text addressed to an AI. Check its fields with care.")).toBeTruthy();
+    });
+
+    it("says when finding the fields again failed, and shows the fields found before", async () => {
+      serve(READY, {}, { ...FIELDS, found_again_failed: "Field detection couldn't reach the AI" });
+      open();
+      expect(await screen.findByText("Field detection couldn't reach the AI. These are the fields found before.")).toBeTruthy();
+      expect(within(screen.getByRole("listbox", { name: "Fields" })).getAllByRole("option").length).toBeGreaterThan(0);
+    });
+
+    it("finds fields again only after confirming, and shows each version's field count", async () => {
+      const counted = documentWith([version(2, { is_current: true, field_count: 6 }), version(1, { field_count: 1 })]);
+      serve(counted, { "/detection": () => reply(202, { mode: "restart" }) }, FIELDS);
+      open();
+      const user = userEvent.setup();
+      const versions = await screen.findByRole("list", { name: "Versions" });
+      expect(within(versions).getByText(/6 fields/)).toBeTruthy();
+      expect(within(versions).getByText(/1 field$/)).toBeTruthy();
+
+      await user.click(within(versions).getAllByRole("button", { name: "Find fields again" })[0] as HTMLElement);
+      expect(posts("/detection")).toHaveLength(0);
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText("The fields found now will replace the current ones.")).toBeTruthy();
+      await user.click(within(dialog).getByRole("button", { name: "Find fields again" }));
+      await vi.waitFor(() => expect(posts("/v-2/detection")).toHaveLength(1));
+    });
   });
 });

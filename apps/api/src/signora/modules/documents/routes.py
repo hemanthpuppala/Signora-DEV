@@ -162,14 +162,19 @@ class PersonRef(BaseModel):
     name: str
 
 
+# A version's state (Phase 4 §3.3, Phase 5 §1.1): processed versions are detecting, then ready.
+VersionStatus = Literal["processing", "needs_password", "needs_ocr", "failed", "detecting", "ready"]
+
+
 class VersionRef(BaseModel):
     id: uuid.UUID
     number: int
 
 
 class LatestVersion(VersionRef):
-    status: Literal["processing", "needs_password", "needs_ocr", "failed", "processed"]
+    status: VersionStatus
     created_at: datetime
+    field_count: int | None  # once ready
 
 
 class DocumentSummary(BaseModel):
@@ -204,7 +209,7 @@ class PageView(BaseModel):
 class VersionView(BaseModel):
     id: uuid.UUID
     number: int
-    status: Literal["processing", "needs_password", "needs_ocr", "failed", "processed"]
+    status: VersionStatus
     problem: Problem | None
     kind: Literal["pdf", "docx"]
     filename: str
@@ -216,6 +221,9 @@ class VersionView(BaseModel):
     uploaded_by: PersonRef
     created_at: datetime
     processed_at: datetime | None
+    field_count: int | None  # once ready
+    name: str | None  # what the AI called this version, once ready (Phase 5 §6.5)
+    description: str | None  # the AI's description of this version, once ready
     is_current: bool
 
 
@@ -243,6 +251,7 @@ def summary(row: service.DocumentRow) -> DocumentSummary:
             number=row.latest_version_no,
             status=row.latest_status,  # type: ignore[arg-type]  # the database checks the values
             created_at=row.latest_created_at,
+            field_count=row.latest_field_count,
         ),
         updated_at=row.updated_at,
         archived_at=row.archived_at,
@@ -290,6 +299,9 @@ def version_view(
         uploaded_by=PersonRef(id=version.uploaded_by_id, name=version.uploaded_by_name),
         created_at=version.created_at,
         processed_at=version.processed_at,
+        field_count=version.field_count,
+        name=version.ai_name,
+        description=version.ai_description,
         is_current=version.id == current_id,
     )
 

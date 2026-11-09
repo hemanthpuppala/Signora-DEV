@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 
 import pymupdf
@@ -17,11 +18,27 @@ from signora.modules.documents.pdf import (
 )
 from tests.support.files import (
     encrypted_pdf,
+    form_with_scripts,
+    links_reaching_outside,
     pdf_bytes,
     pdf_with_scan,
     pdf_with_signature_block,
     risky_pdf,
 )
+
+
+def test_no_link_reaches_outside_the_document_however_it_is_written() -> None:
+    """Review fix: a link opening another file (/GoToR), a launch chained after a safe link
+    (/Next) and a launch kept as its own object all survived the working copy."""
+    working = prepare(links_reaching_outside(), max_pages=200).pdf
+    with pymupdf.open(stream=working, filetype="pdf") as document:
+        objects = " ".join(document.xref_object(x) for x in range(1, document.xref_length()))
+        assert "/Launch" not in objects
+        assert "/GoToR" not in objects
+        # No chain left: "/Next null" is the same as no entry.
+        assert re.search(r"/Next\s*(<<|\[|\d+ 0 R)", objects) is None
+        uris = [link.get("uri") for link in document.load_page(0).get_links()]
+        assert "https://example.org" in uris  # an ordinary link stays
 
 
 def test_pages_are_measured_as_displayed() -> None:
@@ -79,6 +96,28 @@ def test_the_working_copy_has_nothing_that_runs_but_keeps_form_fields() -> None:
         assert all(link["kind"] != pymupdf.LINK_LAUNCH for link in page.get_links())
         assert [w.field_name for w in page.widgets()] == ["client_name"]
     assert b"/JavaScript" not in working
+
+
+def test_the_working_copy_keeps_no_form_field_scripts_but_keeps_the_fields() -> None:
+    """Phase 5 §2.1: field actions survived the first cleaning; a downloaded working copy opened in
+    another reader would have run them."""
+    original = form_with_scripts()
+    with pymupdf.open(stream=original, filetype="pdf") as document:
+        names = sorted(w.field_name for w in document.load_page(0).widgets())
+    working = prepare(original, max_pages=200).pdf
+    with pymupdf.open(stream=working, filetype="pdf") as document:
+        actions = []
+        for xref in range(1, document.xref_length()):
+            if document.xref_get_key(xref, "AA")[0] != "null":
+                actions.append((xref, "AA"))
+            if document.xref_get_key(xref, "A/S")[1] == "/JavaScript":
+                actions.append((xref, "A"))
+            if document.xref_get_key(xref, "S")[1] == "/JavaScript":
+                actions.append((xref, "S"))
+        assert actions == []
+        page = document.load_page(0)
+        assert sorted(w.field_name for w in page.widgets()) == names  # every field kept
+        assert [link["kind"] for link in page.get_links()] == [pymupdf.LINK_URI]  # kept, harmless
 
 
 def test_scanned_pages_are_found_but_blank_pages_and_signature_blocks_are_not() -> None:

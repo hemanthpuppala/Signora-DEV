@@ -117,9 +117,12 @@ class _EnvVars(BaseSettings):
     ai_base_url: AnyHttpUrl = AnyHttpUrl("https://api.openai.com/v1")
     ai_api_key: SecretStr | None = None
     ai_model: str = "gpt-6-luna"
-    ai_reasoning_effort: ReasoningEffort = "medium"
+    # Field detection (Phase 5 LLD §3.1): `low` measured about 45 % faster than `medium` with every
+    # check passing; `medium` catches more conditions written in the text.
+    ai_reasoning_effort: ReasoningEffort = "low"
+    ai_timeout_seconds: int = Field(default=200, ge=10, le=900)
+    ai_max_output_tokens: int = Field(default=16_000, ge=1_000, le=128_000)
     ai_whole_doc_max_tokens: int = Field(default=40_000, ge=1_000)
-    ai_max_concurrency: int = Field(default=4, ge=1, le=32)
     # email (integration)
     email_provider: EmailProvider = "smtp"
     sendgrid_api_key: SecretStr | None = None
@@ -290,8 +293,9 @@ class AISettings(_Group):
     api_key: SecretStr | None
     model: str
     reasoning_effort: ReasoningEffort
+    timeout_seconds: int
+    max_output_tokens: int
     whole_doc_max_tokens: int
-    max_concurrency: int
 
     @property
     def configured(self) -> bool:
@@ -437,8 +441,9 @@ def load_settings(root: Path | None = None) -> Settings:
             api_key=env.ai_api_key,
             model=env.ai_model,
             reasoning_effort=env.ai_reasoning_effort,
+            timeout_seconds=env.ai_timeout_seconds,
+            max_output_tokens=env.ai_max_output_tokens,
             whole_doc_max_tokens=env.ai_whole_doc_max_tokens,
-            max_concurrency=env.ai_max_concurrency,
         ),
         email=EmailSettings(
             provider=env.email_provider,

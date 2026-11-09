@@ -77,3 +77,86 @@ def test_0012_renames_file_permissions_in_every_role_and_back(scratch: DatabaseS
     assert _read(engine, custom)[0] == ["members.directory", "files.send"]
     assert _read(engine, viewer)[1] == viewer_old
     engine.dispose()
+
+
+def _processed_version(engine: Engine, *, status: str = "processed") -> uuid.UUID:
+    """A department, a document and one version in the system company, as Phase 4 left them."""
+    with engine.begin() as connection:
+        run = connection.execute
+        role = run(
+            text("SELECT id FROM roles WHERE workspace_id = :w LIMIT 1"), {"w": SYSTEM_WORKSPACE}
+        )
+        role_id = role.scalar_one_or_none() or _role(engine, "owner", [], "x")
+        user = run(
+            text(
+                "INSERT INTO users (workspace_id, role_id, email, name, password_hash) "
+                "VALUES (:w, :r, :e, 'Rosa Hale', 'x') RETURNING id"
+            ),
+            {"w": SYSTEM_WORKSPACE, "r": role_id, "e": f"{uuid.uuid4().hex}@example.com"},
+        ).scalar_one()
+        department = run(
+            text(
+                "INSERT INTO departments (workspace_id, name, created_by) "
+                "VALUES (:w, :n, :u) RETURNING id"
+            ),
+            {"w": SYSTEM_WORKSPACE, "n": f"Finance {uuid.uuid4().hex[:6]}", "u": user},
+        ).scalar_one()
+        document = run(
+            text(
+                "INSERT INTO documents (workspace_id, department_id, name, created_by) "
+                "VALUES (:w, :d, 'NDA', :u) RETURNING id"
+            ),
+            {"w": SYSTEM_WORKSPACE, "d": department, "u": user},
+        ).scalar_one()
+        return uuid.UUID(
+            str(
+                run(
+                    text(
+                        "INSERT INTO document_versions (workspace_id, document_id, version_no, "
+                        "status, source_sha256, source_kind, source_filename, source_bytes, "
+                        "uploaded_by, pdf_sha256, pdf_bytes, page_count) VALUES (:w, :d, 1, :s, "
+                        "'abc', 'pdf', 'NDA.pdf', 10, :u, 'def', 10, 1) RETURNING id"
+                    ),
+                    {"w": SYSTEM_WORKSPACE, "d": document, "u": user, "s": status},
+                ).scalar_one()
+            )
+        )
+
+
+def test_0016_queues_detection_for_every_processed_version_and_back(
+    scratch: DatabaseSettings,
+) -> None:
+    from signora.modules.documents.processing import DocumentVersionProcessed
+
+    config = alembic_config(scratch)
+    command.upgrade(config, "0015")
+    engine = create_engine(scratch.url)
+    processed = _processed_version(engine)
+    locked = _processed_version(engine, status="needs_password")
+
+    command.upgrade(config, "0016")
+
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT id, status FROM document_versions")).all()
+        statuses = {row.id: row.status for row in rows}
+        jobs = connection.execute(
+            text("SELECT kind, payload, dedupe_key FROM jobs WHERE kind LIKE 'event:%'")
+        ).all()
+    assert statuses == {processed: "detecting", locked: "needs_password"}
+    (job,) = jobs
+    assert job.kind == "event:DocumentVersionProcessed:detection"
+    event = DocumentVersionProcessed.model_validate(job.payload)  # what the subscriber will read
+    assert event.version_id == processed
+    assert job.dedupe_key == f"event:{event.event_id}:detection"
+
+    command.downgrade(config, "0015")
+
+    with engine.connect() as connection:
+        assert (
+            connection.execute(
+                text("SELECT status FROM document_versions WHERE id = :id"), {"id": processed}
+            ).scalar_one()
+            == "processed"
+        )
+        assert connection.execute(text("SELECT count(*) FROM jobs")).scalar_one() == 0
+    engine.dispose()

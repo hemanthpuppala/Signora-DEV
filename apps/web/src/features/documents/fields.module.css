@@ -1,0 +1,307 @@
+/* Fields on the PDF and in the panel beside it (Phase 5 LLD topic 6; prototype 13's legend). */
+
+/* --- boxes on the page ------------------------------------------------------------------------ */
+.boxes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.box {
+  position: absolute;
+  padding: 0;
+  border: 1.5px solid var(--role1);
+  background: var(--role1f);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* Boxes sit on paper: every outline and mark uses paper colours (the page's white ink would vanish). */
+.box:hover {
+  outline: 1px solid var(--paper-ink);
+  outline-offset: 1px;
+}
+
+.mark {
+  border-style: dashed; /* a signature or initials */
+}
+
+.review {
+  border-style: dotted; /* needs a look */
+}
+
+.pending {
+  border: 1px dashed var(--paper-faint); /* found, not yet assigned */
+  background: transparent;
+}
+
+/* The field picked in the list or on the page: a dark ring, a tint, and one pulse to find it. */
+.box.chosen {
+  z-index: 1;
+  outline: 2px solid var(--paper-ink);
+  outline-offset: 2px;
+  background: var(--paper-chosen);
+  animation: pulse 1.2s ease-out 2;
+}
+
+@keyframes pulse {
+  from {
+    box-shadow: 0 0 0 0 var(--paper-pulse);
+  }
+  to {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box.chosen {
+    animation: none;
+  }
+}
+
+/* Party tones: shared by boxes and the panel's dots. */
+.role1 {
+  border-color: var(--role1);
+  background: var(--role1f);
+}
+
+.role2 {
+  border-color: var(--role2);
+  background: var(--role2f);
+}
+
+.role3 {
+  border-color: var(--role3);
+  background: var(--role3f);
+}
+
+.firm {
+  border-color: var(--firm);
+  background: var(--firmf);
+}
+
+.sender {
+  border-color: var(--t55);
+  background: transparent;
+}
+
+.none {
+  border-color: var(--t30);
+  background: transparent;
+}
+
+/* The same two tones as boxes on paper (the dots above sit on the dark panel). */
+.box.sender {
+  border-color: var(--paper-quiet);
+}
+
+.box.none {
+  border-color: var(--paper-faint);
+}
+
+/* --- the panel -------------------------------------------------------------------------------- */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.headline {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.steps li {
+  display: flex;
+  gap: 10px;
+}
+
+.done {
+  color: var(--t60);
+}
+
+.running {
+  color: var(--ink);
+}
+
+.next {
+  color: var(--t30);
+}
+
+.parties {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.parties li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 50%;
+}
+
+.label {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--t60);
+}
+
+.count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--t60);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border: 1px solid var(--sep);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--t75);
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  max-height: 420px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--sep);
+  background: var(--surface);
+}
+
+.list:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid var(--sep);
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list > li:first-child > .item,
+.list > .item:first-child {
+  border-top: 0;
+}
+
+.item .meta {
+  grid-column: 2;
+}
+
+.item:hover,
+.selected {
+  background: var(--r05);
+}
+
+.selected {
+  box-shadow: inset 2px 0 0 var(--ink);
+  animation: chosenRow 0.9s ease-out 1; /* brightens, then settles: where the eye should land */
+}
+
+@keyframes chosenRow {
+  from {
+    background: var(--r15);
+  }
+  to {
+    background: var(--r05);
+  }
+}
+
+.item {
+  transition: background 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selected {
+    animation: none;
+  }
+
+  .item {
+    transition: none;
+  }
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--sep);
+  background: var(--surface);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--t60);
+}

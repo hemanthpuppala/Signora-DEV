@@ -1,0 +1,381 @@
+{
+  "fields_from": "blanks",
+  "roles": [
+    {
+      "slug": "recipient",
+      "kind": "signer",
+      "label": "Recipient",
+      "position": 1
+    },
+    {
+      "slug": "company",
+      "kind": "countersigner",
+      "label": "Company",
+      "position": 2
+    }
+  ],
+  "fields": [
+    {
+      "key": "agreement.company_legal_name",
+      "label": "Company legal name",
+      "holds": "party_name",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f1"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            199.1,
+            134.5,
+            413.1,
+            146.8
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.company_mailing_address",
+      "label": "Company mailing address",
+      "holds": "address",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f2"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            199.1,
+            172.5,
+            413.1,
+            184.8
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.party_name",
+      "label": "Recipient legal name",
+      "holds": "party_name",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f3"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            199.1,
+            235.7,
+            413.1,
+            248.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.address",
+      "label": "Recipient mailing address",
+      "holds": "address",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f4"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            199.1,
+            273.7,
+            413.1,
+            286.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.effective_date",
+      "label": "Effective date",
+      "holds": "date",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f5"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            215.7,
+            339.4,
+            319.7,
+            351.7
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "agreement.governing_law_state",
+      "label": "Governing law state",
+      "holds": "state",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f6"
+      ],
+      "placements": [
+        {
+          "page": 4,
+          "rect": [
+            209.6,
+            477.1,
+            316.7,
+            489.4
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.signature",
+      "label": "Recipient signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f7"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            187.6,
+            287.4,
+            352.7,
+            299.7
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.date_signed",
+      "label": "Recipient signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f8"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            391.2,
+            287.4,
+            482.9,
+            299.7
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "recipient.full_name",
+      "label": "Recipient printed name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "recipient",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f9"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            133.1,
+            312.7,
+            298.3,
+            325.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.signature",
+      "label": "Company signature",
+      "holds": "signature",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f10"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            188.2,
+            401.2,
+            353.3,
+            413.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.date_signed",
+      "label": "Company signing date",
+      "holds": "date_signed",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f11"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            391.8,
+            401.2,
+            483.5,
+            413.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    },
+    {
+      "key": "company.full_name",
+      "label": "Company representative printed name",
+      "holds": "full_name",
+      "filled_by": "role",
+      "role": "company",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f12"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            133.1,
+            426.5,
+            298.3,
+            438.8
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null
+        }
+      ]
+    }
+  ],
+  "not_asked": [],
+  "document": {
+    "name": "Trade Secret Non-Disclosure Agreement",
+    "description": "A trade secret non-disclosure agreement between a Company and a Recipient. It covers confidential information, non-disclosure obligations, term, exclusions, governing law and related remedies. The Recipient signs first and the Company countersigns."
+  },
+  "flags": {
+    "no_fields": false,
+    "addressed_to_ai": false,
+    "repaired": false,
+    "xfa": false,
+    "already_signed": false,
+    "name_dropped": false
+  },
+  "notes": []
+}

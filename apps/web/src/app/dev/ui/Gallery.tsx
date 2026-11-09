@@ -16,6 +16,7 @@ import {
   Mono,
   Notice,
   Radio,
+  SearchField,
   Select,
   SmallText,
   STATUSES,
@@ -79,6 +80,7 @@ export function Gallery() {
         <TextField label="Work email" type="email" placeholder="name@example.com" hint="We send a code here." />
         <TextField label="Password" type="password" error="At least 12 characters." />
         <TextArea label="Description for the detector (optional)" />
+        <SearchField label="Find a field" />
         <Select label="Invite as" options={ACCESS} value={access} onChange={setAccess} />
         <Checkbox defaultChecked>I agree to use electronic records and signatures.</Checkbox>
         <Radio name="wait" defaultChecked>

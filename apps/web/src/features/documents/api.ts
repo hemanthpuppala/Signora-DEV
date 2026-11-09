@@ -22,6 +22,16 @@ export const documentKey = (id: string) => ["document", id] as const;
  * nothing is processing. One place, so it can become Server-Sent Events later without the screens
  * changing. TanStack pauses it in background tabs.
  */
+/** Still being worked on: processed in the background, or its fields being found (Phase 5 §1.1). */
+export function isWorking(status: VersionStatus): boolean {
+  return status === "processing" || status === "detecting";
+}
+
+/** Its working copy exists, so it can be shown while its fields are found and after. */
+export function hasWorkingCopy(status: VersionStatus): boolean {
+  return status === "detecting" || status === "ready";
+}
+
 export function processingInterval(processingSince: readonly string[], now = Date.now()): number | false {
   if (processingSince.length === 0) return false;
   const newest = Math.max(...processingSince.map((at) => Date.parse(at)));
@@ -40,11 +50,11 @@ export function useDocuments(departmentId: string) {
           params: { path: { department_id: departmentId } },
         }),
       ),
-    // A list shows each document's newest version; poll while any is processing.
+    // A list shows each document's newest version; poll while any is still being worked on.
     refetchInterval: (query) =>
       processingInterval(
         (query.state.data ?? [])
-          .filter((document) => document.latest_version.status === "processing")
+          .filter((document) => isWorking(document.latest_version.status))
           .map((document) => document.latest_version.created_at),
       ),
   });
@@ -59,7 +69,7 @@ export function useDocument(id: string | null) {
     refetchInterval: (query) =>
       processingInterval(
         (query.state.data?.versions ?? [])
-          .filter((version) => version.status === "processing")
+          .filter((version) => isWorking(version.status))
           .map((version) => version.created_at),
       ),
   });
@@ -110,22 +120,22 @@ export function uploadFile(
 }
 
 /**
- * Files dropped on one page and uploaded on the next (the department page's and the new-department
- * page's dropzones hand them to the upload page, Phase 4 LLD §6.1, §6.3). Kept in memory: a reload
- * forgets them, and the person drops them again.
+ * A file dropped on one page and uploaded on the next (the department page's and the new-department
+ * page's dropzones hand it to the upload page, Phase 4 LLD §6.1, §6.3). One document is uploaded at
+ * a time. Kept in memory: a reload forgets it, and the person drops it again.
  */
-const handedOff = new Map<string, File[]>();
+const handedOff = new Map<string, File>();
 
-export function handOff(departmentId: string, files: readonly File[]): void {
-  handedOff.set(departmentId, [...(handedOff.get(departmentId) ?? []), ...files]);
+export function handOff(departmentId: string, file: File): void {
+  handedOff.set(departmentId, file);
 }
 
-/** The files waiting for a department (pure: safe in a state initializer). */
-export function handedOffFiles(departmentId: string): File[] {
-  return handedOff.get(departmentId) ?? [];
+/** The file waiting for a department (pure: safe in a state initializer). */
+export function handedOffFile(departmentId: string): File | null {
+  return handedOff.get(departmentId) ?? null;
 }
 
-/** Forget them once the upload page has taken them. */
+/** Forget it once the upload page has taken it. */
 export function clearHandOff(departmentId: string): void {
   handedOff.delete(departmentId);
 }

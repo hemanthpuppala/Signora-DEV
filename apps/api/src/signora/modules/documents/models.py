@@ -94,7 +94,8 @@ documents = Table(
     ),
 )
 
-# Each upload of a document: immutable once processed (topic 4).
+# Each upload of a document: immutable once processed (topic 4). After processing it is detecting
+# (Phase 5 finds its fields), then ready.
 document_versions = Table(
     "document_versions",
     metadata,
@@ -121,20 +122,23 @@ document_versions = Table(
         server_default=text("'{}'::integer[]"),
     ),
     Column("ai_instructions", Text, nullable=False, server_default=text("''")),
+    Column("ai_name", Text),  # what the AI called this version (Phase 5 §6.5)
     Column("ai_description", Text),
     Column("uploaded_by", UUID(as_uuid=True), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("processed_at", DateTime(timezone=True)),
+    Column("field_count", Integer),  # set when detection finishes (Phase 5 §6.5)
     CheckConstraint("version_no >= 1", name="version_positive"),
     CheckConstraint(
-        "status IN ('processing', 'needs_password', 'needs_ocr', 'failed', 'processed')",
+        "status IN ('processing', 'needs_password', 'needs_ocr', 'failed', 'detecting', 'ready')",
         name="status_known",
     ),
     CheckConstraint("(status = 'failed') = (failure_code IS NOT NULL)", name="failure_when_failed"),
     CheckConstraint("source_kind IN ('pdf', 'docx')", name="source_kind_known"),
     CheckConstraint("char_length(ai_instructions) <= 1000", name="ai_instructions_length"),
     CheckConstraint(
-        "status <> 'processed' OR (pdf_sha256 IS NOT NULL AND page_count IS NOT NULL)",
+        "status NOT IN ('detecting', 'ready') "
+        "OR (pdf_sha256 IS NOT NULL AND page_count IS NOT NULL)",
         name="processed_has_pdf",
     ),
     UniqueConstraint("document_id", "version_no"),

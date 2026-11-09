@@ -4,13 +4,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { userMessage } from "@/shared/api/errors";
-import { AppShell, Notice, TextButton, TopBar, type NavItem } from "@/shared/ui";
+import { AppShell, Notice, TextButton, TopBar, type AppShellProps, type NavItem } from "@/shared/ui";
 
 import { can, useSession, useSignOut, type Me, type PermissionName } from "./session";
 
 type ConsoleShellProps = {
   /** The page needs this permission; without it the page shows "no access". */
   requires?: PermissionName;
+  /** "full" for a workspace page that uses the whole window (the document page). */
+  width?: AppShellProps["width"];
   children: (me: Me) => ReactNode;
 };
 
@@ -36,7 +38,7 @@ const NO_ACCESS_DEFAULT = "You don't have access to this page. Ask the owner if 
  * Signed-in console: loads the session, sends signed-out visitors to /login (keeping the page to
  * return to), builds the navigation from permissions, and renders the page with the user.
  */
-export function ConsoleShell({ requires, children }: ConsoleShellProps) {
+export function ConsoleShell({ requires, width = "content", children }: ConsoleShellProps) {
   const session = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -74,7 +76,7 @@ export function ConsoleShell({ requires, children }: ConsoleShellProps) {
     </TextButton>
   );
   return (
-    <AppShell workspace={me.workspace.name} nav={nav} actions={actions}>
+    <AppShell workspace={me.workspace.name} nav={nav} actions={actions} width={width}>
       {requires && !can(me, requires) ? (
         <Notice title="No access">{NO_ACCESS[requires] ?? NO_ACCESS_DEFAULT}</Notice>
       ) : (

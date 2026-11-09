@@ -8,5 +8,6 @@ export const VERSION_STATUS: Record<VersionStatus, { pill: Status; label: string
   needs_password: { pill: "viewed", label: "Needs password" },
   needs_ocr: { pill: "expired", label: "Scanned pages" },
   failed: { pill: "declined", label: "Failed" },
-  processed: { pill: "completed", label: "Ready" },
+  detecting: { pill: "pending", label: "Finding fields" },
+  ready: { pill: "completed", label: "Ready" },
 };

@@ -91,7 +91,24 @@ FAILURE_MESSAGES = {
     "damaged": "This PDF can't be opened. Save it again and upload it",
     "conversion_failed": "This Word file couldn't be converted. Save it again and upload it",
     "unavailable": "Processing couldn't finish",  # the screen offers "Try again" beside it
+    # Field detection (Phase 5 §1.1); each is passing, so "Try again" is beside it too.
+    "ai_not_configured": "Field detection isn't set up yet",
+    "ai_unavailable": "Field detection couldn't reach the AI",
+    "detection_failed": "Field detection couldn't finish",
 }
+
+
+# Detection's failure codes (Phase 5 §1.1): all passing, so the screen offers Try again.
+DETECTION_FAILURE_CODES = frozenset({"ai_not_configured", "ai_unavailable", "detection_failed"})
+
+
+def detection_failure_message(code: str) -> str:
+    """What a detection failure says (they name no pages or limits)."""
+    return (
+        FAILURE_MESSAGES[code]
+        if code in DETECTION_FAILURE_CODES
+        else FAILURE_MESSAGES["detection_failed"]
+    )
 
 
 def failure_message(code: str, *, pages: int | None, max_pages: int) -> str:

@@ -10,8 +10,7 @@ import {
   stepZoom,
   wheelFactor,
   ZOOM_MAX,
-  ZOOM_MIN,
-} from "./view";
+  ZOOM_MIN, focusTop } from "./view";
 
 const A4 = { width: 595, height: 842 };
 const LANDSCAPE = { width: 842, height: 595 };
@@ -50,5 +49,13 @@ describe("pdf viewer layout", () => {
     expect(pageAt(offsets, 0, 800)).toBe(1);
     expect(pageAt(offsets, 600, 800)).toBe(2);
     expect(pageAt(offsets, 5000, 800)).toBe(3);
+  });
+});
+
+describe("focusTop", () => {
+  it("centres a box on its page in the viewport, and never scrolls above the top", () => {
+    const offsets = [0, 1000];
+    expect(focusTop(offsets, 2, [100, 200, 300, 220], 2, 600)).toBe(1000 + 210 * 2 - 300);
+    expect(focusTop(offsets, 1, [100, 10, 300, 20], 1, 600)).toBe(0);
   });
 });
