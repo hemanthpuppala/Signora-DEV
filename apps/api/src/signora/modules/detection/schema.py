@@ -15,6 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
+from signora.modules.review.formats import ALL_FORMATS
 from signora.modules.review.values import (
     AI_HOLDS,
     AiHolds,
@@ -31,6 +32,8 @@ ALLOWED: dict[str, frozenset[str]] = {
     kind: holds & frozenset(AI_HOLDS) for kind, holds in REVIEW_ALLOWED.items()
 }
 
+DateFormat: Any = Literal[ALL_FORMATS]  # how a date or a part of one is written (7c)
+
 HOLDS_HELP = (
     "What the field contains. A text box or blank line may hold any value except checkbox and "
     "choice; a signature box holds signature or initials; a checkbox holds checkbox; a radio "
@@ -45,6 +48,18 @@ HOLDS_HELP = (
     "signature recording when it was signed; date is any other date in one box. day, month and "
     "year are the parts of a date the form splits into separate boxes ('the __ day of ____, "
     "20__'): one field per box, each holding its part. text when nothing else fits."
+)
+FORMAT_HELP = (
+    "How the blank writes a date or a part of one, for holds date, date_signed, date_of_birth, "
+    "day, month or year; null for every other type. Read it from the blank and the words printed "
+    "around it. A whole date: 'MM/DD/YYYY' or 'DD/MM/YYYY' (slashes, four-digit year), "
+    "'MM/DD/YY' or 'DD/MM/YY' (two-digit year), 'YYYY-MM-DD', 'D Month YYYY' (9 November 2026), "
+    "or 'Month D, YYYY' (November 9, 2026), the format for a plain 'Date: ______' and any date "
+    "blank with no cue, a signing date included. Day order: "
+    "month first unless the text or the parties are clearly day-first. A day: 'Dth' when it "
+    "reads as an ordinal ('this ____ day of' gives 'the 9th day of'), else 'D'. A month: 'Month' "
+    "when written as a word ('day of ________, 20__'), 'MM' when a number ('__/__/____'). A "
+    "year: 'YY' when two digits complete a printed century ('20____'), else 'YYYY'."
 )
 FILLED_BY_HELP = (
     "Who fills it. Exactly one of: a slug listed in roles, when that party fills it while signing; "
@@ -105,6 +120,7 @@ class ExtraField(Strict):
         )
     )
     holds: Holds = Field(description=HOLDS_HELP)
+    format: DateFormat | None = Field(description=FORMAT_HELP)
     filled_by: str = Field(description=FILLED_BY_HELP)
     label: str = Field(description=LABEL_HELP)
     must_fill: bool = Field(description=MUST_FILL_HELP)
@@ -158,6 +174,7 @@ def answer_model(field_ids: list[str]) -> type[BaseModel]:
         __doc__="One field from <fields>, answered once.",
         id=(field_id, Field(description="The field's id from <fields>.")),
         holds=(Holds, Field(description=HOLDS_HELP)),
+        format=(DateFormat | None, Field(description=FORMAT_HELP)),
         filled_by=(str, Field(description=FILLED_BY_HELP)),
         label=(str, Field(description=LABEL_HELP)),
         must_fill=(bool, Field(description=MUST_FILL_HELP)),
