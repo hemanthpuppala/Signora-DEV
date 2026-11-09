@@ -198,6 +198,7 @@ type = "protected"
 protected_modules = [
     "signora.modules.detection.ai",
     "signora.modules.detection.blanks",
+    "signora.modules.detection.derive",
     "signora.modules.detection.form_fields",
     "signora.modules.detection.geometry",
     "signora.modules.detection.layout",
@@ -236,8 +237,9 @@ source_modules = [
     "signora.modules.departments.domain",
     "signora.modules.documents.domain",
     "signora.modules.identity_access.domain",
-    # Detection's reading: from a PDF's bytes to its fields and layout text, nothing else.
+    # Detection's reading and deriving: from a PDF's bytes and the AI's answer to fields.
     "signora.modules.detection.blanks",
+    "signora.modules.detection.derive",
     "signora.modules.detection.form_fields",
     "signora.modules.detection.geometry",
     "signora.modules.detection.layout",
