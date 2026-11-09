@@ -2,10 +2,11 @@
 
 Each stage saves its output in ``detection_runs`` before the next starts, so a retry resumes where
 it stopped (a failed AI call never re-reads the document). Every write is guarded by the version,
-the run and the expected stage: a run replaced by hand, or taken over by another worker, writes
-nothing. ``store`` commits together with the job's guarded completion, so a version is never made
-ready by a job that lost its lease. The stage functions take the blob store and the AI as
-arguments, so tests run them with their own.
+the run and the expected stage: a run replaced by hand writes nothing and stops; a run another
+worker has moved on (an expired lease, the job claimed twice) is continued from the stage it is at,
+so no stage's output is written twice and none is left behind. ``store`` commits together with the
+job's guarded completion, so a version is never made ready by a job that lost its lease. The stage
+functions take the blob store and the AI as arguments, so tests run them with their own.
 """
 
 from __future__ import annotations
@@ -47,7 +48,12 @@ REPAIR = (
 
 
 class StaleRun(Exception):  # noqa: N818 - not an error: the run moved on without this job
-    """The run was replaced, finished or taken over: this job stops without writing."""
+    """The run was replaced by a new one: this job stops without writing."""
+
+
+class StageTaken(Exception):  # noqa: N818 - not an error: another worker did this stage
+    """The run is past the stage this job just finished: another worker saved it first. The job
+    carries on from the stage the run is at now."""
 
 
 class Failed(Exception):  # noqa: N818 - a version outcome, not a fault of this code
@@ -70,9 +76,12 @@ def _run_row(session: Session, version_id: uuid.UUID) -> Any:
 
 
 def ensure_run(session: Session, version: VersionForDetection) -> uuid.UUID:
-    """The run that continues after processing: the unfinished one, or a new one (§1.2)."""
+    """The run that continues after processing: the unfinished one, or a new one (§1.2). A run
+    that failed in our own code (``detection_failed``: a stage raised, or its job died outside the
+    AI call) starts over: the same saved reading or answer would fail the same way, so resuming
+    it could never finish. A provider failure resumes, the saved stages being sound."""
     row = _run_row(session, version.id)
-    if row is not None and row.stage != "done":
+    if row is not None and row.stage != "done" and row.failure_code != "detection_failed":
         return uuid.UUID(str(row.run_id))
     return restart_run(session, version, requested_by=None)
 
@@ -125,8 +134,10 @@ _SAVE_FAILURE = text(
 def _save(
     session: Session, statement: Any, version_id: uuid.UUID, run_id: uuid.UUID, **values: Any
 ) -> None:
+    """A stage's save; when no row is at that stage of this run, ``StageTaken`` (the caller reads
+    the run again: replaced, it is stale; moved on, it continues from where it is)."""
     if session.execute(statement, {**values, "v": version_id, "r": run_id}).one_or_none() is None:
-        raise StaleRun(f"run {run_id} moved on")
+        raise StageTaken(f"run {run_id} is past this stage")
 
 
 def run_detection(
@@ -144,15 +155,15 @@ def run_detection(
             return
     try:
         _stages(context, version, run_id, store=store, assigner=assigner)
-    except StaleRun as stale:
-        log.info("detection.stale_run", version_id=str(version_id), reason=str(stale))
+    except (StaleRun, StageTaken) as moved:  # taken at store: another worker stored it
+        log.info("detection.run_moved_on", version_id=str(version_id), reason=str(moved))
         with context.complete():
             return
     except Failed as failed:
         with context.complete() as uow:
             try:
                 _save(uow.session, _SAVE_FAILURE, version.id, run_id, code=failed.code)
-            except StaleRun:
+            except StageTaken:
                 return
             fail_detection(uow, version, failed.code)
 
@@ -165,6 +176,11 @@ def _row(context: JobContext, version_id: uuid.UUID, run_id: uuid.UUID) -> Any:
     return row
 
 
+def _reading(row: Any) -> Reading:
+    """The read stage's output: the fields from ``parsed``, the layout from its own column."""
+    return Reading.model_validate({**row.parsed, "layout": row.layout})
+
+
 def _stages(
     context: JobContext,
     version: VersionForDetection,
@@ -173,56 +189,98 @@ def _stages(
     store: BlobStore,
     assigner: Assigner,
 ) -> None:
-    data = _source(store, version)
-    row = _row(context, version.id, run_id)
-    if row.stage == "read":
-        reading = read_document(data)
-        with context.unit_of_work() as uow:
-            _save(
-                uow.session,
-                _SAVE_READ,
-                version.id,
-                run_id,
-                fields_from=reading.fields_from,
-                parsed=json.dumps(reading.model_dump(mode="json")),
-                layout=reading.layout,
-            )
+    """Each stage from the one the run is at, until it is stored or done. The source is read once,
+    when a stage needs it (resuming at ``store`` needs none)."""
+    data: bytes | None = None
+    while True:
         row = _row(context, version.id, run_id)
-    if row.stage in ("ai", "derive"):
-        reading = Reading.model_validate(row.parsed)
-        with pymupdf.open(stream=data, filetype="pdf") as document:
-            if row.stage == "ai":
-                calls, answer, model_name = _ask(version, reading, document, assigner)
-                with context.unit_of_work() as uow:
-                    _save(
-                        uow.session,
-                        _SAVE_AI,
-                        version.id,
-                        run_id,
-                        calls=json.dumps(calls),
-                        answer=json.dumps(answer),
-                        model=model_name,
-                    )
-                row = _row(context, version.id, run_id)
-            calls = row.calls or []
-            result = derive(
-                reading,
-                row.answer,
-                document,
-                problems=calls[-1]["problems"] if calls else [],
-                repaired=len(calls) > 1,
-            )
-        with context.unit_of_work() as uow:
-            _save(
-                uow.session,
-                _SAVE_DERIVE,
-                version.id,
-                run_id,
-                result=json.dumps(result.model_dump(mode="json")),
-            )
-        row = _row(context, version.id, run_id)
-    if row.stage == "store":
-        _store(context, version, run_id, Result.model_validate(row.result), row)
+        if row.stage == "done":
+            return  # another worker stored it; the job is complete
+        if row.stage == "store":
+            _store(context, version, run_id, Result.model_validate(row.result), row)
+            return
+        if data is None:
+            data = _source(store, version)
+        try:
+            if row.stage == "read":
+                _read(context, version, run_id, data)
+            elif row.stage == "ai":
+                _ai(context, version, run_id, data, _reading(row), assigner)
+            else:  # derive
+                _derive(context, version, run_id, data, _reading(row), row)
+        except StageTaken as taken:
+            log.info("detection.stage_taken", version_id=str(version.id), reason=str(taken))
+
+
+def _read(
+    context: JobContext, version: VersionForDetection, run_id: uuid.UUID, data: bytes
+) -> None:
+    reading = read_document(data)
+    with context.unit_of_work() as uow:
+        _save(
+            uow.session,
+            _SAVE_READ,
+            version.id,
+            run_id,
+            fields_from=reading.fields_from,
+            parsed=json.dumps(reading.model_dump(mode="json", exclude={"layout"})),
+            layout=reading.layout,
+        )
+
+
+def _ai(
+    context: JobContext,
+    version: VersionForDetection,
+    run_id: uuid.UUID,
+    data: bytes,
+    reading: Reading,
+    assigner: Assigner,
+) -> None:
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        calls, answer, model_name = ask(
+            reading,
+            document,
+            assigner,
+            current_name=version.document_name,
+            instructions=version.ai_instructions,
+        )
+    with context.unit_of_work() as uow:
+        _save(
+            uow.session,
+            _SAVE_AI,
+            version.id,
+            run_id,
+            calls=json.dumps(calls),
+            answer=json.dumps(answer),
+            model=model_name,
+        )
+
+
+def _derive(
+    context: JobContext,
+    version: VersionForDetection,
+    run_id: uuid.UUID,
+    data: bytes,
+    reading: Reading,
+    row: Any,
+) -> None:
+    calls = row.calls or []
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        result = derive(
+            reading,
+            row.answer,
+            document,
+            problems=calls[-1]["problems"] if calls else [],
+            repaired=len(calls) > 1,
+        )
+    with context.unit_of_work() as uow:
+        _save(
+            uow.session,
+            _SAVE_DERIVE,
+            version.id,
+            run_id,
+            result=json.dumps(result.model_dump(mode="json")),
+        )
 
 
 EMPTY_ANSWER: dict[str, Any] = {
@@ -232,18 +290,6 @@ EMPTY_ANSWER: dict[str, Any] = {
     "extra_fields": [],
     "document": None,
 }
-
-
-def _ask(
-    version: VersionForDetection, reading: Reading, document: pymupdf.Document, assigner: Assigner
-) -> tuple[list[JsonDict], dict[str, Any], str | None]:
-    return ask(
-        reading,
-        document,
-        assigner,
-        current_name=version.document_name,
-        instructions=version.ai_instructions,
-    )
 
 
 def ask(

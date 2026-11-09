@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -48,6 +49,10 @@ def _run_row(db: Database, version_id: str) -> Any:
         return uow.session.execute(
             text("SELECT * FROM detection_runs WHERE version_id = :v"), {"v": version_id}
         ).one_or_none()
+
+
+def _run_id(db: Database, version_id: str) -> str:
+    return str(_run_row(db, version_id).run_id)
 
 
 def _count(db: Database, table: str, version_id: str) -> int:
@@ -260,3 +265,94 @@ def test_a_worker_runs_detection_after_processing_through_the_event(
     with running_worker(committing_db, test_db_settings, registry):
         wait_until(lambda: _version(owner, document_id)["status"] == "ready", timeout=20)
     assert _version(owner, document_id)["field_count"] == 6
+
+
+def test_a_run_another_worker_moved_on_is_continued_from_its_stage(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """Review fix: a stage saved by another worker (the job claimed twice after a lost lease) was
+    taken for a replaced run, and the job completed with the run left where the other worker
+    dropped it. Now it carries on from the stage the run is at."""
+    document_id, version_id = _processed(owner, run, forms.nda_like())
+
+    def other_worker_saves_first(fields: Fields) -> dict[str, Any]:
+        run_id = _run_id(committing_db, version_id)  # the run this job started
+        with committing_db.unit_of_work() as uow:  # as the other worker's AI stage would
+            detection_run._save(
+                uow.session,
+                detection_run._SAVE_AI,
+                uuid.UUID(version_id),
+                uuid.UUID(run_id),
+                calls=json.dumps([]),
+                answer=json.dumps(plain_answer(fields)),
+                model="other-worker",
+            )
+        return plain_answer(fields)
+
+    ai = FakeAssigner(other_worker_saves_first)
+    detect(version_id, ai)
+
+    row = _run_row(committing_db, version_id)
+    assert (row.stage, row.model) == ("done", "other-worker")  # its answer kept, ours not written
+    assert _version(owner, document_id)["status"] == "ready"
+    assert _count(committing_db, "version_fields", version_id) == 6
+
+
+def test_a_failure_in_our_own_code_starts_a_new_run_when_tried_again(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """Review fix: Try again resumed the failed run at the same stage with the same saved data, so
+    a failure that is ours (a refusal, a stage that raised) came back every time. A provider
+    failure still resumes where it stopped (the test above this one's neighbours)."""
+    document_id, version_id = _processed(owner, run, forms.nda_like())
+    detect(version_id, FakeAssigner(AiError("detection_failed", "the model refused")))
+    failed = _run_row(committing_db, version_id)
+    assert (failed.stage, failed.failure_code) == ("ai", "detection_failed")
+    assert _version(owner, document_id)["problem"]["code"] == "detection_failed"
+
+    retried = owner.post(
+        f"{DOCUMENTS}/{document_id}/versions/{version_id}/retry", headers=csrf_headers(owner)
+    )
+    assert retried.status_code == 200, retried.text
+    detect(version_id, FakeAssigner())
+
+    again = _run_row(committing_db, version_id)
+    assert str(again.run_id) != str(failed.run_id)  # a new run from the start
+    assert (again.stage, again.failure_code) == ("done", None)
+    assert _version(owner, document_id)["status"] == "ready"
+
+
+def test_the_layout_is_saved_once_and_the_source_is_not_read_to_store(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Review fixes: ``parsed`` held the layout text a second time (and every poll of the fields
+    endpoint parsed it); a resume at ``store`` read the whole source file for nothing."""
+    document_id, version_id = _processed(owner, run, forms.nda_like())
+
+    def storing_fails(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("the database went away while storing")
+
+    monkeypatch.setattr(detection_run, "write_fields", storing_fails)
+    with pytest.raises(RuntimeError):  # the job retries it
+        detect(version_id, FakeAssigner())
+    row = _run_row(committing_db, version_id)
+    assert row.stage == "store"
+    assert "layout" not in row.parsed and row.layout.startswith("--- page 1 ---")
+    monkeypatch.undo()
+
+    def reads_the_source(*args: Any) -> bytes:
+        raise AssertionError("the source was read to store a derived result")
+
+    monkeypatch.setattr(detection_run, "_source", reads_the_source)
+    detect(version_id, FakeAssigner())
+    assert _version(owner, document_id)["status"] == "ready"
