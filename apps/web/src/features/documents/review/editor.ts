@@ -118,7 +118,7 @@ export function toFieldSet(draft: Draft, revision: number): FieldSet {
       id: party.id,
       label: party.label.trim(),
       kind: party.kind,
-      kind_label: party.kind_label?.trim() || null,
+      kind_label: party.kind_label === null ? null : party.kind_label.trim(), // "" is refused, and named
     })),
     fields: draft.fields.map((field) => ({
       id: field.id,
@@ -263,6 +263,19 @@ export function nudge(draft: Draft, placeId: string, dx: number, dy: number, pag
   if (!found) return draft;
   const [x0, y0, x1, y1] = found.place.rect;
   return setRect(draft, placeId, [x0 + dx, y0 + dy, x1 + dx, y1 + dy], pages);
+}
+
+/** An option's words (a choice's place): what the signer reads; its value, what a condition names, stays. */
+export function setOptionText(draft: Draft, placeId: string, text: string): Draft {
+  return mapPlace(draft, placeId, (place) => ({ ...place, option_text: text }));
+}
+
+/** The next option's name for a new place of a choice: the first "Option n" no place of it has. */
+export function nextOptionName(field: DraftField): string {
+  const taken = new Set(field.places.map((place) => place.option_value));
+  let n = field.places.length + 1;
+  while (taken.has(`Option ${n}`)) n += 1;
+  return `Option ${n}`;
 }
 
 export function addPlace(draft: Draft, fieldId: string, place: Omit<DraftPlace, "id" | "kind">): Draft {

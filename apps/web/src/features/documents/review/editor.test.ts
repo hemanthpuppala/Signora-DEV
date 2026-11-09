@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { HOLD_GROUPS, HOLDS, type VersionFields } from "../fields";
 import {
   addParty,
+  addPlace,
   apply,
   begin,
   boxAt,
@@ -12,10 +13,12 @@ import {
   fromView,
   moveParty,
   newField,
+  nextOptionName,
   nudge,
   onEveryPage,
   redo,
   removeParty,
+  setOptionText,
   setRect,
   splitPlace,
   toFieldSet,
@@ -24,6 +27,7 @@ import {
   updateField,
   updateParty,
   type Draft,
+  type DraftField,
 } from "./editor";
 
 const A4 = { width: 595, height: 842 };
@@ -194,6 +198,28 @@ describe("the review editor", () => {
     const field = newField("tax_id", "Client tax number", "client", { page: 2, rect: [1, 2, 3, 4], option_value: null, option_text: null });
     expect(field).toMatchObject({ filled_by: "role", party_id: "client", sensitive: true, key: null, places: [{ kind: "blank", page: 2 }] });
     expect(newField("text", "Note", null, { page: 1, rect: [1, 2, 3, 4], option_value: null, option_text: null }).filled_by).toBe("none");
+  });
+
+  it("sends an Other party's empty words as they are, to be refused and named like a field's", () => {
+    let draft = fromView(VIEW);
+    draft = updateParty(draft, "firm", { kind_label: "" });
+    expect(toFieldSet(draft, 0).parties.find((p) => p.id === "firm")?.kind_label).toBe("");
+    draft = updateParty(draft, "firm", { kind_label: " Witness " });
+    expect(toFieldSet(draft, 0).parties.find((p) => p.id === "firm")?.kind_label).toBe("Witness");
+  });
+
+  it("names a new option after none the choice has, and renaming one is an edit of its field", () => {
+    let draft = fromView(VIEW);
+    const plan = () => draft.fields.find((f) => f.id === "plan") as DraftField;
+    expect(nextOptionName(plan())).toBe("Option 3");
+    draft = addPlace(draft, "plan", { page: 1, rect: [1, 1, 13, 13], option_value: "Option 3", option_text: "Option 3" });
+    draft = deletePlace(draft, "silver");
+    expect(nextOptionName(plan())).toBe("Option 4"); // two places, but "Option 3" is taken
+
+    draft = { ...draft, fields: draft.fields.map((f) => (f.id === "plan" ? { ...f, needs_review: "two answers" } : f)) };
+    draft = setOptionText(draft, "gold", "Gold, billed yearly");
+    expect(plan().places[0]).toMatchObject({ option_value: "Gold", option_text: "Gold, billed yearly" });
+    expect(plan().needs_review).toBeNull();
   });
 
   it("groups every type for picking exactly once", () => {

@@ -26,6 +26,7 @@ import {
   deletePlace,
   findPlace,
   newField,
+  nextOptionName,
   nudge,
   setRect,
   type Draft,
@@ -283,7 +284,7 @@ export function ReviewLayout({
       const field = draft.fields.find((f) => f.id === tool.fieldId);
       if (!field) return setTool(null);
       const choice = field.holds === "choice";
-      const option = `Option ${field.places.length + 1}`;
+      const option = nextOptionName(field);
       const box = rect
         ? clampRect(rect, size, false)
         : boxAt(field.holds, at.x, at.y, size);

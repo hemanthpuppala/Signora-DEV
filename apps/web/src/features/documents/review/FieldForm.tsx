@@ -14,6 +14,7 @@ import {
   CONDITIONS,
   onEveryPage,
   PRIVATE,
+  setOptionText,
   setRect,
   splitPlace,
   updateField,
@@ -175,17 +176,7 @@ export function FieldForm({
               value={option.option_text ?? option.option_value ?? ""}
               onChange={(event) => {
                 const text = event.target.value;
-                edit(
-                  (draft) => ({
-                    ...draft,
-                    fields: draft.fields.map((f) =>
-                      f.id === field.id
-                        ? { ...f, places: f.places.map((p) => (p.id === option.id ? { ...p, option_text: text } : p)) }
-                        : f,
-                    ),
-                  }),
-                  `option:${option.id}`,
-                );
+                edit((draft) => setOptionText(draft, option.id, text), `option:${option.id}`);
               }}
             />
           ))}
