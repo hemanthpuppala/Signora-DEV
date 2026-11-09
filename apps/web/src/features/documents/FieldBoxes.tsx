@@ -11,8 +11,9 @@ const MIN_SIDE = 8; // a checkbox stays clickable at any zoom
 /**
  * The fields of one page drawn on the PDF (Phase 5 LLD §6.2-6.4): a box per place, in its party's
  * tone; solid for information, dashed for a signature or initials, dotted for a field that needs a
- * look; grey while the AI has not said who fills it. The boxes are for sight and the mouse; the
- * panel's list is the same fields for the keyboard and screen readers.
+ * look; grey while the AI has not said who fills it. The chosen place of the chosen field is marked,
+ * so stepping through a field's places moves the mark with the viewer. The boxes are for sight and
+ * the mouse; the panel's list is the same fields for the keyboard and screen readers.
  */
 export function FieldBoxes({
   page,
@@ -44,7 +45,7 @@ export function FieldBoxes({
         rect: placement.rect,
         title: field.label,
         select: { kind: "field", key: field.key, place },
-        chosen: selected?.kind === "field" && selected.key === field.key,
+        chosen: selected?.kind === "field" && selected.key === field.key && selected.place === place,
       });
     });
   }
@@ -57,7 +58,7 @@ export function FieldBoxes({
         rect: placement.rect,
         title: found.label ?? "A place to fill",
         select: { kind: "pending", id: found.id, place },
-        chosen: selected?.kind === "pending" && selected.id === found.id,
+        chosen: selected?.kind === "pending" && selected.id === found.id && selected.place === place,
       });
     });
   }

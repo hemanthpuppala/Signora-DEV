@@ -340,8 +340,11 @@ describe("document page", () => {
 
       await user.click(within(list).getByText("Client initials"));
       expect(screen.getByText("Place 1 of 3")).toBeTruthy();
+      const marked = () => [...document.querySelectorAll('button[title="Client initials"]')].map((box) => box.classList.contains("chosen"));
+      expect(marked()).toEqual([true, false, false]);
       await user.click(screen.getByRole("button", { name: "Next place" }));
       expect(screen.getByText("Place 2 of 3")).toBeTruthy();
+      expect(marked()).toEqual([false, true, false]); // review fix: every place was marked, so the step showed nothing
       expect(scrolled).toHaveBeenCalledTimes(3);
 
       await user.click(within(list).getByText("Client signature"));
