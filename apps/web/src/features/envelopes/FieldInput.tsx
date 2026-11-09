@@ -34,14 +34,17 @@ export function FieldInput({
   value,
   onChange,
   error,
+  markRequired = false,
 }: {
   field: FormField;
+  /** Say "Required" under this field: when its group's note does not already say so. */
+  markRequired?: boolean;
   value: string;
   onChange: (value: string) => void;
   error?: string | undefined;
 }) {
   const label = field.holds === "other" && field.holds_label ? `${field.label} (${field.holds_label})` : field.label;
-  const hint = field.required ? { hint: "Required: only you can fill this in" } : {};
+  const hint = markRequired && field.required ? { hint: "Required" } : {};
   if (field.holds === "checkbox") {
     return (
       <div>

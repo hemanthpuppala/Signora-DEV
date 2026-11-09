@@ -6,6 +6,8 @@ import { api, unwrap } from "@/shared/api/client";
 import { ApiError, formError } from "@/shared/api/errors";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
 import {
+  Block,
+  Blocks,
   Button,
   Checkbox,
   DocumentCard,
@@ -117,12 +119,26 @@ export function SendModal({
   // What each step shows, from the form once it has loaded.
   const groups = useMemo(() => {
     if (!data) return [];
-    const parties = [...data.signers, ...data.countersigners].map((p) => ({ id: p.party_id, label: p.label }));
-    const out = parties
-      .map((party) => ({ label: party.label, fields: data.fields.filter((f) => f.party_id === party.id) }))
-      .filter((group) => group.fields.length > 0);
+    // What only the sender fills comes first: it is what blocks sending.
+    const out: { label: string; hint: string; fields: FormField[] }[] = [];
     const before = data.fields.filter((f) => f.party_id === null);
-    if (before.length > 0) out.push({ label: "Before sending", fields: before });
+    if (before.length > 0) {
+      const allRequired = before.every((f) => f.required);
+      out.push({
+        label: "Filled in by you",
+        hint: `${allRequired ? "Required to send. " : ""}Signers see these but can't change them.`,
+        fields: before,
+      });
+    }
+    for (const party of [...data.signers, ...data.countersigners]) {
+      const fields = data.fields.filter((f) => f.party_id === party.party_id);
+      if (fields.length > 0)
+        out.push({
+          label: party.label,
+          hint: "Optional. What you fill in is fixed; the rest is filled in when signing.",
+          fields,
+        });
+    }
     return out;
   }, [data]);
 
@@ -296,28 +312,31 @@ export function SendModal({
 
       {step === DETAILS && data ? (
         <div className={styles.steps}>
-          <SmallText>
-            Fill in what you want prefilled; signers fill in the rest when they sign. Prefilled values can&apos;t be
-            changed by the signer.
-          </SmallText>
-          {groups.map((group) => (
-            <Section key={group.label} title={group.label}>
-              <div className={styles.fields}>
-                {group.fields
-                  .filter((f) => asked(f, values))
-                  .map((f) => (
-                    <FieldInput
-                      key={f.id}
-                      field={f}
-                      value={values[f.id] ?? ""}
-                      error={fieldError(f.id)}
-                      onChange={(value) => setValues((current) => ({ ...current, [f.id]: value }))}
-                    />
-                  ))}
-              </div>
-            </Section>
-          ))}
-          {groups.length === 0 ? <SmallText>Nothing to fill in before sending.</SmallText> : null}
+          {groups.length > 0 ? (
+            <Blocks>
+              {groups.map((group) => {
+                const mixed = group.fields.some((f) => f.required) && !group.fields.every((f) => f.required);
+                return (
+                  <Block key={group.label} title={group.label} hint={group.hint}>
+                    {group.fields
+                      .filter((f) => asked(f, values))
+                      .map((f) => (
+                        <FieldInput
+                          key={f.id}
+                          field={f}
+                          markRequired={mixed}
+                          value={values[f.id] ?? ""}
+                          error={fieldError(f.id)}
+                          onChange={(value) => setValues((current) => ({ ...current, [f.id]: value }))}
+                        />
+                      ))}
+                  </Block>
+                );
+              })}
+            </Blocks>
+          ) : (
+            <SmallText>Nothing to fill in before sending.</SmallText>
+          )}
         </div>
       ) : null}
 
