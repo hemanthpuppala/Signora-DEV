@@ -7941,6 +7941,97 @@
         ]
       }
     },
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/remind": {
+      "post": {
+        "operationId": "remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reminded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "They signed, or it is not their turn yet"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Remind one person who still has to sign (requires Idempotency-Key)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
     "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/resend": {
       "post": {
         "operationId": "resend_api_v1_envelopes__envelope_id__recipients__recipient_id__resend_post",

@@ -298,13 +298,27 @@ def _one(session: Session, envelope_id: uuid.UUID, recipient_id: uuid.UUID) -> _
     return found[0]
 
 
-def remind(uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID) -> int:
+def remind(
+    uow: UnitOfWork,
+    *,
+    actor: Actor,
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID | None = None,
+) -> int:
     """Remind now: everyone who still has to act and holds a link (signers; countersigners once
-    it is their turn). Returns how many were emailed."""
+    it is their turn), or one of them. Returns how many were emailed."""
     session = uow.session
     envelope = _open(session, actor, envelope_id)
+    if recipient_id is None:
+        due = [r for r in _recipients(session, envelope_id) if r.status in LIVE]
+    else:
+        one = _one(session, envelope_id, recipient_id)
+        if one.status == "signed":
+            raise RecipientSigned
+        if one.status not in LIVE:
+            raise NotTheirTurn
+        due = [one]
     sender = _from(session, actor, envelope.sent_by)
-    due = [r for r in _recipients(session, envelope_id) if r.status in LIVE]
     for recipient in due:
         count = recipient.reminders_sent + 1
         letter = emails.sign_reminder(
@@ -330,7 +344,8 @@ def remind(uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID) -> int:
             {"n": count, "r": recipient.id},
         )
         record_email(session, recipient.id, email_id)
-    _audit(uow, actor, "envelope.reminded", envelope_id, recipients=len(due))
+    details = {"recipient_id": str(recipient_id)} if recipient_id else {}
+    _audit(uow, actor, "envelope.reminded", envelope_id, recipients=len(due), **details)
     return len(due)
 
 

@@ -664,6 +664,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remind one person who still has to sign (requires Idempotency-Key) */
+        post: operations["remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/resend": {
         parameters: {
             query?: never;
@@ -4949,6 +4966,66 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SigningLink"];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminded"];
+                };
+            };
+            /** @description They signed, or it is not their turn yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {

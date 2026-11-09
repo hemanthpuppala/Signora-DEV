@@ -97,6 +97,26 @@ def remind(
         return guard.finish(uow, status.HTTP_200_OK, {"reminded": count})
 
 
+@router.post(
+    "/envelopes/{envelope_id}/recipients/{recipient_id}/remind",
+    response_model=Reminded,
+    summary="Remind one person who still has to sign (requires Idempotency-Key)",
+    responses={409: {"description": "They signed, or it is not their turn yet"}},
+)
+def remind_one(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    request: Request,
+    actor: Member,
+    guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
+) -> JSONResponse:
+    with _db(request).unit_of_work() as uow:
+        if (replay := guard.begin(uow)) is not None:
+            return replay
+        count = service.remind(uow, actor=actor, envelope_id=envelope_id, recipient_id=recipient_id)
+        return guard.finish(uow, status.HTTP_200_OK, {"reminded": count})
+
+
 class Resent(BaseModel):
     recipient_id: uuid.UUID
 

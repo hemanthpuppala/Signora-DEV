@@ -77,6 +77,29 @@ def test_remind_emails_who_still_has_to_sign_and_never_the_waiting_firm(
     assert after["timeline"][0]["action"] == "envelope.reminded"
 
 
+def test_one_person_can_be_reminded_but_never_a_countersigner_before_their_turn(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    _, envelope = sent_envelope(owner, run, detect, company)
+    signer, firm, _ = envelope["recipients"]
+
+    reminded = post(owner, f"{ENVELOPES}/{envelope['id']}/recipients/{signer['id']}/remind")
+
+    assert (reminded.status_code, reminded.json()) == (200, {"reminded": 1})
+    assert [e.category for e in emails_to(committing_db, signer["email"])] == [
+        "sign_request",
+        "sign_reminder",
+    ]
+    entry = owner.get(f"{ENVELOPES}/{envelope['id']}").json()["timeline"][0]
+    assert (entry["action"], entry["data"]["recipient_id"]) == ("envelope.reminded", signer["id"])
+    waiting = post(owner, f"{ENVELOPES}/{envelope['id']}/recipients/{firm['id']}/remind")
+    assert (waiting.status_code, waiting.json()["code"]) == (409, "not-their-turn")
+
+
 def test_resend_emails_the_same_link_and_waits_for_a_countersigners_turn(
     owner: TestClient,
     run: Callable[..., None],
