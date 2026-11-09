@@ -64,6 +64,27 @@ def _glyphs(page: pymupdf.Page) -> list[Box]:
     return [(w[0], w[1], w[2], w[3]) for w in page.get_text("words") if w[4] in CHECKBOX_GLYPHS]
 
 
+ROW_TOLERANCE = 3.0  # points: glyphs whose centres are this close share a row
+
+
+def _next_on_row(glyphs: list[Box], edge: float) -> dict[Box, float]:
+    """For each checkbox glyph, where the next one on its row starts (else the page's ``edge``):
+    its option words lie between. One sort by row, then by x: O(G log G)."""
+    ordered = sorted(glyphs, key=lambda box: (center(box)[1], box[0]))
+    rows: list[list[Box]] = []
+    for box in ordered:
+        if rows and abs(center(box)[1] - center(rows[-1][0])[1]) < ROW_TOLERANCE:
+            rows[-1].append(box)
+        else:
+            rows.append([box])
+    after: dict[Box, float] = {}
+    for row in rows:
+        row.sort(key=lambda box: box[0])
+        for box, following in zip(row, [*row[1:], None], strict=True):
+            after[box] = following[0] if following is not None else edge
+    return after
+
+
 def _displayed(page: pymupdf.Page, box: Box) -> Box:
     shown = pymupdf.Rect(box) * page.rotation_matrix
     shown.normalize()
@@ -97,13 +118,12 @@ def find_blanks(
             hidden=[rest for _, _, others in holders for rest in others],
         )
         placeholder_of = {f"blank:{number}:p{i}": item for i, item in enumerate(holders)}
+        # Text positions are in the page's own (unrotated) space: the row ends at its edge.
+        next_on_row = _next_on_row(glyphs, page.cropbox.width)
         for ref, kind, box in refs:
             option_text = None
             if kind == "checkbox":  # its words: up to the next glyph on the row
-                row = [
-                    g[0] for g in glyphs if abs(center(g)[1] - center(box)[1]) < 3 and g[0] > box[2]
-                ]
-                region = (box[2], box[1] - 2, min(row) - 1 if row else page.rect.width, box[3] + 2)
+                region = (box[2], box[1] - 2, next_on_row[box] - 1, box[3] + 2)
                 option_text = cut(text.compose(region, skip=ref), OPTION_TEXT_MAX)
             holder = placeholder_of.get(ref)
             placement = Placement(

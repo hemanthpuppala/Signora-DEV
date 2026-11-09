@@ -230,6 +230,19 @@ def flat_marks() -> bytes:
     return _bytes(document)
 
 
+def rotated_marks() -> bytes:
+    """Checkboxes laid out on a wide page that is shown upright (/Rotate 90), the last one past
+    the upright page's width: its words must still be read in the page's own coordinates."""
+    document = pymupdf.open()
+    page = document.new_page(width=842, height=595)
+    font = pymupdf.Font("cjk")  # has the ballot box glyph
+    writer = pymupdf.TextWriter(page.rect)
+    writer.append((560, 160), "☐ Individual    ☐ Business entity", font=font, fontsize=10)
+    writer.write_text(page)
+    page.set_rotation(90)
+    return _bytes(document)
+
+
 def flat() -> bytes:
     """No form fields at all: underscores only, the case the AI step handles by text."""
     document = pymupdf.open()
