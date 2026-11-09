@@ -167,3 +167,57 @@
   gap: var(--page-gap);
   min-width: 0;
 }
+
+/*
+ * A document beside its details (ViewerLayout: the document page, review, an envelope). The
+ * document is the largest thing on the page, its details beside it (below on phones). From laptop
+ * width the viewer takes 3/5 and stays pinned, one screen tall, with the PDF scrolling inside it;
+ * the page scrolls the details beside it.
+ */
+.viewerLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--page-gap);
+  align-items: start;
+}
+
+.viewer,
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* The details' sections, divided by hairlines. */
+.details > * + * {
+  padding-top: 24px;
+  border-top: 1px solid var(--sep);
+}
+
+@media (min-width: 960px) {
+  .viewerLayout {
+    grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
+    gap: 32px;
+  }
+
+  .viewerLayout > .viewer {
+    position: sticky;
+    top: calc(var(--topbar-height) + 16px);
+    height: calc(100dvh - var(--topbar-height) - 32px);
+    --pdf-frame-height: 100%;
+    --pdf-viewer-height: auto;
+    --pdf-overscroll: contain; /* pinned: scrolling the PDF never moves the details beside it */
+  }
+
+  .viewerLayout > .viewer > :last-child {
+    flex: 1 1 auto; /* the viewer takes what the notices above it leave */
+    min-height: 0;
+  }
+
+  /* Under a sticky ActionBar the pinned viewer starts below the bar. */
+  .viewerLayout.underBar > .viewer {
+    top: calc(var(--topbar-height) + var(--action-bar-height) + 16px);
+    height: calc(100dvh - var(--topbar-height) - var(--action-bar-height) - 32px);
+  }
+}

@@ -6,8 +6,11 @@ import {
   Button,
   Dialog,
   PdfViewer,
+  DetailsPane,
   Section,
   TextButton,
+  ViewerLayout,
+  ViewerPane,
   type PdfOverlayArgs,
 } from "@/shared/ui";
 
@@ -351,10 +354,8 @@ export function ReviewLayout({
           canEdit={canEdit}
         />
       ) : null}
-      <div
-        className={`${documentStyles.layout}${loaded ? ` ${documentStyles.underBar}` : ""}`}
-      >
-        <div className={documentStyles.main}>
+      <ViewerLayout underBar={Boolean(loaded)}>
+        <ViewerPane>
           {top}
           {version.id !== current?.id && current ? (
             <div className={documentStyles.caption}>
@@ -407,8 +408,8 @@ export function ReviewLayout({
                 }
               : {})}
           />
-        </div>
-        <div className={documentStyles.side}>
+        </ViewerPane>
+        <DetailsPane>
           {review.problem ? (
             <SaveProblem
               review={review}
@@ -437,7 +438,7 @@ export function ReviewLayout({
               canEdit={canEdit}
             />
           </Section>
-        </div>
+        </DetailsPane>
         {pending ? (
           <Dialog
             title={pending.message}
@@ -478,7 +479,7 @@ export function ReviewLayout({
             Leaving this page loses your changes to these fields.
           </Dialog>
         ) : null}
-      </div>
+      </ViewerLayout>
     </>
   );
 }

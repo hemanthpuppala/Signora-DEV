@@ -8,6 +8,7 @@ import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import {
   Button,
   ClampedText,
+  DetailsPane,
   Dialog,
   HeadAction,
   HeadRow,
@@ -17,6 +18,8 @@ import {
   TextArea,
   TextButton,
   TextField,
+  ViewerLayout,
+  ViewerPane,
 } from "@/shared/ui";
 
 import { documentKey, hasWorkingCopy, useDocument, type DocumentDetail } from "./api";
@@ -207,14 +210,14 @@ export function DocumentPage({
           onOpen={setViewing}
         />
       ) : (
-        <div className={styles.layout}>
-          <div className={styles.main}>{progress}</div>
-          <div className={styles.side}>
+        <ViewerLayout>
+          <ViewerPane>{progress}</ViewerPane>
+          <DetailsPane>
             <Section title="Versions">
               <Versions document={data} viewing={shownId} onOpen={setViewing} canEdit={canEdit} />
             </Section>
-          </div>
-        </div>
+          </DetailsPane>
+        </ViewerLayout>
       )}
     </>
   );

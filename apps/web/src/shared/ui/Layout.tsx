@@ -79,6 +79,27 @@ export function Block({ title, hint, children }: { title: string; hint?: string;
   );
 }
 
+/**
+ * A document beside its details (the document page, review, an envelope): a ``ViewerPane``
+ * (notices, then the PDF viewer last, which takes the height left) pinned one screen tall from
+ * laptop width, and a ``DetailsPane`` scrolling beside it, its sections divided by hairlines; one
+ * column on phones. ``underBar`` starts the pinned viewer below a sticky ``ActionBar``. Use it
+ * with ``ConsoleShell width="full"``.
+ */
+export function ViewerLayout({ children, underBar = false }: { children: ReactNode; underBar?: boolean }) {
+  return <div className={underBar ? `${styles.viewerLayout} ${styles.underBar}` : styles.viewerLayout}>{children}</div>;
+}
+
+/** The document side of a ``ViewerLayout``. */
+export function ViewerPane({ children }: { children: ReactNode }) {
+  return <div className={styles.viewer}>{children}</div>;
+}
+
+/** The details side of a ``ViewerLayout``. */
+export function DetailsPane({ children }: { children: ReactNode }) {
+  return <div className={styles.details}>{children}</div>;
+}
+
 /** A titled block of a console page (prototype .section); ``info`` adds a "?" that explains it. */
 export function Section({ title, info, children }: { title: string; info?: ReactNode; children: ReactNode }) {
   return (

@@ -5,7 +5,20 @@ import { useState } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { formError } from "@/shared/api/errors";
-import { Button, Dialog, IconButton, Notice, StatusPill, TextButton, Tooltip } from "@/shared/ui";
+import {
+  Button,
+  Dialog,
+  IconButton,
+  Item,
+  ItemAction,
+  ItemActions,
+  ItemHead,
+  ItemList,
+  Notice,
+  StatusPill,
+  TextButton,
+  Tooltip,
+} from "@/shared/ui";
 
 import { documentKey, hasWorkingCopy, type DocumentDetail, type Version } from "./api";
 import styles from "./document.module.css";
@@ -57,7 +70,7 @@ export function Versions({
 
   return (
     <>
-      <ol className={styles.versions} aria-label="Versions">
+      <ItemList label="Versions" ordered>
         {document.versions.map((version) => {
           const status = VERSION_STATUS[version.status];
           const pages = version.page_count === null ? null : `${version.page_count} ${version.page_count === 1 ? "page" : "pages"}`;
@@ -66,8 +79,8 @@ export function Versions({
               ? `${version.field_count} ${version.field_count === 1 ? "field" : "fields"}`
               : null;
           return (
-            <li key={version.id} className={`${styles.version}${version.id === viewing ? ` ${styles.viewing}` : ""}`}>
-              <div className={styles.versionHead}>
+            <Item key={version.id} current={version.id === viewing}>
+              <ItemHead>
                 <span className={styles.number}>
                   <VersionLabel number={version.number} current={version.is_current} />
                 </span>
@@ -78,7 +91,7 @@ export function Versions({
                 ) : (
                   <StatusPill status={status.pill} label={status.label} />
                 )}
-              </div>
+              </ItemHead>
               {/* What the AI called this version, once its fields are found; the file name until then. */}
               <Tooltip
                 label={version.name ? `${version.name} (${version.filename})` : version.filename}
@@ -92,7 +105,13 @@ export function Versions({
                   .join(" · ")}
               </span>
               {/* One line: download at the start, the words in the middle, make current (a star) at the end. */}
-              <div className={styles.versionActions}>
+              <ItemActions
+                end={
+                  canEdit && version.status === "approved" && !version.is_current ? (
+                    <IconButton icon="star" label="Make current" onClick={() => setConfirming(version)} />
+                  ) : null
+                }
+              >
                 <IconButton
                   icon="download"
                   label="Download original"
@@ -100,25 +119,16 @@ export function Versions({
                   download
                 />
                 {hasWorkingCopy(version.status) && version.id !== viewing ? (
-                  <button type="button" className={styles.action} onClick={() => onOpen(version.id)}>
-                    Open
-                  </button>
+                  <ItemAction onClick={() => onOpen(version.id)}>Open</ItemAction>
                 ) : null}
                 {canEdit && version.status === "ready" ? (
-                  <button type="button" className={styles.action} onClick={() => setRedetecting(version)}>
-                    Find fields again
-                  </button>
+                  <ItemAction onClick={() => setRedetecting(version)}>Find fields again</ItemAction>
                 ) : null}
-                {canEdit && version.status === "approved" && !version.is_current ? (
-                  <span className={styles.actionEnd}>
-                    <IconButton icon="star" label="Make current" onClick={() => setConfirming(version)} />
-                  </span>
-                ) : null}
-              </div>
-            </li>
+              </ItemActions>
+            </Item>
           );
         })}
-      </ol>
+      </ItemList>
       {confirming ? (
         <Dialog
           title={`Make version ${confirming.number} current?`}

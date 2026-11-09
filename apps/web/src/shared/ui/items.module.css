@@ -1,0 +1,83 @@
+/* A list of things with their actions (ItemList): a hairline panel, one row each. */
+.items {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--sep);
+  background: var(--surface);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--sep);
+}
+
+.item:first-child {
+  border-top: 0;
+}
+
+.current {
+  box-shadow: inset 2px 0 0 var(--ink); /* the one on screen */
+}
+
+/* Its title and its state, on one line. */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Its actions: one line under a rule, icons at the ends, small words between, set apart. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin: 8px -7px 0; /* the icon buttons' padding: their icons line up with the text above */
+  padding-top: 6px;
+  border-top: 1px solid var(--sep);
+  white-space: nowrap;
+}
+
+.end {
+  margin-left: auto;
+}
+
+.action {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--t75);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.action:first-child {
+  margin-left: 7px; /* words first: in line with the text above */
+}
+
+.action:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.action:disabled {
+  color: var(--t55);
+  text-decoration: none;
+  cursor: default;
+}
