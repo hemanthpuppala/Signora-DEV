@@ -71,11 +71,10 @@ function useCanDraw(): boolean {
   return can;
 }
 
-const typing = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
-    target.closest("dialog") !== null);
+/** Where keys belong to a control, not the page: text boxes, the shared Select (a combobox and
+ * its list, whose arrows pick an option), and dialogs. */
+const CONTROLS = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="combobox"], [role="listbox"], dialog';
+const typing = (target: EventTarget | null) => target instanceof Element && target.closest(CONTROLS) !== null;
 
 /** A new field's label: "Client signature", or the type alone when nobody is chosen. */
 function labelFor(

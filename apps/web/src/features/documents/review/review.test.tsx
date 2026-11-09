@@ -375,6 +375,23 @@ describe("field review", () => {
     expect(screen.queryByRole("region", { name: "Details of Signature" })).toBeNull();
   });
 
+  it("arrow keys in a dropdown pick an option and never move the box", async () => {
+    inReview();
+    open();
+    const user = userEvent.setup();
+    await chooseField("Company");
+    const form = await screen.findByRole("region", { name: "Details of Company" });
+    const left = (within(form).getByLabelText("Left") as HTMLInputElement).value;
+    within(form).getByRole("combobox", { name: "Type" }).focus();
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}"); // opens the list, moves down one, picks it
+
+    expect((within(form).getByLabelText("Left") as HTMLInputElement).value).toBe(left);
+    expect(screen.getByText("1 unsaved change")).toBeTruthy(); // the type, not a nudge
+    await user.keyboard("{Backspace}");
+    expect(screen.queryByRole("dialog")).toBeNull(); // the place was not removed
+    expect(screen.getByRole("region", { name: "Details of Company" })).toBeTruthy();
+  });
+
   it("a party with no place to sign gets one from its warning", async () => {
     inReview();
     state.fields["v-1"] = fieldsView({
