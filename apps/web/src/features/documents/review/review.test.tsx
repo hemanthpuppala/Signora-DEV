@@ -353,6 +353,9 @@ describe("field review", () => {
     fireEvent.pointerUp(layer, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
 
     const form = await screen.findByRole("region", { name: "Details of Signature" });
+    expect(within(form).getByRole("button", { name: "Add a place" })).toBeTruthy(); // clear actions, with icons
+    expect(within(form).getByRole("button", { name: "On every page" })).toBeTruthy();
+    expect(within(form).getByText("Position and size · page 1")).toBeTruthy(); // folded away
     expect((within(form).getByLabelText("Width") as HTMLInputElement).value).toBe("180"); // the default size
     const left = Number((within(form).getByLabelText("Left") as HTMLInputElement).value);
     (document.activeElement as HTMLElement | null)?.blur();

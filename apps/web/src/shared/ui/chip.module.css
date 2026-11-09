@@ -1,0 +1,42 @@
+/* Chips: small square choices, as every control here; the chosen one is filled (Phase 6 §7.1). */
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--r15);
+  border-radius: var(--radius);
+  background: transparent;
+  font: 400 13px/1 var(--sans);
+  color: var(--t75);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.chip:hover {
+  border-color: var(--r40);
+  color: var(--ink);
+}
+
+.chip:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.on,
+.on:hover {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}

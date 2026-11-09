@@ -202,27 +202,6 @@
   color: var(--t60);
 }
 
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chip {
-  padding: 4px 10px;
-  border: 1px solid var(--sep);
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  color: var(--t75);
-  cursor: pointer;
-}
-
-.chipOn {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
 @keyframes chosenRow {
   from {
     background: var(--r15);
@@ -252,10 +231,3 @@
   font-size: 14px;
 }
 
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--t60);
-}

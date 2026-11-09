@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { ExpandableList, ExpandableRow, Notice, SearchField, Section, SmallText } from "@/shared/ui";
+import { Chip, ChipGroup, ExpandableList, ExpandableRow, Notice, SearchField, Section, SmallText } from "@/shared/ui";
 
 import { HOLDS, toneOf, whoFills, type PartyRef, type VersionFields } from "./fields";
 import type { Selection } from "./FieldBoxes";
@@ -11,7 +11,7 @@ import { AddField, PlacingRow } from "./review/AddField";
 import type { Draft, DraftField } from "./review/editor";
 import { FieldForm } from "./review/FieldForm";
 import { PartyList } from "./review/PartyList";
-import { PlaceStepper } from "./review/PlaceStepper";
+import { PlaceChips } from "./review/PlaceChips";
 import { ThingsToCheck } from "./review/ThingsToCheck";
 import type { PanelEditing } from "./review/useReview";
 
@@ -184,25 +184,25 @@ export function FieldsPanel({
         ) : null}
         {draft.fields.length > 0 ? (
           <>
-            <div className={styles.filters} role="group" aria-label="Show fields of">
-              <FilterChip active={filter.kind === "all"} onClick={() => onFilter({ kind: "all" })}>
+            <ChipGroup label="Show fields of">
+              <Chip selected={filter.kind === "all"} onClick={() => onFilter({ kind: "all" })}>
                 All
-              </FilterChip>
+              </Chip>
               {parties.map((party) => (
-                <FilterChip
+                <Chip
                   key={party.id}
-                  active={filter.kind === "party" && filter.id === party.id}
+                  selected={filter.kind === "party" && filter.id === party.id}
                   onClick={() => onFilter({ kind: "party", id: party.id })}
                 >
                   {party.label || "Unnamed party"}
-                </FilterChip>
+                </Chip>
               ))}
               {sender > 0 ? (
-                <FilterChip active={filter.kind === "sender"} onClick={() => onFilter({ kind: "sender" })}>
+                <Chip selected={filter.kind === "sender"} onClick={() => onFilter({ kind: "sender" })}>
                   Before sending
-                </FilterChip>
+                </Chip>
               ) : null}
-            </div>
+            </ChipGroup>
             <SearchField label="Find a field" value={search} onChange={(event) => setSearch(event.target.value)} />
           </>
         ) : null}
@@ -288,14 +288,6 @@ export function FieldsPanel({
   );
 }
 
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
-  return (
-    <button type="button" aria-pressed={active} className={`${styles.chip}${active ? ` ${styles.chipOn}` : ""}`} onClick={onClick}>
-      {children}
-    </button>
-  );
-}
-
 /** A field's details as text, for people who read the fields (the row's line names the rest). */
 function FieldDetails({
   field,
@@ -336,7 +328,7 @@ function FieldDetails({
           })}
         </ul>
       ) : null}
-      {places > 1 ? <PlaceStepper place={place} places={places} onPlace={onPlace} /> : null}
+      {places > 1 ? <PlaceChips places={field.places} place={place} onPlace={onPlace} choice={field.holds === "choice"} /> : null}
     </>
   );
 }

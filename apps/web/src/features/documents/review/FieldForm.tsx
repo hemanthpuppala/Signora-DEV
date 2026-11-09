@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 
-import { Button, Checkbox, Notice, Select, SmallText, TextButton, TextField } from "@/shared/ui";
+import { Button, Checkbox, Notice, Select, SmallText, TextField } from "@/shared/ui";
 
 import { HOLD_GROUPS, HOLDS, whoFills } from "../fields";
-import { PlaceStepper } from "./PlaceStepper";
+import { PlaceChips } from "./PlaceChips";
 import type { PanelEditing } from "./useReview";
 import type { Selection } from "../FieldBoxes";
 import {
@@ -191,65 +191,82 @@ export function FieldForm({
         </fieldset>
       ) : null}
 
-      <fieldset className={styles.fates}>
-        <legend>{field.places.length > 1 ? "Places" : "Place"}</legend>
-        {field.places.length > 1 ? <PlaceStepper place={place} places={field.places.length} onPlace={onPlace} /> : null}
-        {current ? (
-          <div className={styles.numbers}>
-            <SmallText>{`Page ${current.page}, in points`}</SmallText>
-            {(["Left", "Top", "Width", "Height"] as const).map((name, index) => {
-              const [x0, y0, x1, y1] = current.rect;
-              const values = [x0, y0, x1 - x0, y1 - y0];
-              return (
-                <TextField
-                  key={name}
-                  label={name}
-                  type="number"
-                  step="1"
-                  value={String(Math.round((values[index] ?? 0) * 100) / 100)}
-                  onChange={(event) => setNumber(index as 0 | 1 | 2 | 3, event.target.value)}
-                />
-              );
-            })}
-          </div>
-        ) : null}
-        <div className={styles.actions}>
-          {editing.canDraw ? <TextButton onClick={() => editing.onAddPlace(field.id)}>Add a place</TextButton> : null}
-          {current && editing.pages.length > 1 ? (
-            <TextButton onClick={() => edit((draft) => onEveryPage(draft, current.id, editing.pages))}>On every page</TextButton>
+      <section className={styles.places} aria-label="Places">
+        <p className={styles.groupTitle}>{field.places.length > 1 ? `Places · ${field.places.length}` : "Place"}</p>
+        <PlaceChips places={field.places} place={place} onPlace={onPlace} choice={field.holds === "choice"} />
+        <div className={styles.toolRow}>
+          {editing.canDraw ? (
+            <Button variant="quiet" compact icon="plus" onClick={() => editing.onAddPlace(field.id)}>
+              Add a place
+            </Button>
           ) : null}
-          {current && field.places.length > 1 ? (
-            <>
-              <TextButton
-                onClick={() => {
-                  let made: string | null = null;
-                  edit((draft) => {
-                    const split = splitPlace(draft, current.id);
-                    made = split.fieldId;
-                    return split.draft;
-                  });
-                  if (made) onSelect({ kind: "field", id: made, place: 0 });
-                }}
-              >
-                Make separate field
-              </TextButton>
-              <TextButton
-                onClick={() => {
-                  edit((draft) => deletePlace(draft, current.id));
-                  onPlace(Math.max(0, place - 1));
-                }}
-              >
-                Remove this place
-              </TextButton>
-            </>
+          {current && editing.pages.length > 1 ? (
+            <Button variant="quiet" compact icon="pages" onClick={() => edit((draft) => onEveryPage(draft, current.id, editing.pages))}>
+              On every page
+            </Button>
           ) : null}
         </div>
-      </fieldset>
-      <div className={styles.actions}>
-        <Button variant="destructive" compact onClick={() => editing.onDeleteField(field.id)}>
+        {current && field.places.length > 1 ? (
+          <div className={styles.toolRow} role="group" aria-label={`Place ${place + 1}`}>
+            <Button
+              variant="quiet"
+              compact
+              icon="split"
+              onClick={() => {
+                let made: string | null = null;
+                edit((draft) => {
+                  const split = splitPlace(draft, current.id);
+                  made = split.fieldId;
+                  return split.draft;
+                });
+                if (made) onSelect({ kind: "field", id: made, place: 0 });
+              }}
+            >
+              Make separate field
+            </Button>
+            <Button
+              variant="quiet"
+              compact
+              icon="close"
+              onClick={() => {
+                edit((draft) => deletePlace(draft, current.id));
+                onPlace(Math.max(0, place - 1));
+              }}
+            >
+              Remove place
+            </Button>
+          </div>
+        ) : null}
+        {current ? (
+          <details className={styles.more}>
+            <summary>{`Position and size · page ${current.page}`}</summary>
+            <div className={styles.numbers}>
+              {(["Left", "Top", "Width", "Height"] as const).map((name, index) => {
+                const [x0, y0, x1, y1] = current.rect;
+                const values = [x0, y0, x1 - x0, y1 - y0];
+                return (
+                  <TextField
+                    key={name}
+                    label={name}
+                    type="number"
+                    step="1"
+                    value={String(Math.round((values[index] ?? 0) * 100) / 100)}
+                    onChange={(event) => setNumber(index as 0 | 1 | 2 | 3, event.target.value)}
+                  />
+                );
+              })}
+            </div>
+            <SmallText>In points from the page&apos;s top left. Dragging the box on the document does the same.</SmallText>
+          </details>
+        ) : null}
+      </section>
+      <div className={styles.formEnd}>
+        <Button variant="destructive" compact icon="trash" onClick={() => editing.onDeleteField(field.id)}>
           Delete field
         </Button>
-        <TextButton onClick={onDone}>Done</TextButton>
+        <Button variant="quiet" compact onClick={onDone}>
+          Done
+        </Button>
       </div>
     </div>
   );

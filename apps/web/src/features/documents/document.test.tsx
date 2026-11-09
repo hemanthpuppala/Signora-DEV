@@ -392,11 +392,13 @@ describe("document page", () => {
 
       await user.click(row(list, "Client initials"));
       expect(screen.queryByRole("region", { name: "Details of Term in years" })).toBeNull(); // one open at a time
-      expect(screen.getByText("Place 1 of 3")).toBeTruthy();
+      const places = screen.getByRole("group", { name: "Places" });
+      expect(within(places).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["1 · Page 1", "2 · Page 2", "3 · Page 2"]);
+      expect(within(places).getByRole("button", { name: "Place 1, page 1" }).getAttribute("aria-pressed")).toBe("true");
       const marked = () => [...document.querySelectorAll('button[title="Client initials"]')].map((box) => box.classList.contains("chosen"));
       expect(marked()).toEqual([true, false, false]);
-      await user.click(screen.getByRole("button", { name: "Next place" }));
-      expect(screen.getByText("Place 2 of 3")).toBeTruthy();
+      await user.click(within(places).getByRole("button", { name: "Place 2, page 2" }));
+      expect(within(places).getByRole("button", { name: "Place 2, page 2" }).getAttribute("aria-pressed")).toBe("true");
       expect(marked()).toEqual([false, true, false]); // review fix: every place was marked, so the step showed nothing
 
       await user.click(row(list, "Client initials")); // again: it closes

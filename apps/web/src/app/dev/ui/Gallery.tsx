@@ -8,6 +8,8 @@ import {
   Button,
   Cap,
   Checkbox,
+  Chip,
+  ChipGroup,
   Display,
   Eyebrow,
   ExpandableList,
@@ -46,6 +48,7 @@ export function Gallery() {
   const [access, setAccess] = useState<string | null>("read");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState<string | null>("company");
+  const [place, setPlace] = useState(0);
 
   return (
     <>
@@ -149,6 +152,24 @@ export function Gallery() {
           <span>Needs approval</span>
           <span>1 thing to check</span>
         </ActionBar>
+        <div className={styles.row}>
+          <Button variant="quiet" compact icon="plus">
+            Add a place
+          </Button>
+          <Button variant="quiet" compact icon="pages">
+            On every page
+          </Button>
+          <Button variant="destructive" compact icon="trash">
+            Delete field
+          </Button>
+        </div>
+        <ChipGroup label="Places">
+          {["1 · Page 1", "2 · Page 1", "3 · Page 4"].map((words, index) => (
+            <Chip key={words} selected={place === index} onClick={() => setPlace(index)}>
+              {words}
+            </Chip>
+          ))}
+        </ChipGroup>
         <ExpandableList label="Fields">
           <ExpandableRow id="gallery-add" tone="add" title="Add field" expanded={false} regionLabel="New field" onToggle={() => undefined} />
           {[

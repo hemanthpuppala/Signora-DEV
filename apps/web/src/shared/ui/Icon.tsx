@@ -17,6 +17,29 @@ const SHAPES = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   chevron: <path d="m9 6 6 6-6 6" />, // points right; turned to point down when open
+  close: <path d="M6 6l12 12M18 6 6 18" />,
+  // Two sheets: something on every page.
+  pages: (
+    <>
+      <path d="M8 3.5h8.5l3 3V17H8Z" />
+      <path d="M5 7v13.5h11" />
+    </>
+  ),
+  // One box becoming two: make a place its own field.
+  split: (
+    <>
+      <path d="M4 5h7v6H4Z" />
+      <path d="M13 13h7v6h-7Z" />
+      <path d="m14 5 5 0M19 5v5" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4.5 6.5h15" />
+      <path d="M9.5 6.5V4.5h5v2" />
+      <path d="M6.5 6.5 7.5 19.5h9l1-13" />
+    </>
+  ),
   settings: (
     <>
       <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />

@@ -286,6 +286,11 @@ click replace the panel with its form, and gave party warnings no way forward. R
   the two rows under it, refitting as the row's content grows (`ExpandableList scrollable`). At the list's first or last row,
   scrolling carries on to the page. While a field is being placed, what a click does is pinned over the top of the
   pages, high contrast, with Cancel (`PdfViewer notice`); the Add field row points there.
+- **A field's places** (owner decisions, 2026-11-09): chips ("1 · Page 1", a choice's own words), the chosen one
+  filled, replacing the stepper; "Add a place" and "On every page" as quiet buttons with icons; the chosen place's
+  "Make separate field" and "Remove place" under them; the exact numbers folded under "Position and size". The key
+  is never shown. Design system: `Button icon`, `Chip` / `ChipGroup` (also the list's filters), icons `close`,
+  `pages`, `split`, `trash`; corners stay square (`--radius`), rounded chips remain an option.
 - **"+ Add field" is the first row of the field list**: it opens into a row with a Type dropdown (grouped, every
   type) and who fills it (the filtered party by default), then "Place on the page": click where it goes, or drag to
   draw it. The viewer's toolbar says so while placing. On phones it is placed on page 1 and moved with the numbers.

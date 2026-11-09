@@ -128,12 +128,71 @@
   gap: 14px;
 }
 
+
+/* A field's places: what they are, what can be done with them, and the exact numbers folded away. */
+.places {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sep);
+}
+
+.groupTitle {
+  margin: 0;
+  font: 500 10px/1.4 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t60);
+}
+
+.toolRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.more > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--t75);
+  cursor: pointer;
+  list-style: none;
+}
+
+.more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.more > summary::before {
+  color: var(--t55);
+  content: "›";
+  transition: transform 0.15s ease-out;
+}
+
+.more[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.more > summary:hover {
+  color: var(--ink);
+}
+
 .numbers {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+  margin: 8px 0;
 }
 
-.numbers > :first-child {
-  grid-column: 1 / -1;
+.formEnd {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sep);
 }
