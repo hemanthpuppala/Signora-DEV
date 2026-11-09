@@ -46,4 +46,11 @@ audit_events = Table(
     CheckConstraint("octet_length(hash) = 32", name="hash_sha256"),
     PrimaryKeyConstraint("chain_id", "seq"),
     Index("ix_audit_events_workspace_time", "workspace_id", text("occurred_at DESC")),
+    # One subject's history, e.g. an envelope's timeline (Phase 7 §6).
+    Index(
+        "ix_audit_events_subject_type_subject_id_occurred_at",
+        "subject_type",
+        "subject_id",
+        "occurred_at",
+    ),
 )

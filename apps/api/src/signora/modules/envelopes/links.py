@@ -56,6 +56,8 @@ def read_token(key: bytes, token: str) -> LinkClaim | None:
         return None
     if len(raw) != TOKEN_BYTES:
         return None
+    if base64.urlsafe_b64encode(raw).decode().rstrip("=") != token:
+        return None  # one spelling per link (the last character's spare bits must be zero)
     payload, mac = raw[: _ID + _VERSION], raw[_ID + _VERSION :]
     if not hmac.compare_digest(mac, _mac(key, payload)):
         return None

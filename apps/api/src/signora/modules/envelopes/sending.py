@@ -1,0 +1,250 @@
+"""A send checked against its form and turned into what is written (Phase 7 LLD §2, §10.1, §11).
+
+Pure: the form (what the version asks), the request, the colleagues who may countersign and the
+email normaliser in; a plan out, or every problem at once, each naming its item. One pass with
+maps by id: O(R + F + V).
+"""
+
+from __future__ import annotations
+
+import uuid
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from signora.kernel.errors import FieldError, ValidationFailed
+from signora.modules.envelopes.form import NAME_HOLDS, Colleague, FormField, SendForm
+from signora.modules.review.formats import InvalidValueError, check_value
+
+MAX_COPIES = 10
+
+
+class _In(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class SignerIn(_In):
+    party_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=120)
+    email: str = Field(min_length=3, max_length=254)
+
+
+class CountersignerIn(_In):
+    party_id: uuid.UUID
+    user_id: uuid.UUID
+
+
+class CopyIn(_In):
+    name: str = Field(min_length=1, max_length=120)
+    email: str = Field(min_length=3, max_length=254)
+
+
+class ValueIn(_In):
+    field_id: uuid.UUID
+    value: str = Field(max_length=2000)
+
+
+class SettingsIn(_In):
+    require_email_code: bool = True
+    reminder_interval_hours: int = Field(ge=1, le=720)
+    max_reminders: int = Field(ge=0, le=20)
+    expiry_days: int = Field(ge=1, le=365)
+    notify_emails: list[str] = Field(default_factory=list, max_length=5)
+
+
+class SendRequest(_In):
+    version_id: uuid.UUID
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    signers: list[SignerIn] = Field(max_length=20)
+    countersigners: list[CountersignerIn] = Field(default_factory=list, max_length=20)
+    copies: list[CopyIn] = Field(default_factory=list, max_length=MAX_COPIES)
+    values: list[ValueIn] = Field(default_factory=list, max_length=2000)
+    settings: SettingsIn
+    # One person on two parties (the same email twice) is allowed once the sender confirms it.
+    confirm_same_person: bool = False
+
+
+@dataclass(frozen=True)
+class Person:
+    name: str
+    email: str
+    party_id: uuid.UUID | None = None
+    user_id: uuid.UUID | None = None
+
+
+@dataclass
+class Plan:
+    """What a valid send writes."""
+
+    title: str
+    signers: list[Person]  # in signing order
+    countersigners: list[Person]
+    copies: list[Person]
+    values: dict[uuid.UUID, str]  # the sender's, prefilled names and emails included
+    notify_emails: list[str]
+    shared_emails: list[str] = field(default_factory=list)  # the same person on two parties
+
+
+def _asked(item: FormField, values: Mapping[uuid.UUID, str]) -> bool:
+    """A field under a condition is asked only when its choice has that option (or its checkbox is
+    ticked)."""
+    if item.depends_on is None:
+        return True
+    given = values.get(item.depends_on.field_id)
+    return given == item.depends_on.option or (
+        item.depends_on.option == "checked" and given == "true"
+    )
+
+
+def split_name(name: str) -> tuple[str, str]:
+    """First and last name at the last space ("Maya van Dijk" → "Maya van", "Dijk"), as DocuSign
+    fills its First and Last Name fields; a single word is a first name."""
+    first, _, last = name.strip().rpartition(" ")
+    return (first, last) if first else (last, "")
+
+
+def plan_send(
+    form: SendForm,
+    request: SendRequest,
+    *,
+    colleagues: Mapping[uuid.UUID, Colleague],
+    normalize_email: Callable[[str], str],
+) -> Plan:
+    errors: list[FieldError] = []
+
+    def email(path: str, raw: str) -> str:
+        try:
+            return normalize_email(raw)
+        except ValueError:
+            errors.append(FieldError(path, "Enter a valid email address"))
+            return raw
+
+    # Signers: every signer party exactly once, in signing order.
+    order = {signer.party_id: signer for signer in form.signers}
+    given_signers: dict[uuid.UUID, Person] = {}
+    for i, signer in enumerate(request.signers):
+        if signer.party_id not in order:
+            errors.append(FieldError(f"signers[{i}].party_id", "Not a signer of this document"))
+            continue
+        if signer.party_id in given_signers:
+            errors.append(FieldError(f"signers[{i}].party_id", "This party is given twice"))
+            continue
+        name = signer.name.strip()
+        if not name:
+            errors.append(FieldError(f"signers[{i}].name", "Enter a name"))
+        given_signers[signer.party_id] = Person(
+            name, email(f"signers[{i}].email", signer.email), party_id=signer.party_id
+        )
+    for party in form.signers:
+        if party.party_id not in given_signers:
+            errors.append(
+                FieldError(f"parties.{party.party_id}", f"Add who signs as {party.label}")
+            )
+
+    # Countersigners: every countersigner party exactly once, a colleague of the company.
+    firm = {party.party_id for party in form.countersigners}
+    given_firm: dict[uuid.UUID, Person] = {}
+    for i, countersigner in enumerate(request.countersigners):
+        colleague = colleagues.get(countersigner.user_id)
+        if countersigner.party_id not in firm:
+            errors.append(
+                FieldError(f"countersigners[{i}].party_id", "Not a countersigner of this document")
+            )
+        elif countersigner.party_id in given_firm:
+            errors.append(FieldError(f"countersigners[{i}].party_id", "This party is given twice"))
+        elif colleague is None:
+            errors.append(FieldError(f"countersigners[{i}].user_id", "Choose a colleague"))
+        else:
+            given_firm[countersigner.party_id] = Person(
+                colleague.name,
+                colleague.email,
+                party_id=countersigner.party_id,
+                user_id=colleague.user_id,
+            )
+    for firm_party in form.countersigners:
+        if firm_party.party_id not in given_firm:
+            errors.append(
+                FieldError(
+                    f"parties.{firm_party.party_id}",
+                    f"Choose who countersigns as {firm_party.label}",
+                )
+            )
+
+    copies = [
+        Person(copy.name.strip(), email(f"copies[{i}].email", copy.email))
+        for i, copy in enumerate(request.copies)
+    ]
+
+    # Values: known fields, valid for their type; the sender's required fields when asked.
+    by_id = {item.id: item for item in form.fields}
+    values: dict[uuid.UUID, str] = {}
+    invalid: set[uuid.UUID] = set()  # named once, by what is wrong with it
+    raw = {value.field_id: (i, value.value) for i, value in enumerate(request.values)}
+    for field_id, (i, text) in raw.items():
+        item = by_id.get(field_id)
+        if item is None:
+            errors.append(FieldError(f"values[{i}].field_id", "Not a field of this document"))
+            continue
+        if not text.strip():
+            continue  # left for the signer (prefilling is optional, §2)
+        try:
+            values[field_id] = check_value(
+                item.holds,
+                text,
+                options=[option.value for option in item.options],
+                normalize_email=normalize_email,
+            )
+        except InvalidValueError as error:
+            invalid.add(field_id)
+            errors.append(FieldError(f"fields.{field_id}", str(error)))
+    for item in form.fields:
+        if item.id not in values or _asked(item, values):
+            continue
+        del values[item.id]  # its condition is not met: never asked, never sent
+    for item in form.fields:
+        if (
+            item.required
+            and _asked(item, values)
+            and item.id not in values
+            and item.id not in invalid
+        ):
+            errors.append(FieldError(f"fields.{item.id}", "Fill this in before sending"))
+
+    # Prefill (§2): a signer's email in their Email fields; their name in Name fields left empty.
+    for item in form.fields:
+        person = given_signers.get(item.party_id) if item.party_id else None
+        if person is None:
+            continue
+        if item.holds == "email":
+            values[item.id] = person.email
+        elif item.holds in NAME_HOLDS and item.id not in values:
+            first, last = split_name(person.name)
+            prefill = {"full_name": person.name, "first_name": first, "last_name": last}[item.holds]
+            if prefill:
+                values[item.id] = prefill
+
+    notify = [
+        email(f"settings.notify_emails[{i}]", raw)
+        for i, raw in enumerate(request.settings.notify_emails)
+    ]
+    if errors:
+        raise ValidationFailed(errors)
+
+    signers = [given_signers[party.party_id] for party in form.signers]
+    countersigners = [given_firm[firm_party.party_id] for firm_party in form.countersigners]
+    seen: dict[str, int] = {}
+    for person in (*signers, *countersigners):
+        seen[person.email] = seen.get(person.email, 0) + 1
+    title = (request.title or "").strip() or (
+        f"{form.document_name} · {signers[0].name}" if signers else form.document_name
+    )
+    return Plan(
+        title=title[:120],
+        signers=signers,
+        countersigners=countersigners,
+        copies=copies,
+        values=values,
+        notify_emails=list(dict.fromkeys(notify)),
+        shared_emails=sorted(address for address, count in seen.items() if count > 1),
+    )

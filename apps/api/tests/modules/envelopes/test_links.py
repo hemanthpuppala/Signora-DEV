@@ -35,10 +35,12 @@ def test_a_new_version_makes_a_different_link() -> None:
 
 def test_anything_but_a_genuine_link_is_refused() -> None:
     token = make_token(KEY, uuid.uuid4(), 1)
-    tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+    tampered = token[:10] + ("A" if token[10] != "A" else "B") + token[11:]
+    respelled = token[:-1] + chr(ord(token[-1]) + 1)  # the same bytes, another spelling
     other_recipient = make_token(KEY, uuid.uuid4(), 1)
 
     assert read_token(KEY, tampered) is None
+    assert read_token(KEY, respelled) is None
     assert read_token(link_key("y" * 32), token) is None  # another key: a rotated secret
     assert read_token(KEY, token[:-4]) is None
     assert read_token(KEY, "not a token at all!") is None

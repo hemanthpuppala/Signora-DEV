@@ -179,6 +179,50 @@
         "title": "Condition",
         "type": "object"
       },
+      "CopyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "title": "CopyIn",
+        "type": "object"
+      },
+      "CountersignerIn": {
+        "additionalProperties": false,
+        "properties": {
+          "party_id": {
+            "format": "uuid",
+            "title": "Party Id",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "party_id",
+          "user_id"
+        ],
+        "title": "CountersignerIn",
+        "type": "object"
+      },
       "CountersignersInput": {
         "additionalProperties": false,
         "properties": {
@@ -280,6 +324,37 @@
           "upload_id"
         ],
         "title": "CreateDocument",
+        "type": "object"
+      },
+      "Delivery": {
+        "description": "Their last email: queued, sent, or failed (with why).",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "sent",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "error"
+        ],
+        "title": "Delivery",
         "type": "object"
       },
       "Department": {
@@ -799,6 +874,144 @@
           "email"
         ],
         "title": "EmailResponse",
+        "type": "object"
+      },
+      "EnvelopeView": {
+        "properties": {
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "department_id": {
+            "format": "uuid",
+            "title": "Department Id",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "max_reminders": {
+            "title": "Max Reminders",
+            "type": "integer"
+          },
+          "notify_emails": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notify Emails",
+            "type": "array"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/RecipientView"
+            },
+            "title": "Recipients",
+            "type": "array"
+          },
+          "reminder_interval_hours": {
+            "title": "Reminder Interval Hours",
+            "type": "integer"
+          },
+          "require_email_code": {
+            "title": "Require Email Code",
+            "type": "boolean"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          },
+          "sent_by": {
+            "$ref": "#/components/schemas/PersonRef"
+          },
+          "status": {
+            "enum": [
+              "sent",
+              "opened",
+              "viewed",
+              "signed",
+              "completed",
+              "declined",
+              "expired",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "title": "Values",
+            "type": "array"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_number": {
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "department_id",
+          "document_id",
+          "document_name",
+          "version_id",
+          "version_number",
+          "sent_by",
+          "sent_at",
+          "expires_at",
+          "cancelled_at",
+          "require_email_code",
+          "reminder_interval_hours",
+          "max_reminders",
+          "notify_emails",
+          "recipients",
+          "values",
+          "timeline"
+        ],
+        "title": "EnvelopeView",
         "type": "object"
       },
       "FieldIn": {
@@ -2179,6 +2392,141 @@
         "title": "ProblemFieldError",
         "type": "object"
       },
+      "RecipientView": {
+        "properties": {
+          "delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Delivery"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "signer",
+              "countersigner",
+              "copy"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "party_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Label"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          },
+          "status": {
+            "enum": [
+              "waiting",
+              "sent",
+              "opened",
+              "viewed",
+              "signed",
+              "declined"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "viewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewed At"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "party_id",
+          "party_label",
+          "name",
+          "email",
+          "status",
+          "sent_at",
+          "opened_at",
+          "viewed_at",
+          "signed_at",
+          "delivery"
+        ],
+        "title": "RecipientView",
+        "type": "object"
+      },
       "ResetRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2428,6 +2776,119 @@
         "title": "SendForm",
         "type": "object"
       },
+      "SendRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm_same_person": {
+            "default": false,
+            "title": "Confirm Same Person",
+            "type": "boolean"
+          },
+          "copies": {
+            "items": {
+              "$ref": "#/components/schemas/CopyIn"
+            },
+            "maxItems": 10,
+            "title": "Copies",
+            "type": "array"
+          },
+          "countersigners": {
+            "items": {
+              "$ref": "#/components/schemas/CountersignerIn"
+            },
+            "maxItems": 20,
+            "title": "Countersigners",
+            "type": "array"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SettingsIn"
+          },
+          "signers": {
+            "items": {
+              "$ref": "#/components/schemas/SignerIn"
+            },
+            "maxItems": 20,
+            "title": "Signers",
+            "type": "array"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ValueIn"
+            },
+            "maxItems": 2000,
+            "title": "Values",
+            "type": "array"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "signers",
+          "settings"
+        ],
+        "title": "SendRequest",
+        "type": "object"
+      },
+      "SettingsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "expiry_days": {
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Expiry Days",
+            "type": "integer"
+          },
+          "max_reminders": {
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Max Reminders",
+            "type": "integer"
+          },
+          "notify_emails": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Notify Emails",
+            "type": "array"
+          },
+          "reminder_interval_hours": {
+            "maximum": 720.0,
+            "minimum": 1.0,
+            "title": "Reminder Interval Hours",
+            "type": "integer"
+          },
+          "require_email_code": {
+            "default": true,
+            "title": "Require Email Code",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reminder_interval_hours",
+          "max_reminders",
+          "expiry_days"
+        ],
+        "title": "SettingsIn",
+        "type": "object"
+      },
       "SettingsInput": {
         "additionalProperties": false,
         "properties": {
@@ -2482,6 +2943,35 @@
           }
         },
         "title": "SettingsInput",
+        "type": "object"
+      },
+      "SignerIn": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "party_id": {
+            "format": "uuid",
+            "title": "Party Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "party_id",
+          "name",
+          "email"
+        ],
+        "title": "SignerIn",
         "type": "object"
       },
       "SignupCompleteRequest": {
@@ -2552,6 +3042,43 @@
           "status"
         ],
         "title": "StatusResponse",
+        "type": "object"
+      },
+      "TimelineEntry": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          }
+        },
+        "required": [
+          "at",
+          "action",
+          "by",
+          "data"
+        ],
+        "title": "TimelineEntry",
         "type": "object"
       },
       "TokenRequest": {
@@ -2735,6 +3262,55 @@
           "name"
         ],
         "title": "UserView",
+        "type": "object"
+      },
+      "ValueIn": {
+        "additionalProperties": false,
+        "properties": {
+          "field_id": {
+            "format": "uuid",
+            "title": "Field Id",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 2000,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_id",
+          "value"
+        ],
+        "title": "ValueIn",
+        "type": "object"
+      },
+      "ValueView": {
+        "properties": {
+          "field_id": {
+            "format": "uuid",
+            "title": "Field Id",
+            "type": "string"
+          },
+          "given_by": {
+            "enum": [
+              "sender",
+              "recipient"
+            ],
+            "title": "Given By",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_id",
+          "value",
+          "given_by"
+        ],
+        "title": "ValueView",
         "type": "object"
       },
       "VersionFields": {
@@ -5368,6 +5944,97 @@
         ]
       }
     },
+    "/api/v1/documents/{document_id}/envelopes": {
+      "post": {
+        "operationId": "send_envelope_api_v1_documents__document_id__envelopes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Not approved, archived, or one person on two parties"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Send an approved version to its parties (requires Idempotency-Key)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
     "/api/v1/documents/{document_id}/restore": {
       "post": {
         "operationId": "restore_document_api_v1_documents__document_id__restore_post",
@@ -6445,6 +7112,84 @@
         "summary": "Open a password-protected PDF with its password (never stored)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}": {
+      "get": {
+        "operationId": "get_envelope_api_v1_envelopes__envelope_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "One envelope: recipients, values, timeline",
+        "tags": [
+          "envelopes"
         ]
       }
     },

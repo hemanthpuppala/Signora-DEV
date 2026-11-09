@@ -368,6 +368,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/envelopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send an approved version to its parties (requires Idempotency-Key) */
+        post: operations["send_envelope_api_v1_documents__document_id__envelopes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/restore": {
         parameters: {
             query?: never;
@@ -556,6 +573,23 @@ export interface paths {
         put?: never;
         /** Open a password-protected PDF with its password (never stored) */
         post: operations["unlock_version_api_v1_documents__document_id__versions__version_id__unlock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One envelope: recipients, values, timeline */
+        get: operations["get_envelope_api_v1_envelopes__envelope_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -900,6 +934,26 @@ export interface components {
             /** Option */
             option: string;
         };
+        /** CopyIn */
+        CopyIn: {
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+        };
+        /** CountersignerIn */
+        CountersignerIn: {
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
         /** CountersignersInput */
         CountersignersInput: {
             /** User Ids */
@@ -953,6 +1007,19 @@ export interface components {
              * Format: uuid
              */
             upload_id: string;
+        };
+        /**
+         * Delivery
+         * @description Their last email: queued, sent, or failed (with why).
+         */
+        Delivery: {
+            /** Error */
+            error: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "sent" | "failed";
         };
         /** Department */
         Department: {
@@ -1168,6 +1235,67 @@ export interface components {
         EmailResponse: {
             /** Email */
             email: string;
+        };
+        /** EnvelopeView */
+        EnvelopeView: {
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /**
+             * Department Id
+             * Format: uuid
+             */
+            department_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Name */
+            document_name: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Max Reminders */
+            max_reminders: number;
+            /** Notify Emails */
+            notify_emails: string[];
+            /** Recipients */
+            recipients: components["schemas"]["RecipientView"][];
+            /** Reminder Interval Hours */
+            reminder_interval_hours: number;
+            /** Require Email Code */
+            require_email_code: boolean;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            sent_by: components["schemas"]["PersonRef"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "sent" | "opened" | "viewed" | "signed" | "completed" | "declined" | "expired" | "cancelled";
+            /** Timeline */
+            timeline: components["schemas"]["TimelineEntry"][];
+            /** Title */
+            title: string;
+            /** Values */
+            values: components["schemas"]["ValueView"][];
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /** Version Number */
+            version_number: number;
         };
         /** FieldIn */
         FieldIn: {
@@ -1664,6 +1792,41 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** RecipientView */
+        RecipientView: {
+            delivery: components["schemas"]["Delivery"] | null;
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signer" | "countersigner" | "copy";
+            /** Name */
+            name: string;
+            /** Opened At */
+            opened_at: string | null;
+            /** Party Id */
+            party_id: string | null;
+            /** Party Label */
+            party_label: string | null;
+            /** Sent At */
+            sent_at: string | null;
+            /** Signed At */
+            signed_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "waiting" | "sent" | "opened" | "viewed" | "signed" | "declined";
+            /** Viewed At */
+            viewed_at: string | null;
+        };
         /** ResetRequest */
         ResetRequest: {
             /** Password */
@@ -1761,6 +1924,46 @@ export interface components {
             /** Version Number */
             version_number: number;
         };
+        /** SendRequest */
+        SendRequest: {
+            /**
+             * Confirm Same Person
+             * @default false
+             */
+            confirm_same_person: boolean;
+            /** Copies */
+            copies?: components["schemas"]["CopyIn"][];
+            /** Countersigners */
+            countersigners?: components["schemas"]["CountersignerIn"][];
+            settings: components["schemas"]["SettingsIn"];
+            /** Signers */
+            signers: components["schemas"]["SignerIn"][];
+            /** Title */
+            title?: string | null;
+            /** Values */
+            values?: components["schemas"]["ValueIn"][];
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+        };
+        /** SettingsIn */
+        SettingsIn: {
+            /** Expiry Days */
+            expiry_days: number;
+            /** Max Reminders */
+            max_reminders: number;
+            /** Notify Emails */
+            notify_emails?: string[];
+            /** Reminder Interval Hours */
+            reminder_interval_hours: number;
+            /**
+             * Require Email Code
+             * @default true
+             */
+            require_email_code: boolean;
+        };
         /** SettingsInput */
         SettingsInput: {
             /** Expiry Days */
@@ -1771,6 +1974,18 @@ export interface components {
             notify_emails?: string[] | null;
             /** Reminder Interval Hours */
             reminder_interval_hours?: number | null;
+        };
+        /** SignerIn */
+        SignerIn: {
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
         };
         /** SignupCompleteRequest */
         SignupCompleteRequest: {
@@ -1795,6 +2010,22 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "unavailable";
+        };
+        /** TimelineEntry */
+        TimelineEntry: {
+            /** Action */
+            action: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** By */
+            by: string | null;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
         };
         /** TokenRequest */
         TokenRequest: {
@@ -1857,6 +2088,31 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** ValueIn */
+        ValueIn: {
+            /**
+             * Field Id
+             * Format: uuid
+             */
+            field_id: string;
+            /** Value */
+            value: string;
+        };
+        /** ValueView */
+        ValueView: {
+            /**
+             * Field Id
+             * Format: uuid
+             */
+            field_id: string;
+            /**
+             * Given By
+             * @enum {string}
+             */
+            given_by: "sender" | "recipient";
+            /** Value */
+            value: string;
         };
         /** VersionFields */
         VersionFields: {
@@ -3461,6 +3717,69 @@ export interface operations {
             };
         };
     };
+    send_envelope_api_v1_documents__document_id__envelopes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeView"];
+                };
+            };
+            /** @description Not approved, archived, or one person on two parties */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     restore_document_api_v1_documents__document_id__restore_post: {
         parameters: {
             query?: never;
@@ -4110,6 +4429,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    get_envelope_api_v1_envelopes__envelope_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeView"];
                 };
             };
             /** @description Validation failed (problem details) */

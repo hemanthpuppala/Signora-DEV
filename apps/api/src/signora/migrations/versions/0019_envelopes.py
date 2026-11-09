@@ -287,6 +287,13 @@ def upgrade() -> None:
         "envelope_values FOR EACH ROW EXECUTE FUNCTION envelope_values_keep_the_senders()"
     )
 
+    # An envelope's timeline reads its audit entries (§6): one subject's history, by time.
+    op.create_index(
+        "ix_audit_events_subject_type_subject_id_occurred_at",
+        "audit_events",
+        ["subject_type", "subject_id", "occurred_at"],
+    )
+
     # A send's setting now (owner decision, 2026-11-09); nothing has been sent yet.
     op.drop_column("documents", "require_email_code")
 
@@ -298,6 +305,7 @@ def downgrade() -> None:
             "require_email_code", sa.Boolean(), server_default=sa.text("true"), nullable=False
         ),
     )
+    op.drop_index("ix_audit_events_subject_type_subject_id_occurred_at", table_name="audit_events")
     op.execute("DROP TRIGGER envelope_values_keep_the_senders ON envelope_values")
     op.execute("DROP FUNCTION envelope_values_keep_the_senders()")
     op.execute("DROP TRIGGER envelopes_keep_what_was_sent ON envelopes")
