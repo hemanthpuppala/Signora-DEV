@@ -3,9 +3,10 @@
 A version can be approved (frozen, sendable); one made by editing an approved version records its
 source. A version's name and description lose their ``ai_`` prefix (an edited version's are not the
 AI's). Parties and fields gain the typed text of an Other kind or type. Review keeps each version's
-revision and, once approved, its metrics; a trigger refuses any change to an approved version's
-parties, fields or places. No version is approved yet, so documents have no current version until
-one is (current means the newest approved version); ready versions stay in review.
+revision, the document's flags detection found, and, once approved, its metrics; a trigger refuses
+any change to an approved version's parties, fields or places. No version is approved yet, so
+documents have no current version until one is (current means the newest approved version); ready
+versions stay in review.
 
 Revision ID: 0018
 Revises: 0017
@@ -94,6 +95,7 @@ def upgrade() -> None:
         sa.Column("version_id", UUID, nullable=False),
         sa.Column("workspace_id", UUID, nullable=False),
         sa.Column("revision", sa.Integer(), server_default=sa.text("0"), nullable=False),
+        sa.Column("flags", pg.JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False),
         sa.Column("accepted", pg.JSONB(), nullable=True),
         sa.Column("updated_by", UUID, nullable=True),
         sa.Column(
@@ -113,8 +115,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("version_id", name=op.f("pk_version_reviews")),
     )
     op.execute(
-        "INSERT INTO version_reviews (version_id, workspace_id) "
-        "SELECT version_id, workspace_id FROM detection_runs"
+        "INSERT INTO version_reviews (version_id, workspace_id, flags) "
+        "SELECT version_id, workspace_id, COALESCE(result -> 'flags', '{}'::jsonb) "
+        "FROM detection_runs"
     )
     op.create_table(
         "review_metrics",

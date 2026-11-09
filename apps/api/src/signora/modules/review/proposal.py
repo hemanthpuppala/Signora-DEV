@@ -42,3 +42,4 @@ class ProposedField:
 class Proposal:
     parties: list[ProposedParty]
     fields: list[ProposedField]
+    flags: dict[str, bool] = field(default_factory=dict)  # the document's, as detection found them

@@ -413,6 +413,7 @@ def write_fields(session: Session, version: VersionForDetection, result: Result)
                 )
                 for f in result.fields
             ],
+            flags=result.flags.model_dump(),
         ),
     )
 

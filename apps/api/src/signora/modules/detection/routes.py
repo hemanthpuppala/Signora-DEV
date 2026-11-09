@@ -20,7 +20,16 @@ from signora.modules.documents import (
     version_status,
 )
 from signora.modules.identity_access import Actor, current_actor
-from signora.modules.review import FieldView, PlacementView, RoleView, option_words, read_set
+from signora.modules.review import (
+    FieldView,
+    PlacementView,
+    ReviewWarning,
+    RoleView,
+    option_words,
+    read_review,
+    read_set,
+    warnings_for,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["detection"])
 Member = Annotated[Actor, Depends(current_actor)]
@@ -62,6 +71,8 @@ class VersionFields(BaseModel):
     flags: Flags
     # Finding the fields again stopped; the version kept the fields found before (review fix).
     found_again_failed: str | None = None
+    revision: int = 0  # Phase 6 §1.6: a Save or Approve names the revision it started from
+    warnings: list[ReviewWarning] = []  # Phase 6 §2.1: before approving, never a block
 
 
 @router.post(
@@ -102,6 +113,7 @@ def _pending(parsed: dict[str, Any] | None) -> list[PendingField]:
             kind=field.kind,
             placements=[
                 PlacementView(
+                    id=None,
                     page=p.page,
                     rect=p.rect,
                     kind=field.kind,
@@ -133,7 +145,9 @@ def version_fields(
             ),
             {"v": version_id},
         ).one_or_none()
-        roles, fields = read_set(session, version_id) if state == "ready" else ([], [])
+        reviewable = state in ("ready", "approved")
+        roles, fields = read_set(session, version_id) if reviewable else ([], [])
+        revision, kept_flags = read_review(session, version_id)
         pending = _pending(run.parsed) if run is not None and state == "detecting" else []
         found = (run.result or {}).get("flags", {}) if run is not None else {}
         flags = Flags(**{name: found[name] for name in Flags.model_fields if name in found})
@@ -145,6 +159,8 @@ def version_fields(
             fields=fields,
             pending=pending,
             flags=flags,
+            revision=revision,
+            warnings=warnings_for(roles, fields, kept_flags) if reviewable else [],
             found_again_failed=detection_failure_message(run.failure_code)
             if run is not None and state == "ready" and run.failure_code
             else None,

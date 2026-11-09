@@ -136,6 +136,8 @@ version_reviews = Table(
     Column("version_id", UUID(as_uuid=True), primary_key=True),
     Column("workspace_id", UUID(as_uuid=True), nullable=False),
     Column("revision", Integer, nullable=False, server_default=text("0")),
+    # The document's flags as detection found them (already signed, XFA, addressed to an AI…).
+    Column("flags", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
     Column("accepted", JSONB),
     Column("updated_by", UUID(as_uuid=True)),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),

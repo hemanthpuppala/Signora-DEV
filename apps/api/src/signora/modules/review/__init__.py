@@ -6,8 +6,9 @@ Public interface — other modules import only from here. Detection hands its pr
 naming from ``review.keys`` directly.
 """
 
+from signora.modules.review.checks import ReviewWarning, warnings_for
 from signora.modules.review.proposal import Proposal, ProposedField, ProposedParty, ProposedPlace
-from signora.modules.review.store import read_set, replace_fields
+from signora.modules.review.store import read_review, read_set, replace_fields
 from signora.modules.review.views import (
     DependencyView,
     FieldView,
@@ -24,8 +25,11 @@ __all__ = [
     "ProposedField",
     "ProposedParty",
     "ProposedPlace",
+    "ReviewWarning",
     "RoleView",
     "option_words",
+    "read_review",
     "read_set",
     "replace_fields",
+    "warnings_for",
 ]

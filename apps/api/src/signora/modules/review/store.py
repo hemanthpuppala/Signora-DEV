@@ -26,8 +26,18 @@ def replace_fields(
     session: Session, *, workspace_id: uuid.UUID, version_id: uuid.UUID, proposal: Proposal
 ) -> None:
     """Replace the version's parties, fields and places with a proposal (detection's handoff,
-    ADR-R1)."""
+    ADR-R1), keep the document's flags, and move the revision on, so an editor holding the earlier
+    set cannot save over the new one (§1.6)."""
     params = {"v": version_id}
+    session.execute(
+        text(
+            "INSERT INTO version_reviews (version_id, workspace_id, flags) "
+            "VALUES (:v, :w, CAST(:flags AS jsonb)) ON CONFLICT (version_id) DO UPDATE SET "
+            "flags = EXCLUDED.flags, revision = version_reviews.revision + 1, updated_by = NULL, "
+            "updated_at = now()"
+        ),
+        {"v": version_id, "w": workspace_id, "flags": json.dumps(proposal.flags)},
+    )
     session.execute(text("DELETE FROM version_fields WHERE version_id = :v"), params)
     session.execute(text("DELETE FROM version_roles WHERE version_id = :v"), params)
     party_ids: dict[str, uuid.UUID] = {}
@@ -133,8 +143,9 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
     fields: dict[uuid.UUID, dict[str, Any]] = {}
     for row in session.execute(
         text(
-            "SELECT f.id, f.key, f.label, f.holds, f.filled_by, r.slug AS role, f.required, "
-            "f.sensitive, d.key AS depends_key, f.depends_on_option, f.needs_review "
+            "SELECT f.id, f.key, f.label, f.holds, f.holds_label, f.filled_by, r.slug AS role, "
+            "f.role_id, f.required, f.sensitive, d.key AS depends_key, f.depends_on_option, "
+            "f.needs_review, f.origin "
             "FROM version_fields f LEFT JOIN version_roles r ON r.id = f.role_id "
             "LEFT JOIN version_fields d ON d.id = f.depends_on_field_id "
             "WHERE f.version_id = :v ORDER BY f.id"
@@ -146,8 +157,11 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
             "key": row.key,
             "label": row.label,
             "holds": row.holds,
+            "holds_label": row.holds_label,
             "filled_by": row.filled_by,
             "role": row.role,
+            "party_id": row.role_id,
+            "origin": row.origin,
             "required": row.required,
             "sensitive": row.sensitive,
             "depends_on": DependencyView(key=row.depends_key, option=row.depends_on_option)
@@ -158,13 +172,14 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
         }
     for row in session.execute(
         text(
-            "SELECT field_id, page, x0, y0, x1, y1, kind, option_value, option_text "
+            "SELECT id, field_id, page, x0, y0, x1, y1, kind, option_value, option_text "
             "FROM field_placements WHERE version_id = :v ORDER BY page, y0, x0"
         ),
         {"v": version_id},
     ):
         fields[row.field_id]["placements"].append(
             PlacementView(
+                id=row.id,
                 page=row.page,
                 rect=(row.x0, row.y0, row.x1, row.y1),
                 kind=row.kind,
@@ -186,18 +201,28 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
             counts[view.role] = counts.get(view.role, 0) + 1
     roles = [
         RoleView(
+            id=row.id,
             slug=row.slug,
             label=row.label,
             kind=row.kind,
+            kind_label=row.kind_label,
             position=row.position,
             field_count=counts.get(row.slug, 0),
         )
         for row in session.execute(
             text(
-                "SELECT slug, label, kind, position FROM version_roles "
+                "SELECT id, slug, label, kind, kind_label, position FROM version_roles "
                 "WHERE version_id = :v ORDER BY position"
             ),
             {"v": version_id},
         )
     ]
     return roles, views
+
+
+def read_review(session: Session, version_id: uuid.UUID) -> tuple[int, dict[str, bool]]:
+    """A version's revision and the document's flags (0 and none before detection stored any)."""
+    row = session.execute(
+        text("SELECT revision, flags FROM version_reviews WHERE version_id = :v"), {"v": version_id}
+    ).one_or_none()
+    return (row.revision, dict(row.flags)) if row is not None else (0, {})

@@ -221,6 +221,7 @@ type = "protected"
 # review.keys and review.values are pure and public: detection's pure code imports them
 # directly, without the package's database half.
 protected_modules = [
+    "signora.modules.review.checks",
     "signora.modules.review.models",
     "signora.modules.review.proposal",
     "signora.modules.review.store",

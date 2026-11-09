@@ -98,6 +98,13 @@ def test_a_ready_versions_fields_with_their_roles_places_and_dependencies(
     assert term["depends_on"] == {"key": choice["key"], "option": "True"}
     assert all(f["placements"] for f in view["fields"])
     assert view["pending"] == [] and view["flags"]["no_fields"] is False
+    # Phase 6: ids for editing, the revision a Save starts from, and the warnings before Approve.
+    party = {r["slug"]: r["id"] for r in view["roles"]}
+    signed = [f for f in view["fields"] if f["holds"] == "signature"]
+    assert {f["party_id"] for f in signed} == {party["party_1"], party["party_2"]}
+    assert all(p["id"] for f in view["fields"] for p in f["placements"])
+    assert view["revision"] == 0
+    assert "party_cannot_sign" not in {w["code"] for w in view["warnings"]}  # both can sign
 
 
 def test_the_places_found_show_while_the_ai_works(

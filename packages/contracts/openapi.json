@@ -810,6 +810,17 @@
             "title": "Holds",
             "type": "string"
           },
+          "holds_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holds Label"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -833,6 +844,26 @@
               }
             ],
             "title": "Needs Review"
+          },
+          "origin": {
+            "enum": [
+              "detected",
+              "added"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
           },
           "placements": {
             "items": {
@@ -866,8 +897,11 @@
           "key",
           "label",
           "holds",
+          "holds_label",
           "filled_by",
           "role",
+          "party_id",
+          "origin",
           "required",
           "sensitive",
           "depends_on",
@@ -1376,6 +1410,18 @@
       },
       "PlacementView": {
         "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
           "kind": {
             "title": "Kind",
             "type": "string"
@@ -1428,6 +1474,7 @@
           }
         },
         "required": [
+          "id",
           "page",
           "rect",
           "kind",
@@ -1571,6 +1618,70 @@
           "password"
         ],
         "title": "ResetRequest",
+        "type": "object"
+      },
+      "ReviewWarning": {
+        "properties": {
+          "code": {
+            "enum": [
+              "no_signer",
+              "party_cannot_sign",
+              "own_value_not_a_partys",
+              "needs_a_look",
+              "already_signed",
+              "xfa",
+              "addressed_to_ai",
+              "overlapping_places",
+              "private_value"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "field_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Id"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ReviewWarning",
         "type": "object"
       },
       "RoleDetailView": {
@@ -2005,6 +2116,11 @@
             "title": "Pending",
             "type": "array"
           },
+          "revision": {
+            "default": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
           "roles": {
             "items": {
               "$ref": "#/components/schemas/signora__modules__review__views__RoleView"
@@ -2033,6 +2149,14 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReviewWarning"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
@@ -2303,6 +2427,11 @@
             "title": "Field Count",
             "type": "integer"
           },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "signer",
@@ -2310,6 +2439,17 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "kind_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind Label"
           },
           "label": {
             "title": "Label",
@@ -2325,9 +2465,11 @@
           }
         },
         "required": [
+          "id",
           "slug",
           "label",
           "kind",
+          "kind_label",
           "position",
           "field_count"
         ],

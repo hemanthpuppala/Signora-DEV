@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -18,14 +19,17 @@ def option_words(text: str | None) -> str | None:
 
 
 class RoleView(BaseModel):
+    id: uuid.UUID
     slug: str
     label: str
-    kind: PartyKind
+    kind: PartyKind  # how it signs
+    kind_label: str | None  # the typed text of an Other kind ("Witness")
     position: int
     field_count: int
 
 
 class PlacementView(BaseModel):
+    id: uuid.UUID | None  # none for a place found before the fields were stored
     page: int
     rect: tuple[float, float, float, float]  # PDF points on the page as displayed
     kind: str
@@ -43,8 +47,11 @@ class FieldView(BaseModel):
     key: str
     label: str
     holds: ManualHolds  # the contract's enum: the interface's labels must cover it (§1.8)
+    holds_label: str | None  # the typed text of an Other type
     filled_by: FilledBy
     role: str | None  # the role's slug when filled_by is "role"
+    party_id: uuid.UUID | None  # the same party, by id (what editing uses)
+    origin: Literal["detected", "added"]
     required: bool
     sensitive: bool
     depends_on: DependencyView | None

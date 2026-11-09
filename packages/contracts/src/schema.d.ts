@@ -1116,6 +1116,8 @@ export interface components {
              * @enum {string}
              */
             holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /** Holds Label */
+            holds_label: string | null;
             /**
              * Id
              * Format: uuid
@@ -1127,6 +1129,13 @@ export interface components {
             label: string;
             /** Needs Review */
             needs_review: string | null;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "detected" | "added";
+            /** Party Id */
+            party_id: string | null;
             /** Placements */
             placements: components["schemas"]["PlacementView"][];
             /** Required */
@@ -1365,6 +1374,8 @@ export interface components {
         };
         /** PlacementView */
         PlacementView: {
+            /** Id */
+            id: string | null;
             /** Kind */
             kind: string;
             /** Option Text */
@@ -1430,6 +1441,22 @@ export interface components {
             password: string;
             /** Token */
             token: string;
+        };
+        /** ReviewWarning */
+        ReviewWarning: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "no_signer" | "party_cannot_sign" | "own_value_not_a_partys" | "needs_a_look" | "already_signed" | "xfa" | "addressed_to_ai" | "overlapping_places" | "private_value";
+            /** Count */
+            count?: number | null;
+            /** Field Id */
+            field_id?: string | null;
+            /** Message */
+            message: string;
+            /** Party Id */
+            party_id?: string | null;
         };
         /** RoleDetailView */
         RoleDetailView: {
@@ -1571,12 +1598,22 @@ export interface components {
             found_again_failed?: string | null;
             /** Pending */
             pending: components["schemas"]["PendingField"][];
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
             /** Roles */
             roles: components["schemas"]["signora__modules__review__views__RoleView"][];
             /** Stage */
             stage: ("read" | "ai" | "derive" | "store" | "done") | null;
             /** Status */
             status: string;
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: components["schemas"]["ReviewWarning"][];
         };
         /** VersionRef */
         VersionRef: {
@@ -1669,10 +1706,17 @@ export interface components {
             /** Field Count */
             field_count: number;
             /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
              * Kind
              * @enum {string}
              */
             kind: "signer" | "countersigner";
+            /** Kind Label */
+            kind_label: string | null;
             /** Label */
             label: string;
             /** Position */
