@@ -59,6 +59,61 @@
   }
 }
 
+/* --- editing on the page (Phase 6 §5) --------------------------------------------------------- */
+/* With a tool chosen the whole page takes the press: a click places a box, a drag draws one. */
+.boxes.drawing {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+.boxes.drawing .box {
+  pointer-events: none;
+}
+
+.movable {
+  cursor: move;
+  touch-action: none;
+}
+
+.handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--paper-ink);
+  background: var(--paper);
+  touch-action: none;
+}
+
+.nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.se {
+  right: -5px;
+  bottom: -5px;
+  cursor: nwse-resize;
+}
+
+.sketch {
+  border: 1.5px dashed var(--paper-ink);
+  background: transparent;
+  pointer-events: none;
+}
+
 /* Party tones: shared by boxes and the panel's dots. */
 .role1 {
   border-color: var(--role1);

@@ -68,25 +68,39 @@ export const HOLDS: Record<Holds, string> = {
   other: "Other",
 };
 
+/** The types grouped for picking (Phase 6 §4); every type is in exactly one group (tested). */
+export const HOLD_GROUPS: readonly { label: string; holds: readonly Holds[] }[] = [
+  { label: "Signing", holds: ["signature", "initials", "date_signed"] },
+  { label: "Who they are", holds: ["party_name", "full_name", "first_name", "last_name", "company", "title", "date_of_birth"] },
+  { label: "Contact", holds: ["email", "phone", "address", "city", "state", "postal_code", "country", "url"] },
+  { label: "Money and numbers", holds: ["currency", "amount_in_words", "number", "percent", "date"] },
+  { label: "Private", holds: ["tax_id", "bank_account"] },
+  { label: "General", holds: ["text", "checkbox", "choice", "note", "other"] },
+];
+
+/** A party as the screens need it: by id, in signing order. */
+export type PartyRef = { id: string; label: string; kind: "signer" | "countersigner" };
+type FilledByRef = { filled_by: "role" | "sender" | "none"; party_id: string | null };
+
 /** The design system's party tones: signers in order, then the countersigning side (prototype 13). */
 const SIGNER_TONES = ["role1", "role2", "role3"] as const;
 export type Tone = (typeof SIGNER_TONES)[number] | "firm" | "sender" | "none";
 
-export function toneOf(field: Pick<FieldView, "filled_by" | "role">, roles: readonly RoleView[]): Tone {
+export function toneOf(field: FilledByRef, parties: readonly PartyRef[]): Tone {
   if (field.filled_by === "sender") return "sender";
-  if (field.filled_by === "none" || !field.role) return "none";
-  const role = roles.find((candidate) => candidate.slug === field.role);
-  if (!role) return "none";
-  if (role.kind === "countersigner") return "firm";
-  const signers = roles.filter((candidate) => candidate.kind === "signer");
-  return SIGNER_TONES[signers.indexOf(role) % SIGNER_TONES.length] ?? "role1";
+  if (field.filled_by === "none" || !field.party_id) return "none";
+  const party = parties.find((candidate) => candidate.id === field.party_id);
+  if (!party) return "none";
+  if (party.kind === "countersigner") return "firm";
+  const signers = parties.filter((candidate) => candidate.kind === "signer");
+  return SIGNER_TONES[signers.indexOf(party) % SIGNER_TONES.length] ?? "role1";
 }
 
 /** Who fills a field, in words: the party's label, before sending, or nobody. */
-export function whoFills(field: Pick<FieldView, "filled_by" | "role">, roles: readonly RoleView[]): string {
+export function whoFills(field: FilledByRef, parties: readonly PartyRef[]): string {
   if (field.filled_by === "sender") return "Filled in before sending";
-  if (field.filled_by === "none" || !field.role) return "Not asked";
-  return roles.find((role) => role.slug === field.role)?.label ?? field.role;
+  if (field.filled_by === "none" || !field.party_id) return "Not asked";
+  return parties.find((party) => party.id === field.party_id)?.label ?? "Not asked";
 }
 
 /** A signature or initials is drawn dashed (prototype 13's legend). */

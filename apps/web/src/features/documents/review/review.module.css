@@ -1,0 +1,168 @@
+/* Field review and approval (Phase 6 LLD §7): the bar above the panel, the forms, the palette. */
+
+/* --- the bar above the panel ----------------------------------------------------------------- */
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.bar:empty {
+  display: none;
+}
+
+.barLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  font-size: 14px;
+  color: var(--t75);
+}
+
+.saveBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--r25);
+  background: var(--surface-2);
+  font-size: 14px;
+}
+
+.count {
+  margin-right: auto;
+  color: var(--ink);
+}
+
+.problems {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.dialogText {
+  margin: 0 0 12px;
+}
+
+/* --- things to check ------------------------------------------------------------------------- */
+.check {
+  padding: 12px;
+  border: 1px solid var(--r15);
+}
+
+.checkTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--t75);
+}
+
+.checkList li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* --- parties ----------------------------------------------------------------------------------- */
+.inlineName {
+  min-width: 0;
+  flex: 1;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px solid var(--r25);
+  background: transparent;
+  font: inherit;
+  color: var(--ink);
+}
+
+.inlineName:focus {
+  border-bottom-color: var(--ink);
+  outline: none;
+}
+
+.rowTools {
+  display: flex;
+  gap: 4px;
+}
+
+.inlineForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--r15);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.fates {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fates legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--t75);
+}
+
+/* --- a field's form ------------------------------------------------------------------------- */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formHead {
+  display: flex;
+  justify-content: space-between;
+}
+
+.numbers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.numbers > :first-child {
+  grid-column: 1 / -1;
+}
+
+/* --- the palette in the viewer's toolbar --------------------------------------------------- */
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 13px;
+  color: var(--t75);
+}

@@ -45,6 +45,8 @@ export type PdfViewerProps = {
   /** A box to bring into the middle of the view (a field chosen in a list); a new ``token``
    * scrolls to it again. */
   focus?: { page: number; rect: Rect; token: number } | null;
+  /** Tools for the overlay, at the start of the toolbar (field review's palette). */
+  tools?: ReactNode;
 };
 
 /**
@@ -53,7 +55,7 @@ export type PdfViewerProps = {
  * wheel, trackpad pinch) and page navigation. Only pages near the viewport are rendered, so 200
  * pages stay light. pdf.js is loaded on first use, never with the page bundle.
  */
-export function PdfViewer({ url, pages, label, renderOverlay, focus }: PdfViewerProps) {
+export function PdfViewer({ url, pages, label, renderOverlay, focus, tools }: PdfViewerProps) {
   const paneRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [paneWidth, setPaneWidth] = useState(0);
@@ -203,6 +205,7 @@ export function PdfViewer({ url, pages, label, renderOverlay, focus }: PdfViewer
   return (
     <div className={styles.viewer}>
       <div className={styles.toolbar}>
+        {tools ? <div className={styles.group}>{tools}</div> : null}
         <div className={styles.group}>
           <TextButton disabled={currentPage <= 1} onClick={() => goTo(currentPage - 1)}>
             Previous

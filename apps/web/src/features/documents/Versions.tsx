@@ -71,7 +71,13 @@ export function Versions({
                 <span className={styles.number}>
                   <VersionLabel number={version.number} current={version.is_current} />
                 </span>
-                <StatusPill status={status.pill} label={status.label} />
+                {version.approved ? (
+                  <Tooltip label={`Approved by ${version.approved.by.name} on ${new Date(version.approved.at).toLocaleDateString()}`}>
+                    <StatusPill status={status.pill} label={status.label} />
+                  </Tooltip>
+                ) : (
+                  <StatusPill status={status.pill} label={status.label} />
+                )}
               </div>
               {/* What the AI called this version, once its fields are found; the file name until then. */}
               <Tooltip
@@ -81,7 +87,9 @@ export function Versions({
                 <span className={styles.filename}>{version.name ?? version.filename}</span>
               </Tooltip>
               <span className={styles.detail}>
-                {[pages, fieldCount].filter(Boolean).join(" · ")}
+                {[version.derived_from ? `from version ${version.derived_from}` : null, pages, fieldCount]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
               {/* One line: download at the start, the words in the middle, make current (a star) at the end. */}
               <div className={styles.versionActions}>

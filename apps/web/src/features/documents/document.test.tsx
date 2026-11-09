@@ -10,6 +10,9 @@ import { ToastProvider } from "@/shared/ui";
 import { DocumentPage } from "./DocumentPage";
 import { FakeUpload } from "./fakeUpload.testing";
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+
 vi.mock("pdfjs-dist", () => ({
   version: "6.4.299",
   GlobalWorkerOptions: {},
@@ -68,6 +71,8 @@ const documentWith = (versions: unknown[], overrides: Record<string, unknown> = 
 
 const READY = documentWith([version(2, { is_current: true }), version(1)]);
 
+const TEXTUAL = ["signature", "initials", "date_signed", "full_name", "email", "tax_id", "date", "text", "note", "other"];
+
 const NO_FIELDS = {
   status: "ready",
   stage: "done",
@@ -76,6 +81,9 @@ const NO_FIELDS = {
   fields: [],
   pending: [],
   flags: { no_fields: false, addressed_to_ai: false, xfa: false, already_signed: false, repaired: false },
+  revision: 0,
+  warnings: [],
+  allowed: { text: TEXTUAL, blank: [...TEXTUAL, "checkbox", "choice"], signature: ["signature", "initials"], checkbox: ["checkbox"], radio: ["choice"], combobox: ["choice"], listbox: ["choice"] },
 };
 
 function reply(status: number, body: unknown) {
@@ -288,7 +296,9 @@ describe("document page", () => {
   });
 
   describe("fields", () => {
+    let places = 0;
     const placement = (page: number, y: number, extra: Record<string, unknown> = {}) => ({
+      id: `place-${(places += 1)}`,
       page,
       rect: [100, y, 300, y + 20],
       kind: "text",
@@ -301,8 +311,11 @@ describe("document page", () => {
       key,
       label,
       holds: "text",
+      holds_label: null,
       filled_by: "sender",
       role: null,
+      party_id: typeof extra.role === "string" ? `party-${extra.role}` : null,
+      origin: "detected",
       required: true,
       sensitive: false,
       depends_on: null,
@@ -313,8 +326,8 @@ describe("document page", () => {
     const FIELDS = {
       ...NO_FIELDS,
       roles: [
-        { slug: "client", label: "Client", kind: "signer", position: 1, field_count: 3 },
-        { slug: "firm", label: "Firm", kind: "countersigner", position: 2, field_count: 1 },
+        { id: "party-client", slug: "client", label: "Client", kind: "signer", kind_label: null, position: 1, field_count: 3 },
+        { id: "party-firm", slug: "firm", label: "Firm", kind: "countersigner", kind_label: null, position: 2, field_count: 1 },
       ],
       fields: [
         field("agreement.term", "Term", {
@@ -336,6 +349,9 @@ describe("document page", () => {
         field("firm.signature", "Firm signature", { holds: "signature", filled_by: "role", role: "firm" }),
       ],
     };
+    // Read-only views: an approved version shows its fields without the editor.
+    const APPROVED = documentWith([approvedVersion(2, { is_current: true }), version(1)]);
+    const APPROVED_FIELDS = { ...FIELDS, status: "approved" };
     const scrolled = vi.fn();
     beforeEach(() => {
       scrolled.mockReset();
@@ -343,14 +359,13 @@ describe("document page", () => {
     });
 
     it("lists every field beside the PDF: parties, needs a look first, choices as a tree", async () => {
-      serve(READY, {}, FIELDS);
+      serve(APPROVED, {}, APPROVED_FIELDS);
       open();
 
       expect(await screen.findByText("6 fields for 2 parties")).toBeTruthy();
       const parties = screen.getByRole("list", { name: "Who signs" });
       expect(within(parties).getByText("countersigns")).toBeTruthy();
       expect(within(parties).getByText("Filled in before sending")).toBeTruthy();
-      expect(screen.getByText("1 field needs a look. They are listed first.")).toBeTruthy();
       const options = within(screen.getByRole("listbox", { name: "Fields" })).getAllByRole("option");
       expect(options[0]?.textContent).toContain("Client tax number"); // needs a look: first
       const term = options.findIndex((option) => option.textContent?.startsWith("Term") && !option.textContent.startsWith("Term in"));
@@ -358,7 +373,7 @@ describe("document page", () => {
     });
 
     it("picks a field in the list, says what it is and brings it into view; steps through its places", async () => {
-      serve(READY, {}, FIELDS);
+      serve(APPROVED, {}, APPROVED_FIELDS);
       open();
       const user = userEvent.setup();
       const list = await screen.findByRole("listbox", { name: "Fields" });
@@ -386,7 +401,7 @@ describe("document page", () => {
     });
 
     it("chooses a field from its box on the PDF, and filters, finds and moves through the list", async () => {
-      serve(READY, {}, FIELDS);
+      serve(APPROVED, {}, APPROVED_FIELDS);
       open();
       const user = userEvent.setup();
       const list = await screen.findByRole("listbox", { name: "Fields" });
@@ -439,11 +454,20 @@ describe("document page", () => {
       expect(screen.getByRole("region", { name: "Engagement letter, version 1" })).toBeTruthy();
     });
 
-    it("says when nothing was found and when the document speaks to an AI", async () => {
-      serve(READY, {}, { ...NO_FIELDS, flags: { ...NO_FIELDS.flags, no_fields: true, addressed_to_ai: true } });
+    it("says when nothing was found, and lists what to check before approving", async () => {
+      serve(READY, {}, {
+        ...NO_FIELDS,
+        flags: { ...NO_FIELDS.flags, no_fields: true, addressed_to_ai: true },
+        warnings: [
+          { code: "no_signer", message: "No party signs this version" },
+          { code: "addressed_to_ai", message: "This document contains text addressed to an AI: check its fields with care" },
+        ],
+      });
       open();
-      expect(await screen.findByText("We couldn't find places to fill or sign. Add them in review.")).toBeTruthy();
-      expect(screen.getByText("This document contains text addressed to an AI. Check its fields with care.")).toBeTruthy();
+      expect(await screen.findByText("We couldn't find places to fill or sign. Add them with Add field above the document.")).toBeTruthy();
+      const check = screen.getByRole("region", { name: "Things to check" });
+      expect(within(check).getByText("No party signs this version")).toBeTruthy();
+      expect(screen.getByText("2 things to check")).toBeTruthy();
     });
 
     it("says when finding the fields again failed, and shows the fields found before", async () => {
