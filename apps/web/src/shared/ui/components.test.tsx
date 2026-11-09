@@ -288,3 +288,40 @@ describe("ActionBar", () => {
     expect(screen.getByRole("button", { name: "Approve version" })).toBeInTheDocument();
   });
 });
+
+describe("ExpandableList, scrolling", () => {
+  it("brings an opened row to its top and fits that row and the two under it", async () => {
+    const heights: Record<string, number> = { a: 50, b: 50, c: 200, d: 50, e: 50, f: 50 };
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return heights[this.id] ?? 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (this: HTMLElement) {
+      return this.id === "c" ? 100 : 0;
+    });
+    const scrollTo = vi.fn();
+    HTMLElement.prototype.scrollTo = scrollTo as unknown as HTMLElement["scrollTo"];
+    function Rows() {
+      const [open, setOpen] = useState<string | null>(null);
+      return (
+        <ExpandableList label="Fields" scrollable>
+          {Object.keys(heights).map((id) => (
+            <ExpandableRow key={id} id={id} title={id.toUpperCase()} expanded={open === id} regionLabel={id} onToggle={() => setOpen(open === id ? null : id)}>
+              Details
+            </ExpandableRow>
+          ))}
+        </ExpandableList>
+      );
+    }
+    render(<Rows />);
+    const list = screen.getByRole("list", { name: "Fields" });
+    expect(list.style.maxHeight).toBe(""); // all closed: the design system's table height
+
+    await userEvent.click(screen.getByRole("button", { name: "C" }));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 100, behavior: "smooth" });
+    expect(list.style.maxHeight).toBe("301px"); // C (200) + D + E (50 each) + the hairline
+
+    await userEvent.click(screen.getByRole("button", { name: "C" }));
+    expect(list.style.maxHeight).toBe("");
+    vi.restoreAllMocks();
+  });
+});

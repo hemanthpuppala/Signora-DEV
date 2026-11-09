@@ -8,7 +8,16 @@
   list-style: none;
 }
 
+/* Scrolls inside itself (positioned, so a row's offsetTop is measured from the list's top). */
+.scrollable {
+  position: relative;
+  max-height: var(--table-max-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .row {
+  flex: none; /* in a scrolling list rows keep their height; the list scrolls */
   border-bottom: 1px solid var(--sep);
 }
 

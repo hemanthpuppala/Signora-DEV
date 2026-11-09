@@ -1,24 +1,64 @@
 "use client";
 
-import type { CSSProperties, ReactNode, Ref } from "react";
+import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
 import { cx } from "@/shared/lib/cx";
 
 import styles from "./expandable.module.css";
 import { Icon } from "./Icon";
 
-/** A list of rows that open in place (field review's fields; later, an envelope's recipients). */
+const ROWS_BELOW = 2; // an open row shows with this many rows under it
+
+/**
+ * A list of rows that open in place (field review's fields; later, an envelope's recipients).
+ * ``scrollable``: the list scrolls inside itself, at most the design system's table height while
+ * every row is closed; when one opens it comes to the top and the list is exactly as tall as that
+ * row and the two under it (Phase 6 §7.1).
+ */
 export function ExpandableList({
   label,
   children,
-  listRef,
+  scrollable = false,
 }: {
   label: string;
   children: ReactNode;
-  listRef?: Ref<HTMLUListElement> | undefined;
+  scrollable?: boolean;
 }) {
+  const ref = useRef<HTMLUListElement>(null);
+  const shown = useRef<Element | null>(null);
+  // Sizes the list to its open row and the rows under it, and brings that row to the top.
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!scrollable || !element) return undefined;
+    const open = element.querySelector<HTMLElement>(`:scope > .${styles.open}`);
+    const fit = () => {
+      if (!open) {
+        element.style.maxHeight = "";
+        return;
+      }
+      let height = open.offsetHeight;
+      let next = open.nextElementSibling as HTMLElement | null;
+      for (let i = 0; i < ROWS_BELOW && next; i += 1) {
+        height += next.offsetHeight;
+        next = next.nextElementSibling as HTMLElement | null;
+      }
+      if (height > 0) element.style.maxHeight = `${height + 1}px`; // + the list's top hairline
+    };
+    fit();
+    if (open && open !== shown.current) {
+      const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+      if (typeof element.scrollTo === "function") element.scrollTo({ top: open.offsetTop, behavior: still ? "auto" : "smooth" });
+      else element.scrollTop = open.offsetTop;
+    }
+    shown.current = open;
+    // The open row's content changes size as it is edited (a choice's options, a new party form).
+    if (!open || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(fit);
+    observer.observe(open);
+    return () => observer.disconnect();
+  });
   return (
-    <ul ref={listRef} className={styles.list} aria-label={label}>
+    <ul ref={ref} className={cx(styles.list, scrollable && styles.scrollable)} aria-label={label}>
       {children}
     </ul>
   );

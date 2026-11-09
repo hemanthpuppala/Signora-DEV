@@ -22,7 +22,7 @@ const ADD_ROW = "add-field";
 export type Filter = { kind: "all" } | { kind: "party"; id: string } | { kind: "sender" };
 type Row = { id: string; field: DraftField; depth: number };
 
-/** Brings a chosen field's row into view, unless the person asked for less motion (smoothly). */
+/** Brings the list with the chosen field into view, smoothly unless the person asked for less motion. */
 function bringIntoView(row: Element) {
   const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   row.scrollIntoView?.({ block: "nearest", behavior: still ? "auto" : "smooth" });
@@ -77,11 +77,12 @@ export function FieldsPanel({
   const [adding, setAdding] = useState(false);
   const parties: PartyRef[] = draft.parties;
   const byId = useMemo(() => new Map(draft.fields.map((field) => [field.id, field])), [draft.fields]);
-  // A field chosen on the PDF (or from a warning) is brought into view in the list too.
+  // A field chosen on the PDF (or from a warning) opens in the list, which comes into view; the
+  // list itself brings the open row to its top.
   const rowId = selected ? (selected.kind === "field" ? `field-${selected.id}` : `pending-${selected.id}`) : null;
   useEffect(() => {
-    const row = rowId ? document.getElementById(rowId) : null;
-    if (row) bringIntoView(row);
+    const list = rowId ? document.getElementById(rowId)?.parentElement : null;
+    if (list) bringIntoView(list);
   }, [rowId]);
 
   const rows = useMemo<Row[]>(() => {
@@ -128,7 +129,7 @@ export function FieldsPanel({
           ))}
         </ol>
         {view.pending.length > 0 ? (
-          <ExpandableList label="Places found">
+          <ExpandableList label="Places found" scrollable>
             {view.pending.map((found) => (
               <ExpandableRow
                 key={found.id}
@@ -205,7 +206,7 @@ export function FieldsPanel({
             <SearchField label="Find a field" value={search} onChange={(event) => setSearch(event.target.value)} />
           </>
         ) : null}
-        <ExpandableList label="Fields">
+        <ExpandableList label="Fields" scrollable>
           {editing ? (
             <ExpandableRow
               id={ADD_ROW}
