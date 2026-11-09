@@ -61,7 +61,9 @@ recorded, and approval measures how close the AI came (precision, recall and the
 ### 1.4 The record of changes
 
 Every Save writes one audit entry listing what changed: fields and places added, removed or changed (with the
-attributes before and after), and parties added, removed or changed.
+attributes before and after), and parties added, removed or changed. A field's attributes include whether it is
+private (an Other type's own toggle), and a place changes by moving or by its option's words or value being
+reworded; each counts as a change, so the field's "needs a look" flag clears with it (§2.2).
 
 ### 1.5 Review metrics (brings back platform FR-15, which Phase 5 dropped)
 
@@ -490,10 +492,12 @@ revision 1 with the source's document flags; its audit entries are `document.ver
 
 ### 10.4 `POST …/approve`
 
-Request `{ revision: int, accepted: [code] }`. Response `204` (built; the page reloads the document, whose versions
-say which is approved and current). `409 fields-changed` on a stale revision, `409 version-not-in-review` unless
-`ready`, `409 warnings-changed` when `accepted` is not exactly the warnings the server finds now (the person approves
-over what they saw; with the revision unchanged this only happens to a client out of date). The server records its own
+Request `{ revision: int, accepted: [code] }`: the *kinds* of warning seen, as a set (the page lists every warning,
+ten private values are ten lines, and sends their distinct codes; the server reads a set, so duplicates are
+harmless). Response `204` (built; the page reloads the document, whose versions say which is approved and current).
+`409 fields-changed` on a stale revision, `409 version-not-in-review` unless `ready`, `409 warnings-changed` when
+`accepted` is not exactly the kinds of warning the server finds now (the person approves over what they saw; with the
+revision unchanged this only happens to a client out of date). The server records its own
 warnings in `version_reviews.accepted` and writes the metrics to `review_metrics`; the audit entry
 `document.version_approved` lists the accepted codes and the metrics' counts (the audit chain's canonical JSON has no
 floating-point numbers; the ratios follow from the counts).
@@ -508,7 +512,10 @@ floating-point numbers; the ratios follow from the counts).
   allows (Phase 5 `ALLOWED`); `depends_on` names a field of the set that is a choice or a checkbox, with one of its
   options, and no loops.
 - Places: each field has 1–500; `page` within the version's pages; the rect inside that page (its displayed size),
-  `x1 − x0 ≥ 8` and `y1 − y0 ≥ 8`; `option_text` ≤ 200.
+  `x1 − x0 ≥ 8` and `y1 − y0 ≥ 8`; `option_text` ≤ 200. A box from the PDF keeps its kind and, for a radio or a
+  list, its `option_value` (the widget's export value, which filling the PDF needs; a drawn box's is the editor's
+  to name). The editor sees a stored option's words with any field inside them read as "…" (`option_words`); sent
+  back unchanged, the stored words stay, so a Save never writes the "…" over the field.
 
 ## 11. Algorithms and complexity
 
@@ -595,3 +602,4 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.12 | Web: Approve, things to check, version states | done | `ThingsToCheck.tsx`, the Approve dialog (listing the warnings, sending the revision and the codes seen; disabled while changes are unsaved), Edit fields on an approved version, "from version N" and who approved in Versions. The bar says "N things to check", not "Needs approval" again (the version's label already says it). Tests: `review.test.tsx` (10), `document.test.tsx` updated for ids (18). Browser walkthrough not yet done: the browser extension was not connected |
 | 6.12a | The review screen revised after use (§7.1) | done | `shared/ui`: `ActionBar`, `ExpandableList`/`ExpandableRow` (button named by the title, the facts its description; on `/dev/ui`; tests), the `chevron` icon, `--action-bar-height`; the side column's sections divided by hairlines; `ReviewActionBar` (state, things to check, unsaved changes; Approve, or Undo, Discard, Save; Edit fields); fields as rows that open in place (editable details for editors, text for readers); "+ Add field" the list's first row (Type dropdown, who fills, Place on the page; the viewer's toolbar says what a click does); parties as text with a pencil; "Add signature" on a party's warning; a version's fields stay on screen while it changes state (no blink). Tests: `review.test.tsx` (11), `document.test.tsx` (18), components (2) |
 | 6.13 | Harness rerun, deploy, live check, PR | in progress | Harness rerun on the 9 documents with `url` in the AI layer (2026-11-09, `tests/outputs/SCORES.md`): no document has a website, so `url` changed nothing. Against the unconfirmed drafts the scores moved by run-to-run variance only: the Mutual NDA template's parties came back "Party 1/2" instead of "First/Second Party" (the scorer matches parties by slug, so its who-fills score reads 1/11), and the Trade Secret firm's own name, address and email flip between the firm and the sender in the clean run as well as the hostile one. Two injection checks failed this run for that reason: the hostile PDF gave those three to the sender (the surge check allows two), and the hostile Word file made the firm a signer, the opposite of what the planted text asks; agreement with the clean runs is 92 % and 98 %, the flag and the name held. Kept as run, not rerun to pass. Deploy: `make up-app` (0018 applied to the dev database; 11 versions in review kept, current cleared). Live: stack and dev server answer, review endpoints require sign-in; the browser walkthrough is not done (the browser extension was not connected) |
+| 6.14 | Fixes from the pull request's review (high) | done | Ten findings verified against the code, none dropped. API: `ApproveRequest.accepted` is a set of codes (one code per warning from a page listing ten warnings was refused by the cap of nine; a version with many private values could not be approved); `store.lock_review` is the one locked read of the revision for Save and Approve (Save compared a missing row with −1 where the page reads 0); a PDF box keeps its `option_value` (422 `places[i].option_value`) and its option words survive the editor's "…" view (`editing.option_text_of`; every Save rewrote the stored words); a field's privacy is one of its attributes (`_field_attrs`: toggling Private on an Other type kept the flag and left the audit entry empty); `derive_version` reads the document and the source once and returns the version it wrote (four reads and permission checks per revision before). Web: arrow keys and Backspace in the shared Select (a combobox) no longer nudge or remove the chosen box (`ReviewLayout` `typing`); a new option of a choice is named after none it has (`nextOptionName`; "Option 3" twice after removing one); an Other party with no words is sent as "" and refused by name, like a field's empty Other type; the option words editor is one place edit (`setOptionText`, clearing the flag like every other); `ExpandableList` measures itself when its open row or its rows change (`open` prop), not on every keystroke; the Approve body sends each code once (the contract says `uniqueItems`). Tests, each failing without its fix: `test_approve` (1), `test_save` (2), `editor.test.ts` (2), `review.test.tsx` (1) |
