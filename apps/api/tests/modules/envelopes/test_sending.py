@@ -41,6 +41,7 @@ def field(id_: uuid.UUID, holds: str, party: uuid.UUID | None = None, **extra: o
             "depends_on": None,
             "places": [],
             "from_recipient": FROM.get(holds) if party else None,
+            "format": None,
             **extra,
         }
     )
@@ -73,10 +74,11 @@ FORM = SendForm(
         field(LAST, "last_name", CLIENT),
         field(LEGAL, "party_name", CLIENT),
         field(EMAIL, "email", CLIENT),
-        # The "20__" of a year: a short box on a line of 11 pt text.
+        # The "20__" of a year: a short box on a line of 11 pt text, two digits written.
         field(
             YEAR,
             "year",
+            format="YY",
             places=[Place(page=1, rect=(300, 100, 312, 114), option_value=None, text_size=11.0)],
         ),
     ],
@@ -138,10 +140,30 @@ def test_split_name() -> None:
     assert split_name("Cher") == ("Cher", "")
 
 
+def test_a_value_is_measured_as_its_field_writes_it() -> None:
+    # Kept as 2026, written "26" after the printed "20": it fits.
+    assert plan({PLAN: "Silver", YEAR: "2026"})[YEAR] == "2026"
+    assert plan({PLAN: "Silver", YEAR: "26"})[YEAR] == "2026"
+
+
 def test_a_value_too_long_for_its_box_is_refused() -> None:
-    assert plan({PLAN: "Silver", YEAR: "26"})[YEAR] == "26"  # fits the box after a printed "20"
-    with pytest.raises(ValidationFailed) as refused:
-        plan({PLAN: "Silver", YEAR: "2026"})  # four digits: smaller than readable in that box
+    four = FORM.model_copy(
+        update={
+            "fields": [
+                f.model_copy(update={"format": "YYYY"}) if f.id == YEAR else f for f in FORM.fields
+            ]
+        }
+    )
+    request = SendRequest.model_validate(
+        {
+            "version_id": FORM.version_id,
+            "signers": [{"party_id": CLIENT, "name": "Maya", "email": "maya@example.com"}],
+            "values": [{"field_id": YEAR, "value": "2026"}, {"field_id": PLAN, "value": "Silver"}],
+            "settings": {"reminder_interval_hours": 24, "max_reminders": 5, "expiry_days": 14},
+        }
+    )
+    with pytest.raises(ValidationFailed) as refused:  # four digits: smaller than readable there
+        plan_send(four, request, colleagues={}, normalize_email=normalize_email)
     assert [(e.field, e.message) for e in refused.value.field_errors] == [
         (f"fields.{YEAR}", "Too long for its box")
     ]

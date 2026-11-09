@@ -1,7 +1,7 @@
 """The rule that draws a value in its box (Phase 7b LLD): one definition for the preview's numbers
 and the signed PDF. Pure but for reading the font's widths.
 
-A value is drawn left-aligned on the box's line (its bottom edge, where a blank's underline is), at
+A value is drawn centred on the box's line (its bottom edge, where a blank's underline is), at
 the size of the agreement's text around the box; a value too wide is drawn smaller, down to
 ``MIN_SIZE``; wider still, it does not fit and is refused.
 """
@@ -9,6 +9,7 @@ the size of the agreement's text around the box; a value too wide is drawn small
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Final
 
 from signora.modules.typesetting.fonts import metrics
 
@@ -17,6 +18,7 @@ FALLBACK_RATIO = 0.72  # without the agreement's text size: this share of the bo
 FALLBACK_CAP = 11.0  # ... and no larger than body text
 BASELINE_RATIO = 0.18  # the baseline sits this share of the size above the line
 BASELINE_MIN = 1.5  # ... and at least this many points above it
+ALIGN: Final = "center"  # a value sits in the middle of its blank; it fits, so it never leaves it
 
 Rect = Sequence[float]  # x0, y0, x1, y1 in PDF points
 
@@ -44,3 +46,10 @@ def fitted_size(text: str, rect: Rect, size: float, font_id: str) -> float | Non
 def baseline(rect: Rect, size: float) -> float:
     """Where the value's baseline sits: just above the box's bottom edge, its line."""
     return rect[3] - max(BASELINE_MIN, size * BASELINE_RATIO)
+
+
+def left_edge(rect: Rect, text: str, size: float, font_id: str) -> float:
+    """Where the value starts: centred in its box (``ALIGN``). A value that had to shrink fills
+    the box's width, so it starts at the box's left edge."""
+    width = float(metrics(font_id).text_length(text, fontsize=size))
+    return rect[0] + max(0.0, (rect[2] - rect[0]) - width) / 2

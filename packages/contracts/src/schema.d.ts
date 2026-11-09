@@ -1487,6 +1487,8 @@ export interface components {
              * @enum {string}
              */
             filled_by: "role" | "sender" | "none";
+            /** Format */
+            format?: string | null;
             /**
              * Holds
              * @enum {string}
@@ -1530,6 +1532,8 @@ export interface components {
              * @enum {string}
              */
             filled_by: "role" | "sender" | "none";
+            /** Format */
+            format: string | null;
             /**
              * Holds
              * @enum {string}
@@ -1566,6 +1570,11 @@ export interface components {
         };
         /** FitRule */
         FitRule: {
+            /**
+             * Align
+             * @enum {string}
+             */
+            align: "left" | "center";
             /** Baseline Min */
             baseline_min: number;
             /** Baseline Ratio */
@@ -1630,6 +1639,8 @@ export interface components {
         /** FormField */
         FormField: {
             depends_on: components["schemas"]["Condition"] | null;
+            /** Format */
+            format: string | null;
             /** From Recipient */
             from_recipient: ("name" | "email") | null;
             /**
@@ -2474,6 +2485,53 @@ export interface components {
             /** Fields From */
             fields_from: ("form_fields" | "blanks" | "none") | null;
             flags: components["schemas"]["Flags"];
+            /**
+             * Formats
+             * @default {
+             *       "date": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "date_of_birth": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "date_signed": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "day": [
+             *         "D",
+             *         "Dth"
+             *       ],
+             *       "month": [
+             *         "Month",
+             *         "MM"
+             *       ],
+             *       "year": [
+             *         "YYYY",
+             *         "YY"
+             *       ]
+             *     }
+             */
+            formats: {
+                [key: string]: string[];
+            };
             /** Found Again Failed */
             found_again_failed?: string | null;
             /** Pending */

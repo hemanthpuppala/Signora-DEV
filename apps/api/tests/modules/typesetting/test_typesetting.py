@@ -10,6 +10,7 @@ from signora.modules.typesetting.fit import (
     MIN_SIZE,
     baseline,
     fitted_size,
+    left_edge,
     place_size,
 )
 from signora.modules.typesetting.fonts import font_path, metrics
@@ -54,3 +55,11 @@ def test_a_font_is_served_to_anyone_and_cached_for_good(client: TestClient) -> N
     assert served.headers["cache-control"] == "public, max-age=31536000, immutable"
     assert served.content == font_path(DEFAULT_FONT).read_bytes()
     assert client.get("/api/v1/fonts/comic-sans").status_code == 404
+
+
+def test_a_value_sits_in_the_middle_of_its_box_and_never_leaves_it() -> None:
+    box = (100.0, 0.0, 300.0, 14.0)
+    width = metrics(DEFAULT_FONT).text_length("26", fontsize=12)
+    assert left_edge(box, "26", 12, DEFAULT_FONT) == pytest.approx(100 + (200 - width) / 2)
+    long = "x" * 200  # wider than the box: drawn from its left edge (it had to shrink)
+    assert left_edge(box, long, 12, DEFAULT_FONT) == 100.0

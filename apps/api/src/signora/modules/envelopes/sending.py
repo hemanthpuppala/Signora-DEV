@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.modules.envelopes.form import Colleague, FormField, SendForm
-from signora.modules.review.formats import InvalidValueError, check_value
+from signora.modules.review.formats import InvalidValueError, check_value, written
 from signora.modules.typesetting import fitted_size, place_size
 
 MAX_COPIES = 10
@@ -116,12 +116,14 @@ MARKS = frozenset({"checkbox", "choice"})  # drawn as a tick, never as text
 
 
 def fits(item: FormField, value: str, font_id: str) -> bool:
-    """Whether a value can be drawn in every place of its field (Phase 7b): at the agreement's
-    text size, or smaller down to the smallest readable size. Marks are ticks, always fitting."""
+    """Whether a value can be drawn in every place of its field (Phase 7b), written as its field
+    writes it (7c): at the agreement's text size, or smaller down to the smallest readable size.
+    Marks are ticks, always fitting."""
     if item.holds in MARKS:
         return True
+    text = written(item.holds, value, item.format)
     return all(
-        fitted_size(value, place.rect, place_size(place.text_size, place.rect), font_id) is not None
+        fitted_size(text, place.rect, place_size(place.text_size, place.rect), font_id) is not None
         for place in item.places
     )
 

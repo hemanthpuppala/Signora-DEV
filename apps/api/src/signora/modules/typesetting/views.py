@@ -3,6 +3,8 @@ address, and the fit rule's numbers, so the browser measures with them and no ru
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 from signora.modules.typesetting import fit
@@ -21,6 +23,7 @@ class FitRule(BaseModel):
     fallback_cap: float
     baseline_ratio: float
     baseline_min: float
+    align: Literal["left", "center"]
 
 
 FIT_RULE = FitRule(
@@ -29,6 +32,7 @@ FIT_RULE = FitRule(
     fallback_cap=fit.FALLBACK_CAP,
     baseline_ratio=fit.BASELINE_RATIO,
     baseline_min=fit.BASELINE_MIN,
+    align=fit.ALIGN,
 )
 
 

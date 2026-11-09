@@ -56,6 +56,7 @@ class FormField(BaseModel):
     label: str
     holds: ManualHolds
     holds_label: str | None
+    format: str | None  # how a date or a part of one is written on the page (7c)
     party_id: uuid.UUID | None  # None: filled in before sending, or asked of nobody
     required: bool  # only the sender's own required fields: nobody else can fill them (§15.2)
     sensitive: bool
@@ -172,6 +173,7 @@ def build_form(
             label=field.label,
             holds=field.holds,
             holds_label=field.holds_label,
+            format=field.format,
             party_id=field.party_id if field.filled_by == "role" else None,
             required=field.filled_by == "sender" and field.required,
             from_recipient=from_recipient(field),

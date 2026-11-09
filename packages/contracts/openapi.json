@@ -1143,6 +1143,18 @@
             "title": "Filled By",
             "type": "string"
           },
+          "format": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
           "holds": {
             "enum": [
               "signature",
@@ -1302,6 +1314,17 @@
             "title": "Filled By",
             "type": "string"
           },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
           "holds": {
             "enum": [
               "signature",
@@ -1429,6 +1452,7 @@
           "label",
           "holds",
           "holds_label",
+          "format",
           "filled_by",
           "role",
           "party_id",
@@ -1444,6 +1468,14 @@
       },
       "FitRule": {
         "properties": {
+          "align": {
+            "enum": [
+              "left",
+              "center"
+            ],
+            "title": "Align",
+            "type": "string"
+          },
           "baseline_min": {
             "title": "Baseline Min",
             "type": "number"
@@ -1470,7 +1502,8 @@
           "fallback_ratio",
           "fallback_cap",
           "baseline_ratio",
-          "baseline_min"
+          "baseline_min",
+          "align"
         ],
         "title": "FitRule",
         "type": "object"
@@ -1575,6 +1608,17 @@
                 "type": "null"
               }
             ]
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
           },
           "from_recipient": {
             "anyOf": [
@@ -1690,6 +1734,7 @@
           "label",
           "holds",
           "holds_label",
+          "format",
           "party_id",
           "required",
           "sensitive",
@@ -3836,6 +3881,57 @@
           },
           "flags": {
             "$ref": "#/components/schemas/Flags"
+          },
+          "formats": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "default": {
+              "date": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "date_of_birth": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "date_signed": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "day": [
+                "D",
+                "Dth"
+              ],
+              "month": [
+                "Month",
+                "MM"
+              ],
+              "year": [
+                "YYYY",
+                "YY"
+              ]
+            },
+            "title": "Formats",
+            "type": "object"
           },
           "found_again_failed": {
             "anyOf": [
