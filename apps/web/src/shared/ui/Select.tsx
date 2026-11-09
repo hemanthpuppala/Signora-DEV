@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 
 import { cx } from "@/shared/lib/cx";
 
 import fieldStyles from "./field.module.css";
 import styles from "./select.module.css";
+
+const LIST_MAX_HEIGHT = 280;
+const noSubscription = () => () => {};
+const browserHasPopover = () => "showPopover" in HTMLElement.prototype;
 
 export type SelectOption = { value: string; label: string };
 
@@ -25,6 +29,10 @@ export type SelectProps = {
  * Select-only combobox (WAI-ARIA APG pattern): focus stays on the trigger, the highlighted option is
  * conveyed with ``aria-activedescendant``. Keys: ArrowDown/ArrowUp open and move, Home/End jump,
  * Enter/Space choose, Escape and Tab close.
+ *
+ * The open list sits above everything (the browser's top layer, as a manual popover) at the
+ * trigger's place, so a dialog or a scrolling panel never clips it; it opens upward when there is
+ * no room below, and follows the trigger while anything scrolls.
  */
 export function Select({
   label,
@@ -40,7 +48,12 @@ export function Select({
   const listId = `${id}-list`;
   const labelId = `${id}-label`;
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<CSSProperties>({});
+  // Known only in the browser (not on the server, nor in every test DOM): until then a plain list.
+  const canPop = useSyncExternalStore(noSubscription, browserHasPopover, () => false);
   const selectedIndex = options.findIndex((option) => option.value === value);
   const [active, setActive] = useState(Math.max(selectedIndex, 0));
 
@@ -52,6 +65,38 @@ export function Select({
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!open || !list) return undefined;
+    if (canPop && !list.matches(":popover-open")) list.showPopover();
+    const follow = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const at = trigger.getBoundingClientRect();
+      const gap = 6;
+      const edge = 16;
+      const below = window.innerHeight - at.bottom - gap - edge;
+      const above = at.top - gap - edge;
+      const wanted = Math.min(list.scrollHeight, LIST_MAX_HEIGHT);
+      const up = below < wanted && above > below;
+      const width = Math.max(at.width, list.offsetWidth);
+      setPlace({
+        left: Math.max(edge, Math.min(at.left, window.innerWidth - width - edge)),
+        minWidth: at.width,
+        maxHeight: Math.max(120, Math.min(LIST_MAX_HEIGHT, up ? above : below)),
+        ...(up ? { bottom: window.innerHeight - at.top + gap } : { top: at.bottom + gap }),
+      });
+    };
+    follow();
+    window.addEventListener("scroll", follow, true);
+    window.addEventListener("resize", follow);
+    return () => {
+      window.removeEventListener("scroll", follow, true);
+      window.removeEventListener("resize", follow);
+      if (canPop && list.matches(":popover-open")) list.hidePopover();
+    };
+  }, [open, canPop]);
 
   function openAt(index: number) {
     setActive(Math.min(Math.max(index, 0), options.length - 1));
@@ -119,6 +164,7 @@ export function Select({
       </span>
       <button
         type="button"
+        ref={triggerRef}
         role="combobox"
         className={styles.trigger}
         aria-labelledby={labelId}
@@ -137,7 +183,16 @@ export function Select({
           <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="1.6" />
         </svg>
       </button>
-      <ul id={listId} role="listbox" aria-labelledby={labelId} className={styles.list} hidden={!open}>
+      <ul
+        ref={listRef}
+        id={listId}
+        role="listbox"
+        aria-labelledby={labelId}
+        className={styles.list}
+        popover={canPop ? "manual" : undefined}
+        style={place}
+        hidden={!open}
+      >
         {options.map((option, index) => (
           <li
             key={option.value}
