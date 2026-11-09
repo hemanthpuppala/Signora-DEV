@@ -64,6 +64,11 @@ export function defaultSize(holds: Holds): [number, number] {
     case "date_signed":
     case "date":
       return [100, 20];
+    case "day":
+    case "year":
+      return [36, 20];
+    case "month":
+      return [80, 20];
     case "checkbox":
     case "choice":
       return [12, 12];

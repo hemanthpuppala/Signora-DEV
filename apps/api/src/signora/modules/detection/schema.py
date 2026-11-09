@@ -42,7 +42,9 @@ HOLDS_HELP = (
     "boxes when the form splits them. tax_id covers SSN, EIN and other tax numbers; bank_account "
     "covers account and routing numbers. amount_in_words is a sum written out ('____ dollars'); "
     "currency is the figure ('$____'). url is a web address. date_signed is the date next to a "
-    "signature recording when it was signed; date is any other date. text when nothing else fits."
+    "signature recording when it was signed; date is any other date in one box. day, month and "
+    "year are the parts of a date the form splits into separate boxes ('the __ day of ____, "
+    "20__'): one field per box, each holding its part. text when nothing else fits."
 )
 FILLED_BY_HELP = (
     "Who fills it. Exactly one of: a slug listed in roles, when that party fills it while signing; "

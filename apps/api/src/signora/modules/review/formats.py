@@ -24,6 +24,23 @@ _PHONE = re.compile(r"^\+?[0-9 ().-]{7,30}$")
 _URL = re.compile(r"^https://[^\s/$.?#][^\s]*$", re.IGNORECASE)
 
 
+# A month by its number or its English name, written back as the name ("12", "dec" -> "December").
+_MONTHS = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
+
+
 class InvalidValueError(ValueError):
     """A value its field cannot hold; the message says what to type, in plain words."""
 
@@ -59,6 +76,8 @@ def check_value(
             return date.fromisoformat(value).isoformat()
         except ValueError:
             raise InvalidValueError("Enter a date") from None
+    if holds in ("day", "month", "year"):
+        return _date_part(holds, value)
     if holds in _NUMBERS:
         try:
             number = Decimal(value.replace(",", "").removesuffix("%").strip())
@@ -83,3 +102,26 @@ def check_value(
             raise InvalidValueError("Enter a web address starting with https://")
         return value
     return value  # text, names, addresses, tax and bank numbers, notes, other
+
+
+def _date_part(holds: str, value: str) -> str:
+    """One part of a date split into boxes: a day 1-31, a month by number or name, a year.
+
+    A year keeps the digits given: four for a box of its own, two where the form prints "20__".
+    A month is stored as its name, which reads right in "the 9th day of ____"; its number is
+    accepted too.
+    """
+    if holds == "month":
+        if value.isdigit() and 1 <= int(value) <= 12:
+            return _MONTHS[int(value) - 1]
+        named = [m for m in _MONTHS if len(value) >= 3 and m.lower().startswith(value.lower())]
+        if len(named) != 1:
+            raise InvalidValueError("Enter a month")
+        return named[0]
+    if holds == "day":
+        if not value.isdigit() or not 1 <= int(value) <= 31:
+            raise InvalidValueError("Enter a day from 1 to 31")
+        return str(int(value))
+    if not value.isdigit() or len(value) not in (2, 4):
+        raise InvalidValueError("Enter a year: 2026, or 26 where the form prints 20")
+    return value

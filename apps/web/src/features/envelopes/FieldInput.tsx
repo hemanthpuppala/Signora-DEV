@@ -1,6 +1,6 @@
 "use client";
 
-import { Checkbox, Select, TextArea, TextField } from "@/shared/ui";
+import { Checkbox, Select, SmallText, TextArea, TextField } from "@/shared/ui";
 
 import type { FormField } from "./api";
 import styles from "./envelopes.module.css";
@@ -23,11 +23,26 @@ function inputType(holds: FormField["holds"]): string {
 }
 
 const NUMERIC = new Set<FormField["holds"]>(["number", "currency", "percent"]);
+const WHOLE = new Set<FormField["holds"]>(["day", "year"]);
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
 
 /**
- * One field of the document as an input of its type (Phase 7 §2): a date picker for a date, a
- * choice's own options, a checkbox, a note as a paragraph, text otherwise. The value is the text the
- * API takes (a checkbox "true", a choice its option's value); the server judges it (review.formats).
+ * One field of the document as an input of its type (Phase 7 §2): a date picker for a date; for a
+ * date split into boxes, the month by name and the day or year by number; a choice's own options,
+ * a checkbox, a note as a paragraph, text otherwise. The value is the text the API takes (a checkbox "true", a choice its option's value); the server judges it (review.formats).
  */
 export function FieldInput({
   field,
@@ -68,6 +83,21 @@ export function FieldInput({
       </div>
     );
   }
+  if (field.holds === "month") {
+    // A part of a date split into boxes: the month by name, as the agreement reads it.
+    return (
+      <div>
+        <Select
+          label={label}
+          options={[{ value: "", label: "Not chosen" }, ...MONTHS.map((m) => ({ value: m, label: m }))]}
+          value={value}
+          onChange={onChange}
+        />
+        {hint.hint ? <SmallText>{hint.hint}</SmallText> : null}
+        {error ? <p className={styles.error} role="alert">{error}</p> : null}
+      </div>
+    );
+  }
   if (field.holds === "note") {
     return <TextArea label={label} {...hint} maxLength={2000} value={value} error={error} onChange={(event) => onChange(event.target.value)} />;
   }
@@ -76,7 +106,8 @@ export function FieldInput({
       label={label}
       {...hint}
       type={inputType(field.holds)}
-      inputMode={NUMERIC.has(field.holds) ? "decimal" : undefined}
+      inputMode={NUMERIC.has(field.holds) ? "decimal" : WHOLE.has(field.holds) ? "numeric" : undefined}
+      {...(field.holds === "day" ? { placeholder: "1 to 31" } : field.holds === "year" ? { placeholder: "2026" } : {})}
       maxLength={2000}
       value={value}
       error={error}
