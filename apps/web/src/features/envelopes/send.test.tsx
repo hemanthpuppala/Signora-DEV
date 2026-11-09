@@ -23,7 +23,7 @@ const field = (id: string, label: string, holds: string, extra: Record<string, u
   sensitive: false,
   options: [],
   depends_on: null,
-  places: [{ page: 1, rect: [100, 100, 200, 120], option_value: null }],
+  places: [{ page: 1, rect: [100, 100, 200, 120], option_value: null, text_size: 10 }],
   from_recipient: null,
   ...extra,
 });
@@ -64,6 +64,8 @@ const FORM = {
     field("f-card", "Card", "text", { depends_on: { field_id: "f-plan", option: "Gold" } }),
   ],
   settings: { require_email_code: true, reminder_interval_hours: 24, max_reminders: 5, expiry_days: 14, notify_emails: [] },
+  font: { id: "liberation-sans", family: "Liberation Sans", url: "/api/v1/fonts/liberation-sans" },
+  fit: { min_size: 6, fallback_ratio: 0.72, fallback_cap: 11, baseline_ratio: 0.18, baseline_min: 1.5 },
 };
 
 const DOCUMENTS: SendableDocument[] = [
@@ -223,6 +225,26 @@ describe("the send", () => {
     await user.click(screen.getByRole("button", { name: "Send anyway" }));
     await waitFor(() => expect(onSent).toHaveBeenCalledWith({ id: "env-2" }));
     expect((sent[1]?.body as { confirm_same_person: boolean }).confirm_same_person).toBe(true);
+  });
+
+  it("says when a value is too long for its box, and holds Next until it fits", async () => {
+    // Every character half a point wide per point of size (the test DOM cannot measure text).
+    const measure = vi
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({ font: "", measureText: (t: string) => ({ width: t.length * 50 }) } as unknown as CanvasRenderingContext2D);
+    open({ initialDocumentId: "doc-1" });
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Effective date"), "2026-12-01");
+    // The company box is 100 pt wide: at 10 pt down to 6 pt, 33 characters fit, not 40.
+    await user.type(screen.getByLabelText("Client company"), "x".repeat(40));
+
+    expect(screen.getByText("Too long for its box")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.clear(screen.getByLabelText("Client company"));
+    await user.type(screen.getByLabelText("Client company"), "Chen Studio");
+    expect(screen.queryByText("Too long for its box")).toBeNull();
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(false);
+    measure.mockRestore();
   });
 
   it("asks before closing once something is filled in", async () => {

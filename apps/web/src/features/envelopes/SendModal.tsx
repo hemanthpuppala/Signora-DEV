@@ -27,6 +27,7 @@ import {
 import { useSendForm, type Envelope, type FormField, type SendForm, type SendRequest } from "./api";
 import styles from "./envelopes.module.css";
 import { FieldInput } from "./FieldInput";
+import { fitsEverywhere } from "./typeset";
 import { ValuesOverlay } from "./ValuesOverlay";
 
 const STEPS = ["Document", "Details", "Signers", "Countersigners", "Review"] as const;
@@ -148,6 +149,13 @@ export function SendModal({
   const effectiveTitle =
     title ?? (data ? (firstSigner?.name ? `${data.document_name} · ${firstSigner.name}` : data.document_name) : "");
 
+  /** A typed value wider than its box even at the smallest size (the server refuses it too). */
+  const tooLong = (f: FormField): boolean => {
+    const value = values[f.id]?.trim();
+    if (!data || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f, values)) return false;
+    return !fitsEverywhere(value, f.places, data.font, data.fit);
+  };
+
   /** Who signs as a party, as chosen so far: a signer typed in, or the countersigning colleague. */
   const personOf = (partyId: string): Person | undefined => {
     const signer = signers[partyId];
@@ -164,7 +172,8 @@ export function SendModal({
   const missing = (() => {
     if (!data) return step === DOCUMENT ? !documentId : true;
     if (step === DOCUMENT) return !documentId;
-    if (step === DETAILS) return data.fields.some((f) => f.required && asked(f, values) && !values[f.id]?.trim());
+    if (step === DETAILS)
+      return data.fields.some((f) => (f.required && asked(f, values) && !values[f.id]?.trim()) || tooLong(f));
     if (step === SIGNERS)
       return (
         data.signers.some((s) => !signers[s.party_id]?.name.trim() || !signers[s.party_id]?.email.trim()) ||
@@ -317,7 +326,7 @@ export function SendModal({
                           field={f}
                           markRequired={mixed}
                           value={values[f.id] ?? ""}
-                          error={fieldError(f.id)}
+                          error={fieldError(f.id) ?? (tooLong(f) ? "Too long for its box" : undefined)}
                           onChange={(value) => setValues((current) => ({ ...current, [f.id]: value }))}
                         />
                       ))}
@@ -445,6 +454,8 @@ export function SendModal({
                 <ValuesOverlay
                   page={page}
                   scale={scale}
+                  font={data.font}
+                  fit={data.fit}
                   shown={data.fields.flatMap((f) => {
                     if (f.from_recipient && f.party_id) {
                       const person = personOf(f.party_id);

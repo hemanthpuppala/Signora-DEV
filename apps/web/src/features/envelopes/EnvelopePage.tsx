@@ -240,6 +240,8 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
                     <ValuesOverlay
                       page={page}
                       scale={scale}
+                      font={data.font}
+                      fit={form.data.fit}
                       shown={[
                         ...data.values.flatMap((v) => {
                           const field = fields.get(v.field_id);
