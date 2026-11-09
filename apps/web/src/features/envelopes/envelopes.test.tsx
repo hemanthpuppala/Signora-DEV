@@ -59,6 +59,7 @@ const ENVELOPE = {
   sent_at: "2026-11-09T10:00:00Z",
   expires_at: "2026-11-23T10:00:00Z",
   cancelled_at: null,
+  require_email_code: true, // the envelope's own setting (Phase 7 §4)
   reminder_interval_hours: 24,
   max_reminders: 5,
   notify_emails: [],
@@ -152,6 +153,7 @@ describe("envelopes", () => {
     expect(screen.getByText("Email not delivered: mailbox full")).toBeTruthy();
     expect(screen.getByText("Emailed Ben Ode again")).toBeTruthy();
     expect(screen.getByText("Sent to 2 signers")).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Envelope" })).getByText("Email code on")).toBeTruthy();
 
     await user.click(within(rows[0] as HTMLElement).getByRole("button", { name: "Copy link" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://signora.example/s/abc"));
