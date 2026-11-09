@@ -81,7 +81,7 @@ def test_detection_makes_the_version_ready_with_its_fields(
     # 7 asked: the scripted AI gives both signatures to its one role, so they are one shared value.
     assert (version["status"], version["field_count"]) == ("ready", 6)
     after = owner.get(f"{DOCUMENTS}/{document_id}").json()
-    assert after["current_version"]["number"] == 1
+    assert after["current_version"] is None  # in review until approved (Phase 6 §1.3)
     assert after["name"] == "Client engagement letter"  # the upload's name, so the AI may rename
     assert after["description"].startswith("An engagement letter")
     row = _run_row(committing_db, version_id)

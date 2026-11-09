@@ -1,4 +1,5 @@
-"""Which version is current, and stored versions never change (Phase 4 LLD §4.2-4.3)."""
+"""Which version is current, and stored versions never change (Phase 4 LLD §4.2-4.3; Phase 6 §1.1,
+§1.3, §9.2): only an approved version can be current."""
 
 from __future__ import annotations
 
@@ -11,8 +12,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from signora.kernel.db import Database
-from signora.modules.documents import processing
-from signora.modules.documents.conversion import ConversionUnavailableError
 from tests.modules.documents.conftest import (
     Account,
     add_version,
@@ -21,10 +20,9 @@ from tests.modules.documents.conftest import (
     log_in,
     new_document,
 )
-from tests.support.files import docx_bytes, pdf_bytes, pdf_with_scan
+from tests.support.files import pdf_bytes
 
 DOCUMENTS = "/api/v1/documents"
-UNREACHABLE = "http://127.0.0.1:9"  # nothing listens: a passing outage
 
 
 def _document(api: TestClient, document_id: str) -> Any:
@@ -43,110 +41,113 @@ def _version_id(document: Any, number: int) -> str:
     return str(next(v["id"] for v in document["versions"] if v["number"] == number))
 
 
-def test_the_first_ready_version_becomes_current(
-    owner: TestClient, ready: Callable[..., None], committing_db: Database
+def test_a_version_becomes_current_when_approved_not_when_ready(
+    owner: TestClient,
+    ready: Callable[..., None],
+    approved: Callable[..., None],
+    committing_db: Database,
 ) -> None:
     department = create_department(owner)
     document = new_document(owner, department["id"], pdf_bytes()).json()
-    assert document["current_version"] is None
+    version_id = _version_id(document, 1)
 
-    ready(_version_id(document, 1))
+    ready(version_id)
+    in_review = _document(owner, document["id"])
+    assert in_review["current_version"] is None  # in review: nothing to send yet
+    assert in_review["versions"][0]["status"] == "ready"
 
+    approved(version_id)
     after = _document(owner, document["id"])
     assert after["current_version"]["number"] == 1
-    assert after["versions"][0]["is_current"] is True
+    assert after["versions"][0]["status"] == "approved"
+    assert after["versions"][0]["approved"]["by"]["id"]  # who approved, and when
+    assert after["versions"][0]["approved"]["at"]
     with committing_db.unit_of_work() as uow:
-        data = uow.session.execute(
+        actions = uow.session.execute(
             text(
-                "SELECT data FROM audit_events WHERE action = 'document.current_version_changed' "
-                "AND subject_id = :d"
+                "SELECT action, data FROM audit_events WHERE subject_id = :d "
+                "AND action IN ('document.version_approved', 'document.current_version_changed') "
+                "ORDER BY seq"
             ),
             {"d": document["id"]},
-        ).scalar_one()
-    assert (data["old"], data["new"], data["automatic"]) == (None, 1, True)
+        ).all()
+    assert [a.action for a in actions] == [
+        "document.version_approved",
+        "document.current_version_changed",
+    ]
+    assert (actions[1].data["old"], actions[1].data["new"]) == (None, 1)
 
 
-def test_the_latest_takes_over_when_ready_and_a_slower_older_one_never_does(
-    owner: TestClient, ready: Callable[..., None]
+def test_the_newest_approved_takes_over_and_an_older_one_approved_later_never_does(
+    owner: TestClient, ready: Callable[..., None], approved: Callable[..., None]
 ) -> None:
     department = create_department(owner)
     document = new_document(owner, department["id"], pdf_bytes(1)).json()
-    ready(_version_id(document, 1))
+    approved(_version_id(document, 1))
     add_version(owner, document["id"], pdf_bytes(2), department["id"])
     added = add_version(owner, document["id"], pdf_bytes(3), department["id"]).json()
+    ready(_version_id(added, 2))
 
-    assert added["current_version"]["number"] == 1  # versions 2 and 3 still processing
-    ready(_version_id(added, 3))
-    ready(_version_id(added, 2))  # finishes later, but is older
+    approved(_version_id(added, 3))
+    approved(_version_id(added, 2))  # approved later, but older
 
     assert _document(owner, document["id"])["current_version"]["number"] == 3
 
 
-def test_a_version_that_is_not_ready_never_becomes_current(
-    owner: TestClient, ready: Callable[..., None]
-) -> None:
-    department = create_department(owner)
-    document = new_document(owner, department["id"], pdf_bytes(1)).json()
-    ready(_version_id(document, 1))
-    added = add_version(owner, document["id"], pdf_with_scan([1]), department["id"]).json()
-    ready(_version_id(added, 2))
-
-    after = _document(owner, document["id"])
-    assert after["current_version"]["number"] == 1
-    refused = _make_current(owner, document["id"], _version_id(added, 2))
-    assert (refused.status_code, refused.json()["code"]) == (409, "version-not-ready")
-
-
-def test_an_older_version_ready_after_try_again_never_overrides_a_choice(
-    owner: TestClient, ready: Callable[..., None]
-) -> None:
-    department = create_department(owner)
-    document = new_document(owner, department["id"], pdf_bytes(1)).json()
-    ready(_version_id(document, 1))
-    add_version(owner, document["id"], docx_bytes(), department["id"])
-    added = add_version(owner, document["id"], pdf_bytes(3), department["id"]).json()
-    second = _version_id(added, 2)
-    with pytest.raises(ConversionUnavailableError):  # version 2 fails for good: Try again offered
-        ready(second, attempt=processing.MAX_ATTEMPTS, gotenberg_url=UNREACHABLE)
-    ready(_version_id(added, 3))
-    _make_current(owner, document["id"], _version_id(added, 1))  # a person picks version 1
-
-    retried = owner.post(
-        f"{DOCUMENTS}/{document['id']}/versions/{second}/retry", headers=csrf_headers(owner)
-    )
-    assert retried.status_code == 200, retried.text
-    ready(second)
-
-    after = _document(owner, document["id"])
-    assert next(v for v in after["versions"] if v["number"] == 2)["status"] == "ready"
-    assert after["current_version"]["number"] == 1
-
-
-def test_any_ready_version_can_be_made_current_until_a_newer_one_is_ready(
+def test_only_an_approved_version_can_be_made_current(
     owner: TestClient,
     ready: Callable[..., None],
+    approved: Callable[..., None],
     make_client: Callable[..., TestClient],
     company: Account,
     add_member: Callable[..., Account],
 ) -> None:
     department = create_department(owner)
     document = new_document(owner, department["id"], pdf_bytes(1)).json()
-    ready(_version_id(document, 1))
+    approved(_version_id(document, 1))
     second = add_version(owner, document["id"], pdf_bytes(2), department["id"]).json()
     ready(_version_id(second, 2))
 
+    refused = _make_current(owner, document["id"], _version_id(second, 2))
+    assert (refused.status_code, refused.json()["code"]) == (409, "version-not-ready")
+
+    approved(_version_id(second, 2))
     chosen = _make_current(owner, document["id"], _version_id(second, 1))
     again = _make_current(owner, document["id"], _version_id(second, 1))  # repeat-safe
-
     assert chosen.json()["current_version"]["number"] == 1
     assert again.status_code == 200
     viewer = add_member(company, role="read")
     with make_client() as theirs:
         log_in(theirs, viewer.email)
         assert _make_current(theirs, document["id"], _version_id(second, 2)).status_code == 403
+
     third = add_version(owner, document["id"], pdf_bytes(3), department["id"]).json()
-    ready(_version_id(third, 3))
+    approved(_version_id(third, 3))  # a newer approval takes over a choice
     assert _document(owner, document["id"])["current_version"]["number"] == 3
+
+
+def test_an_approved_versions_fields_are_frozen_and_not_found_again(
+    owner: TestClient, approved: Callable[..., None], committing_db: Database
+) -> None:
+    department = create_department(owner)
+    document = new_document(owner, department["id"], pdf_bytes()).json()
+    version_id = _version_id(document, 1)
+    approved(version_id)
+
+    with pytest.raises(sqlalchemy.exc.DBAPIError), committing_db.unit_of_work() as uow:
+        uow.session.execute(
+            text(
+                "INSERT INTO version_roles (workspace_id, version_id, slug, label, kind, position) "
+                "SELECT workspace_id, id, 'client', 'Client', 'signer', 1 FROM document_versions "
+                "WHERE id = :v"
+            ),
+            {"v": version_id},
+        )
+    again = owner.post(
+        f"{DOCUMENTS}/{document['id']}/versions/{version_id}/detection",
+        headers=csrf_headers(owner),
+    )
+    assert (again.status_code, again.json()["code"]) == (409, "fields-approved")
 
 
 def test_stored_versions_never_change_in_the_database(
@@ -167,6 +168,6 @@ def test_stored_versions_never_change_in_the_database(
             uow.session.execute(text(statement), {"id": version_id})
     with committing_db.unit_of_work() as uow:  # what may change still can
         uow.session.execute(
-            text("UPDATE document_versions SET ai_description = 'A letter' WHERE id = :id"),
+            text("UPDATE document_versions SET description = 'A letter' WHERE id = :id"),
             {"id": version_id},
         )

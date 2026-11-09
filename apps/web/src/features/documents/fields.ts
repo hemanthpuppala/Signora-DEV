@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, unwrap } from "@/shared/api/client";
 
-import { processingInterval, type Version } from "./api";
+import { hasWorkingCopy, processingInterval, type Version } from "./api";
 
 
 export const fieldsKey = (versionId: string, status: string) => ["fields", versionId, status] as const;
@@ -17,7 +17,7 @@ export const fieldsKey = (versionId: string, status: string) => ["fields", versi
 export function useVersionFields(documentId: string, version: Version | undefined) {
   return useQuery({
     queryKey: fieldsKey(version?.id ?? "", version?.status ?? ""),
-    enabled: version !== undefined && (version.status === "detecting" || version.status === "ready"),
+    enabled: version !== undefined && hasWorkingCopy(version.status),
     queryFn: () =>
       unwrap(
         api.GET("/api/v1/documents/{document_id}/versions/{version_id}/fields", {

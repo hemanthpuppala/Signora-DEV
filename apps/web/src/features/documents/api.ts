@@ -27,9 +27,9 @@ export function isWorking(status: VersionStatus): boolean {
   return status === "processing" || status === "detecting";
 }
 
-/** Its working copy exists, so it can be shown while its fields are found and after. */
+/** Its working copy exists, so it can be shown while its fields are found, in review and approved. */
 export function hasWorkingCopy(status: VersionStatus): boolean {
-  return status === "detecting" || status === "ready";
+  return status === "detecting" || status === "ready" || status === "approved";
 }
 
 export function processingInterval(processingSince: readonly string[], now = Date.now()): number | false {

@@ -190,7 +190,7 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
               onCancel={newVersion.cancel}
             />
           ) : null}
-          {newest && newest.status !== "ready" ? (
+          {newest && newest.status !== "ready" && newest.status !== "approved" ? (
             <VersionState document={data} version={newest} canEdit={canEdit} />
           ) : null}
           {shown ? (

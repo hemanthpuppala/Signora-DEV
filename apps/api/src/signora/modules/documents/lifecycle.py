@@ -25,7 +25,7 @@ from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import normalize_name
 from signora.modules.documents.current import promote_if_newest
 from signora.modules.documents.domain import DESCRIPTION_MAX, DETECTION_FAILURE_CODES, NAME_MAX
-from signora.modules.documents.errors import VersionNotProcessed
+from signora.modules.documents.errors import FieldsApproved, VersionNotProcessed
 from signora.modules.documents.processing import publish_processed
 from signora.modules.documents.service import (
     audit,
@@ -124,6 +124,8 @@ def start_detection(
     version = changeable_version(session, actor, document_id, version_id)
     if version.status == "detecting":
         return "running"
+    if version.status == "approved":  # its fields are frozen (Phase 6 FR-R11)
+        raise FieldsApproved
     if version.status == "failed" and version.failure_code in DETECTION_FAILURE_CODES:
         mode: StartMode = "resume"
     elif version.status == "ready":
@@ -168,26 +170,47 @@ def finish_detection(
     name: str | None,
     description: str | None,
 ) -> bool:
-    """The version is ready (§1.2 store), with the name and description the AI wrote for it (none
-    when nothing was asked); it becomes current when no higher-numbered version is ready (Phase 4
-    §4.2). False when it was no longer detecting (nothing changed)."""
+    """The version is ready (§1.2 store): in review, with the name and description the AI wrote for
+    it (none when nothing was asked). It becomes current only once approved (Phase 6 §1.3). False
+    when it was no longer detecting (nothing changed)."""
     changed = uow.session.execute(
         text(
-            "UPDATE document_versions SET status = 'ready', field_count = :n, ai_name = :name, "
-            "ai_description = :description WHERE id = :id AND status = 'detecting' RETURNING id"
+            "UPDATE document_versions SET status = 'ready', field_count = :n, name = :name, "
+            "description = :description WHERE id = :id AND status = 'detecting' RETURNING id"
         ),
         {"id": version.id, "n": field_count, "name": name, "description": description},
     ).one_or_none()
-    if changed is None:
+    return changed is not None
+
+
+def approve_version(
+    uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+) -> bool:
+    """Approve a version in review (Phase 6 §1.3): frozen and sendable, recorded with who approved
+    and when; it becomes current when no higher-numbered version is approved (§4.2's rule, now over
+    approved versions). False when it was not in review (nothing changed); the caller checks the
+    revision and access first."""
+    session = uow.session
+    approved = session.execute(
+        text(
+            "UPDATE document_versions SET status = 'approved', approved_by = :by, "
+            "approved_at = now() WHERE id = :id AND document_id = :d AND status = 'ready' "
+            "RETURNING version_no"
+        ),
+        {"id": version_id, "d": document_id, "by": actor.user_id},
+    ).scalar_one_or_none()
+    if approved is None:
         return False
-    promotion = promote_if_newest(uow.session, version.document_id, version.id, version.version_no)
+    audit(uow, actor, "document.version_approved", document_id, version_no=approved)
+    promotion = promote_if_newest(session, document_id, version_id, approved)
     if promotion.promoted:
-        _system_audit(
+        audit(
             uow,
-            version,
+            actor,
             "document.current_version_changed",
+            document_id,
             old=promotion.previous,
-            new=version.version_no,
+            new=approved,
             automatic=True,
         )
     return True

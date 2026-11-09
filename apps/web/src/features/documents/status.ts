@@ -9,5 +9,6 @@ export const VERSION_STATUS: Record<VersionStatus, { pill: Status; label: string
   needs_ocr: { pill: "expired", label: "Scanned pages" },
   failed: { pill: "declined", label: "Failed" },
   detecting: { pill: "pending", label: "Finding fields" },
-  ready: { pill: "completed", label: "Ready" },
+  ready: { pill: "viewed", label: "Needs approval" }, // in review (Phase 6 §1.1)
+  approved: { pill: "completed", label: "Approved" },
 };

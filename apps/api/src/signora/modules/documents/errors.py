@@ -61,7 +61,12 @@ class WrongPassword(DomainError):
 
 class VersionNotReady(Conflict):
     code = "version-not-ready"
-    title = "Only a ready version can be made current"
+    title = "Only an approved version can be made current"
+
+
+class FieldsApproved(Conflict):
+    code = "fields-approved"
+    title = "This version is approved: its fields are frozen. Edit it to make a new version"
 
 
 class VersionNotProcessed(Conflict):

@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    DateTime,
     Float,
     ForeignKeyConstraint,
     Index,
@@ -16,9 +17,10 @@ from sqlalchemy import (
     Table,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from signora.kernel.db import metadata
 
@@ -31,9 +33,13 @@ version_roles = Table(
     Column("version_id", UUID(as_uuid=True), nullable=False),
     Column("slug", Text, nullable=False),
     Column("label", Text, nullable=False),
-    Column("kind", Text, nullable=False),
+    Column("kind", Text, nullable=False),  # how it signs
+    Column("kind_label", Text),  # the typed text of an Other kind: "Witness" (Phase 6 §3)
     Column("position", Integer, nullable=False),
     CheckConstraint("kind IN ('signer', 'countersigner')", name="kind_known"),
+    CheckConstraint(
+        "kind_label IS NULL OR char_length(kind_label) BETWEEN 1 AND 40", name="kind_label_length"
+    ),
     UniqueConstraint("version_id", "slug"),
     UniqueConstraint("id", "version_id"),
     ForeignKeyConstraint(
@@ -51,7 +57,8 @@ version_fields = Table(
     Column("version_id", UUID(as_uuid=True), nullable=False),
     Column("key", Text, nullable=False),
     Column("label", Text, nullable=False),
-    Column("holds", Text, nullable=False),
+    Column("holds", Text, nullable=False),  # the manual layer of review.values (Phase 6 §4.1)
+    Column("holds_label", Text),  # the typed text of an Other type
     Column("filled_by", Text, nullable=False),
     Column("role_id", UUID(as_uuid=True)),
     Column("required", Boolean, nullable=False),
@@ -62,6 +69,11 @@ version_fields = Table(
     Column("origin", Text, nullable=False),
     CheckConstraint("filled_by IN ('role', 'sender', 'none')", name="filled_by_known"),
     CheckConstraint("origin IN ('detected', 'added')", name="origin_known"),
+    CheckConstraint(
+        "(holds = 'other') = (holds_label IS NOT NULL) "
+        "AND (holds_label IS NULL OR char_length(holds_label) BETWEEN 1 AND 60)",
+        name="holds_label_when_other",
+    ),
     CheckConstraint(
         "(filled_by = 'role') = (role_id IS NOT NULL)", name="role_when_filled_by_role"
     ),
@@ -114,4 +126,52 @@ field_placements = Table(
     ),
     Index("ix_field_placements_version_id", "version_id"),
     Index("ix_field_placements_field_id", "field_id"),
+)
+
+# A version's review: its revision (one per Save, Phase 6 §1.6) and, at approval, the warnings
+# accepted.
+version_reviews = Table(
+    "version_reviews",
+    metadata,
+    Column("version_id", UUID(as_uuid=True), primary_key=True),
+    Column("workspace_id", UUID(as_uuid=True), nullable=False),
+    Column("revision", Integer, nullable=False, server_default=text("0")),
+    Column("accepted", JSONB),
+    Column("updated_by", UUID(as_uuid=True)),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("revision >= 0", name="revision_positive"),
+    ForeignKeyConstraint(
+        ["version_id", "workspace_id"],
+        ["document_versions.id", "document_versions.workspace_id"],
+    ),
+    ForeignKeyConstraint(["updated_by", "workspace_id"], ["users.id", "users.workspace_id"]),
+)
+
+# How close the AI came, measured when a version is approved (Phase 6 §1.5).
+review_metrics = Table(
+    "review_metrics",
+    metadata,
+    Column("version_id", UUID(as_uuid=True), primary_key=True),
+    Column("workspace_id", UUID(as_uuid=True), nullable=False),
+    Column("baseline_version_id", UUID(as_uuid=True), nullable=False),  # whose AI proposal
+    Column("true_positives", Integer, nullable=False),
+    Column("false_positives", Integer, nullable=False),
+    Column("false_negatives", Integer, nullable=False),
+    Column("precision", Float),
+    Column("recall", Float),
+    Column("f1", Float),
+    Column("relabelled", Integer, nullable=False),
+    Column("retyped", Integer, nullable=False),
+    Column("reassigned", Integer, nullable=False),
+    Column("flags_accepted", Integer, nullable=False),
+    Column("mean_iou", Float),
+    Column("computed_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    ForeignKeyConstraint(
+        ["version_id", "workspace_id"],
+        ["document_versions.id", "document_versions.workspace_id"],
+    ),
+    ForeignKeyConstraint(
+        ["baseline_version_id", "workspace_id"],
+        ["document_versions.id", "document_versions.workspace_id"],
+    ),
 )

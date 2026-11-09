@@ -28,6 +28,7 @@ from tests.modules.identity_access.conftest import (  # noqa: F401 - fixtures by
     make_client,
     make_workspace,
 )
+from tests.support.actors import actor_for
 
 __all__ = ["Account", "csrf_headers", "idempotency_key", "log_in"]
 
@@ -144,5 +145,28 @@ def ready(run: Callable[..., None], committing_db: Database) -> Callable[..., No
             version = lifecycle.version_for_detection(uow.session, uuid.UUID(version_id))
             if version is not None and version.status == "detecting":
                 lifecycle.finish_detection(uow, version, field_count=0, name=None, description=None)
+
+    return go
+
+
+@pytest.fixture
+def approved(
+    ready: Callable[..., None], committing_db: Database, company: Account
+) -> Callable[..., None]:
+    """Make a version ready, then approve it as the owner (Phase 6 §1.3): for tests of what
+    happens once it is approved (current version, frozen fields)."""
+
+    def go(version_id: str, **options: Any) -> None:
+        ready(version_id, **options)
+        with committing_db.unit_of_work() as uow:
+            document_id = uow.session.execute(
+                text("SELECT document_id FROM document_versions WHERE id = :v"), {"v": version_id}
+            ).scalar_one()
+            lifecycle.approve_version(
+                uow,
+                actor=actor_for(committing_db, company),
+                document_id=document_id,
+                version_id=uuid.UUID(version_id),
+            )
 
     return go

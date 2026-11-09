@@ -803,6 +803,15 @@ export interface components {
              */
             upload_id: string;
         };
+        /** Approval */
+        Approval: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["PersonRef"];
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */
@@ -1237,7 +1246,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready";
+            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready" | "approved";
         };
         /** LoginRequest */
         LoginRequest: {
@@ -1560,7 +1569,7 @@ export interface components {
             /** Pending */
             pending: components["schemas"]["PendingField"][];
             /** Roles */
-            roles: components["schemas"]["signora__modules__detection__routes__RoleView"][];
+            roles: components["schemas"]["signora__modules__review__views__RoleView"][];
             /** Stage */
             stage: ("read" | "ai" | "derive" | "store" | "done") | null;
             /** Status */
@@ -1580,6 +1589,7 @@ export interface components {
         VersionView: {
             /** Ai Instructions */
             ai_instructions: string;
+            approved: components["schemas"]["Approval"] | null;
             /** Bytes */
             bytes: number;
             /**
@@ -1587,6 +1597,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Derived From */
+            derived_from: number | null;
             /** Description */
             description: string | null;
             /** Field Count */
@@ -1622,7 +1634,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready";
+            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready" | "approved";
             uploaded_by: components["schemas"]["PersonRef"];
         };
         /** WorkspaceView */
@@ -1634,22 +1646,6 @@ export interface components {
             id: string;
             /** Name */
             name: string;
-        };
-        /** RoleView */
-        signora__modules__detection__routes__RoleView: {
-            /** Field Count */
-            field_count: number;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "signer" | "countersigner";
-            /** Label */
-            label: string;
-            /** Position */
-            position: number;
-            /** Slug */
-            slug: string;
         };
         /** RoleView */
         signora__modules__identity_access__routes__schemas__RoleView: {
@@ -1664,6 +1660,22 @@ export interface components {
             key: string;
             /** Name */
             name: string;
+        };
+        /** RoleView */
+        signora__modules__review__views__RoleView: {
+            /** Field Count */
+            field_count: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signer" | "countersigner";
+            /** Label */
+            label: string;
+            /** Position */
+            position: number;
+            /** Slug */
+            slug: string;
         };
     };
     responses: never;

@@ -501,7 +501,7 @@ approve, edit the approved version (the next version), approve it, and see curre
 |---|---|---|---|
 | 6.1 | This design | done | this document |
 | 6.2 | `review` module: tables moved, `replace_fields` handoff, keys moved, import contracts | done | `review/models.py` (the three tables, unchanged), `proposal.py` (detection's handoff as plain data), `store.py` (`replace_fields`, `read_set`), `views.py`, `keys.py` (pure, from derive); detection's `write_fields` maps its result to a proposal; import contracts: review protected, review never imports detection, documents never imports review, `review.keys` pure. No behaviour change: detection, documents and kernel tests pass (249) |
-| 6.3 | Migration `0018_review` and the integrity trigger | todo | — |
+| 6.3 | Migration `0018_review` and the integrity trigger | done | `0018_review.py` (§9.3) and the models; `documents.lifecycle.approve_version` (current = newest approved; `finish_detection` no longer promotes; Make current approved only; Find fields again `409 fields-approved`); the API exposes `approved`, `derived_from`, `name`, `description`; the list falls back to the newest version's file facts; web: "Needs approval" and "Approved". Tests: migration data and downgrade, the trigger, current version rules rewritten for approval (5), shared `tests/support/actors.py` |
 | 6.4 | Values in two layers, `url` for the AI, contract enums | todo | — |
 | 6.5 | Warnings | todo | — |
 | 6.6 | Save: validation, shared values, changes, audit | todo | — |

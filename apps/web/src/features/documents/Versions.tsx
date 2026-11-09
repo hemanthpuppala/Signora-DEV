@@ -62,7 +62,7 @@ export function Versions({
           const status = VERSION_STATUS[version.status];
           const pages = version.page_count === null ? null : `${version.page_count} ${version.page_count === 1 ? "page" : "pages"}`;
           const fieldCount =
-            version.status === "ready" && version.field_count !== null
+            (version.status === "ready" || version.status === "approved") && version.field_count !== null
               ? `${version.field_count} ${version.field_count === 1 ? "field" : "fields"}`
               : null;
           return (
@@ -101,7 +101,7 @@ export function Versions({
                     Find fields again
                   </button>
                 ) : null}
-                {canEdit && version.status === "ready" && !version.is_current ? (
+                {canEdit && version.status === "approved" && !version.is_current ? (
                   <span className={styles.actionEnd}>
                     <IconButton icon="star" label="Make current" onClick={() => setConfirming(version)} />
                   </span>
@@ -124,7 +124,7 @@ export function Versions({
             </>
           }
         >
-          New sends will use it. A newer upload takes over again once it is ready.
+          New sends will use it. A newer version takes over again once it is approved.
           {makeCurrent.error ? <Notice tone="warning">{formError(makeCurrent.error)}</Notice> : null}
         </Dialog>
       ) : null}

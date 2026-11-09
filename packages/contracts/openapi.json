@@ -67,6 +67,24 @@
         "title": "AddVersion",
         "type": "object"
       },
+      "Approval": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "$ref": "#/components/schemas/PersonRef"
+          }
+        },
+        "required": [
+          "by",
+          "at"
+        ],
+        "title": "Approval",
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1038,7 +1056,8 @@
               "needs_ocr",
               "failed",
               "detecting",
-              "ready"
+              "ready",
+              "approved"
             ],
             "title": "Status",
             "type": "string"
@@ -1956,7 +1975,7 @@
           },
           "roles": {
             "items": {
-              "$ref": "#/components/schemas/signora__modules__detection__routes__RoleView"
+              "$ref": "#/components/schemas/signora__modules__review__views__RoleView"
             },
             "title": "Roles",
             "type": "array"
@@ -2021,6 +2040,16 @@
             "title": "Ai Instructions",
             "type": "string"
           },
+          "approved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Approval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "bytes": {
             "title": "Bytes",
             "type": "integer"
@@ -2029,6 +2058,17 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "derived_from": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Derived From"
           },
           "description": {
             "anyOf": [
@@ -2142,7 +2182,8 @@
               "needs_ocr",
               "failed",
               "detecting",
-              "ready"
+              "ready",
+              "approved"
             ],
             "title": "Status",
             "type": "string"
@@ -2169,6 +2210,8 @@
           "field_count",
           "name",
           "description",
+          "derived_from",
+          "approved",
           "is_current"
         ],
         "title": "VersionView",
@@ -2193,7 +2236,36 @@
         "title": "WorkspaceView",
         "type": "object"
       },
-      "signora__modules__detection__routes__RoleView": {
+      "signora__modules__identity_access__routes__schemas__RoleView": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "description"
+        ],
+        "title": "RoleView",
+        "type": "object"
+      },
+      "signora__modules__review__views__RoleView": {
         "properties": {
           "field_count": {
             "title": "Field Count",
@@ -2226,35 +2298,6 @@
           "kind",
           "position",
           "field_count"
-        ],
-        "title": "RoleView",
-        "type": "object"
-      },
-      "signora__modules__identity_access__routes__schemas__RoleView": {
-        "properties": {
-          "description": {
-            "title": "Description",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "key",
-          "name",
-          "description"
         ],
         "title": "RoleView",
         "type": "object"

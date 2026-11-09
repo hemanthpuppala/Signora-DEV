@@ -27,7 +27,7 @@ def _facts(db: Database, version_id: str) -> lifecycle.VersionForDetection:
     return found
 
 
-def test_processing_leaves_a_version_detecting_and_detection_makes_it_ready_and_current(
+def test_processing_leaves_a_version_detecting_and_detection_makes_it_ready_for_review(
     owner: TestClient, run: Callable[..., None], committing_db: Database
 ) -> None:
     department = create_department(owner)
@@ -48,7 +48,7 @@ def test_processing_leaves_a_version_detecting_and_detection_makes_it_ready_and_
     after = owner.get(f"{DOCUMENTS}/{document['id']}").json()
     assert (after["versions"][0]["status"], after["versions"][0]["field_count"]) == ("ready", 7)
     assert {k: after["versions"][0][k] for k in named} == named  # the version keeps the AI's words
-    assert after["current_version"]["number"] == 1
+    assert after["current_version"] is None  # in review: current once approved (Phase 6 §1.3)
     assert after["latest_version"]["field_count"] == 7
 
 

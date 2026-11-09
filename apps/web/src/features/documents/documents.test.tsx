@@ -133,7 +133,7 @@ describe("documents", () => {
     expect(within(letter).getByRole("link", { name: "Engagement letter" }).getAttribute("href")).toBe("/departments/d-1/documents/doc-1");
     expect(within(letter).getByText(/^PDF · 7 pages · 12 fields · updated /)).toBeTruthy();
     expect(within(letter).getByText("V2")).toBeTruthy();
-    expect(within(letter).getAllByText("Ready").length).toBeGreaterThan(0); // the dot's words
+    expect(within(letter).getAllByText("Needs approval").length).toBeGreaterThan(0); // the dot's words
     expect(within(letter).getByRole("link", { name: "Download original" })).toBeTruthy();
     const nda = within(list).getByRole("link", { name: "NDA" }).closest("li") as HTMLElement;
     expect(within(nda).getByText(/^Word → PDF · 1 page · updated /)).toBeTruthy();

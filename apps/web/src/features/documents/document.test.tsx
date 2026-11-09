@@ -37,9 +37,15 @@ const version = (number: number, overrides: Record<string, unknown> = {}) => ({
   field_count: 0,
   name: null,
   description: null,
+  derived_from: null,
+  approved: null,
   is_current: false,
   ...overrides,
 });
+
+const APPROVAL = { by: { id: "u", name: "Rosa Hale" }, at: "2026-11-08T10:00:00Z" };
+const approvedVersion = (number: number, overrides: Record<string, unknown> = {}) =>
+  version(number, { status: "approved", approved: APPROVAL, ...overrides });
 
 const documentWith = (versions: unknown[], overrides: Record<string, unknown> = {}) => ({
   id: "doc-1",
@@ -117,7 +123,7 @@ describe("document page", () => {
   const posts = (suffix: string) => sent.filter((r) => r.method !== "GET" && r.path.endsWith(suffix));
 
   it("shows the current version large, with every version beside it", async () => {
-    serve(READY);
+    serve(documentWith([approvedVersion(2, { is_current: true }), approvedVersion(1)]));
     open();
 
     expect(await screen.findByRole("heading", { name: "Engagement letter" })).toBeTruthy();
@@ -131,14 +137,17 @@ describe("document page", () => {
   });
 
   it("opens an older version and asks before making it current", async () => {
-    serve(READY, { "/current-version": () => reply(200, documentWith([version(2), version(1, { is_current: true })], { current_version: { id: "v-1", number: 1 } })) });
+    serve(documentWith([approvedVersion(2, { is_current: true }), approvedVersion(1)]), {
+      "/current-version": () =>
+        reply(200, documentWith([approvedVersion(2), approvedVersion(1, { is_current: true })], { current_version: { id: "v-1", number: 1 } })),
+    });
     open();
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Open" }));
     expect(screen.getByRole("region", { name: "Engagement letter, version 1" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Make current" }));
-    expect(screen.getByText("New sends will use it. A newer upload takes over again once it is ready.")).toBeTruthy();
+    expect(screen.getByText("New sends will use it. A newer version takes over again once it is approved.")).toBeTruthy();
     expect(posts("/current-version")).toHaveLength(0);
     // The dialog opens (showModal) in an effect: wait for it before using its buttons.
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Make current" }));

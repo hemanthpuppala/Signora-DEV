@@ -94,8 +94,9 @@ documents = Table(
     ),
 )
 
-# Each upload of a document: immutable once processed (topic 4). After processing it is detecting
-# (Phase 5 finds its fields), then ready.
+# Each version of a document: an upload, or an edit of an approved version (Phase 6 §1.2) sharing
+# its file. Immutable once processed (topic 4). After processing it is detecting (Phase 5 finds its
+# fields), then ready (in review), then approved (frozen, sendable; Phase 6).
 document_versions = Table(
     "document_versions",
     metadata,
@@ -122,24 +123,34 @@ document_versions = Table(
         server_default=text("'{}'::integer[]"),
     ),
     Column("ai_instructions", Text, nullable=False, server_default=text("''")),
-    Column("ai_name", Text),  # what the AI called this version (Phase 5 §6.5)
-    Column("ai_description", Text),
+    Column("name", Text),  # the AI's name for it, or "{source} - {n}" when edited (Phase 6 §1.2)
+    Column("description", Text),
+    Column(
+        "derived_from_version_id", UUID(as_uuid=True)
+    ),  # the approved version it was edited from
+    Column("approved_by", UUID(as_uuid=True)),
+    Column("approved_at", DateTime(timezone=True)),
     Column("uploaded_by", UUID(as_uuid=True), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("processed_at", DateTime(timezone=True)),
     Column("field_count", Integer),  # set when detection finishes (Phase 5 §6.5)
     CheckConstraint("version_no >= 1", name="version_positive"),
     CheckConstraint(
-        "status IN ('processing', 'needs_password', 'needs_ocr', 'failed', 'detecting', 'ready')",
+        "status IN ('processing', 'needs_password', 'needs_ocr', 'failed', 'detecting', 'ready', "
+        "'approved')",
         name="status_known",
     ),
     CheckConstraint("(status = 'failed') = (failure_code IS NOT NULL)", name="failure_when_failed"),
     CheckConstraint("source_kind IN ('pdf', 'docx')", name="source_kind_known"),
     CheckConstraint("char_length(ai_instructions) <= 1000", name="ai_instructions_length"),
     CheckConstraint(
-        "status NOT IN ('detecting', 'ready') "
+        "status NOT IN ('detecting', 'ready', 'approved') "
         "OR (pdf_sha256 IS NOT NULL AND page_count IS NOT NULL)",
         name="processed_has_pdf",
+    ),
+    CheckConstraint(
+        "(status = 'approved') = (approved_by IS NOT NULL AND approved_at IS NOT NULL)",
+        name="approved_is_recorded",
     ),
     UniqueConstraint("document_id", "version_no"),
     UniqueConstraint("id", "workspace_id"),
@@ -148,5 +159,10 @@ document_versions = Table(
         ["document_id", "workspace_id"], ["documents.id", "documents.workspace_id"]
     ),
     ForeignKeyConstraint(["uploaded_by", "workspace_id"], ["users.id", "users.workspace_id"]),
+    ForeignKeyConstraint(
+        ["derived_from_version_id", "document_id"],
+        ["document_versions.id", "document_versions.document_id"],
+    ),
+    ForeignKeyConstraint(["approved_by", "workspace_id"], ["users.id", "users.workspace_id"]),
     Index("ix_document_versions_source", "workspace_id", "source_sha256"),
 )
