@@ -207,8 +207,11 @@ Attachment (a file the signer uploads), stamp or seal, and calculated fields nee
   over through one public function, `review.replace_fields(version, result)`; review approves a version and creates
   an edited one through `documents.lifecycle` functions, as detection marks a version ready today. Dependencies run
   one way, detection → review → documents, enforced by the import contracts.
-- **Consequences**: detection keeps only its runs and its proposal (`detection_runs`); the fields endpoint moves to
-  `review`; review's rules have one home.
+- **Consequences**: detection keeps only its runs and its proposal (`detection_runs`); review's rules have one
+  home. The read endpoint (`GET …/fields`) stays in detection, because it joins detection's run state (stage,
+  places found so far, flags) with the stored set, read through `review.read_set`; review owns the editing
+  endpoints (save, revisions, approve). Review's pure helpers (`review.keys`, later `review.values`) are public
+  submodules, so detection's pure code imports them without the package's database half.
 
 ### 6.2 Endpoints
 
@@ -497,7 +500,7 @@ approve, edit the approved version (the next version), approve it, and see curre
 | # | Task | Status | Evidence |
 |---|---|---|---|
 | 6.1 | This design | done | this document |
-| 6.2 | `review` module: tables moved, `replace_fields` handoff, keys moved, import contracts | todo | — |
+| 6.2 | `review` module: tables moved, `replace_fields` handoff, keys moved, import contracts | done | `review/models.py` (the three tables, unchanged), `proposal.py` (detection's handoff as plain data), `store.py` (`replace_fields`, `read_set`), `views.py`, `keys.py` (pure, from derive); detection's `write_fields` maps its result to a proposal; import contracts: review protected, review never imports detection, documents never imports review, `review.keys` pure. No behaviour change: detection, documents and kernel tests pass (249) |
 | 6.3 | Migration `0018_review` and the integrity trigger | todo | — |
 | 6.4 | Values in two layers, `url` for the AI, contract enums | todo | — |
 | 6.5 | Warnings | todo | — |

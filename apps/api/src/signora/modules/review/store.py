@@ -1,0 +1,203 @@
+"""Reading and writing a version's parties, fields and places (Phase 6 LLD §9, §11).
+
+Each read and write is a constant number of statements over O(R + F + P) rows.
+"""
+
+from __future__ import annotations
+
+import json
+import uuid
+from typing import Any
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from signora.modules.review.proposal import Proposal
+from signora.modules.review.views import (
+    DependencyView,
+    FieldView,
+    PlacementView,
+    RoleView,
+    option_words,
+)
+
+
+def replace_fields(
+    session: Session, *, workspace_id: uuid.UUID, version_id: uuid.UUID, proposal: Proposal
+) -> None:
+    """Replace the version's parties, fields and places with a proposal (detection's handoff,
+    ADR-R1)."""
+    params = {"v": version_id}
+    session.execute(text("DELETE FROM version_fields WHERE version_id = :v"), params)
+    session.execute(text("DELETE FROM version_roles WHERE version_id = :v"), params)
+    party_ids: dict[str, uuid.UUID] = {}
+    if proposal.parties:
+        rows = session.execute(
+            text(
+                "INSERT INTO version_roles (workspace_id, version_id, slug, label, kind, position) "
+                "SELECT :w, :v, r.slug, r.label, r.kind, r.position FROM jsonb_to_recordset("
+                "CAST(:roles AS jsonb)) AS r(slug text, label text, kind text, position int) "
+                "RETURNING id, slug"
+            ),
+            {
+                "w": workspace_id,
+                "v": version_id,
+                "roles": json.dumps(
+                    [
+                        {"slug": p.slug, "label": p.label, "kind": p.kind, "position": p.position}
+                        for p in proposal.parties
+                    ]
+                ),
+            },
+        ).all()
+        party_ids = {row.slug: row.id for row in rows}
+    if not proposal.fields:
+        return
+    fields = [
+        {
+            "key": field.key,
+            "label": field.label,
+            "holds": field.holds,
+            "filled_by": field.filled_by,
+            "role_id": str(party_ids[field.party]) if field.party in party_ids else None,
+            "required": field.required,
+            "sensitive": field.sensitive,
+            "needs_review": field.needs_review,
+        }
+        for field in proposal.fields
+    ]
+    field_ids = {
+        row.key: row.id
+        for row in session.execute(
+            text(
+                "INSERT INTO version_fields (workspace_id, version_id, key, label, holds, "
+                "filled_by, role_id, required, sensitive, needs_review, origin) "
+                "SELECT :w, :v, f.key, f.label, f.holds, f.filled_by, f.role_id, f.required, "
+                "f.sensitive, f.needs_review, 'detected' FROM jsonb_to_recordset(CAST(:fields AS "
+                "jsonb)) AS f(key text, label text, holds text, filled_by text, role_id uuid, "
+                "required boolean, sensitive boolean, needs_review text) RETURNING id, key"
+            ),
+            {"w": workspace_id, "v": version_id, "fields": json.dumps(fields)},
+        )
+    }
+    dependencies = [
+        {
+            "id": str(field_ids[f.key]),
+            "on_id": str(field_ids[f.depends_on[0]]),
+            "option": f.depends_on[1],
+        }
+        for f in proposal.fields
+        if f.depends_on is not None and f.depends_on[0] in field_ids
+    ]
+    if dependencies:
+        session.execute(
+            text(
+                "UPDATE version_fields AS f SET depends_on_field_id = d.on_id, "
+                "depends_on_option = d.option FROM jsonb_to_recordset(CAST(:deps AS jsonb)) "
+                "AS d(id uuid, on_id uuid, option text) WHERE f.id = d.id"
+            ),
+            {"deps": json.dumps(dependencies)},
+        )
+    places = [
+        {
+            "field_id": str(field_ids[field.key]),
+            "page": place.page,
+            "x0": place.rect[0],
+            "y0": place.rect[1],
+            "x1": place.rect[2],
+            "y1": place.rect[3],
+            "kind": place.kind,
+            "pdf_field": place.pdf_field,
+            "option_value": place.option_value,
+            "option_text": place.option_text,
+        }
+        for field in proposal.fields
+        for place in field.places
+    ]
+    session.execute(
+        text(
+            "INSERT INTO field_placements (workspace_id, version_id, field_id, page, x0, y0, x1, "
+            "y1, kind, pdf_field, option_value, option_text) SELECT :w, :v, p.field_id, p.page, "
+            "p.x0, p.y0, p.x1, p.y1, p.kind, p.pdf_field, p.option_value, p.option_text FROM "
+            "jsonb_to_recordset(CAST(:places AS jsonb)) AS p(field_id uuid, page int, "
+            "x0 float8, y0 float8, x1 float8, y1 float8, kind text, pdf_field text, "
+            "option_value text, option_text text)"
+        ),
+        {"w": workspace_id, "v": version_id, "places": json.dumps(places)},
+    )
+
+
+def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], list[FieldView]]:
+    """A version's parties (with their field counts) and fields with their places, in reading
+    order: two indexed queries for the fields, one for the parties."""
+    fields: dict[uuid.UUID, dict[str, Any]] = {}
+    for row in session.execute(
+        text(
+            "SELECT f.id, f.key, f.label, f.holds, f.filled_by, r.slug AS role, f.required, "
+            "f.sensitive, d.key AS depends_key, f.depends_on_option, f.needs_review "
+            "FROM version_fields f LEFT JOIN version_roles r ON r.id = f.role_id "
+            "LEFT JOIN version_fields d ON d.id = f.depends_on_field_id "
+            "WHERE f.version_id = :v ORDER BY f.id"
+        ),
+        {"v": version_id},
+    ):
+        fields[row.id] = {
+            "id": row.id,
+            "key": row.key,
+            "label": row.label,
+            "holds": row.holds,
+            "filled_by": row.filled_by,
+            "role": row.role,
+            "required": row.required,
+            "sensitive": row.sensitive,
+            "depends_on": DependencyView(key=row.depends_key, option=row.depends_on_option)
+            if row.depends_key
+            else None,
+            "needs_review": row.needs_review,
+            "placements": [],
+        }
+    for row in session.execute(
+        text(
+            "SELECT field_id, page, x0, y0, x1, y1, kind, option_value, option_text "
+            "FROM field_placements WHERE version_id = :v ORDER BY page, y0, x0"
+        ),
+        {"v": version_id},
+    ):
+        fields[row.field_id]["placements"].append(
+            PlacementView(
+                page=row.page,
+                rect=(row.x0, row.y0, row.x1, row.y1),
+                kind=row.kind,
+                option_value=row.option_value,
+                option_text=option_words(row.option_text),
+            )
+        )
+    views = sorted(
+        (FieldView(**field) for field in fields.values()),
+        key=lambda f: (
+            (f.placements[0].page, f.placements[0].rect[1], f.placements[0].rect[0])
+            if f.placements
+            else (0, 0.0, 0.0)
+        ),
+    )
+    counts: dict[str, int] = {}
+    for view in views:
+        if view.role:
+            counts[view.role] = counts.get(view.role, 0) + 1
+    roles = [
+        RoleView(
+            slug=row.slug,
+            label=row.label,
+            kind=row.kind,
+            position=row.position,
+            field_count=counts.get(row.slug, 0),
+        )
+        for row in session.execute(
+            text(
+                "SELECT slug, label, kind, position FROM version_roles "
+                "WHERE version_id = :v ORDER BY position"
+            ),
+            {"v": version_id},
+        )
+    ]
+    return roles, views

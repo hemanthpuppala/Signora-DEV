@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import re
 import uuid
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import text
-from sqlalchemy.orm import Session
 
 from signora.kernel.db import Database
 from signora.kernel.errors import NotFound
@@ -22,10 +20,10 @@ from signora.modules.documents import (
     version_status,
 )
 from signora.modules.identity_access import Actor, current_actor
+from signora.modules.review import FieldView, PlacementView, RoleView, option_words, read_set
 
 router = APIRouter(prefix="/api/v1", tags=["detection"])
 Member = Annotated[Actor, Depends(current_actor)]
-EMBEDDED_FIELD = re.compile(r"\{f\d+(?:=[^{}]*)?\}")  # a field inside an option's words
 
 
 def _db(request: Request) -> Database:
@@ -33,48 +31,8 @@ def _db(request: Request) -> Database:
     return database
 
 
-def _option_words(text_: str | None) -> str | None:
-    """An option's own words for a person: a field inside them reads as "…"."""
-    return EMBEDDED_FIELD.sub("…", text_) if text_ else None
-
-
 class DetectionStarted(BaseModel):
     mode: Literal["resume", "restart", "running"]
-
-
-class RoleView(BaseModel):
-    slug: str
-    label: str
-    kind: Literal["signer", "countersigner"]
-    position: int
-    field_count: int
-
-
-class PlacementView(BaseModel):
-    page: int
-    rect: tuple[float, float, float, float]  # PDF points on the page as displayed
-    kind: str
-    option_value: str | None
-    option_text: str | None
-
-
-class DependencyView(BaseModel):
-    key: str
-    option: str
-
-
-class FieldView(BaseModel):
-    id: uuid.UUID
-    key: str
-    label: str
-    holds: str
-    filled_by: Literal["role", "sender", "none"]
-    role: str | None  # the role's slug when filled_by is "role"
-    required: bool
-    sensitive: bool
-    depends_on: DependencyView | None
-    needs_review: str | None
-    placements: list[PlacementView]
 
 
 class PendingField(BaseModel):
@@ -132,81 +90,6 @@ def run_detection_by_hand(
     return DetectionStarted(mode=mode)
 
 
-def _fields(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], list[FieldView]]:
-    """Two indexed queries, O(F + P) (§5.4)."""
-    fields: dict[uuid.UUID, dict[str, Any]] = {}
-    for row in session.execute(
-        text(
-            "SELECT f.id, f.key, f.label, f.holds, f.filled_by, r.slug AS role, f.required, "
-            "f.sensitive, d.key AS depends_key, f.depends_on_option, f.needs_review "
-            "FROM version_fields f LEFT JOIN version_roles r ON r.id = f.role_id "
-            "LEFT JOIN version_fields d ON d.id = f.depends_on_field_id "
-            "WHERE f.version_id = :v ORDER BY f.id"
-        ),
-        {"v": version_id},
-    ):
-        fields[row.id] = {
-            "id": row.id,
-            "key": row.key,
-            "label": row.label,
-            "holds": row.holds,
-            "filled_by": row.filled_by,
-            "role": row.role,
-            "required": row.required,
-            "sensitive": row.sensitive,
-            "depends_on": DependencyView(key=row.depends_key, option=row.depends_on_option)
-            if row.depends_key
-            else None,
-            "needs_review": row.needs_review,
-            "placements": [],
-        }
-    for row in session.execute(
-        text(
-            "SELECT field_id, page, x0, y0, x1, y1, kind, option_value, option_text "
-            "FROM field_placements WHERE version_id = :v ORDER BY page, y0, x0"
-        ),
-        {"v": version_id},
-    ):
-        fields[row.field_id]["placements"].append(
-            PlacementView(
-                page=row.page,
-                rect=(row.x0, row.y0, row.x1, row.y1),
-                kind=row.kind,
-                option_value=row.option_value,
-                option_text=_option_words(row.option_text),
-            )
-        )
-    views = sorted(
-        (FieldView(**field) for field in fields.values()),
-        key=lambda f: (
-            (f.placements[0].page, f.placements[0].rect[1], f.placements[0].rect[0])
-            if f.placements
-            else (0, 0.0, 0.0)
-        ),
-    )
-    counts: dict[str, int] = {}
-    for view in views:
-        if view.role:
-            counts[view.role] = counts.get(view.role, 0) + 1
-    roles = [
-        RoleView(
-            slug=row.slug,
-            label=row.label,
-            kind=row.kind,
-            position=row.position,
-            field_count=counts.get(row.slug, 0),
-        )
-        for row in session.execute(
-            text(
-                "SELECT slug, label, kind, position FROM version_roles "
-                "WHERE version_id = :v ORDER BY position"
-            ),
-            {"v": version_id},
-        )
-    ]
-    return roles, views
-
-
 def _pending(parsed: dict[str, Any] | None) -> list[PendingField]:
     """The read stage's places, to draw while the AI works (§6.3)."""
     if not parsed:
@@ -223,7 +106,7 @@ def _pending(parsed: dict[str, Any] | None) -> list[PendingField]:
                     rect=p.rect,
                     kind=field.kind,
                     option_value=p.value,
-                    option_text=_option_words(p.option_text),
+                    option_text=option_words(p.option_text),
                 )
                 for p in field.placements
             ],
@@ -250,7 +133,7 @@ def version_fields(
             ),
             {"v": version_id},
         ).one_or_none()
-        roles, fields = _fields(session, version_id) if state == "ready" else ([], [])
+        roles, fields = read_set(session, version_id) if state == "ready" else ([], [])
         pending = _pending(run.parsed) if run is not None and state == "detecting" else []
         found = (run.result or {}).get("flags", {}) if run is not None else {}
         flags = Flags(**{name: found[name] for name in Flags.model_fields if name in found})

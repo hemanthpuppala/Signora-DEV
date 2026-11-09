@@ -38,6 +38,13 @@ from signora.modules.documents import (
     finish_detection,
     version_for_detection,
 )
+from signora.modules.review import (
+    Proposal,
+    ProposedField,
+    ProposedParty,
+    ProposedPlace,
+    replace_fields,
+)
 
 log = get_logger("signora.detection")
 
@@ -371,100 +378,42 @@ def _store(
 
 
 def write_fields(session: Session, version: VersionForDetection, result: Result) -> None:
-    """Replace the version's roles, fields and placements with the result's: a constant number of
-    statements, O(F + P) rows (§5.4)."""
-    params = {"v": version.id}
-    session.execute(text("DELETE FROM version_fields WHERE version_id = :v"), params)
-    session.execute(text("DELETE FROM version_roles WHERE version_id = :v"), params)
-    role_ids: dict[str, uuid.UUID] = {}
-    if result.roles:
-        rows = session.execute(
-            text(
-                "INSERT INTO version_roles (workspace_id, version_id, slug, label, kind, position) "
-                "SELECT :w, :v, r.slug, r.label, r.kind, r.position FROM jsonb_to_recordset("
-                "CAST(:roles AS jsonb)) AS r(slug text, label text, kind text, position int) "
-                "RETURNING id, slug"
-            ),
-            {
-                "w": version.workspace_id,
-                "v": version.id,
-                "roles": json.dumps([role.model_dump() for role in result.roles]),
-            },
-        ).all()
-        role_ids = {row.slug: row.id for row in rows}
-    if not result.fields:
-        return
-    fields = [
-        {
-            "key": field.key,
-            "label": field.label,
-            "holds": field.holds,
-            "filled_by": field.filled_by,
-            "role_id": str(role_ids[field.role]) if field.role in role_ids else None,
-            "required": field.required,
-            "sensitive": field.sensitive,
-            "needs_review": field.needs_review,
-        }
-        for field in result.fields
-    ]
-    field_ids = {
-        row.key: row.id
-        for row in session.execute(
-            text(
-                "INSERT INTO version_fields (workspace_id, version_id, key, label, holds, "
-                "filled_by, role_id, required, sensitive, needs_review, origin) "
-                "SELECT :w, :v, f.key, f.label, f.holds, f.filled_by, f.role_id, f.required, "
-                "f.sensitive, f.needs_review, 'detected' FROM jsonb_to_recordset(CAST(:fields AS "
-                "jsonb)) AS f(key text, label text, holds text, filled_by text, role_id uuid, "
-                "required boolean, sensitive boolean, needs_review text) RETURNING id, key"
-            ),
-            {"w": version.workspace_id, "v": version.id, "fields": json.dumps(fields)},
-        )
-    }
-    dependencies = [
-        {
-            "id": str(field_ids[f.key]),
-            "on_id": str(field_ids[f.depends_on.key]),
-            "option": f.depends_on.option,
-        }
-        for f in result.fields
-        if f.depends_on is not None and f.depends_on.key in field_ids
-    ]
-    if dependencies:
-        session.execute(
-            text(
-                "UPDATE version_fields AS f SET depends_on_field_id = d.on_id, "
-                "depends_on_option = d.option FROM jsonb_to_recordset(CAST(:deps AS jsonb)) "
-                "AS d(id uuid, on_id uuid, option text) WHERE f.id = d.id"
-            ),
-            {"deps": json.dumps(dependencies)},
-        )
-    placements = [
-        {
-            "field_id": str(field_ids[field.key]),
-            "page": placement.page,
-            "x0": placement.rect[0],
-            "y0": placement.rect[1],
-            "x1": placement.rect[2],
-            "y1": placement.rect[3],
-            "kind": placement.kind,
-            "pdf_field": placement.pdf_field,
-            "option_value": placement.option_value,
-            "option_text": placement.option_text,
-        }
-        for field in result.fields
-        for placement in field.placements
-    ]
-    session.execute(
-        text(
-            "INSERT INTO field_placements (workspace_id, version_id, field_id, page, x0, y0, x1, "
-            "y1, kind, pdf_field, option_value, option_text) SELECT :w, :v, p.field_id, p.page, "
-            "p.x0, p.y0, p.x1, p.y1, p.kind, p.pdf_field, p.option_value, p.option_text FROM "
-            "jsonb_to_recordset(CAST(:placements AS jsonb)) AS p(field_id uuid, page int, "
-            "x0 float8, y0 float8, x1 float8, y1 float8, kind text, pdf_field text, "
-            "option_value text, option_text text)"
+    """Hand the result to review as the version's parties and fields (ADR-R1)."""
+    replace_fields(
+        session,
+        workspace_id=version.workspace_id,
+        version_id=version.id,
+        proposal=Proposal(
+            parties=[
+                ProposedParty(slug=r.slug, label=r.label, kind=r.kind, position=r.position)
+                for r in result.roles
+            ],
+            fields=[
+                ProposedField(
+                    key=f.key,
+                    label=f.label,
+                    holds=f.holds,
+                    filled_by=f.filled_by,
+                    party=f.role,
+                    required=f.required,
+                    sensitive=f.sensitive,
+                    needs_review=f.needs_review,
+                    depends_on=(f.depends_on.key, f.depends_on.option) if f.depends_on else None,
+                    places=[
+                        ProposedPlace(
+                            page=p.page,
+                            rect=p.rect,
+                            kind=p.kind,
+                            pdf_field=p.pdf_field,
+                            option_value=p.option_value,
+                            option_text=p.option_text,
+                        )
+                        for p in f.placements
+                    ],
+                )
+                for f in result.fields
+            ],
         ),
-        {"w": version.workspace_id, "v": version.id, "placements": json.dumps(placements)},
     )
 
 
