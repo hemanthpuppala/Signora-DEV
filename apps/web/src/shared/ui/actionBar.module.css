@@ -1,4 +1,5 @@
-/* A screen's state and actions on one sticky line (Phase 6 §7.1). */
+/* A screen's state and actions on one sticky line (Phase 6 §7.1). No outer margin: the page's own
+   gap between blocks spaces it, as it does every other block. */
 .bar {
   position: sticky;
   z-index: 2;
@@ -8,7 +9,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px 16px;
-  margin-bottom: var(--page-gap, 24px);
   box-sizing: border-box;
   min-height: var(--action-bar-height);
   padding: 10px 0;
