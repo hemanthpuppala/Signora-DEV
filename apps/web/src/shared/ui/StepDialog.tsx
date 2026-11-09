@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type CSSProperties, type ReactNode } from "react";
 
 import { cx } from "@/shared/lib/cx";
 
 import styles from "./stepDialog.module.css";
 
 /**
- * A task in a few steps, in one modal (Phase 7 §2: sending): a progress line at the top (numbered
- * steps; finished ones ticked; the current one marked for assistive technology too), one step's
+ * A task in a few steps, in one modal (Phase 7 §2: sending): a progress line at the top (a track
+ * of numbered stops, filled up to the current one; the current one marked for assistive technology too), one step's
  * content at a time with a subtle transition (none when the person asks for reduced motion), and
  * at the bottom Back and the step's own actions. On the native ``<dialog>`` like ``Dialog``: focus
  * stays inside, Esc asks ``onClose``.
@@ -65,15 +65,19 @@ export function StepDialog({
           ×
         </button>
       </div>
-      <ol className={styles.steps} aria-label="Steps">
+      <ol className={styles.steps} aria-label="Steps" style={{ "--steps": steps.length } as CSSProperties}>
         {steps.map((label, index) => {
           const done = index < current;
           const content = (
             <>
-              <span className={styles.number} aria-hidden="true">
-                {done ? "✓" : index + 1}
+              <span className={styles.node} aria-hidden="true" />
+              <span className={styles.meta}>
+                <span className={styles.number} aria-hidden="true">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className={styles.label}>{label}</span>
+                {done ? <span className={styles.doneText}>, done</span> : null}
               </span>
-              <span className={styles.label}>{label}</span>
             </>
           );
           return (

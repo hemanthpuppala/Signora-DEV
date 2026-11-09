@@ -49,67 +49,144 @@
   color: var(--ink);
 }
 
+/* The progress line: one track across the dialog, a stop per step, filled up to the current one. */
 .steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 20px;
+  display: grid;
+  grid-template-columns: repeat(var(--steps, 5), minmax(0, 1fr));
   margin: 0;
-  padding: 12px 28px 16px;
+  padding: 18px 28px 22px;
   border-bottom: 1px solid var(--sep);
   list-style: none;
 }
 
 .step {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
   color: var(--t55);
+}
+
+/* The track from this stop to the next. */
+.step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 21px;
+  right: 12px;
+  height: 1px;
+  background: var(--r15);
+  transition: background-color 0.3s ease;
+}
+
+.done:not(:last-child)::after {
+  background: var(--r40);
 }
 
 .stepButton {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 14px;
   padding: 0;
   border: 0;
   background: transparent;
   font: inherit;
   color: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.stepButton:hover .label {
-  color: var(--ink);
+.node {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--r40);
+  border-radius: 50%;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--r25);
-  font-size: 11px;
+  font: 400 10px/1 var(--mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  color: var(--t30);
+}
+
+.label {
+  overflow: hidden;
+  font: 400 10px/1.3 var(--sans);
+  letter-spacing: 0.24em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.2s ease;
 }
 
 .done {
   color: var(--t75);
 }
 
-.done .number {
-  border-color: var(--r40);
+.doneText {
+  composes: visuallyHidden from "./display.module.css"; /* the filled stop, said aloud */
+}
+
+.done .node {
+  border-color: var(--t75);
+  background: var(--t75);
+}
+
+.stepButton:hover .label,
+.stepButton:focus-visible .label {
+  color: var(--ink);
+}
+
+.stepButton:hover .node,
+.stepButton:focus-visible .node {
+  border-color: var(--ink);
+  background: var(--ink);
 }
 
 .current {
   color: var(--ink);
 }
 
-.current .number {
+.current .node {
   border-color: var(--ink);
   background: var(--ink);
-  color: var(--bg);
+  box-shadow: 0 0 0 4px var(--r15);
+}
+
+.current .number {
+  color: var(--t55);
+}
+
+/* On a phone the track keeps every stop, and only the current step is named. */
+@media (max-width: 559.98px) {
+  .step:not(.current) .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step::after,
+  .node,
+  .label {
+    transition: none;
+  }
 }
 
 .body {

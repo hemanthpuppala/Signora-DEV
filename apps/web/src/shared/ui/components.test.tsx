@@ -361,7 +361,7 @@ describe("InfoTip", () => {
 });
 
 describe("StepDialog", () => {
-  it("marks the current step, ticks the finished ones and goes back to them", async () => {
+  it("marks the current step and the finished ones and goes back to them", async () => {
     const onStep = vi.fn();
     render(
       <StepDialog title="New envelope" steps={["Document", "Details", "Review"]} current={1} onStep={onStep} onClose={vi.fn()} actions={null}>
@@ -371,7 +371,7 @@ describe("StepDialog", () => {
     const steps = screen.getByRole("list", { name: "Steps" });
     const items = steps.querySelectorAll("li");
     expect(items[1]).toHaveAttribute("aria-current", "step");
-    expect(items[0]).toHaveTextContent("✓Document");
+    expect(items[0]).toHaveTextContent("Document, done");
     await userEvent.click(screen.getByRole("button", { name: /Document/ }));
     expect(onStep).toHaveBeenCalledWith(0);
     expect(screen.queryByRole("button", { name: /Review/ })).toBeNull(); // later steps come by Next
