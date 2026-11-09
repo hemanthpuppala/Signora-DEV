@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { Children, isValidElement, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
 import { cx } from "@/shared/lib/cx";
 
@@ -13,7 +13,9 @@ const ROWS_BELOW = 2; // an open row shows with this many rows under it
  * A list of rows that open in place (field review's fields; later, an envelope's recipients).
  * ``scrollable``: the list scrolls inside itself, at most the design system's table height while
  * every row is closed; when one opens it comes to the top and the list is exactly as tall as that
- * row and the two under it (Phase 6 §7.1).
+ * row and the two under it (Phase 6 §7.1). It measures itself when the open row (read from its
+ * rows' ``expanded``) or the number of rows changes, not on every render: typing in the open row's
+ * form re-renders the list, and the row's own size is watched.
  */
 export function ExpandableList({
   label,
@@ -26,6 +28,10 @@ export function ExpandableList({
 }) {
   const ref = useRef<HTMLUListElement>(null);
   const shown = useRef<Element | null>(null);
+  const items = Children.toArray(children);
+  const openRow = items.find((row) => isValidElement<{ expanded?: boolean }>(row) && row.props.expanded);
+  const openId = isValidElement(openRow) ? openRow.key : null;
+  const rows = items.length;
   // Sizes the list to its open row and the rows under it, and brings that row to the top.
   useLayoutEffect(() => {
     const element = ref.current;
@@ -56,7 +62,7 @@ export function ExpandableList({
     const observer = new ResizeObserver(fit);
     observer.observe(open);
     return () => observer.disconnect();
-  });
+  }, [scrollable, openId, rows]);
   return (
     <ul ref={ref} className={cx(styles.list, scrollable && styles.scrollable)} aria-label={label}>
       {children}
