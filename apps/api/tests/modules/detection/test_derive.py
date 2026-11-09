@@ -285,6 +285,28 @@ def test_an_extra_field_is_placed_from_its_words_and_one_not_found_is_dropped() 
     assert any("'Ghost' dropped" in note for note in result.notes)
 
 
+def test_an_extra_signature_is_a_partys_never_the_senders() -> None:
+    """Review fix: extra fields skipped the rule found fields follow, so a signature the AI gave
+    to the sender was stored as "filled in before sending"."""
+    reading, document = _open(forms.nda_like())
+    answer = _nda_answer(
+        reading,
+        extra_fields=[
+            {
+                "page": 1,
+                "anchor_text": "Continues until terminated.",
+                "holds": "signature",
+                "filled_by": "sender",
+                "label": "Witness signature",
+                "must_fill": True,
+            }
+        ],
+    )
+    result = derive(reading, answer, document, problems=[], repaired=False)
+    extra = next(f for f in result.fields if f.label == "Witness signature")
+    assert (extra.filled_by, extra.role) == ("none", None)  # nobody yet: a person assigns it
+
+
 def test_flags_keys_and_sensitive_values() -> None:
     reading, document = _open(forms.hostile())
     (blank,) = reading.asked

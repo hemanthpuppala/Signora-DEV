@@ -11,6 +11,7 @@ win over the AI's (§4.2). One pass with hash maps: O(F) for F fields.
 from __future__ import annotations
 
 import re
+from collections.abc import Collection
 from typing import Any, Literal
 
 import pymupdf
@@ -268,6 +269,17 @@ def _placements(found: FoundField) -> list[PlacementOut]:
     ]
 
 
+def _who_fills(holds: str, filled_by: str, roles: Collection[str]) -> str:
+    """Who fills a field, kept to the rules for every field, found or extra (§4.1): a party the
+    answer listed, the sender or nobody; and a party's own value (a signature, initials, a
+    signing date…) only ever that party, so "the sender" or nobody becomes nobody, for review."""
+    if filled_by not in {*roles, "sender", "none"}:
+        return "none"
+    if holds in OWN and filled_by in ("sender", "none"):
+        return "none"
+    return filled_by
+
+
 def derive(
     reading: Reading,
     answer: dict[str, Any],
@@ -309,10 +321,7 @@ def derive(
             )
             if holds not in ALLOWED.get(found.kind, frozenset()):
                 holds = KIND_DEFAULT.get(found.kind, "text")
-            if filled_by not in {*listed, "sender", "none"} or (
-                holds in OWN and filled_by in ("sender", "none")
-            ):
-                filled_by = "none"
+            filled_by = _who_fills(holds, filled_by, listed)
             if _unsafe(label):
                 label = found.label or found.id
         first = found.placements[0]
@@ -357,16 +366,14 @@ def derive(
                 f"extra field {extra['label']!r} dropped: its words are not on page {extra['page']}"
             )
             continue
-        filled_by = (
-            extra["filled_by"] if extra["filled_by"] in {*listed, "sender", "none"} else "none"
-        )
+        holds = extra["holds"] if extra["holds"] not in ("checkbox", "choice") else "text"
         items[f"x{number}"] = _Item(
             ids=[],
             label=extra["label"][:LABEL_MAX]
             if not _unsafe(extra["label"])
             else extra["anchor_text"][:LABEL_MAX],
-            holds=extra["holds"] if extra["holds"] not in ("checkbox", "choice") else "text",
-            filled_by=filled_by,
+            holds=holds,
+            filled_by=_who_fills(holds, extra["filled_by"], listed),
             required=extra["must_fill"],
             placements=[PlacementOut(page=extra["page"], rect=rect, kind="blank")],
             order=(extra["page"], rect[1], rect[0]),
