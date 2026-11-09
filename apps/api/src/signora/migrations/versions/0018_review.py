@@ -32,6 +32,16 @@ STATUSES = (
     "('processing', 'needs_password', 'needs_ocr', 'failed', 'detecting', 'ready', 'approved')"
 )
 FIELD_TABLES = ("version_roles", "version_fields", "field_placements")
+# One statement-level trigger per event: (event, transition tables, function).
+TRIGGERS = (
+    ("INSERT", "NEW TABLE AS touched", "review_forbid_approved_rows"),
+    ("DELETE", "OLD TABLE AS touched", "review_forbid_approved_rows"),
+    (
+        "UPDATE",
+        "OLD TABLE AS touched_before NEW TABLE AS touched",
+        "review_forbid_approved_updates",
+    ),
+)
 
 
 def upgrade() -> None:
@@ -151,32 +161,47 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("version_id", name=op.f("pk_review_metrics")),
     )
 
-    # An approved version's parties, fields and places never change (NFR-R3).
+    # An approved version's parties, fields and places never change (NFR-R3). Checked once per
+    # statement over every row it touched (transition tables), not once per row: a save writes
+    # thousands of rows (NFR-R1). Transition tables need one event per trigger.
     op.execute(
         """
-        CREATE FUNCTION review_forbid_approved_change() RETURNS trigger
+        CREATE FUNCTION review_forbid_approved_rows() RETURNS trigger
         LANGUAGE plpgsql AS $$
-        DECLARE
-            target uuid := CASE WHEN TG_OP = 'DELETE' THEN OLD.version_id ELSE NEW.version_id END;
         BEGIN
-            IF EXISTS (SELECT 1 FROM document_versions WHERE id = target AND status = 'approved')
-               OR (TG_OP = 'UPDATE' AND EXISTS (SELECT 1 FROM document_versions
-                   WHERE id = OLD.version_id AND status = 'approved'))
-            THEN
+            IF EXISTS (SELECT 1 FROM touched t JOIN document_versions v ON v.id = t.version_id
+                       WHERE v.status = 'approved') THEN
                 RAISE EXCEPTION 'an approved version''s fields cannot change'
                     USING ERRCODE = 'check_violation';
             END IF;
-            RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+            RETURN NULL;
+        END;
+        $$
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION review_forbid_approved_updates() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM (SELECT version_id FROM touched UNION
+                                      SELECT version_id FROM touched_before) t
+                       JOIN document_versions v ON v.id = t.version_id
+                       WHERE v.status = 'approved') THEN
+                RAISE EXCEPTION 'an approved version''s fields cannot change'
+                    USING ERRCODE = 'check_violation';
+            END IF;
+            RETURN NULL;
         END;
         $$
         """
     )
     for table in FIELD_TABLES:
-        op.execute(
-            f"CREATE TRIGGER {table}_frozen_when_approved "
-            f"BEFORE INSERT OR UPDATE OR DELETE ON {table} "
-            "FOR EACH ROW EXECUTE FUNCTION review_forbid_approved_change()"
-        )
+        for event, referencing, function in TRIGGERS:
+            op.execute(
+                f"CREATE TRIGGER {table}_frozen_on_{event.lower()} AFTER {event} ON {table} "
+                f"REFERENCING {referencing} FOR EACH STATEMENT EXECUTE FUNCTION {function}()"
+            )
 
     # Current means the newest approved version (§1.1); none is approved yet.
     op.execute("UPDATE documents SET current_version_id = NULL")
@@ -184,8 +209,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     for table in FIELD_TABLES:
-        op.execute(f"DROP TRIGGER {table}_frozen_when_approved ON {table}")
-    op.execute("DROP FUNCTION review_forbid_approved_change()")
+        for event, _, _ in TRIGGERS:
+            op.execute(f"DROP TRIGGER {table}_frozen_on_{event.lower()} ON {table}")
+    op.execute("DROP FUNCTION review_forbid_approved_updates()")
+    op.execute("DROP FUNCTION review_forbid_approved_rows()")
     op.drop_table("review_metrics")
     op.drop_table("version_reviews")
     op.drop_constraint(op.f("ck_version_fields_holds_label_when_other"), "version_fields", "check")

@@ -421,6 +421,28 @@
         "title": "DepartmentSummary",
         "type": "object"
       },
+      "DependencyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "field_id": {
+            "format": "uuid",
+            "title": "Field Id",
+            "type": "string"
+          },
+          "option": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Option",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_id",
+          "option"
+        ],
+        "title": "DependencyIn",
+        "type": "object"
+      },
       "DependencyView": {
         "properties": {
           "key": {
@@ -751,6 +773,163 @@
           "email"
         ],
         "title": "EmailResponse",
+        "type": "object"
+      },
+      "FieldIn": {
+        "additionalProperties": false,
+        "properties": {
+          "depends_on": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DependencyIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "filled_by": {
+            "enum": [
+              "role",
+              "sender",
+              "none"
+            ],
+            "title": "Filled By",
+            "type": "string"
+          },
+          "holds": {
+            "enum": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name",
+              "full_name",
+              "first_name",
+              "last_name",
+              "company",
+              "title",
+              "date_of_birth",
+              "email",
+              "phone",
+              "address",
+              "city",
+              "state",
+              "postal_code",
+              "country",
+              "url",
+              "tax_id",
+              "bank_account",
+              "date",
+              "number",
+              "currency",
+              "amount_in_words",
+              "percent",
+              "text",
+              "checkbox",
+              "choice",
+              "note",
+              "other"
+            ],
+            "title": "Holds",
+            "type": "string"
+          },
+          "holds_label": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holds Label"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceIn"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Places",
+            "type": "array"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "sensitive": {
+            "default": false,
+            "title": "Sensitive",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "holds",
+          "filled_by",
+          "required",
+          "places"
+        ],
+        "title": "FieldIn",
+        "type": "object"
+      },
+      "FieldSet": {
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldIn"
+            },
+            "maxItems": 2000,
+            "title": "Fields",
+            "type": "array"
+          },
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/PartyIn"
+            },
+            "maxItems": 20,
+            "title": "Parties",
+            "type": "array"
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "parties",
+          "fields"
+        ],
+        "title": "FieldSet",
         "type": "object"
       },
       "FieldView": {
@@ -1336,6 +1515,50 @@
         "title": "PageView",
         "type": "object"
       },
+      "PartyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "signer",
+              "countersigner"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "kind_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind Label"
+          },
+          "label": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "kind"
+        ],
+        "title": "PartyIn",
+        "type": "object"
+      },
       "PendingField": {
         "description": "A place found by the read stage, before the AI has said who fills it (§6.3).",
         "properties": {
@@ -1406,6 +1629,86 @@
           "name"
         ],
         "title": "PersonRef",
+        "type": "object"
+      },
+      "PlaceIn": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "signature",
+              "checkbox",
+              "radio",
+              "combobox",
+              "listbox",
+              "blank"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "option_text": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Text"
+          },
+          "option_value": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Value"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "rect": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Rect",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "page",
+          "rect",
+          "kind"
+        ],
+        "title": "PlaceIn",
         "type": "object"
       },
       "PlacementView": {
@@ -1748,6 +2051,19 @@
           "description"
         ],
         "title": "RoleRef",
+        "type": "object"
+      },
+      "Saved": {
+        "properties": {
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "Saved",
         "type": "object"
       },
       "SettingsInput": {
@@ -4861,6 +5177,105 @@
         "summary": "A version's fields, who fills them and where they are; the places found so far while its fields are being found",
         "tags": [
           "detection"
+        ]
+      },
+      "put": {
+        "operationId": "save_fields_api_v1_documents__document_id__versions__version_id__fields_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Saved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Changed by someone else, approved, or not in review"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Save a version's parties, fields and places as the editor holds them",
+        "tags": [
+          "review"
         ]
       }
     },

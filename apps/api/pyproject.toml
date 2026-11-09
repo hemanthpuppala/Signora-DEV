@@ -222,8 +222,13 @@ type = "protected"
 # directly, without the package's database half.
 protected_modules = [
     "signora.modules.review.checks",
+    "signora.modules.review.editing",
+    "signora.modules.review.errors",
+    "signora.modules.review.fieldset",
     "signora.modules.review.models",
     "signora.modules.review.proposal",
+    "signora.modules.review.routes",
+    "signora.modules.review.service",
     "signora.modules.review.store",
     "signora.modules.review.views",
 ]

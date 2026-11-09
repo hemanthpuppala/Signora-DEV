@@ -348,9 +348,12 @@ review_metrics                        -- one row per approved version (§1.5)
 
 ### 9.2 Integrity trigger (NFR-R3)
 
-`review_forbid_approved_change()`, `BEFORE INSERT OR UPDATE OR DELETE` on `version_roles`, `version_fields` and
-`field_placements`: raises when the row's version is `approved`. Approving itself only changes `document_versions`,
-so the trigger never stands in its way; a version made by editing writes its own rows.
+Statement-level `AFTER INSERT`, `AFTER UPDATE` and `AFTER DELETE` triggers on `version_roles`, `version_fields`
+and `field_placements` (functions `review_forbid_approved_rows` and `review_forbid_approved_updates`): each checks
+every row the statement touched (transition tables) with one join, and raises when any belongs to an `approved`
+version. Per-row triggers cost about 0.9 s on a 2 000-field save (one lookup per row) and broke NFR-R1; per
+statement the save takes about 0.9 s in all, the rest being PostgreSQL's own foreign-key checks. Approving only
+changes `document_versions`, so the triggers never stand in its way; a version made by editing writes its own rows.
 
 ### 9.3 Migration `0018_review`
 
@@ -504,7 +507,7 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.3 | Migration `0018_review` and the integrity trigger | done | `0018_review.py` (§9.3) and the models; `documents.lifecycle.approve_version` (current = newest approved; `finish_detection` no longer promotes; Make current approved only; Find fields again `409 fields-approved`); the API exposes `approved`, `derived_from`, `name`, `description`; the list falls back to the newest version's file facts; web: "Needs approval" and "Approved". Tests: migration data and downgrade, the trigger, current version rules rewritten for approval (5), shared `tests/support/actors.py` |
 | 6.4 | Values in two layers, `url` for the AI, contract enums | done | `review/values.py` (pure): the AI layer (`url` added) and the manual layer built from it (`note`, `other`), party kinds, who fills, box kinds, `ALLOWED`, the rule sets and metric families; detection's schema and derive import it (the AI's `ALLOWED` limited to the AI layer); `FieldView.holds` is the contract's enum, and the web's `HOLDS` labels are `Record<Holds, string>` (Website, Note, Other added). Tests: the two layers, the AI never offered a manual value, every rule names listed values, the contract carries the manual layer |
 | 6.5 | Warnings | done | `review/checks.py`: `warnings_for` (one pass, overlaps by a sweep per page), `ReviewWarning` with its code, message and field or party; the document's flags now travel with detection's proposal and are kept on `version_reviews.flags` (added to 0018), and a new proposal moves the revision on; the fields endpoint returns `revision`, `warnings`, and ids (party, field's party, place) with `kind_label`, `holds_label`, `origin`. Tests: one per code (7) and the endpoint |
-| 6.6 | Save: validation, shared values, changes, audit | todo | — |
+| 6.6 | Save: validation, shared values, changes, audit | done | `PUT …/fields` (`review/routes.py`, `service.save`): row lock and revision compare-and-set; `editing.py` (pure: `check` §10.5, `settle` shared values and keys, `changes` for the audit entry, places indexed by field so O(F + P)); `store.read_stored`/`write_set` (editor's ids kept, PDF field names kept, flags kept only while unchanged); `documents.version_for_review`, `record_field_count`, `audit_document`; errors `fields-changed`, `version-not-in-review`. Triggers made statement-level for NFR-R1 (§9.2). Tests (7): save and its audit entry, the three conflicts, each 422 rule, shared values merged, flags, read-only, 2 000 fields under 1 s |
 | 6.7 | Revisions: the version bump | todo | — |
 | 6.8 | Approve, current, metrics | todo | — |
 | 6.9 | Web: editor state and labels | todo | — |

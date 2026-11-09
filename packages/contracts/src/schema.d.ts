@@ -428,7 +428,8 @@ export interface paths {
         };
         /** A version's fields, who fills them and where they are; the places found so far while its fields are being found */
         get: operations["version_fields_api_v1_documents__document_id__versions__version_id__fields_get"];
-        put?: never;
+        /** Save a version's parties, fields and places as the editor holds them */
+        put: operations["save_fields_api_v1_documents__document_id__versions__version_id__fields_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -974,6 +975,16 @@ export interface components {
              */
             status: "active" | "archived";
         };
+        /** DependencyIn */
+        DependencyIn: {
+            /**
+             * Field Id
+             * Format: uuid
+             */
+            field_id: string;
+            /** Option */
+            option: string;
+        };
         /** DependencyView */
         DependencyView: {
             /** Key */
@@ -1102,6 +1113,49 @@ export interface components {
         EmailResponse: {
             /** Email */
             email: string;
+        };
+        /** FieldIn */
+        FieldIn: {
+            depends_on?: components["schemas"]["DependencyIn"] | null;
+            /**
+             * Filled By
+             * @enum {string}
+             */
+            filled_by: "role" | "sender" | "none";
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /** Holds Label */
+            holds_label?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Party Id */
+            party_id?: string | null;
+            /** Places */
+            places: components["schemas"]["PlaceIn"][];
+            /** Required */
+            required: boolean;
+            /**
+             * Sensitive
+             * @default false
+             */
+            sensitive: boolean;
+        };
+        /** FieldSet */
+        FieldSet: {
+            /** Fields */
+            fields: components["schemas"]["FieldIn"][];
+            /** Parties */
+            parties: components["schemas"]["PartyIn"][];
+            /** Revision */
+            revision: number;
         };
         /** FieldView */
         FieldView: {
@@ -1343,6 +1397,23 @@ export interface components {
             /** Width */
             width: number;
         };
+        /** PartyIn */
+        PartyIn: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signer" | "countersigner";
+            /** Kind Label */
+            kind_label?: string | null;
+            /** Label */
+            label: string;
+        };
         /**
          * PendingField
          * @description A place found by the read stage, before the AI has said who fills it (§6.3).
@@ -1371,6 +1442,32 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** PlaceIn */
+        PlaceIn: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "signature" | "checkbox" | "radio" | "combobox" | "listbox" | "blank";
+            /** Option Text */
+            option_text?: string | null;
+            /** Option Value */
+            option_value?: string | null;
+            /** Page */
+            page: number;
+            /** Rect */
+            rect: [
+                number,
+                number,
+                number,
+                number
+            ];
         };
         /** PlacementView */
         PlacementView: {
@@ -1487,6 +1584,11 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** Saved */
+        Saved: {
+            /** Revision */
+            revision: number;
         };
         /** SettingsInput */
         SettingsInput: {
@@ -3265,6 +3367,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["VersionFields"];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    save_fields_api_v1_documents__document_id__versions__version_id__fields_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldSet"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Saved"];
+                };
+            };
+            /** @description Changed by someone else, approved, or not in review */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {

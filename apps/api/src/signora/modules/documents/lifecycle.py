@@ -90,6 +90,72 @@ def require_document(session: Session, actor: Actor, document_id: uuid.UUID, *, 
         require_edit(session, actor, document.department_id)
 
 
+@dataclass(frozen=True)
+class VersionForReview:
+    """What review needs of a version (Phase 6 §6): its state, the size of each page as displayed
+    (places are checked against it), and its name and description (a version made by editing takes
+    them)."""
+
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    document_id: uuid.UUID
+    version_no: int
+    status: str
+    pages: list[tuple[float, float]]  # (width, height) in PDF points, rotation applied
+    name: str | None
+    description: str | None
+
+
+def version_for_review(
+    session: Session,
+    actor: Actor,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    *,
+    edit: bool,
+    lock: bool = False,
+) -> VersionForReview:
+    """A version of a document the actor may read (or, with ``edit``, change); ``404`` for one that
+    is not this document's or this company's. ``lock`` takes the version's row lock, so a Save or
+    an Approve decides on a state no one else is changing."""
+    require_document(session, actor, document_id, edit=edit)
+    row = session.execute(
+        text(
+            "SELECT id, workspace_id, document_id, version_no, status, pages, name, description "
+            "FROM document_versions WHERE id = :v AND document_id = :d AND workspace_id = :w"
+            + (" FOR UPDATE" if lock else "")
+        ),
+        {"v": version_id, "d": document_id, "w": actor.workspace_id},
+    ).one_or_none()
+    if row is None:
+        raise NotFound
+    return VersionForReview(
+        id=row.id,
+        workspace_id=row.workspace_id,
+        document_id=row.document_id,
+        version_no=row.version_no,
+        status=row.status,
+        pages=[(float(page["width"]), float(page["height"])) for page in row.pages or []],
+        name=row.name,
+        description=row.description,
+    )
+
+
+def record_field_count(uow: UnitOfWork, version_id: uuid.UUID, field_count: int) -> None:
+    """A version's field count after review saved its fields (Phase 6), for the lists."""
+    uow.session.execute(
+        text("UPDATE document_versions SET field_count = :n WHERE id = :id"),
+        {"id": version_id, "n": field_count},
+    )
+
+
+def audit_document(
+    uow: UnitOfWork, actor: Actor, action: str, document_id: uuid.UUID, **data: Any
+) -> None:
+    """Record a change to a document on the company's audit chain (one shape for every module)."""
+    audit(uow, actor, action, document_id, **data)
+
+
 def version_status(
     session: Session, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> str:
