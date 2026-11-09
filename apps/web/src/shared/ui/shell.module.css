@@ -14,7 +14,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px 28px;
-  padding-block: 20px;
+  min-height: var(--topbar-height);
+  padding-block: 12px;
 }
 
 .wrap {
@@ -80,6 +81,21 @@
   flex-direction: column;
   gap: var(--page-gap);
   min-width: 0;
+}
+
+/* A workspace page (the document page): the whole window, a tighter top. */
+.full {
+  max-width: none;
+  padding-block: 32px 16px; /* a pinned panel ends 16px from the window's bottom, as it sits 16px under the bar */
+  padding-inline: clamp(0px, 3vw - 8px, 48px); /* beside the gutter: room to breathe on wide screens */
+}
+
+/* On a phone the blocks of a workspace page sit closer: the screen is short. */
+@media (max-width: 719.98px) {
+  .full {
+    padding-block-start: 24px;
+    gap: 20px;
+  }
 }
 
 .toast {

@@ -3,6 +3,10 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* A page can give the viewer a height to fill (--pdf-frame-height) with the pane taking what
+     the toolbar leaves; otherwise the pane has its own height. */
+  height: var(--pdf-frame-height, auto);
+  min-height: 0;
   border: 1px solid var(--sep);
   background: var(--surface);
 }
@@ -33,9 +37,12 @@
 }
 
 .pane {
+  flex: 1 1 auto;
+  min-height: 0;
   height: var(--pdf-viewer-height, min(78vh, 1100px));
   overflow: auto;
-  overscroll-behavior: contain;
+  /* At its end, scrolling carries on to the page, unless the page pins the viewer (--pdf-overscroll). */
+  overscroll-behavior: var(--pdf-overscroll, auto);
   background: var(--surface-2);
 }
 

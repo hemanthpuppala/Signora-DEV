@@ -13,6 +13,8 @@ export type AppShellProps = {
   nav?: readonly NavItem[];
   /** Controls after the navigation (e.g. "Log out"). */
   actions?: ReactNode;
+  /** "content": a centred column (most pages); "full": the whole window, for workspace pages. */
+  width?: "content" | "full";
   children: ReactNode;
 };
 
@@ -46,8 +48,8 @@ export function TopBar({ workspace, nav = [], actions }: Omit<AppShellProps, "ch
   );
 }
 
-/** Logged-in console layout: top bar plus a centred main column. */
-export function AppShell({ workspace, nav, actions, children }: AppShellProps) {
+/** Logged-in console layout: top bar plus a centred main column (or the full width). */
+export function AppShell({ workspace, nav, actions, width = "content", children }: AppShellProps) {
   return (
     <>
       <TopBar
@@ -56,7 +58,7 @@ export function AppShell({ workspace, nav, actions, children }: AppShellProps) {
         {...(actions ? { actions } : {})}
       />
       <div className={styles.wrap}>
-        <main className={styles.main}>{children}</main>
+        <main className={cx(styles.main, width === "full" && styles.full)}>{children}</main>
       </div>
     </>
   );

@@ -67,6 +67,7 @@
   --field-gap: 6px;
   --field-control-height: calc(16px * 1.4 + 18px + 1px); /* line + 9px padding twice + underline */
   --gutter: 16px;
+  --topbar-height: 64px; /* the sticky top bar on one line; pinned panels sit below it */
   --content-max: 1120px;
   --page-gap: 36px; /* between a console page's blocks */
 }

@@ -216,8 +216,9 @@ export function PdfViewer({ url, pages, label, renderOverlay, focus }: PdfViewer
           <TextButton aria-label="Zoom in" onClick={() => setZoom(stepZoom(scale, 1))}>
             +
           </TextButton>
-          <TextButton disabled={zoom === "fit"} onClick={() => setZoom("fit")}>
-            Fit width
+          {/* "Fit" keeps the toolbar on one line on a phone; its name says what it fits to. */}
+          <TextButton aria-label="Fit width" disabled={zoom === "fit"} onClick={() => setZoom("fit")}>
+            Fit
           </TextButton>
         </div>
       </div>
