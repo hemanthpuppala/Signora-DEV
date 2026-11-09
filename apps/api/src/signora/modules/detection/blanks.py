@@ -11,7 +11,15 @@ import re
 
 import pymupdf
 
-from signora.modules.detection.geometry import Box, RowIndex, center, cut
+from signora.modules.detection.geometry import (
+    OPTION_TEXT_MAX,
+    TEXT_MAX,
+    Box,
+    RowIndex,
+    center,
+    cut,
+    displayed,
+)
 from signora.modules.detection.page_text import Marked, PageText, pages
 from signora.modules.detection.reading import FieldKind, FoundField, Placement
 
@@ -19,8 +27,6 @@ UNDERSCORES = re.compile(r"_{3,}")
 PLACEHOLDER = re.compile(r"\[[^\[\]]{2,80}\]|\{\{[^{}]{1,80}\}\}|«[^«»]{1,80}»|<<[^<>]{1,80}>>")
 CHECKBOX_GLYPHS = frozenset({"☐", "□", "❑", "❒", "▢"})
 RUN_GAP = 6.0  # runs on one row closer than this are one blank ("____ ____" typed in two goes)
-TEXT_MAX = 160
-OPTION_TEXT_MAX = 400
 
 
 def _runs(page: pymupdf.Page) -> list[Box]:
@@ -85,12 +91,6 @@ def _next_on_row(glyphs: list[Box], edge: float) -> dict[Box, float]:
     return after
 
 
-def _displayed(page: pymupdf.Page, box: Box) -> Box:
-    shown = pymupdf.Rect(box) * page.rotation_matrix
-    shown.normalize()
-    return (round(shown.x0, 1), round(shown.y0, 1), round(shown.x1, 1), round(shown.y1, 1))
-
-
 def find_blanks(
     document: pymupdf.Document, *, covered: dict[int, list[Box]] | None = None
 ) -> list[FoundField]:
@@ -128,9 +128,9 @@ def find_blanks(
             holder = placeholder_of.get(ref)
             placement = Placement(
                 page=number,
-                rect=_displayed(page, box),
+                rect=displayed(page, box),
                 option_text=option_text,
-                continued=[_displayed(page, rest) for rest in holder[2]] if holder else [],
+                continued=[displayed(page, rest) for rest in holder[2]] if holder else [],
             )
             found.append(
                 FoundField(

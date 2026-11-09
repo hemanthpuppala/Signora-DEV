@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pymupdf
 
-from signora.modules.detection.geometry import Box, RowIndex, center
+from signora.modules.detection.geometry import Box, RowIndex, center, unrotated
 from signora.modules.detection.page_text import pages
 from signora.modules.detection.reading import Reading
 from signora.modules.detection.untrusted import clean
@@ -18,12 +18,6 @@ from signora.modules.detection.untrusted import clean
 POINTS_PER_COLUMN = 4.5  # one character column per 4.5 pt: a US Letter page is about 136 wide
 ROW_TOLERANCE = 4.5  # words whose centres are this close are on one row
 PARAGRAPH_GAP = 14.0  # a larger gap between rows is an empty line
-
-
-def _unrotated(page: pymupdf.Page, rect: Box) -> Box:
-    box = pymupdf.Rect(rect) * page.derotation_matrix
-    box.normalize()
-    return (box.x0, box.y0, box.x1, box.y1)
 
 
 def layout_text(document: pymupdf.Document, reading: Reading) -> str:
@@ -41,8 +35,8 @@ def layout_text(document: pymupdf.Document, reading: Reading) -> str:
                 label = (
                     f"⟦{field.id}={placement.value}⟧" if field.kind == "radio" else f"⟦{field.id}⟧"
                 )
-                markers.append((label, _unrotated(page, placement.rect), True))
-                hidden.extend(_unrotated(page, rest) for rest in placement.continued)
+                markers.append((label, unrotated(page, placement.rect), True))
+                hidden.extend(unrotated(page, rest) for rest in placement.continued)
         covering = RowIndex(
             [(box, None) for _, box, _ in markers] + [(box, None) for box in hidden]
         )

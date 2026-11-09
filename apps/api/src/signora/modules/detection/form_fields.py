@@ -12,7 +12,15 @@ from dataclasses import dataclass, field
 
 import pymupdf
 
-from signora.modules.detection.geometry import Box, cut, same_row, union
+from signora.modules.detection.geometry import (
+    OPTION_TEXT_MAX,
+    TEXT_MAX,
+    Box,
+    cut,
+    displayed,
+    same_row,
+    union,
+)
 from signora.modules.detection.page_text import Marked, PageText, pages
 from signora.modules.detection.reading import FieldKind, FoundField, PageInfo, Placement
 
@@ -45,8 +53,6 @@ MULTI_SELECT = 1 << 21
 HIDDEN = (1 << 1) | (1 << 5)  # annotation flags (/F): Hidden, NoView
 SAMPLE_VALUE = re.compile(r"^\s*(\[[^\]]*\]|\{\{[^}]*\}\}|<<[^>]*>>|«[^»]*»|_{3,})\s*$")
 PARENT_DEPTH = 16  # parent chains are short; the bound stops a loop in a malicious file
-TEXT_MAX = 160
-OPTION_TEXT_MAX = 400
 
 
 @dataclass
@@ -114,12 +120,6 @@ def _text_format(widget: pymupdf.Widget, document: pymupdf.Document) -> str | No
     if script:
         return next((kind for marker, kind in SCRIPT_FORMATS if marker in script), None)
     return None
-
-
-def _displayed(page: pymupdf.Page, rect: pymupdf.Rect) -> Box:
-    shown = rect * page.rotation_matrix
-    shown.normalize()
-    return (round(shown.x0, 1), round(shown.y0, 1), round(shown.x1, 1), round(shown.y1, 1))
 
 
 def _choice(choice: object) -> str:
@@ -190,7 +190,7 @@ def read_form(document: pymupdf.Document) -> FormRead:
             annotation = int(flags_value) if flags_kind == "int" else 0
             placement = Placement(
                 page=number,
-                rect=_displayed(page, widget.rect),
+                rect=displayed(page, widget.rect),
                 pdf_field=widget.field_name,
                 value=value,
                 option_text=option_text,

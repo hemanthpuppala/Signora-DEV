@@ -1,17 +1,38 @@
 """Boxes on a page and a row index over them (Phase 5 LLD topic 2).
 
-Boxes are ``(x0, y0, x1, y1)`` in PDF points, origin top-left. A ``RowIndex`` buckets items by the
-rows of the page they span, so finding what sits near a box looks at its neighbours only: O(1)
-buckets per lookup instead of every item on the page.
+Boxes are ``(x0, y0, x1, y1)`` in PDF points, origin top-left. The text layer and the widgets live
+in the page's own (unrotated) space; positions are stored as displayed, so the two transforms
+between the spaces live here, once. A ``RowIndex`` buckets items by the rows of the page they span,
+so finding what sits near a box looks at its neighbours only: O(1) buckets per lookup instead of
+every item on the page.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 
+import pymupdf
+
 Box = tuple[float, float, float, float]
 
 BUCKET = 12.0  # points per bucket: about one line of text
+TEXT_MAX = 160  # characters kept of a label or a value
+OPTION_TEXT_MAX = 400  # characters kept of an option's words
+
+
+def displayed(page: pymupdf.Page, box: Box | pymupdf.Rect) -> Box:
+    """A box in the page's own space, as it is displayed (the page's rotation applied), rounded to
+    a tenth of a point."""
+    shown = pymupdf.Rect(box) * page.rotation_matrix
+    shown.normalize()
+    return (round(shown.x0, 1), round(shown.y0, 1), round(shown.x1, 1), round(shown.y1, 1))
+
+
+def unrotated(page: pymupdf.Page, box: Box) -> Box:
+    """A displayed box back in the page's own space, where its words and widgets are."""
+    own = pymupdf.Rect(box) * page.derotation_matrix
+    own.normalize()
+    return (own.x0, own.y0, own.x1, own.y1)
 
 
 def center(box: Box) -> tuple[float, float]:
