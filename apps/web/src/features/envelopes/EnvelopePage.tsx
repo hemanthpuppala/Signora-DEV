@@ -10,6 +10,7 @@ import {
   Button,
   DetailsPane,
   Dialog,
+  Disclosure,
   FactList,
   HeadRow,
   Heading1,
@@ -287,8 +288,8 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
             const people = data.recipients.filter((r) => r.kind === group.kind);
             if (people.length === 0) return null;
             return (
-              <Section key={group.kind} title={group.title}>
-                <ItemList label={group.title} ordered={group.kind !== "copy"} cards>
+              <Disclosure key={group.kind} title={group.title} count={people.length}>
+                <ItemList label={group.title} ordered={group.kind !== "copy"} cards visible={2}>
                   {people.map((recipient) =>
                     editing === recipient.id ? (
                       <Item key={recipient.id}>
@@ -342,7 +343,7 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
                     ),
                   )}
                 </ItemList>
-              </Section>
+              </Disclosure>
             );
           })}
           {resend.error ?? remindOne.error ? <Notice tone="warning">{formError(resend.error ?? remindOne.error)}</Notice> : null}
@@ -361,19 +362,21 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
             />
           </Section>
 
-          <Section title="Timeline">
-            <ol className={styles.timeline} aria-label="Timeline">
-              {data.timeline.map((entry, index) => (
-                <li key={index} className={styles.event}>
-                  <time className={styles.at} dateTime={entry.at}>
-                    {new Date(entry.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                  </time>
-                  <span className={styles.what}>{happened(entry, data)}</span>
-                  {entry.by ? <span className={styles.sub}>{entry.by}</span> : null}
-                </li>
-              ))}
-            </ol>
-          </Section>
+          <Disclosure title="Timeline" count={data.timeline.length}>
+            <div className={styles.timelineScroll}>
+              <ol className={styles.timeline} aria-label="Timeline">
+                {data.timeline.map((entry, index) => (
+                  <li key={index} className={styles.event}>
+                    <time className={styles.at} dateTime={entry.at}>
+                      {new Date(entry.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                    </time>
+                    <span className={styles.what}>{happened(entry, data)}</span>
+                    {entry.by ? <span className={styles.sub}>{entry.by}</span> : null}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </Disclosure>
         </DetailsPane>
       </ViewerLayout>
 
