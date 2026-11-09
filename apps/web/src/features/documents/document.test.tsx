@@ -124,7 +124,8 @@ describe("document page", () => {
     await user.click(screen.getByRole("button", { name: "Make current" }));
     expect(screen.getByText("New sends will use it. A newer upload takes over again once it is ready.")).toBeTruthy();
     expect(posts("/current-version")).toHaveLength(0);
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Make current" }));
+    // The dialog opens (showModal) in an effect: wait for it before using its buttons.
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Make current" }));
 
     await vi.waitFor(() => expect(posts("/current-version")[0]?.body).toEqual({ version_id: "v-1" }));
   });

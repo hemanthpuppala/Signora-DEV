@@ -214,7 +214,8 @@ describe("documents", () => {
     FakeUpload.sent[0]?.answer(201, uploaded({ duplicate: { document_id: "doc-1", document_name: "Engagement letter", version_number: 2, archived: false } }));
 
     expect(await screen.findByText("Engagement letter v3.pdf is already in Finance as Engagement letter, version 2. Upload it anyway as a separate document?")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    // The dialog opens (showModal) in an effect: wait for its button, not only its words.
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
 
     expect(await screen.findByText("Upload cancelled. Nothing was added.")).toBeTruthy();
     expect(posted).toHaveLength(0);
