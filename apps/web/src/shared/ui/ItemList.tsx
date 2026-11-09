@@ -1,6 +1,10 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+"use client";
+
+import { useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 import styles from "./items.module.css";
+
+const PEEK = 28; // pixels of the next row that show under the last one shown
 
 /**
  * A list of things, each with its actions (a document's versions, an envelope's recipients): one
@@ -12,17 +16,38 @@ export function ItemList({
   label,
   ordered = false,
   cards = false,
+  visible,
   children,
 }: {
   label: string;
   ordered?: boolean;
   /** Each row a card of its own, apart from the next (people, as document cards are). */
   cards?: boolean;
+  /** Show this many rows, the next one's edge peeking, and scroll the rest inside the list. */
+  visible?: number;
   children: ReactNode;
 }) {
   const List = ordered ? "ol" : "ul";
+  const ref = useRef<HTMLOListElement & HTMLUListElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+  // Measured from the rows themselves (their heights vary): up to the row after the last shown,
+  // with a little of it showing, so it reads as more to scroll to.
+  useLayoutEffect(() => {
+    const list = ref.current;
+    if (!list || visible === undefined) return undefined;
+    const measure = () => {
+      const next = list.children[visible] as HTMLElement | undefined;
+      setHeight(next ? next.offsetTop - list.offsetTop + PEEK : undefined);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const watch = new ResizeObserver(measure);
+    Array.from(list.children).forEach((row) => watch.observe(row));
+    return () => watch.disconnect();
+  }, [visible, children]);
+  const className = [cards ? styles.cards : styles.items, height !== undefined ? styles.scrolls : null].filter(Boolean).join(" ");
   return (
-    <List className={cards ? styles.cards : styles.items} aria-label={label}>
+    <List ref={ref} className={className} aria-label={label} style={height !== undefined ? { maxHeight: height } : undefined}>
       {children}
     </List>
   );

@@ -93,7 +93,8 @@
 }
 
 .cards > .item {
-  padding: 18px 20px;
+  gap: 2px;
+  padding: 12px 14px;
   border: 1px solid var(--sep);
   background: var(--surface);
   transition: border-color 0.15s;
@@ -108,17 +109,18 @@
   padding-bottom: 0;
 }
 
-/* A card's actions: its foot, edge to edge under a rule. */
+/* A card's actions: its foot, edge to edge under a rule, tight. */
 .cards .actions {
-  margin: 14px -20px 0;
-  padding: 8px 13px;
+  margin: 10px -14px 0;
+  padding: 3px 7px;
 }
 
 /* A row with something at its start: that, then the row's words beside it. */
-.withLeading {
+.withLeading,
+.cards > .item.withLeading {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 16px;
+  gap: 2px 12px; /* rows tight, the start apart from the words */
 }
 
 .withLeading > .actions {
@@ -132,6 +134,16 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
+}
+
+/* A list that shows some rows and scrolls the rest inside itself (positioned, so a row's
+   offsetTop is measured from the list); at its ends, scrolling carries on to the page. */
+.scrolls {
+  position: relative;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  padding-right: 6px; /* the scrollbar beside the cards, not on their edge */
 }

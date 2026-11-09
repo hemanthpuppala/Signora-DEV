@@ -7,6 +7,7 @@ import {
   ActionBar,
   Button,
   ClampedText,
+  Disclosure,
   DocumentCard,
   DocumentGrid,
   EmailField,
@@ -391,5 +392,20 @@ describe("DocumentCard, choosing", () => {
     expect(screen.getByRole("button", { name: "Draft" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Mutual NDA" }));
     expect(onChoose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Disclosure", () => {
+  it("opens and closes its group from its title line, which says how many it holds", async () => {
+    render(
+      <Disclosure title="Signers" count={3}>
+        <p>Maya Chen</p>
+      </Disclosure>,
+    );
+    const group = screen.getByText("Signers").closest("details") as HTMLDetailsElement;
+    expect(group.open).toBe(true);
+    expect(screen.getByText("3")).toBeTruthy();
+    await userEvent.click(screen.getByText("Signers"));
+    expect(group.open).toBe(false);
   });
 });
