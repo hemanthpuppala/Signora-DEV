@@ -43,3 +43,13 @@ apps/web/public/pdfjs/
 # Written by `next dev` (Next.js agent instructions); a tooling artifact, not project docs
 apps/web/AGENTS.md
 *.tsbuildinfo
+
+# Document tests (tests/README.md): third-party documents and early experiment logs stay local, and
+# so does every output file holding a document's full text (the repository is public)
+tests/fixtures/documents/
+tests/logs/
+tests/outputs/**/00-converted.pdf
+tests/outputs/**/01-reading.json
+tests/outputs/**/02-layout.txt
+tests/outputs/**/02-document.md
+tests/outputs/**/03-request.json

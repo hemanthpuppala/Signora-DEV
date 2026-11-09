@@ -239,9 +239,29 @@ EMPTY_ANSWER: dict[str, Any] = {
 def _ask(
     version: VersionForDetection, reading: Reading, document: pymupdf.Document, assigner: Assigner
 ) -> tuple[list[JsonDict], dict[str, Any], str | None]:
-    """One call, and one repair call when the checks find problems (§3.4). Nothing to ask: no
-    call. A passing failure propagates (the job retries; ``on_dead`` fails it at the end); any
-    other fails the version now."""
+    return ask(
+        reading,
+        document,
+        assigner,
+        current_name=version.document_name,
+        instructions=version.ai_instructions,
+        write_name_and_description=version.write_name_and_description,
+    )
+
+
+def ask(
+    reading: Reading,
+    document: pymupdf.Document,
+    assigner: Assigner,
+    *,
+    current_name: str,
+    instructions: str,
+    write_name_and_description: bool,
+) -> tuple[list[JsonDict], dict[str, Any], str | None]:
+    """The AI step (§3.4): one call, and one repair call when the checks find problems; nothing to
+    ask, no call. Returns each call's facts (with the problems found), the last answer, the model.
+    A passing failure propagates (the job retries; ``on_dead`` fails it at the end); any other is
+    ``Failed``. The job and the test pipeline both run this."""
     if not reading.asked:
         return [], EMPTY_ANSWER, None
     answer_type = answer_model([field.id for field in reading.asked])
@@ -251,9 +271,9 @@ def _ask(
             "role": "user",
             "content": user_message(
                 reading,
-                current_name=version.document_name,
-                instructions=version.ai_instructions,
-                write_name_and_description=version.write_name_and_description,
+                current_name=current_name,
+                instructions=instructions,
+                write_name_and_description=write_name_and_description,
             ),
         },
     ]
@@ -269,6 +289,7 @@ def _ask(
         calls.append(
             {
                 "request_id": call.request_id,
+                "model": call.model,
                 "latency_s": call.latency_s,
                 "input_tokens": call.usage.input,
                 "cached_tokens": call.usage.cached,
