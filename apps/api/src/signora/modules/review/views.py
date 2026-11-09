@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Literal
 
 from pydantic import BaseModel
+
+from signora.modules.review.values import FilledBy, ManualHolds, PartyKind
 
 EMBEDDED_FIELD = re.compile(r"\{f\d+(?:=[^{}]*)?\}")  # a field inside an option's words
 
@@ -19,7 +20,7 @@ def option_words(text: str | None) -> str | None:
 class RoleView(BaseModel):
     slug: str
     label: str
-    kind: Literal["signer", "countersigner"]
+    kind: PartyKind
     position: int
     field_count: int
 
@@ -41,8 +42,8 @@ class FieldView(BaseModel):
     id: uuid.UUID
     key: str
     label: str
-    holds: str
-    filled_by: Literal["role", "sender", "none"]
+    holds: ManualHolds  # the contract's enum: the interface's labels must cover it (§1.8)
+    filled_by: FilledBy
     role: str | None  # the role's slug when filled_by is "role"
     required: bool
     sensitive: bool

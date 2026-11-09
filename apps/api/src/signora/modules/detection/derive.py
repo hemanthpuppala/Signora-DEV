@@ -19,8 +19,9 @@ from pydantic import BaseModel, ConfigDict
 
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
-from signora.modules.detection.schema import ALLOWED, OWN, PARTY_VALUES, SENSITIVE, SHARED
+from signora.modules.detection.schema import ALLOWED
 from signora.modules.review.keys import name_words, unique
+from signora.modules.review.values import OWN, PARTY_VALUES, SENSITIVE, SHARED
 
 NAME_MAX = 120
 DESCRIPTION_MAX = 300

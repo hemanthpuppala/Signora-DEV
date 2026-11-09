@@ -11,89 +11,25 @@ No key is named after a JSON-schema keyword (``required``, ``type``, ``enum``, `
 
 from __future__ import annotations
 
-from typing import Any, Literal, get_args
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
-Holds = Literal[
-    # signing
-    "signature",
-    "initials",
-    "date_signed",
-    # who a party is
-    "party_name",
-    "full_name",
-    "first_name",
-    "last_name",
-    "company",
-    "title",
-    "date_of_birth",
-    # reaching them
-    "email",
-    "phone",
-    "address",
-    "city",
-    "state",
-    "postal_code",
-    "country",
-    # sensitive identifiers
-    "tax_id",
-    "bank_account",
-    # values
-    "date",
-    "number",
-    "currency",
-    "amount_in_words",
-    "percent",
-    "text",
-    # marks
-    "checkbox",
-    "choice",
-]
-HOLDS: tuple[str, ...] = get_args(Holds)
-RoleKind = Literal["signer", "countersigner"]
-
-# What each kind of box may hold: the schema cannot tie an answer to its box, so it is checked after
-# the call (§4.1).
-ALLOWED: dict[str, frozenset[str]] = {
-    "text": frozenset(HOLDS) - {"checkbox", "choice"},
-    "blank": frozenset(HOLDS) - {"checkbox", "choice"},
-    "signature": frozenset({"signature", "initials"}),
-    "checkbox": frozenset({"checkbox"}),
-    "radio": frozenset({"choice"}),
-    "combobox": frozenset({"choice"}),
-    "listbox": frozenset({"choice"}),
-}
-# Values that belong to a party: stored under its role (``<role>.<holds>``) when a party gives them.
-PARTY_VALUES = frozenset(
-    {
-        "signature",
-        "initials",
-        "date_signed",
-        "party_name",
-        "full_name",
-        "first_name",
-        "last_name",
-        "company",
-        "title",
-        "date_of_birth",
-        "email",
-        "phone",
-        "address",
-        "city",
-        "state",
-        "postal_code",
-        "country",
-        "tax_id",
-        "bank_account",
-    }
+from signora.modules.review.values import (
+    AI_HOLDS,
+    AiHolds,
+    PartyKind,
 )
-# Only the party itself gives these; anything else a sender may fill in before sending.
-OWN = frozenset({"signature", "initials", "date_signed"})
-# One value per party wherever it is asked (§4.3).
-SHARED = frozenset({"signature", "initials", "date_signed", "party_name"})
-# Shown to nobody but the party who gave it, masked in logs and the interface (§4.4).
-SENSITIVE = frozenset({"tax_id", "bank_account", "date_of_birth"})
+from signora.modules.review.values import ALLOWED as REVIEW_ALLOWED
+
+# The AI layer of review's one list of values (Phase 6 §4.1): closed, never free-form.
+Holds = AiHolds
+HOLDS: tuple[str, ...] = AI_HOLDS
+RoleKind = PartyKind
+# The AI layer's boxes hold only its own values: never a note or a typed type.
+ALLOWED: dict[str, frozenset[str]] = {
+    kind: holds & frozenset(AI_HOLDS) for kind, holds in REVIEW_ALLOWED.items()
+}
 
 HOLDS_HELP = (
     "What the field contains. A text box or blank line may hold any value except checkbox and "
@@ -105,8 +41,8 @@ HOLDS_HELP = (
     "works for. address is the street line; city, state, postal_code and country are their own "
     "boxes when the form splits them. tax_id covers SSN, EIN and other tax numbers; bank_account "
     "covers account and routing numbers. amount_in_words is a sum written out ('____ dollars'); "
-    "currency is the figure ('$____'). date_signed is the date next to a signature recording when "
-    "it was signed; date is any other date. text when nothing else fits."
+    "currency is the figure ('$____'). url is a web address. date_signed is the date next to a "
+    "signature recording when it was signed; date is any other date. text when nothing else fits."
 )
 FILLED_BY_HELP = (
     "Who fills it. Exactly one of: a slug listed in roles, when that party fills it while signing; "

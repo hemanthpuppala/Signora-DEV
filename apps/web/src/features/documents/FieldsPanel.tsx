@@ -241,7 +241,7 @@ export function FieldsPanel({
                 <span className={styles.meta}>
                   {[
                     whoFills(row.field, roles),
-                    HOLDS[row.field.holds] ?? row.field.holds,
+                    HOLDS[row.field.holds],
                     row.field.required ? "Required" : "Optional",
                     row.field.placements.length > 1 ? `${row.field.placements.length} places` : null,
                     row.field.needs_review ? "Needs a look" : null,

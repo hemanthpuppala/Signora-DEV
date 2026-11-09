@@ -2,6 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import type { components } from "@signora/contracts";
+
 import { api, unwrap } from "@/shared/api/client";
 
 import { hasWorkingCopy, processingInterval, type Version } from "./api";
@@ -29,8 +31,11 @@ export function useVersionFields(documentId: string, version: Version | undefine
   });
 }
 
-/** What a field holds, in plain words. */
-export const HOLDS: Record<string, string> = {
+/** What a field may hold: the contract's enum, from the API's one list (Phase 6 §1.8). */
+export type Holds = components["schemas"]["FieldView"]["holds"];
+
+/** What a field holds, in plain words: every value the API can send must have one (type-checked). */
+export const HOLDS: Record<Holds, string> = {
   signature: "Signature",
   initials: "Initials",
   date_signed: "Date signed",
@@ -48,6 +53,7 @@ export const HOLDS: Record<string, string> = {
   state: "State",
   postal_code: "Postal code",
   country: "Country",
+  url: "Website",
   tax_id: "Tax number",
   bank_account: "Bank account",
   date: "Date",
@@ -58,6 +64,8 @@ export const HOLDS: Record<string, string> = {
   text: "Text",
   checkbox: "Checkbox",
   choice: "Choice",
+  note: "Note",
+  other: "Other",
 };
 
 /** The design system's party tones: signers in order, then the countersigning side (prototype 13). */

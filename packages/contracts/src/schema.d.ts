@@ -1111,8 +1111,11 @@ export interface components {
              * @enum {string}
              */
             filled_by: "role" | "sender" | "none";
-            /** Holds */
-            holds: string;
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
             /**
              * Id
              * Format: uuid

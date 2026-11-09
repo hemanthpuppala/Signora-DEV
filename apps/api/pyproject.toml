@@ -218,7 +218,7 @@ allowed_importers = ["signora.modules.detection", "signora.models", "signora.han
 [[tool.importlinter.contracts]]
 name = "Public interface only: review internals are imported only by review and composition roots"
 type = "protected"
-# review.keys (and later review.values) are pure and public: detection's pure code imports them
+# review.keys and review.values are pure and public: detection's pure code imports them
 # directly, without the package's database half.
 protected_modules = [
     "signora.modules.review.models",
@@ -277,7 +277,8 @@ source_modules = [
     "signora.modules.detection.reading",
     "signora.modules.detection.schema",
     "signora.modules.detection.untrusted",
-    # Review's naming of keys, shared with detection.
+    # Review's naming of keys and its one list of values, shared with detection.
     "signora.modules.review.keys",
+    "signora.modules.review.values",
 ]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]
