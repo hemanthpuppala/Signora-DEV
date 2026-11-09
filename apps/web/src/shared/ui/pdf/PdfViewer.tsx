@@ -174,18 +174,24 @@ export function PdfViewer({ url, pages, label, renderOverlay, focus }: PdfViewer
     return () => pane.removeEventListener("wheel", onWheel);
   }, []);
 
-  // Bring a chosen box into view (Phase 5 §6.2: a field picked in the list). Only a new focus
-  // scrolls; the live layout is read through a ref, so zooming afterwards keeps the reader's place.
+  // Bring a chosen box into view (Phase 5 §6.2: a field picked in the list). Only a new pick (a
+  // new ``token``) scrolls: the caller may build the focus afresh on every render, and a poll or
+  // any other render must not pull the reader back. The box and the live layout are read through
+  // refs, so zooming afterwards keeps the reader's place.
   const offsetsRef = useRef(offsets);
+  const focusRef = useRef(focus);
   useLayoutEffect(() => {
     offsetsRef.current = offsets;
-  }, [offsets]);
+    focusRef.current = focus;
+  });
+  const focusToken = focus?.token;
   useEffect(() => {
     const pane = paneRef.current;
-    if (!pane || !focus) return;
-    const top = focusTop(offsetsRef.current, focus.page, focus.rect, scaleRef.current, pane.clientHeight);
+    const box = focusRef.current;
+    if (!pane || !box || focusToken === undefined) return;
+    const top = focusTop(offsetsRef.current, box.page, box.rect, scaleRef.current, pane.clientHeight);
     pane.scrollTo({ top, behavior: "smooth" });
-  }, [focus]);
+  }, [focusToken]);
 
   const goTo = (page: number) => {
     const pane = paneRef.current;
