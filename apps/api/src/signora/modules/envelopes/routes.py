@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,7 +14,7 @@ from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.envelopes import service
 from signora.modules.envelopes.form import SendForm
 from signora.modules.envelopes.sending import SendRequest
-from signora.modules.envelopes.views import EnvelopeView
+from signora.modules.envelopes.views import EnvelopePage, EnvelopeStatus, EnvelopeView
 from signora.modules.identity_access import Actor, current_actor
 
 router = APIRouter(prefix="/api/v1", tags=["envelopes"])
@@ -165,3 +165,20 @@ def signing_link(
             uow, actor=actor, envelope_id=envelope_id, recipient_id=recipient_id
         )
     return SigningLink(url=url)
+
+
+@router.get(
+    "/departments/{department_id}/envelopes",
+    summary="A department's envelopes, newest first, 50 a page (next_cursor for more)",
+)
+def list_envelopes(
+    department_id: uuid.UUID,
+    request: Request,
+    actor: Member,
+    status: EnvelopeStatus | None = None,
+    cursor: Annotated[str | None, Query(max_length=200)] = None,
+) -> EnvelopePage:
+    with _db(request).unit_of_work() as uow:
+        return service.list_envelopes(
+            uow.session, actor, department_id, status=status, cursor=cursor
+        )

@@ -876,6 +876,109 @@
         "title": "EmailResponse",
         "type": "object"
       },
+      "EnvelopePage": {
+        "properties": {
+          "envelopes": {
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeSummary"
+            },
+            "title": "Envelopes",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "envelopes",
+          "next_cursor"
+        ],
+        "title": "EnvelopePage",
+        "type": "object"
+      },
+      "EnvelopeSummary": {
+        "properties": {
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          },
+          "signed": {
+            "title": "Signed",
+            "type": "integer"
+          },
+          "signers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Signers",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "sent",
+              "opened",
+              "viewed",
+              "signed",
+              "completed",
+              "declined",
+              "expired",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version_number": {
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "document_id",
+          "document_name",
+          "version_number",
+          "signers",
+          "signed",
+          "sent_at",
+          "expires_at"
+        ],
+        "title": "EnvelopeSummary",
+        "type": "object"
+      },
       "EnvelopeView": {
         "properties": {
           "cancelled_at": {
@@ -5250,6 +5353,127 @@
         "summary": "Create a document from an upload (requires Idempotency-Key)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/departments/{department_id}/envelopes": {
+      "get": {
+        "operationId": "list_envelopes_api_v1_departments__department_id__envelopes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "department_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Department Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "sent",
+                    "opened",
+                    "viewed",
+                    "signed",
+                    "completed",
+                    "declined",
+                    "expired",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A department's envelopes, newest first, 50 a page (next_cursor for more)",
+        "tags": [
+          "envelopes"
         ]
       }
     },

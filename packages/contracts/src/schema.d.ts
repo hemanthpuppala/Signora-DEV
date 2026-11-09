@@ -243,6 +243,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/departments/{department_id}/envelopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A department's envelopes, newest first, 50 a page (next_cursor for more) */
+        get: operations["list_envelopes_api_v1_departments__department_id__envelopes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/departments/{department_id}/grants": {
         parameters: {
             query?: never;
@@ -1320,6 +1337,51 @@ export interface components {
         EmailResponse: {
             /** Email */
             email: string;
+        };
+        /** EnvelopePage */
+        EnvelopePage: {
+            /** Envelopes */
+            envelopes: components["schemas"]["EnvelopeSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** EnvelopeSummary */
+        EnvelopeSummary: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Name */
+            document_name: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            /** Signed */
+            signed: number;
+            /** Signers */
+            signers: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "sent" | "opened" | "viewed" | "signed" | "completed" | "declined" | "expired" | "cancelled";
+            /** Title */
+            title: string;
+            /** Version Number */
+            version_number: number;
         };
         /** EnvelopeView */
         EnvelopeView: {
@@ -3307,6 +3369,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    list_envelopes_api_v1_departments__department_id__envelopes_get: {
+        parameters: {
+            query?: {
+                status?: ("sent" | "opened" | "viewed" | "signed" | "completed" | "declined" | "expired" | "cancelled") | null;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                department_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePage"];
                 };
             };
             /** @description Validation failed (problem details) */

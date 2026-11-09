@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from signora.modules.envelopes.sending import Person, Plan, SettingsIn
 from signora.modules.envelopes.views import (
     Delivery,
+    EnvelopeSummary,
     EnvelopeView,
     PersonRef,
     RecipientView,
@@ -229,3 +230,56 @@ def read_envelope(
         values=values,
         timeline=timeline,
     )
+
+
+PAGE = 50
+
+
+def list_envelopes(
+    session: Session,
+    workspace_id: uuid.UUID,
+    department_id: uuid.UUID,
+    *,
+    status: str | None,
+    after: tuple[datetime, uuid.UUID] | None,
+) -> list[EnvelopeSummary]:
+    """A department's envelopes, newest first, ``PAGE`` at a time after a keyset ``after``
+    (sent_at, id): an index range on (workspace, department, status, sent_at), O(log N + PAGE)."""
+    rows = session.execute(
+        text(
+            "SELECT e.id, e.title, e.status, e.document_id, d.name AS document_name, "
+            "v.version_no, e.sent_at, e.expires_at, "
+            "coalesce(array_agg(r.name ORDER BY r.position) FILTER (WHERE r.kind = 'signer'), "
+            "'{}') AS signers, count(*) FILTER (WHERE r.kind = 'signer' AND r.status = 'signed') "
+            "AS signed FROM envelopes e JOIN documents d ON d.id = e.document_id "
+            "JOIN document_versions v ON v.id = e.version_id "
+            "LEFT JOIN envelope_recipients r ON r.envelope_id = e.id "
+            "WHERE e.workspace_id = :w AND e.department_id = :dep "
+            "AND (CAST(:status AS text) IS NULL OR e.status = :status) "
+            "AND (CAST(:at AS timestamptz) IS NULL OR (e.sent_at, e.id) < (:at, :id)) "
+            "GROUP BY e.id, d.name, v.version_no ORDER BY e.sent_at DESC, e.id DESC LIMIT :n"
+        ),
+        {
+            "w": workspace_id,
+            "dep": department_id,
+            "status": status,
+            "at": after[0] if after else None,
+            "id": after[1] if after else None,
+            "n": PAGE + 1,
+        },
+    )
+    return [
+        EnvelopeSummary(
+            id=row.id,
+            title=row.title,
+            status=row.status,
+            document_id=row.document_id,
+            document_name=row.document_name,
+            version_number=row.version_no,
+            signers=list(row.signers),
+            signed=row.signed,
+            sent_at=row.sent_at,
+            expires_at=row.expires_at,
+        )
+        for row in rows
+    ]

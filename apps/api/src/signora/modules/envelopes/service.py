@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, list_countersigners, load_access
 from signora.modules.documents import VersionNotApproved, version_for_review
-from signora.modules.envelopes import emails
+from signora.modules.envelopes import emails, store
 from signora.modules.envelopes.errors import (
     EnvelopeClosed,
     NotTheirTurn,
@@ -29,7 +30,7 @@ from signora.modules.envelopes.form import Colleague, FormSettings, SendForm, bu
 from signora.modules.envelopes.links import link_key, make_token, signing_url
 from signora.modules.envelopes.sending import Person, SendRequest, plan_send, split_name
 from signora.modules.envelopes.store import read_envelope, record_email, write_send
-from signora.modules.envelopes.views import EnvelopeView
+from signora.modules.envelopes.views import EnvelopePage, EnvelopeSummary, EnvelopeView
 from signora.modules.identity_access import Actor, Permission, normalize_email
 from signora.modules.notifications import send_email
 from signora.modules.review import read_set
@@ -513,3 +514,42 @@ def signing_link(
         raise RecipientSigned if recipient.status == "signed" else NotTheirTurn
     _audit(uow, actor, "envelope.link_copied", envelope.id, recipient_id=str(recipient_id))
     return _link(recipient.id, recipient.link_version)
+
+
+# --- the list (§6) --------------------------------------------------------------------------------
+
+
+def _cursor(summary: EnvelopeSummary) -> str:
+    raw = f"{summary.sent_at.isoformat()}|{summary.id}".encode()
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def _after(cursor: str | None) -> tuple[datetime, uuid.UUID] | None:
+    if not cursor:
+        return None
+    try:
+        at, _, envelope_id = (
+            base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)).decode().partition("|")
+        )
+        return datetime.fromisoformat(at), uuid.UUID(envelope_id)
+    except (ValueError, UnicodeDecodeError):
+        raise ValidationFailed([FieldError("cursor", "Start the list again")]) from None
+
+
+def list_envelopes(
+    session: Session,
+    actor: Actor,
+    department_id: uuid.UUID,
+    *,
+    status: str | None,
+    cursor: str | None,
+) -> EnvelopePage:
+    """A department's envelopes for someone who may see its sends, newest first, 50 a page."""
+    get_department(session, actor.workspace_id, department_id)  # 404 for another company's
+    load_access(session, actor).require(Permission.DOCUMENTS_VIEW_SENDS, department_id)
+    found = store.list_envelopes(
+        session, actor.workspace_id, department_id, status=status, after=_after(cursor)
+    )
+    page = found[: store.PAGE]
+    more = len(found) > store.PAGE
+    return EnvelopePage(envelopes=page, next_cursor=_cursor(page[-1]) if more and page else None)
