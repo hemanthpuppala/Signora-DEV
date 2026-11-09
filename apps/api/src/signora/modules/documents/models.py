@@ -122,6 +122,7 @@ document_versions = Table(
         server_default=text("'{}'::integer[]"),
     ),
     Column("ai_instructions", Text, nullable=False, server_default=text("''")),
+    Column("ai_name", Text),  # what the AI called this version (Phase 5 §6.5)
     Column("ai_description", Text),
     Column("uploaded_by", UUID(as_uuid=True), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),

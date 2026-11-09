@@ -109,6 +109,28 @@ def test_the_layout_dependency_wins_over_the_ais() -> None:
     )
 
 
+def test_dependencies_that_loop_are_broken_and_flagged() -> None:
+    """Review fix: two fields each shown only when the other is filled vanished from the panel's
+    tree (neither was a root). The loop is broken at the AI's link, and that field needs a look."""
+    reading, document = _open(forms.all_types())
+    on_fee = {"id": "f11", "option": "True"}
+    on_consent = {"id": "f10", "option": "checked"}
+    answer = _answer(
+        [
+            _field("f10", "checkbox", "party_1", "Consent", depends_on=on_fee),
+            _field("f11", "choice", "sender", "Fee basis", depends_on=on_consent),
+        ]
+    )
+    result = derive(reading, answer, document, problems=[], repaired=False)
+    by_label = {f.label: f for f in result.fields}
+    consent, fee = by_label["Consent"], by_label["Fee basis"]
+    linked = [f for f in (consent, fee) if f.depends_on is not None]
+    assert len(linked) == 1  # one link kept: the two fields form a chain, not a loop
+    cut = fee if linked == [consent] else consent
+    assert cut.needs_review is not None and "loop" in cut.needs_review
+    assert linked[0].depends_on is not None and linked[0].depends_on.key == cut.key
+
+
 def test_every_check_finds_its_problem() -> None:
     reading, document = _open(forms.nda_like())
     ids = _ids(reading)
@@ -261,6 +283,28 @@ def test_an_extra_field_is_placed_from_its_words_and_one_not_found_is_dropped() 
     assert extra.placements[0].kind == "blank" and extra.ids == []
     assert extra.needs_review == "placed from the words around it: check its position"
     assert any("'Ghost' dropped" in note for note in result.notes)
+
+
+def test_an_extra_signature_is_a_partys_never_the_senders() -> None:
+    """Review fix: extra fields skipped the rule found fields follow, so a signature the AI gave
+    to the sender was stored as "filled in before sending"."""
+    reading, document = _open(forms.nda_like())
+    answer = _nda_answer(
+        reading,
+        extra_fields=[
+            {
+                "page": 1,
+                "anchor_text": "Continues until terminated.",
+                "holds": "signature",
+                "filled_by": "sender",
+                "label": "Witness signature",
+                "must_fill": True,
+            }
+        ],
+    )
+    result = derive(reading, answer, document, problems=[], repaired=False)
+    extra = next(f for f in result.fields if f.label == "Witness signature")
+    assert (extra.filled_by, extra.role) == ("none", None)  # nobody yet: a person assigns it
 
 
 def test_flags_keys_and_sensitive_values() -> None:

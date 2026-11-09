@@ -32,8 +32,7 @@
 
 .expanded {
   max-height: calc(20px * 4);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow-y: auto; /* at its end, scrolling carries on to the page */
   white-space: pre-line;
 }
 

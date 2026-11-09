@@ -1,8 +1,7 @@
 /* Tables inside a hairline panel (prototype .tbl-box). */
 .tablePanel {
   overflow: auto;
-  max-height: var(--table-max-height);
-  overscroll-behavior: contain;
+  max-height: var(--table-max-height); /* at its end, scrolling carries on to the page */
   background: var(--surface);
   border: 1px solid var(--sep);
   padding: 0 24px 4px;
@@ -89,6 +88,23 @@
   border-radius: 50%;
   flex: none;
   background: var(--dot);
+}
+
+/* Work going on (processing, finding fields): the dot breathes. */
+.dotLive {
+  animation: breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dotLive {
+    animation: none;
+  }
 }
 
 .dotRing {
@@ -194,6 +210,27 @@
 .tabActive {
   color: var(--ink);
   border-bottom-color: var(--ink);
+}
+
+/* Tabs with actions at the end of their line: the hairline runs under both. */
+.tabRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--sep);
+}
+
+.tabRow > .tabs {
+  border-bottom: 0;
+}
+
+.tabActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
 }
 
 @media (max-width: 720px) {

@@ -80,14 +80,16 @@ def ensure_run(session: Session, version: VersionForDetection) -> uuid.UUID:
 def restart_run(
     session: Session, version: VersionForDetection, *, requested_by: uuid.UUID | None
 ) -> uuid.UUID:
-    """A new run from the start, replacing any earlier one (§1.3)."""
+    """A new run from the start, replacing any earlier one (§1.3). The earlier run's ``result``
+    stays until this run derives its own (only the store stage reads it): the version keeps its
+    fields until then, and so their flags, also when this run fails."""
     run_id = uuid.uuid4()
     session.execute(
         text(
             "INSERT INTO detection_runs (version_id, run_id, workspace_id, requested_by) "
             "VALUES (:v, :r, :w, :by) ON CONFLICT (version_id) DO UPDATE SET run_id = :r, "
             "stage = 'read', fields_from = NULL, parsed = NULL, layout = NULL, calls = NULL, "
-            "answer = NULL, result = NULL, model = NULL, failure_code = NULL, requested_by = :by, "
+            "answer = NULL, model = NULL, failure_code = NULL, requested_by = :by, "
             "created_at = now(), finished_at = NULL"
         ),
         {"v": version.id, "r": run_id, "w": version.workspace_id, "by": requested_by},
@@ -111,7 +113,7 @@ _SAVE_DERIVE = text(
     "WHERE version_id = :v AND run_id = :r AND stage = 'derive' RETURNING version_id"
 )
 _SAVE_DONE = text(
-    "UPDATE detection_runs SET stage = 'done', finished_at = now() "
+    "UPDATE detection_runs SET stage = 'done', finished_at = now(), failure_code = NULL "
     "WHERE version_id = :v AND run_id = :r AND stage = 'store' RETURNING version_id"
 )
 _SAVE_FAILURE = text(
@@ -128,18 +130,14 @@ def _save(
 
 
 def run_detection(
-    context: JobContext,
-    version_id: uuid.UUID,
-    *,
-    run_id: uuid.UUID | None,
-    store: BlobStore,
-    assigner: Assigner,
+    context: JobContext, version_id: uuid.UUID, *, store: BlobStore, assigner: Assigner
 ) -> None:
-    """Detection for one version, resuming at the saved stage. ``run_id`` is None for the run that
-    follows processing (found or created here), set for a run started by hand."""
+    """Detection for one version, resuming at the saved stage: the unfinished run (a failed one,
+    or one a person has just restarted), else a new one."""
+    run_id: uuid.UUID | None = None
     with context.unit_of_work() as uow:
         version = version_for_detection(uow.session, version_id)
-        if version is not None and version.status == "detecting" and run_id is None:
+        if version is not None and version.status == "detecting":
             run_id = ensure_run(uow.session, version)
     if version is None or version.status != "detecting" or run_id is None:
         with context.complete():  # nothing to do: no longer detecting
@@ -245,7 +243,6 @@ def _ask(
         assigner,
         current_name=version.document_name,
         instructions=version.ai_instructions,
-        write_name_and_description=version.write_name_and_description,
     )
 
 
@@ -256,7 +253,6 @@ def ask(
     *,
     current_name: str,
     instructions: str,
-    write_name_and_description: bool,
 ) -> tuple[list[JsonDict], dict[str, Any], str | None]:
     """The AI step (§3.4): one call, and one repair call when the checks find problems; nothing to
     ask, no call. Returns each call's facts (with the problems found), the last answer, the model.
@@ -269,12 +265,7 @@ def ask(
         {"role": "system", "content": SYSTEM_PROMPT},
         {
             "role": "user",
-            "content": user_message(
-                reading,
-                current_name=current_name,
-                instructions=instructions,
-                write_name_and_description=write_name_and_description,
-            ),
+            "content": user_message(reading, current_name=current_name, instructions=instructions),
         },
     ]
     calls: list[JsonDict] = []
@@ -313,17 +304,16 @@ def _store(
 ) -> None:
     """The version's roles, fields and placements, its name and description, and ready (§1.2),
     in the transaction that completes the job."""
+    name = result.document.name if result.document else None
+    description = result.document.description if result.document else None
     with context.complete() as uow:
         _save(uow.session, _SAVE_DONE, version.id, run_id)
         write_fields(uow.session, version, result)
         if result.document is not None:
-            apply_name_and_description(
-                uow,
-                version,
-                name=result.document.name or "",
-                description=result.document.description or "",
-            )
-        finish_detection(uow, version, field_count=len(result.fields))
+            apply_name_and_description(uow, version, name=name or "", description=description or "")
+        finish_detection(
+            uow, version, field_count=len(result.fields), name=name, description=description
+        )
         _audit(uow, version, result, row)
     log.info(
         "detection.done",

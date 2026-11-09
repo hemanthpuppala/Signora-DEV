@@ -1555,6 +1555,8 @@ export interface components {
             /** Fields From */
             fields_from: ("form_fields" | "blanks" | "none") | null;
             flags: components["schemas"]["Flags"];
+            /** Found Again Failed */
+            found_again_failed?: string | null;
             /** Pending */
             pending: components["schemas"]["PendingField"][];
             /** Roles */
@@ -1585,6 +1587,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Description */
+            description: string | null;
             /** Field Count */
             field_count: number | null;
             /** Filename */
@@ -1601,6 +1605,8 @@ export interface components {
              * @enum {string}
              */
             kind: "pdf" | "docx";
+            /** Name */
+            name: string | null;
             /** Number */
             number: number;
             /** Page Count */

@@ -26,6 +26,7 @@ from signora.modules.departments import normalize_name
 from signora.modules.documents.current import promote_if_newest
 from signora.modules.documents.domain import DESCRIPTION_MAX, DETECTION_FAILURE_CODES, NAME_MAX
 from signora.modules.documents.errors import VersionNotProcessed
+from signora.modules.documents.processing import publish_processed
 from signora.modules.documents.service import (
     audit,
     changeable_version,
@@ -46,7 +47,6 @@ class VersionForDetection:
     page_count: int
     ai_instructions: str
     document_name: str
-    write_name_and_description: bool  # Phase 4 §1.3: until a person or the AI has written them
 
 
 def version_for_detection(session: Session, version_id: uuid.UUID) -> VersionForDetection | None:
@@ -55,8 +55,7 @@ def version_for_detection(session: Session, version_id: uuid.UUID) -> VersionFor
         text(
             "SELECT v.id, v.workspace_id, v.document_id, v.version_no, v.status, v.source_kind, "
             "v.source_sha256, v.source_bytes, v.unlocked_sha256, v.pdf_sha256, v.pdf_bytes, "
-            "v.page_count, v.ai_instructions, d.name AS document_name, d.name_source, "
-            "d.description_source FROM document_versions v "
+            "v.page_count, v.ai_instructions, d.name AS document_name FROM document_versions v "
             "JOIN documents d ON d.id = v.document_id WHERE v.id = :id"
         ),
         {"id": version_id},
@@ -80,8 +79,6 @@ def version_for_detection(session: Session, version_id: uuid.UUID) -> VersionFor
         page_count=found.page_count,
         ai_instructions=found.ai_instructions,
         document_name=found.document_name,
-        write_name_and_description=found.name_source == "upload"
-        or found.description_source == "none",
     )
 
 
@@ -118,7 +115,11 @@ def start_detection(
     uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> StartMode:
     """A person runs detection (§1.3): ``resume`` a failed run, ``restart`` a ready version from the
-    beginning, or nothing while it is ``running``. Refused before processing has finished."""
+    beginning, or nothing while it is ``running``. Refused before processing has finished.
+
+    It goes the way of every detection: the version is detecting and ``DocumentVersionProcessed``
+    is published again, as Try again does, so each request is a new job (one path, never a job
+    deduplicated away while the version waits). The caller resets the run first for a restart."""
     session = uow.session
     version = changeable_version(session, actor, document_id, version_id)
     if version.status == "detecting":
@@ -136,6 +137,7 @@ def start_detection(
         ),
         {"id": version_id},
     )
+    publish_processed(session, actor.workspace_id, document_id, version_id)
     audit(
         uow,
         actor,
@@ -158,15 +160,23 @@ def _system_audit(uow: UnitOfWork, version: VersionForDetection, action: str, **
     )
 
 
-def finish_detection(uow: UnitOfWork, version: VersionForDetection, *, field_count: int) -> bool:
-    """The version is ready (§1.2 store); it becomes current when no higher-numbered version is
-    ready (Phase 4 §4.2). False when it was no longer detecting (nothing changed)."""
+def finish_detection(
+    uow: UnitOfWork,
+    version: VersionForDetection,
+    *,
+    field_count: int,
+    name: str | None,
+    description: str | None,
+) -> bool:
+    """The version is ready (§1.2 store), with the name and description the AI wrote for it (none
+    when nothing was asked); it becomes current when no higher-numbered version is ready (Phase 4
+    §4.2). False when it was no longer detecting (nothing changed)."""
     changed = uow.session.execute(
         text(
-            "UPDATE document_versions SET status = 'ready', field_count = :n "
-            "WHERE id = :id AND status = 'detecting' RETURNING id"
+            "UPDATE document_versions SET status = 'ready', field_count = :n, ai_name = :name, "
+            "ai_description = :description WHERE id = :id AND status = 'detecting' RETURNING id"
         ),
-        {"id": version.id, "n": field_count},
+        {"id": version.id, "n": field_count, "name": name, "description": description},
     ).one_or_none()
     if changed is None:
         return False
@@ -184,18 +194,28 @@ def finish_detection(uow: UnitOfWork, version: VersionForDetection, *, field_cou
 
 
 def fail_detection(uow: UnitOfWork, version: VersionForDetection, code: str) -> None:
-    """A detection failure (§1.1): passing, so Try again is offered. Only while detecting."""
+    """A detection failure (§1.1): passing, so Try again is offered. Only while detecting.
+
+    A version that already has fields (finding them again failed) goes back to ready with those
+    fields: they are kept until a run stores new ones, and a ready version (perhaps the current
+    one) never stops being usable because a second look failed. Detection keeps the failure on
+    its run, so the person is told. A version without fields fails."""
     if code not in DETECTION_FAILURE_CODES:
         raise ValueError(f"not a detection failure: {code}")
     changed = uow.session.execute(
         text(
-            "UPDATE document_versions SET status = 'failed', failure_code = :code, "
-            "failure_temporary = true WHERE id = :id AND status = 'detecting' RETURNING id"
+            "UPDATE document_versions SET "
+            "status = CASE WHEN field_count IS NULL THEN 'failed' ELSE 'ready' END, "
+            "failure_code = CASE WHEN field_count IS NULL THEN :code END, "
+            "failure_temporary = field_count IS NULL "
+            "WHERE id = :id AND status = 'detecting' RETURNING status"
         ),
         {"id": version.id, "code": code},
-    ).one_or_none()
-    if changed is not None:
+    ).scalar_one_or_none()
+    if changed == "failed":
         _system_audit(uow, version, "document.version_failed", reason=code, temporary=True)
+    elif changed == "ready":
+        _system_audit(uow, version, "document.detection_failed", reason=code, kept_fields=True)
 
 
 def apply_name_and_description(

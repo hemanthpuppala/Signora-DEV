@@ -12,7 +12,7 @@ import re
 
 MARKER_BRACKETS = str.maketrans("", "", "⟦⟧")
 OUR_TAGS = re.compile(
-    r"<\s*/?\s*(document|fields|uploader_instructions|current_name|write_name_and_description)\b[^>]*>",
+    r"<\s*/?\s*(document|fields|uploader_instructions|current_name)\b[^>]*>",
     re.IGNORECASE,
 )
 

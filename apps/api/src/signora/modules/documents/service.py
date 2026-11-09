@@ -98,6 +98,8 @@ class VersionRow:
     created_at: datetime
     processed_at: datetime | None
     field_count: int | None
+    ai_name: str | None
+    ai_description: str | None
 
 
 @dataclass(frozen=True)
@@ -131,7 +133,7 @@ _VERSION_SELECT = """
            v.source_kind, v.source_filename, v.source_bytes, v.source_sha256, v.pdf_sha256,
            v.pdf_bytes, v.page_count, v.pages, v.pages_without_text, v.ai_instructions,
            v.uploaded_by AS uploaded_by_id, u.name AS uploaded_by_name, v.created_at,
-           v.processed_at, v.field_count
+           v.processed_at, v.field_count, v.ai_name, v.ai_description
     FROM document_versions v JOIN users u ON u.id = v.uploaded_by
     WHERE v.workspace_id = :w
 """

@@ -38,6 +38,11 @@
   --role3f: rgba(0, 0, 0, 0.04);
   --firm: #222;
   --firmf: rgba(0, 0, 0, 0.06);
+  /* marks on paper that are not a party's: filled before sending, not yet assigned, chosen */
+  --paper-quiet: rgba(0, 0, 0, 0.5);
+  --paper-faint: rgba(0, 0, 0, 0.3);
+  --paper-chosen: rgba(0, 0, 0, 0.1);
+  --paper-pulse: rgba(0, 0, 0, 0.35);
 
   /* status dot colors: the one place color is allowed */
   --st-draft: #8e8e93;
@@ -67,6 +72,7 @@
   --field-gap: 6px;
   --field-control-height: calc(16px * 1.4 + 18px + 1px); /* line + 9px padding twice + underline */
   --gutter: 16px;
+  --topbar-height: 64px; /* the sticky top bar on one line; pinned panels sit below it */
   --content-max: 1120px;
   --page-gap: 36px; /* between a console page's blocks */
 }

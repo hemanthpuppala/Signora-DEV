@@ -11,6 +11,7 @@ win over the AI's (§4.2). One pass with hash maps: O(F) for F fields.
 from __future__ import annotations
 
 import re
+from collections.abc import Collection
 from typing import Any, Literal
 
 import pymupdf
@@ -268,6 +269,17 @@ def _placements(found: FoundField) -> list[PlacementOut]:
     ]
 
 
+def _who_fills(holds: str, filled_by: str, roles: Collection[str]) -> str:
+    """Who fills a field, kept to the rules for every field, found or extra (§4.1): a party the
+    answer listed, the sender or nobody; and a party's own value (a signature, initials, a
+    signing date…) only ever that party, so "the sender" or nobody becomes nobody, for review."""
+    if filled_by not in {*roles, "sender", "none"}:
+        return "none"
+    if holds in OWN and filled_by in ("sender", "none"):
+        return "none"
+    return filled_by
+
+
 def derive(
     reading: Reading,
     answer: dict[str, Any],
@@ -309,10 +321,7 @@ def derive(
             )
             if holds not in ALLOWED.get(found.kind, frozenset()):
                 holds = KIND_DEFAULT.get(found.kind, "text")
-            if filled_by not in {*listed, "sender", "none"} or (
-                holds in OWN and filled_by in ("sender", "none")
-            ):
-                filled_by = "none"
+            filled_by = _who_fills(holds, filled_by, listed)
             if _unsafe(label):
                 label = found.label or found.id
         first = found.placements[0]
@@ -357,16 +366,14 @@ def derive(
                 f"extra field {extra['label']!r} dropped: its words are not on page {extra['page']}"
             )
             continue
-        filled_by = (
-            extra["filled_by"] if extra["filled_by"] in {*listed, "sender", "none"} else "none"
-        )
+        holds = extra["holds"] if extra["holds"] not in ("checkbox", "choice") else "text"
         items[f"x{number}"] = _Item(
             ids=[],
             label=extra["label"][:LABEL_MAX]
             if not _unsafe(extra["label"])
             else extra["anchor_text"][:LABEL_MAX],
-            holds=extra["holds"] if extra["holds"] not in ("checkbox", "choice") else "text",
-            filled_by=filled_by,
+            holds=holds,
+            filled_by=_who_fills(holds, extra["filled_by"], listed),
             required=extra["must_fill"],
             placements=[PlacementOut(page=extra["page"], rect=rect, kind="blank")],
             order=(extra["page"], rect[1], rect[0]),
@@ -474,6 +481,7 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
         else:
             key_of[id(item)] = _unique(f"{owner}.{_name_words(item.label, role)}", taken)
     key_by_id = {i: key_of[id(item)] for item in ordered for i in item.ids}
+    item_by_id = {i: item for item in ordered for i in item.ids}
 
     fields: dict[str, FieldOut] = {}
     for item in ordered:
@@ -490,7 +498,7 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
             parent, option, source = item.depends
             parent_key = key_by_id.get(parent)
             if parent_key is not None and parent_key != key:
-                parent_item = next(other for other in ordered if parent in other.ids)
+                parent_item = item_by_id[parent]
                 if parent_item.group is not None and option == "checked":
                     # A checkbox in a group: the choice of that option.
                     option = parent_item.placements[0].option_text or option
@@ -516,7 +524,38 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
         existing.required = existing.required or item.required
         if item.review:
             existing.needs_review = "; ".join(filter(None, [existing.needs_review, *item.review]))
+    _break_loops(fields)
     return list(fields.values())
+
+
+def _break_loops(fields: dict[str, FieldOut]) -> None:
+    """Dependencies form a forest: a field that applies under an option of another, never in a
+    loop (two fields each shown only when the other is filled could never be shown, and a list
+    of them as a tree would lose both). Each chain is walked once, so O(F): where one closes a
+    loop, the AI's link in it is dropped (the layout's are facts), else the last, and that field
+    needs a look."""
+    visiting, done = 1, 2
+    state: dict[str, int] = {}
+    for start in fields:
+        path: list[str] = []
+        key: str | None = start
+        while key is not None and key not in state:
+            state[key] = visiting
+            path.append(key)
+            dependency = fields[key].depends_on
+            key = dependency.key if dependency is not None and dependency.key in fields else None
+        if key is not None and state[key] == visiting:
+            loop = path[path.index(key) :]
+            cut = next(
+                (k for k in loop if (d := fields[k].depends_on) is not None and d.source == "ai"),
+                loop[-1],
+            )
+            field = fields[cut]
+            field.depends_on = None
+            note = "its condition depended on itself in a loop; check when it applies"
+            field.needs_review = "; ".join(filter(None, [field.needs_review, note]))
+        for key_on_path in path:
+            state[key_on_path] = done
 
 
 def _unique(base: str, taken: set[str]) -> str:

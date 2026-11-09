@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
@@ -9,13 +9,12 @@ import {
   Button,
   Checkbox,
   ClampedText,
-  Eyebrow,
+  Dialog,
+  HeadAction,
   HeadRow,
   Heading1,
-  LinkButton,
   Notice,
   PdfViewer,
-  RowActions,
   type PdfOverlayArgs,
   Section,
   SmallText,
@@ -28,8 +27,10 @@ import { documentKey, hasWorkingCopy, useDocument, type DocumentDetail } from ".
 import styles from "./document.module.css";
 import { FieldBoxes, type Selection } from "./FieldBoxes";
 import { useVersionFields, type VersionFields } from "./fields";
+import { VersionLabel } from "./VersionLabel";
+import { VersionProgress } from "./VersionProgress";
 import { FieldsPanel } from "./FieldsPanel";
-import { NewVersion } from "./NewVersion";
+import { useNewVersion } from "./NewVersion";
 import { Versions } from "./Versions";
 import { VersionState } from "./VersionState";
 
@@ -69,6 +70,8 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
   const [editing, setEditing] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const newVersion = useNewVersion(departmentId, documentId);
+  const fileInput = useRef<HTMLInputElement>(null);
   // The version shown: the one opened, else the current one, else (while the first version's
   // fields are found) the newest one that can be shown (Phase 5 §6.3).
   const versions = document.data?.versions ?? [];
@@ -93,29 +96,73 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
   const newest = data.versions[0];
   const view = fields.data;
   const focus = picked && selection && view && shown ? focusOf(view, selection, picked.token) : null;
-  const back = `/departments/${departmentId}`;
+  const back = `/departments/${departmentId}/documents`;
 
   return (
     <>
+      {/* The way back and the document's actions share one line, so the title block is shorter. */}
       <HeadRow
-        actions={
-          <>
-            {canEdit && !editing ? (
-              <Button variant="quiet" onClick={() => setEditing(true)}>
-                Edit
-              </Button>
-            ) : null}
-            <LinkButton href={back} variant="quiet">
-              Back
-            </LinkButton>
-          </>
+        back={{ href: back, label: "Documents" }}
+        backActions={
+          canEdit ? (
+            <div className={styles.headActions} role="group" aria-label="Document actions">
+              <HeadAction
+                icon="upload"
+                label="New version"
+                disabled={newVersion.uploading !== null}
+                onClick={() => fileInput.current?.click()}
+              />
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".pdf,.docx"
+                hidden
+                aria-label="New version file"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = ""; // the same file can be picked again
+                  if (file) newVersion.start(file);
+                }}
+              />
+              {!editing ? <HeadAction icon="edit" label="Edit" onClick={() => setEditing(true)} /> : null}
+              <HeadAction
+                icon="archive"
+                label="Archive document"
+                variant="destructive"
+                onClick={() => setConfirmArchive(true)}
+              />
+            </div>
+          ) : undefined
         }
       >
-        <Eyebrow>Document</Eyebrow>
-        <Heading1>{data.name}</Heading1>
+        <div className={styles.titleLine}>
+          <Heading1>{data.name}</Heading1>
+          {shown ? (
+            <span className={styles.number}>
+              <VersionLabel number={shown.number} current={shown.is_current} />
+            </span>
+          ) : null}
+        </div>
         {data.description && !editing ? <ClampedText>{data.description}</ClampedText> : null}
       </HeadRow>
       {editing ? <About document={data} onDone={() => setEditing(false)} /> : null}
+      {confirmArchive && canEdit ? (
+        <Dialog
+          title="Archive this document?"
+          onClose={() => setConfirmArchive(false)}
+          actions={
+            <>
+              <Button variant="destructive" loading={archive.isPending} onClick={() => archive.mutate("archive")}>
+                Confirm archive
+              </Button>
+              <TextButton onClick={() => setConfirmArchive(false)}>Cancel</TextButton>
+            </>
+          }
+        >
+          {"It can't get new versions or be sent. It can be restored later."}
+          {archive.error ? <Notice tone="warning">{formError(archive.error)}</Notice> : null}
+        </Dialog>
+      ) : null}
       {archived ? (
         <Notice
           title="Archived"
@@ -132,17 +179,18 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
       ) : null}
       <div className={styles.layout}>
         <div className={styles.main}>
+          {newVersion.problem ? <Notice tone="warning">{newVersion.problem}</Notice> : null}
+          <VersionProgress uploading={newVersion.uploading} version={newest} />
           {newest && newest.status !== "ready" ? (
             <VersionState document={data} version={newest} canEdit={canEdit} />
           ) : null}
           {shown ? (
             <>
-              <div className={styles.caption}>
-                <span>{`Version ${shown.number}${shown.is_current ? " · Current" : ""}`}</span>
-                {shown.id !== data.current_version?.id && data.current_version ? (
+              {shown.id !== data.current_version?.id && data.current_version ? (
+                <div className={styles.caption}>
                   <TextButton onClick={() => setViewing(null)}>Back to the current version</TextButton>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
               <PdfViewer
                 url={`/api/v1/documents/${data.id}/versions/${shown.id}/pdf`}
                 pages={shown.pages}
@@ -186,29 +234,6 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
           <Section title="Versions">
             <Versions document={data} viewing={shownId} onOpen={setViewing} canEdit={canEdit} />
           </Section>
-          {canEdit ? (
-            <Section title="New version">
-              <NewVersion document={data} />
-            </Section>
-          ) : null}
-          {canEdit ? (
-            <Section title="Archive">
-              {confirmArchive ? (
-                <RowActions label="Confirm archiving">
-                  <Button variant="destructive" loading={archive.isPending} onClick={() => archive.mutate("archive")}>
-                    Confirm archive
-                  </Button>
-                  <TextButton onClick={() => setConfirmArchive(false)}>Cancel</TextButton>
-                </RowActions>
-              ) : (
-                <div>
-                  <Button variant="destructive" onClick={() => setConfirmArchive(true)}>
-                    Archive document
-                  </Button>
-                </div>
-              )}
-            </Section>
-          ) : null}
         </div>
       </div>
     </>

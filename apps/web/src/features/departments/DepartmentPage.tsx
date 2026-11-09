@@ -9,27 +9,39 @@ import { can, type Me } from "@/shared/session";
 import {
   Button,
   ClampedText,
-  Eyebrow,
+  HeadAction,
   HeadRow,
   Heading1,
-  LinkButton,
   MetricGrid,
   MetricTile,
   Notice,
+  Tabs,
 } from "@/shared/ui";
 
 import { dayMonth, departmentKey, useDepartment, type Department } from "./api";
 
-/** Screens 07/08: one department. Its documents come from the documents feature, through the
- * route (a feature never imports another), as ``documents``. */
+export type DepartmentTab = "envelopes" | "documents";
+
+/**
+ * Screens 07/08: one department. Every tab shares this head (the way back with Department
+ * settings at its end, the name and its description, the counts) and the tabs; the open tab's
+ * content comes from the route as ``children`` (a feature never imports another), and so do its
+ * ``tabActions`` (at the end of the tab line) and the number of documents for the tab's label.
+ */
 export function DepartmentPage({
   me,
   id,
-  documents,
+  tab,
+  documentCount,
+  tabActions,
+  children,
 }: {
   me: Me;
   id: string;
-  documents?: (department: Department) => ReactNode;
+  tab: DepartmentTab;
+  documentCount?: number | undefined;
+  tabActions?: (department: Department) => ReactNode;
+  children: (department: Department) => ReactNode;
 }) {
   const queryClient = useQueryClient();
   const department = useDepartment(id);
@@ -62,15 +74,17 @@ export function DepartmentPage({
   return (
     <>
       <HeadRow
-        actions={
-          manages && !archived ? (
-            <LinkButton href={`/departments/${id}/settings`} variant="quiet">
-              Department settings
-            </LinkButton>
-          ) : null
+        back={{ href: "/", label: "Departments" }}
+        backActions={
+          <>
+            {/* Sending envelopes arrives in Phase 6: the button is in place, not yet active. */}
+            {!archived ? <HeadAction icon="plus" label="Add envelope" disabled /> : null}
+            {manages && !archived ? (
+              <HeadAction icon="settings" label="Settings" href={`/departments/${id}/settings`} />
+            ) : null}
+          </>
         }
       >
-        <Eyebrow>Department</Eyebrow>
         <Heading1>{data.name}</Heading1>
         {data.description ? <ClampedText>{data.description}</ClampedText> : null}
       </HeadRow>
@@ -94,7 +108,19 @@ export function DepartmentPage({
         <MetricTile value={data.counts.signed} label="Signed" />
         <MetricTile value={data.counts.pending} label="Pending" />
       </MetricGrid>
-      {documents?.(data)}
+      <Tabs
+        label="Department"
+        items={[
+          { href: `/departments/${id}`, label: "Envelopes", active: tab === "envelopes" },
+          {
+            href: `/departments/${id}/documents`,
+            label: documentCount === undefined ? "Documents" : `Documents · ${documentCount}`,
+            active: tab === "documents",
+          },
+        ]}
+        actions={tabActions?.(data)}
+      />
+      {children(data)}
     </>
   );
 }

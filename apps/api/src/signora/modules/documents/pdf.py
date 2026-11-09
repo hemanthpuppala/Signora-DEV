@@ -100,7 +100,8 @@ def _lacks_text(page: pymupdf.Page) -> bool:
     return False
 
 
-# Actions that run a script or reach outside the document. Plain links (/URI, /GoTo) are kept.
+# Actions that run a script or reach outside the document (another file, an embedded one, a
+# program, a form submission). Plain links (/URI, /GoTo within the document) are kept.
 _UNSAFE_ACTIONS = frozenset(
     {
         "/JavaScript",
@@ -111,6 +112,7 @@ _UNSAFE_ACTIONS = frozenset(
         "/Movie",
         "/Sound",
         "/GoToE",
+        "/GoToR",
     }
 )
 
@@ -136,11 +138,20 @@ def _make_safe(document: pymupdf.Document) -> None:
     # One pass over every object: additional actions (/AA) on the catalog, pages, form fields and
     # annotations run on events (open, keystroke, calculate, focus), and an action (/A) of an
     # unsafe kind runs on a click. A field's /AA was left by scrub(javascript=True) (Phase 5 §2.1).
+    # An action can also be its own object (referenced from /A), and any action can chain more
+    # after it (/Next): a chain is dropped whole, and an unsafe action object is emptied wherever
+    # it is referenced from (review fix).
     for xref in range(1, document.xref_length()):
         if document.xref_get_key(xref, "AA")[0] != "null":
             document.xref_set_key(xref, "AA", "null")
         if document.xref_get_key(xref, "A/S")[1] in _UNSAFE_ACTIONS:
             document.xref_set_key(xref, "A", "null")
+        elif document.xref_get_key(xref, "A/Next")[0] != "null":
+            document.xref_set_key(xref, "A/Next", "null")
+        if document.xref_get_key(xref, "S")[1] in _UNSAFE_ACTIONS:
+            document.update_object(xref, "<<>>")  # an action object: nothing left to run
+        elif document.xref_get_key(xref, "Next")[0] != "null":
+            document.xref_set_key(xref, "Next", "null")
 
 
 def prepare(data: bytes, *, max_pages: int) -> Prepared:

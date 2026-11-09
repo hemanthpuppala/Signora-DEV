@@ -222,6 +222,8 @@ class VersionView(BaseModel):
     created_at: datetime
     processed_at: datetime | None
     field_count: int | None  # once ready
+    name: str | None  # what the AI called this version, once ready (Phase 5 §6.5)
+    description: str | None  # the AI's description of this version, once ready
     is_current: bool
 
 
@@ -298,6 +300,8 @@ def version_view(
         created_at=version.created_at,
         processed_at=version.processed_at,
         field_count=version.field_count,
+        name=version.ai_name,
+        description=version.ai_description,
         is_current=version.id == current_id,
     )
 

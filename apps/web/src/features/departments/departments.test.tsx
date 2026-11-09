@@ -117,11 +117,11 @@ describe("departments screens", () => {
     await user.type(screen.getByLabelText("Name"), "Finance");
     await user.click(screen.getByRole("button", { name: /create department/i }));
 
-    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "d-1" }), []));
+    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "d-1" }), null));
     expect(screen.queryByRole("region", { name: "Documents" })).toBeNull(); // no upload: no dropzone
   });
 
-  it("holds dropped files until the department exists, then hands them over", async () => {
+  it("holds one dropped file until the department exists, then hands it over", async () => {
     fetchMock.mockImplementation(() => reply(201, finance));
     const onCreated = vi.fn();
     wrap(<NewDepartmentForm onCreated={onCreated} upload={{ hint: "up to 50 MB" }} />);
@@ -129,14 +129,15 @@ describe("departments screens", () => {
     const letter = new File(["%PDF-1.7"], "Letter.pdf", { type: "application/pdf" });
     const nda = new File(["%PDF-1.7"], "NDA.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), letter);
     await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), nda);
-    const list = screen.getByRole("region", { name: "Documents to upload list" });
-    await user.click(within(within(list).getByText("NDA.pdf").closest("tr") as HTMLElement).getByRole("button", { name: "Remove" }));
+    expect(screen.queryByLabelText(/Drop a PDF or Word file/)).toBeNull(); // one at a time: the file takes its place
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), letter);
+    expect(screen.getByRole("region", { name: "Document to upload" })).toBeTruthy();
     await user.type(screen.getByLabelText("Name"), "Finance");
     await user.click(screen.getByRole("button", { name: /create department/i }));
 
-    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "d-1" }), [letter]));
+    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "d-1" }), letter));
     const urls = fetchMock.mock.calls.map(([request]) => (request as Request).url);
     expect(urls.some((url) => url.includes("/uploads"))).toBe(false); // nothing is sent early
   });
@@ -145,30 +146,40 @@ describe("departments screens", () => {
     const archived = { ...finance, status: "archived", archived_at: "2026-11-07T12:00:00Z" };
     fetchMock.mockImplementation(() => reply(200, archived));
     wrap(
-      <DepartmentPage
-        me={me(EDITOR)}
-        id="d-1"
-        documents={(department) => <p>{`documents of ${department.name}, ${department.status}`}</p>}
-      />,
+      <DepartmentPage me={me(EDITOR)} id="d-1" tab="documents" documentCount={2}>
+        {(department) => <p>{`documents of ${department.name}, ${department.status}`}</p>}
+      </DepartmentPage>,
     );
 
     expect(await screen.findByText(/Archived on .*Restore it to make changes\./)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Restore" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Department settings" })).toBeNull();
-    expect(screen.getByText("documents of Finance, archived")).toBeTruthy(); // the route's slot
+    expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add envelope" })).toBeNull();
+    expect(screen.getByText("documents of Finance, archived")).toBeTruthy(); // the open tab's content
+    const tabs = screen.getByRole("navigation", { name: "Department" });
+    expect(within(tabs).getByRole("link", { name: "Documents · 2" }).getAttribute("aria-current")).toBe("page");
+    expect(within(tabs).getByRole("link", { name: "Envelopes" }).getAttribute("href")).toBe("/departments/d-1");
   });
 
   it("gives viewers no settings or restore", async () => {
     fetchMock.mockImplementation(() => reply(200, { ...finance, access: "read" }));
-    wrap(<DepartmentPage me={me([])} id="d-1" />);
+    wrap(
+      <DepartmentPage me={me([])} id="d-1" tab="envelopes">
+        {() => null}
+      </DepartmentPage>,
+    );
 
     expect(await screen.findByRole("heading", { name: "Finance" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Department settings" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
   });
 
   it("says when a department does not exist", async () => {
     fetchMock.mockImplementation(() => reply(404, problem("not-found", 404)));
-    wrap(<DepartmentPage me={me(EDITOR)} id="nope" />);
+    wrap(
+      <DepartmentPage me={me(EDITOR)} id="nope" tab="envelopes">
+        {() => null}
+      </DepartmentPage>,
+    );
     expect(await screen.findByText("This department doesn't exist.")).toBeTruthy();
   });
 });

@@ -117,6 +117,14 @@ def test_a_flat_page_gives_underscores_placeholders_and_checkboxes() -> None:
     assert "purpose]" not in reading.layout  # the wrapped part is the placeholder's, not text
 
 
+def test_a_checkboxs_words_are_read_on_a_page_shown_rotated() -> None:
+    """Review fix: on a wide page shown upright, the last checkbox's words lay past the upright
+    width, which bounded the row, so its option text was lost."""
+    reading = read_document(forms.rotated_marks())
+    options = [f.placements[0].option_text for f in reading.fields if f.kind == "checkbox"]
+    assert options == ["Individual", "Business entity"]
+
+
 def test_every_placeholder_style_is_a_blank() -> None:
     values = [f.value for f in read_document(forms.placeholder_styles()).fields]
     assert values == ["[Describe the purpose]", "{{client_name}}", "«fee amount»", "<<city>>"]

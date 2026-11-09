@@ -16,8 +16,9 @@
   pointer-events: auto;
 }
 
+/* Boxes sit on paper: every outline and mark uses paper colours (the page's white ink would vanish). */
 .box:hover {
-  outline: 1px solid var(--ink);
+  outline: 1px solid var(--paper-ink);
   outline-offset: 1px;
 }
 
@@ -30,27 +31,30 @@
 }
 
 .pending {
-  border: 1px dashed var(--t30); /* found, not yet assigned */
+  border: 1px dashed var(--paper-faint); /* found, not yet assigned */
   background: transparent;
 }
 
-.chosen {
-  outline: 2px solid var(--ink);
+/* The field picked in the list or on the page: a dark ring, a tint, and one pulse to find it. */
+.box.chosen {
+  z-index: 1;
+  outline: 2px solid var(--paper-ink);
   outline-offset: 2px;
-  animation: pulse 0.9s ease-out 1;
+  background: var(--paper-chosen);
+  animation: pulse 1.2s ease-out 2;
 }
 
 @keyframes pulse {
   from {
-    box-shadow: 0 0 0 0 var(--r40);
+    box-shadow: 0 0 0 0 var(--paper-pulse);
   }
   to {
-    box-shadow: 0 0 0 10px transparent;
+    box-shadow: 0 0 0 14px transparent;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chosen {
+  .box.chosen {
     animation: none;
   }
 }
@@ -84,6 +88,15 @@
 .none {
   border-color: var(--t30);
   background: transparent;
+}
+
+/* The same two tones as boxes on paper (the dots above sit on the dark panel). */
+.box.sender {
+  border-color: var(--paper-quiet);
+}
+
+.box.none {
+  border-color: var(--paper-faint);
 }
 
 /* --- the panel -------------------------------------------------------------------------------- */
@@ -240,6 +253,30 @@
 
 .selected {
   box-shadow: inset 2px 0 0 var(--ink);
+  animation: chosenRow 0.9s ease-out 1; /* brightens, then settles: where the eye should land */
+}
+
+@keyframes chosenRow {
+  from {
+    background: var(--r15);
+  }
+  to {
+    background: var(--r05);
+  }
+}
+
+.item {
+  transition: background 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selected {
+    animation: none;
+  }
+
+  .item {
+    transition: none;
+  }
 }
 
 .details {

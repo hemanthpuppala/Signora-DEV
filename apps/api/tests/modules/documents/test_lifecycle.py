@@ -37,15 +37,17 @@ def test_processing_leaves_a_version_detecting_and_detection_makes_it_ready_and_
     assert _version(owner, document["id"])["status"] == "detecting"
     facts = _facts(committing_db, version_id)
     assert facts.source.sha256 != ""  # the original PDF, read by detection (§2.1)
-    assert facts.write_name_and_description
+    assert _version(owner, document["id"])["name"] is None  # named once its fields are found
 
+    named = {"name": "Mutual NDA", "description": "A mutual NDA between two parties."}
     with committing_db.unit_of_work() as uow:
-        assert lifecycle.finish_detection(uow, facts, field_count=7)
+        assert lifecycle.finish_detection(uow, facts, field_count=7, **named)
     with committing_db.unit_of_work() as uow:
-        assert not lifecycle.finish_detection(uow, facts, field_count=7)  # once only
+        assert not lifecycle.finish_detection(uow, facts, field_count=7, **named)  # once only
 
     after = owner.get(f"{DOCUMENTS}/{document['id']}").json()
     assert (after["versions"][0]["status"], after["versions"][0]["field_count"]) == ("ready", 7)
+    assert {k: after["versions"][0][k] for k in named} == named  # the version keeps the AI's words
     assert after["current_version"]["number"] == 1
     assert after["latest_version"]["field_count"] == 7
 
@@ -96,5 +98,4 @@ def test_the_ai_names_and_describes_a_document_once_and_never_over_a_person(
         )
     after = owner.get(f"{DOCUMENTS}/{document['id']}").json()
     assert (after["name"], after["description"]) == ("Mutual NDA", "A short description.")
-    assert not _facts(committing_db, version_id).write_name_and_description
     assert taken["name"] == "Engagement letter"

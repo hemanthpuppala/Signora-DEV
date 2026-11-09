@@ -4,6 +4,7 @@ Public interface — other modules import only from here. Detection (Phase 5) dr
 processing through the lifecycle functions.
 """
 
+from signora.modules.documents.domain import detection_failure_message
 from signora.modules.documents.lifecycle import (
     StartMode,
     VersionForDetection,
@@ -23,6 +24,7 @@ __all__ = [
     "StartMode",
     "VersionForDetection",
     "apply_name_and_description",
+    "detection_failure_message",
     "fail_detection",
     "finish_detection",
     "require_document",
