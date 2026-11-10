@@ -375,6 +375,9 @@ export function SendModal({
       {step === SIGNERS && data ? (
         <div className={styles.steps}>
           <Section title="Who signs">
+            {data.signers.length === 0 ? (
+              <SmallText>No party signs this template first, so nobody is emailed a link to sign.</SmallText>
+            ) : null}
             {data.signers.map((signer, index) => {
               const person = signers[signer.party_id] ?? { name: "", email: "" };
               const set = (patch: Partial<Person>) =>

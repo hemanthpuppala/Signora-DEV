@@ -52,6 +52,11 @@ def warnings_for(
     found: list[ReviewWarning] = []
     if not parties:
         found.append(ReviewWarning(code="no_signer", message="No party signs this version"))
+    elif not any(party.kind == "signer" for party in parties):
+        # Countersigners sign after the signers: with none, a send emails nobody a link to sign.
+        found.append(
+            ReviewWarning(code="no_signer", message="Every party countersigns: nobody signs first")
+        )
     signs = {f.party_id for f in fields if f.holds == "signature" and f.party_id is not None}
     for party in parties:
         if party.id not in signs:
