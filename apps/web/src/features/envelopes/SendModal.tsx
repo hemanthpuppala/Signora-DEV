@@ -216,6 +216,8 @@ export function SendModal({
         .map((f) => ({ field_id: f.id, value: values[f.id] ?? "" })),
       settings: effectiveSettings,
       confirm_same_person: confirm,
+      // The sender's time zone: the envelope's emails give its dates as the sender sees them here.
+      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
     send.run(body);
   };

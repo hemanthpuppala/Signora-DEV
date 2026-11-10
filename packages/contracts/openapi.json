@@ -3328,6 +3328,13 @@
             "title": "Signers",
             "type": "array"
           },
+          "time_zone": {
+            "default": "UTC",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Time Zone",
+            "type": "string"
+          },
           "title": {
             "anyOf": [
               {

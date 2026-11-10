@@ -10,8 +10,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.modules.envelopes.form import Colleague, FormField, SendForm
@@ -69,6 +70,18 @@ class SendRequest(_In):
     settings: SettingsIn
     # One person on two parties (the same email twice) is allowed once the sender confirms it.
     confirm_same_person: bool = False
+    # The sender's time zone (the browser's IANA name): its emails give dates as the sender sees
+    # them in the app.
+    time_zone: str = Field(default="UTC", min_length=1, max_length=64)
+
+    @field_validator("time_zone")
+    @classmethod
+    def _known_zone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError("Not a time zone") from None
+        return value
 
 
 @dataclass(frozen=True)

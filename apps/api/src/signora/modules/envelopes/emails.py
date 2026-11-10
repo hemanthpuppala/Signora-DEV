@@ -19,7 +19,10 @@ class Letter:
 
 
 def _day(moment: datetime) -> str:
-    return f"{moment:%b} {moment.day}, {moment.year}"  # "Nov 23, 2026"
+    """A moment as its reader takes it, in the zone it carries (the sender's): "Nov 23, 2026 at
+    8:05 PM PST". With the time and the zone, a date near midnight cannot be read as the next."""
+    hour = moment.strftime("%I").lstrip("0")
+    return f"{moment:%b} {moment.day}, {moment.year} at {hour}:{moment:%M %p} {moment:%Z}"
 
 
 def _first(name: str) -> str:

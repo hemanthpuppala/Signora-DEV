@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -185,6 +186,7 @@ def send(
         sent_by=actor.user_id,
         plan=plan,
         settings=request.settings,
+        time_zone=request.time_zone,
     )
     sender = _from(session, actor)
     for recipient_id, person in written.signers:
@@ -196,7 +198,7 @@ def send(
             link_version=1,
             person=person,
             document=form.document_name,
-            expires_at=written.expires_at,
+            expires_at=written.expires_at.astimezone(ZoneInfo(request.time_zone)),
         )
     _audit(
         uow,
@@ -252,6 +254,11 @@ class _Locked:
     document_name: str
     expires_at: datetime
     sent_by: uuid.UUID
+    time_zone: str  # the sender's, for the dates in its emails
+
+    @property
+    def expires_local(self) -> datetime:
+        return self.expires_at.astimezone(ZoneInfo(self.time_zone))
 
 
 def _lock(session: Session, actor: Actor, envelope_id: uuid.UUID) -> _Locked:
@@ -260,7 +267,7 @@ def _lock(session: Session, actor: Actor, envelope_id: uuid.UUID) -> _Locked:
     row = session.execute(
         text(
             "SELECT e.id, e.status, e.department_id, d.name AS document_name, e.expires_at, "
-            "e.sent_by FROM envelopes e JOIN documents d ON d.id = e.document_id "
+            "e.sent_by, e.time_zone FROM envelopes e JOIN documents d ON d.id = e.document_id "
             "WHERE e.id = :e AND e.workspace_id = :w FOR UPDATE OF e"
         ),
         {"e": envelope_id, "w": actor.workspace_id},
@@ -339,7 +346,7 @@ def remind(
             signer=recipient.name,
             document=envelope.document_name,
             url=_link(recipient.id, recipient.link_version),
-            expires_at=envelope.expires_at,
+            expires_at=envelope.expires_local,
         )
         email_id = send_email(
             uow,
@@ -380,7 +387,7 @@ def resend(
         signer=recipient.name,
         document=envelope.document_name,
         url=_link(recipient.id, recipient.link_version),
-        expires_at=envelope.expires_at,
+        expires_at=envelope.expires_local,
     )
     email_id = send_email(
         uow,
@@ -462,7 +469,7 @@ def change_recipient(
             link_version=link_version,
             person=Person(new_name, new_email),
             document=envelope.document_name,
-            expires_at=envelope.expires_at,
+            expires_at=envelope.expires_local,
         )
     _audit(
         uow,

@@ -180,6 +180,7 @@ describe("the send", () => {
       ],
       settings: FORM.settings,
       confirm_same_person: false,
+      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone, // the sender's, for the emails' dates
     });
   });
 
