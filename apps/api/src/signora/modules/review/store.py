@@ -142,6 +142,7 @@ def replace_fields(
             "pdf_field": place.pdf_field,
             "option_value": place.option_value,
             "option_text": place.option_text,
+            "options": list(place.options) if place.options is not None else None,
         }
         for field in proposal.fields
         for place in field.places
@@ -149,11 +150,12 @@ def replace_fields(
     session.execute(
         text(
             "INSERT INTO field_placements (workspace_id, version_id, field_id, page, x0, y0, x1, "
-            "y1, kind, pdf_field, option_value, option_text) SELECT :w, :v, p.field_id, p.page, "
-            "p.x0, p.y0, p.x1, p.y1, p.kind, p.pdf_field, p.option_value, p.option_text FROM "
+            "y1, kind, pdf_field, option_value, option_text, options) SELECT :w, :v, p.field_id, "
+            "p.page, p.x0, p.y0, p.x1, p.y1, p.kind, p.pdf_field, p.option_value, p.option_text, "
+            "NULLIF(p.options, 'null'::jsonb) FROM "
             "jsonb_to_recordset(CAST(:places AS jsonb)) AS p(field_id uuid, page int, "
             "x0 float8, y0 float8, x1 float8, y1 float8, kind text, pdf_field text, "
-            "option_value text, option_text text)"
+            "option_value text, option_text text, options jsonb)"
         ),
         {"w": workspace_id, "v": version_id, "places": json.dumps(places)},
     )
@@ -210,7 +212,7 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
         }
     for row in session.execute(
         text(
-            "SELECT id, field_id, page, x0, y0, x1, y1, kind, option_value, option_text "
+            "SELECT id, field_id, page, x0, y0, x1, y1, kind, option_value, option_text, options "
             "FROM field_placements WHERE version_id = :v ORDER BY page, y0, x0"
         ),
         {"v": version_id},
@@ -223,6 +225,7 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
                 kind=row.kind,
                 option_value=row.option_value,
                 option_text=option_words(row.option_text),
+                options=row.options,
             )
         )
     views = sorted(
@@ -413,16 +416,22 @@ def read_stored(session: Session, version_id: uuid.UUID) -> Stored:
             pdf_field=row.pdf_field,
             option_value=row.option_value,
             option_text=row.option_text,
+            options=tuple(row.options) if row.options is not None else None,
         )
         for row in session.execute(
             text(
                 "SELECT id, field_id, page, x0, y0, x1, y1, kind, pdf_field, option_value, "
-                "option_text FROM field_placements WHERE version_id = :v"
+                "option_text, options FROM field_placements WHERE version_id = :v"
             ),
             {"v": version_id},
         )
     }
     return Stored(parties=parties, fields=fields, places=places)
+
+
+def _own_options(place: StoredPlace | None) -> list[str] | None:
+    """A stored dropdown's or list's options, to write back as they were."""
+    return list(place.options) if place is not None and place.options is not None else None
 
 
 def write_set(
@@ -528,6 +537,8 @@ def write_set(
             "pdf_field": stored.places[place.id].pdf_field if place.id in stored.places else None,
             "option_value": place.option_value,
             "option_text": option_text_of(place, stored.places.get(place.id)),
+            # The PDF's own, like the field's name: kept as stored, never sent by the editor.
+            "options": _own_options(stored.places.get(place.id)),
         }
         for item, _ in settled.fields
         for place in item.places
@@ -535,11 +546,12 @@ def write_set(
     session.execute(
         text(
             "INSERT INTO field_placements (id, workspace_id, version_id, field_id, page, x0, y0, "
-            "x1, y1, kind, pdf_field, option_value, option_text) SELECT p.id, :w, :v, p.field_id, "
-            "p.page, p.x0, p.y0, p.x1, p.y1, p.kind, p.pdf_field, p.option_value, p.option_text "
+            "x1, y1, kind, pdf_field, option_value, option_text, options) SELECT p.id, :w, :v, "
+            "p.field_id, p.page, p.x0, p.y0, p.x1, p.y1, p.kind, p.pdf_field, p.option_value, "
+            "p.option_text, NULLIF(p.options, 'null'::jsonb) "
             "FROM jsonb_to_recordset(CAST(:places AS jsonb)) AS p(id uuid, field_id uuid, "
             "page int, x0 float8, y0 float8, x1 float8, y1 float8, kind text, pdf_field text, "
-            "option_value text, option_text text)"
+            "option_value text, option_text text, options jsonb)"
         ),
         {"w": workspace_id, "v": version_id, "places": json.dumps(places)},
     )

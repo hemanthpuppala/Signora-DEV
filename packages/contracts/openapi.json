@@ -1788,6 +1788,20 @@
             ],
             "title": "Option Value"
           },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
           "page": {
             "title": "Page",
             "type": "integer"

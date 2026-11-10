@@ -26,6 +26,8 @@ export type DraftPlace = {
   kind: PlaceKind; // a PDF box keeps its kind; a drawn one is "blank"
   option_value: string | null;
   option_text: string | null;
+  /** A dropdown's or a list's own options (the PDF's): read, never sent back or edited. */
+  options?: readonly string[] | null | undefined;
 };
 
 export type DraftField = {
@@ -70,6 +72,20 @@ export function defaultSize(holds: Holds): [number, number] {
     default:
       return [160, 20];
   }
+}
+
+/**
+ * What a condition on a field may name, each with the words a person reads: a checkbox ticked;
+ * the option each place of a choice stands for; the options a dropdown or a list offers (the
+ * server's editing.options_of).
+ */
+export function optionsOf(field: DraftField): { option: string; words: string }[] {
+  if (field.holds === "checkbox") return [{ option: "checked", words: "ticked" }];
+  if (field.holds !== "choice") return [];
+  return field.places.flatMap((place) => [
+    ...(place.option_value ? [{ option: place.option_value, words: place.option_text ?? place.option_value }] : []),
+    ...(place.options ?? []).map((option) => ({ option, words: option })),
+  ]);
 }
 
 /** The most characters of an option's words (the server's review.values.OPTION_MAX). */
@@ -121,6 +137,7 @@ export function fromView(view: VersionFields): Draft {
         kind: place.kind as PlaceKind,
         option_value: place.option_value,
         option_text: place.option_text,
+        options: place.options ?? null,
       })),
     })),
   };

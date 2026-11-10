@@ -67,6 +67,7 @@ class PlacementOut(_Model):
     pdf_field: str | None = None
     option_value: str | None = None  # a choice: the value this place stands for
     option_text: str | None = None
+    options: list[str] | None = None  # a dropdown's or a list's own options, in the PDF's order
 
 
 class Dependency(_Model):
@@ -263,6 +264,7 @@ def _placements(found: FoundField) -> list[PlacementOut]:
             pdf_field=p.pdf_field,
             option_value=p.value if found.kind == "radio" else None,
             option_text=p.option_text,
+            options=list(found.options) if found.kind in ("combobox", "listbox") else None,
         )
         for p in found.placements
     ]

@@ -4,15 +4,20 @@ definition (review.values), so a version nobody edited can always be saved."""
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Callable
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 from signora.kernel.db import Database
 from signora.modules.review.values import OPTION_MAX
 from tests.modules.documents.conftest import create_department, new_document
+from tests.modules.review.test_approve import _approve
+from tests.modules.review.test_revisions import _revise
 from tests.modules.review.test_save import _body, _save, _view
 from tests.support import forms
 from tests.support.ai import FakeAssigner, Fields, plain_answer
@@ -89,3 +94,96 @@ def test_an_option_as_long_as_detection_keeps_is_saved(
 
     view = _view(owner, document_id, version_id)
     assert _save(owner, document_id, version_id, _body(view)).status_code == 200
+
+
+def _conditioned_on_the_dropdown(fields: Fields) -> dict[str, Any]:
+    """The first text box is asked only when the first dropdown is "Texas"."""
+    answer = plain_answer(fields)
+    dropdown = next(field_id for field_id, kind in fields if kind == "combobox")
+    under = next(f for f in answer["fields"] if f["holds"] == "text")
+    under["depends_on"] = {"id": dropdown, "option": "Texas"}
+    return answer
+
+
+def _dropdowns(view: dict[str, Any]) -> list[dict[str, Any]]:
+    return [p for f in view["fields"] for p in f["placements"] if p["kind"] == "combobox"]
+
+
+def test_a_condition_on_a_dropdowns_option_is_saved_and_checked_against_its_options(
+    owner: TestClient, run: Callable[..., None], detect: Callable[..., None]
+) -> None:
+    """A dropdown is one place, so its options were kept nowhere in review: a condition detection
+    stored on one ("only when the state is Texas") was refused on every Save. The options are
+    kept with the place, as the PDF gives them."""
+    document_id, version_id = _detected(
+        owner, run, detect, forms.all_types(), _conditioned_on_the_dropdown
+    )
+    view = _view(owner, document_id, version_id)
+    assert _dropdowns(view)[0]["options"] == ["California", "New York", "Texas"]
+    under = next(f for f in view["fields"] if f["depends_on"])
+    assert under["depends_on"]["option"] == "Texas"
+
+    assert _save(owner, document_id, version_id, _body(view)).status_code == 200  # untouched
+
+    # The options survive the Save (the editor never sends them: they are the PDF's) ...
+    view = _view(owner, document_id, version_id)
+    assert _dropdowns(view)[0]["options"] == ["California", "New York", "Texas"]
+    # ... and an option the dropdown does not offer is still refused.
+    body = _body(view)
+    next(f for f in body["fields"] if f["depends_on"])["depends_on"]["option"] = "Ohio"
+    refused = _save(owner, document_id, version_id, body)
+    assert refused.status_code == 422
+    assert [e["message"] for e in refused.json()["errors"]] == [
+        "That option is not one of the field's"
+    ]
+
+
+def test_the_migration_fills_the_options_of_places_already_stored(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """Places stored before the column take their options from their version's reading of the
+    PDF: a version in review, an approved one (frozen: the trigger is off for the statement), and
+    one made by editing, which has no reading of its own."""
+    migration = importlib.import_module("signora.migrations.versions.0018a_dropdown_options")
+    document_id, version_id = _detected(
+        owner, run, detect, forms.all_types(), _conditioned_on_the_dropdown
+    )
+    assert _approve(owner, document_id, version_id).status_code == 204
+    edited = _revise(owner, document_id, version_id, _body(_view(owner, document_id, version_id)))
+    assert edited.status_code == 201, edited.text
+    versions = [version_id, edited.json()["version_id"]]
+
+    with committing_db.unit_of_work() as uow:  # as before the column: no options anywhere
+        uow.session.execute(
+            text(f"ALTER TABLE field_placements DISABLE TRIGGER {migration.FROZEN}")
+        )
+        uow.session.execute(
+            text("UPDATE field_placements SET options = NULL WHERE version_id = ANY(:v)"),
+            {"v": versions},
+        )
+        uow.session.execute(text(f"ALTER TABLE field_placements ENABLE TRIGGER {migration.FROZEN}"))
+    assert all(
+        place["options"] is None
+        for v in versions
+        for place in _dropdowns(_view(owner, document_id, v))
+    )
+
+    with committing_db.unit_of_work() as uow:
+        for statement in migration.FILL:
+            uow.session.execute(text(statement))
+
+    for v in versions:
+        assert _dropdowns(_view(owner, document_id, v))[0]["options"] == [
+            "California",
+            "New York",
+            "Texas",
+        ]
+    # The trigger is back: an approved version's places are frozen again.
+    with pytest.raises(DBAPIError), committing_db.unit_of_work() as uow:
+        uow.session.execute(
+            text("UPDATE field_placements SET options = NULL WHERE version_id = :v"),
+            {"v": version_id},
+        )

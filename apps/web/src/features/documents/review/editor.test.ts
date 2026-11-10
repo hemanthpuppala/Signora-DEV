@@ -21,6 +21,7 @@ import {
   conditionOf,
   joinsOnSave,
   mayHold,
+  optionsOf,
   removeParty,
   setOptionText,
   setRect,
@@ -187,6 +188,26 @@ describe("the review editor", () => {
     expect(conditionOf(conditionKey(condition))).toEqual(condition);
     expect(conditionOf(conditionKey({ field_id: "f", option: "checked" }))).toEqual({ field_id: "f", option: "checked" });
     expect(conditionOf("")).toBeNull(); // "Always asked"
+  });
+
+  it("offers a dropdown's own options as conditions, beside a choice's places and a tick", () => {
+    // A dropdown is one place with no option of its own: its options are the PDF's, sent with
+    // the place. Without them no condition on a dropdown could be offered, or kept.
+    const start = fromView(VIEW);
+    expect(optionsOf(start.fields[0]!)).toEqual([
+      { option: "Gold", words: "Gold plan" },
+      { option: "Silver", words: "Silver plan" },
+    ]);
+    const dropdown = { ...start.fields[0]!, places: [{ ...start.fields[0]!.places[0]!, kind: "combobox" as const, option_value: null, option_text: null, options: ["Texas", "Ohio"] }] };
+    expect(optionsOf(dropdown)).toEqual([
+      { option: "Texas", words: "Texas" },
+      { option: "Ohio", words: "Ohio" },
+    ]);
+    expect(optionsOf({ ...start.fields[1]!, holds: "checkbox" })).toEqual([{ option: "checked", words: "ticked" }]);
+    expect(optionsOf(start.fields[1]!)).toEqual([]); // a text box is no condition
+    // The options are read, never sent: Save keeps the PDF's own.
+    const sent = toFieldSet({ ...start, fields: [dropdown, start.fields[1]!] }, 0).fields[0]?.places[0];
+    expect(sent && "options" in sent).toBe(false);
   });
 
   it("deleting a choice drops the conditions on it", () => {

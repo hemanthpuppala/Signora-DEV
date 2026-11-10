@@ -1524,6 +1524,8 @@ export interface components {
             option_text: string | null;
             /** Option Value */
             option_value: string | null;
+            /** Options */
+            options?: string[] | null;
             /** Page */
             page: number;
             /** Rect */

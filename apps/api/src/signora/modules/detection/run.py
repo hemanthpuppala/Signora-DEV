@@ -407,6 +407,7 @@ def write_fields(session: Session, version: VersionForDetection, result: Result)
                             pdf_field=p.pdf_field,
                             option_value=p.option_value,
                             option_text=p.option_text,
+                            options=tuple(p.options) if p.options is not None else None,
                         )
                         for p in f.placements
                     ],

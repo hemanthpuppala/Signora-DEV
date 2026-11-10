@@ -11,7 +11,7 @@ import type { PanelEditing } from "./useReview";
 import type { Selection } from "../FieldBoxes";
 import {
   addParty,
-  CONDITIONS,
+  optionsOf,
   conditionKey,
   conditionOf,
   joinsOnSave,
@@ -41,21 +41,13 @@ function fillerValue(field: DraftField): string {
   return field.filled_by === "sender" ? "sender" : "none";
 }
 
-/** Conditions on offer: every other choice's options and every checkbox ticked. */
+/** Conditions on offer: what every other field may be asked about (``optionsOf``). */
 function conditionOptions(field: DraftField, draft: Draft) {
   const options = [{ value: "", label: "Always asked" }];
   for (const other of draft.fields) {
-    if (other.id === field.id || !CONDITIONS.has(other.holds)) continue;
-    if (other.holds === "checkbox") {
-      options.push({ value: conditionKey({ field_id: other.id, option: "checked" }), label: `When “${other.label}” is ticked` });
-      continue;
-    }
-    for (const place of other.places) {
-      if (!place.option_value) continue;
-      options.push({
-        value: conditionKey({ field_id: other.id, option: place.option_value }),
-        label: `When “${other.label}” is ${place.option_text ?? place.option_value}`,
-      });
+    if (other.id === field.id) continue;
+    for (const { option, words } of optionsOf(other)) {
+      options.push({ value: conditionKey({ field_id: other.id, option }), label: `When “${other.label}” is ${words}` });
     }
   }
   return options;
