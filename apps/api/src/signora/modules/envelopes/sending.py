@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from signora.kernel.errors import FieldError, ValidationFailed
-from signora.modules.envelopes.form import Colleague, FormField, SendForm
+from signora.modules.envelopes.form import Colleague, Condition, FormField, SendForm
 from signora.modules.review.formats import (
     InvalidValueError,
     check_value,
@@ -118,15 +118,31 @@ class Plan:
     shared_emails: list[str] = field(default_factory=list)  # the same person on two parties
 
 
-def _asked(item: FormField, values: Mapping[uuid.UUID, str]) -> bool:
-    """A field under a condition is asked only when its choice has that option (or its checkbox is
-    ticked)."""
-    if item.depends_on is None:
-        return True
-    given = values.get(item.depends_on.field_id)
-    return given == item.depends_on.option or (
-        item.depends_on.option == "checked" and given == "true"
-    )
+def asked(fields: Iterable[FormField], values: Mapping[uuid.UUID, str]) -> set[uuid.UUID]:
+    """The fields that are asked, given these values. A field under a condition is asked only when
+    the field it depends on is itself asked and holds that option (a checkbox: ticked), so a value
+    left in a field that is no longer asked never keeps what depends on it. Each chain is walked
+    once, whatever order the fields come in: O(F)."""
+    by_id = {item.id: item for item in fields}
+    known: dict[uuid.UUID, bool] = {}
+    for start in by_id.values():
+        path: list[tuple[uuid.UUID, Condition]] = []
+        node: FormField | None = start
+        while node is not None and node.id not in known:
+            if node.depends_on is None:
+                known[node.id] = True
+                break
+            known[node.id] = False  # until its chain is walked; a chain that loops is not asked
+            path.append((node.id, node.depends_on))
+            node = by_id.get(node.depends_on.field_id)
+        met = node is not None and known[node.id]
+        for field_id, condition in reversed(path):
+            given = values.get(condition.field_id)
+            met = met and (
+                given == condition.option or (condition.option == "checked" and given == "true")
+            )
+            known[field_id] = met
+    return {field_id for field_id, is_asked in known.items() if is_asked}
 
 
 def prefill(
@@ -232,10 +248,12 @@ def plan_send(
                 )
             )
 
-    copies = [
-        Person(copy.name.strip(), email(f"copies[{i}].email", copy.email))
-        for i, copy in enumerate(request.copies)
-    ]
+    copies: list[Person] = []
+    for i, copy in enumerate(request.copies):
+        name = copy.name.strip()
+        if not name:
+            errors.append(FieldError(f"copies[{i}].name", "Enter a name"))
+        copies.append(Person(name, email(f"copies[{i}].email", copy.email)))
 
     # Values: known fields, valid for their type; the sender's required fields when asked.
     by_id = {item.id: item for item in form.fields}
@@ -263,14 +281,12 @@ def plan_send(
         except InvalidValueError as error:
             values.pop(field_id, None)
             invalid[field_id] = str(error)
+    # Only what is asked is kept and judged: a value left in a field its condition has since hidden
+    # is dropped, never sent and never a reason to refuse the send.
+    is_asked = asked(form.fields, values)
+    values = {field_id: value for field_id, value in values.items() if field_id in is_asked}
     for item in form.fields:
-        if item.id not in values or _asked(item, values):
-            continue
-        del values[item.id]  # its condition is not met: never asked, never sent
-    # Only what is asked is judged: a value left in a field its condition has since hidden is
-    # dropped above, never a reason to refuse the send.
-    for item in form.fields:
-        if not _asked(item, values):
+        if item.id not in is_asked:
             continue
         if item.id in invalid:
             errors.append(FieldError(f"fields.{item.id}", invalid[item.id]))

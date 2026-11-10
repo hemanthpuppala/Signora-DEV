@@ -25,6 +25,7 @@ import {
 } from "@/shared/ui";
 
 import { useSendForm, type Envelope, type FormField, type SendForm, type SendRequest } from "./api";
+import { askedFields } from "./conditions";
 import styles from "./envelopes.module.css";
 import { FieldInput, refused } from "./FieldInput";
 import { fitsEverywhere, kept, useFontReady, written } from "./typeset";
@@ -48,13 +49,6 @@ export type SendableDocument = {
 export type Colleague = { id: string; name: string; email: string };
 type Person = { name: string; email: string };
 type Copy = Person & { key: string };
-
-/** A field under a condition is asked only when its choice has that option (or the checkbox is ticked). */
-function asked(field: FormField, values: Readonly<Record<string, string>>): boolean {
-  if (!field.depends_on) return true;
-  const given = values[field.depends_on.field_id];
-  return given === field.depends_on.option || (field.depends_on.option === "checked" && given === "true");
-}
 
 /** Which step a server error is about, from its path ("signers[0].email", "fields.{id}", "parties.{id}"). */
 function stepOf(path: string, form: SendForm): number {
@@ -103,6 +97,9 @@ export function SendModal({
   const [left, setLeft] = useState<ReadonlySet<string>>(new Set()); // boxes typed in and left
 
   const data = form.data;
+  // What is asked follows the values: a field under a condition shows only while it is met.
+  const isAsked = useMemo(() => askedFields(data?.fields ?? [], values), [data, values]);
+  const asked = (f: FormField) => isAsked.has(f.id);
   // Asked for as soon as the form is in, so the Details step measures in it, not in a stand-in.
   const fontReady = useFontReady(data?.font);
   const touched = Object.keys(values).length > 0 || Object.keys(signers).length > 0 || copies.length > 0;
@@ -159,12 +156,12 @@ export function SendModal({
    */
   const tooLong = (f: FormField): boolean => {
     const value = values[f.id]?.trim();
-    if (!data || !fontReady || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f, values)) return false;
+    if (!data || !fontReady || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f)) return false;
     return !fitsEverywhere(written(f.holds, kept(f.holds, value), f.format), f.places, data.font, data.fit);
   };
 
   /** A day or a year the server would refuse, in its words. */
-  const unkept = (f: FormField): string | undefined => (asked(f, values) ? refused(f.holds, values[f.id]?.trim() ?? "") : undefined);
+  const unkept = (f: FormField): string | undefined => (asked(f) ? refused(f.holds, values[f.id]?.trim() ?? "") : undefined);
 
   /** Who signs as a party, as chosen so far: a signer typed in, or the countersigning colleague. */
   const personOf = (partyId: string): Person | undefined => {
@@ -184,7 +181,7 @@ export function SendModal({
     if (step === DOCUMENT) return !documentId;
     if (step === DETAILS)
       return data.fields.some(
-        (f) => (f.required && asked(f, values) && !values[f.id]?.trim()) || tooLong(f) || unkept(f) !== undefined,
+        (f) => (f.required && asked(f) && !values[f.id]?.trim()) || tooLong(f) || unkept(f) !== undefined,
       );
     if (step === SIGNERS)
       return (
@@ -212,7 +209,7 @@ export function SendModal({
       })),
       copies: copies.map(({ name, email }) => ({ name: name.trim(), email: email.trim() })),
       values: data.fields
-        .filter((f) => asked(f, values) && values[f.id]?.trim())
+        .filter((f) => asked(f) && values[f.id]?.trim())
         .map((f) => ({ field_id: f.id, value: values[f.id] ?? "" })),
       settings: effectiveSettings,
       confirm_same_person: confirm,
@@ -350,7 +347,7 @@ export function SendModal({
                 return (
                   <Block key={group.label} title={group.label} hint={group.hint}>
                     {group.fields
-                      .filter((f) => asked(f, values))
+                      .filter((f) => asked(f))
                       .map((f) => (
                         <FieldInput
                           key={f.id}
@@ -502,7 +499,7 @@ export function SendModal({
                     }
                     const value = values[f.id]?.trim();
                     // As the server keeps it, so the preview is what the signed PDF prints.
-                    return asked(f, values) && value
+                    return asked(f) && value
                       ? [{ places: f.places, holds: f.holds, value: kept(f.holds, value), format: f.format }]
                       : [];
                   })}
