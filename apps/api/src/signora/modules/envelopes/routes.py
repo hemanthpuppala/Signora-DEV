@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from signora.kernel.db import Database
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.envelopes import service
+from signora.modules.envelopes.document import EnvelopeDocument
 from signora.modules.envelopes.form import SendForm
 from signora.modules.envelopes.sending import SendRequest
 from signora.modules.envelopes.views import EnvelopePage, EnvelopeStatus, EnvelopeView
@@ -63,6 +64,17 @@ def send_envelope(
 def get_envelope(envelope_id: uuid.UUID, request: Request, actor: Member) -> EnvelopeView:
     with _db(request).unit_of_work() as uow:
         return service.get_envelope(uow.session, actor, envelope_id)
+
+
+@router.get(
+    "/envelopes/{envelope_id}/document",
+    summary="The envelope's document as drawn: its pages and where each value goes",
+)
+def get_envelope_document(
+    envelope_id: uuid.UUID, request: Request, actor: Member
+) -> EnvelopeDocument:
+    with _db(request).unit_of_work() as uow:
+        return service.envelope_document(uow.session, actor, envelope_id)
 
 
 class RecipientChange(BaseModel):

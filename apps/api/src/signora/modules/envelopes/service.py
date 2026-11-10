@@ -20,6 +20,7 @@ from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, list_countersigners, load_access
 from signora.modules.documents import VersionNotApproved, version_for_review
 from signora.modules.envelopes import emails, store
+from signora.modules.envelopes.document import EnvelopeDocument, build_document
 from signora.modules.envelopes.errors import (
     EnvelopeClosed,
     NotTheirTurn,
@@ -223,6 +224,18 @@ def get_envelope(session: Session, actor: Actor, envelope_id: uuid.UUID) -> Enve
         raise NotFound
     load_access(session, actor).require(Permission.DOCUMENTS_VIEW_SENDS, view.department_id)
     return view
+
+
+def envelope_document(session: Session, actor: Actor, envelope_id: uuid.UUID) -> EnvelopeDocument:
+    """The sent version's pages and where its values are drawn, for whoever may see the envelope.
+    Read, never the send form: an envelope shows its document after the document or its
+    department is archived (sends already out are unaffected, Phase 4 §1.4)."""
+    envelope = get_envelope(session, actor, envelope_id)
+    version = version_for_review(
+        session, actor, envelope.document_id, envelope.version_id, edit=False
+    )
+    _, fields = read_set(session, envelope.version_id)
+    return build_document(version.pages, fields)
 
 
 # --- following a send (§6) -----------------------------------------------------------------------

@@ -119,6 +119,19 @@ def options_of(field: FieldView) -> list[Option]:
     return list(seen.values())
 
 
+def places_of(field: FieldView) -> list[Place]:
+    """Where a field's value is drawn, one place per box."""
+    return [
+        Place(
+            page=place.page,
+            rect=place.rect,
+            option_value=place.option_value,
+            text_size=place.text_size,
+        )
+        for place in field.placements
+    ]
+
+
 def from_recipient(field: FieldView) -> FromRecipient | None:
     """Whether a field comes from the person signing as its party, and which of their details."""
     if field.filled_by != "role":
@@ -179,15 +192,7 @@ def build_form(
             from_recipient=from_recipient(field),
             sensitive=field.sensitive,
             options=options_of(field) if field.holds == "choice" else [],
-            places=[
-                Place(
-                    page=place.page,
-                    rect=place.rect,
-                    option_value=place.option_value,
-                    text_size=place.text_size,
-                )
-                for place in field.placements
-            ],
+            places=places_of(field),
             depends_on=Condition(
                 field_id=id_of_key[field.depends_on.key], option=field.depends_on.option
             )

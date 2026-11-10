@@ -41,10 +41,10 @@ import {
   envelopesKey,
   RECIPIENT_STATUS,
   useEnvelope,
-  useSendForm,
+  useEnvelopeDocument,
   type Envelope,
   type Recipient,
-  type SendForm,
+  type EnvelopeDocument,
 } from "./api";
 import { day } from "./EnvelopesList";
 import styles from "./envelopes.module.css";
@@ -77,8 +77,8 @@ function happened(entry: Envelope["timeline"][number], envelope: Envelope): stri
 }
 
 /** The values on the document as sent: what was filled in, and each party's name to come. */
-function shown(envelope: Envelope, form: SendForm): Shown[] {
-  const fields = new Map(form.fields.map((f) => [f.id, f]));
+function shown(envelope: Envelope, drawn: EnvelopeDocument): Shown[] {
+  const fields = new Map(drawn.fields.map((f) => [f.id, f]));
   const given = new Set(envelope.values.map((v) => v.field_id));
   return [
     ...envelope.values.flatMap((v) => {
@@ -86,7 +86,7 @@ function shown(envelope: Envelope, form: SendForm): Shown[] {
       return field ? [{ places: field.places, holds: field.holds, value: v.value, format: field.format }] : [];
     }),
     // A party's name fields: the name its signer signs as, once they sign.
-    ...form.fields.flatMap((f) => {
+    ...drawn.fields.flatMap((f) => {
       const recipient = envelope.recipients.find((r) => r.party_id === f.party_id);
       return f.from_recipient === "name" && recipient && !given.has(f.id)
         ? [{ places: f.places, holds: f.holds, value: recipient.name, atSigning: true }]
@@ -157,7 +157,7 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
   const toast = useToast();
   const envelope = useEnvelope(envelopeId);
   const data = envelope.data;
-  const form = useSendForm(data?.document_id ?? null, data?.version_id ?? null);
+  const drawn = useEnvelopeDocument(envelopeId);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -267,26 +267,26 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
           }
         />
         <ViewerPane>
-          {form.data ? (
+          {drawn.data ? (
             <PdfViewer
               url={`/api/v1/documents/${data.document_id}/versions/${data.version_id}/pdf`}
-              pages={form.data.pages.map((p) => ({ width: p.width, height: p.height, rotation: 0 }))}
+              pages={drawn.data.pages.map((p) => ({ width: p.width, height: p.height, rotation: 0 }))}
               label={`${data.document_name} as sent`}
               renderOverlay={({ page, scale }: PdfOverlayArgs) => (
-                <ValuesOverlay page={page} scale={scale} font={data.font} fit={form.data.fit} shown={shown(data, form.data)} />
+                <ValuesOverlay page={page} scale={scale} font={data.font} fit={drawn.data.fit} shown={shown(data, drawn.data)} />
               )}
             />
           ) : (
             // Never a blank pane: why the document is not here, and the way to ask again. (In a
             // block of its own: the pane's last child is stretched to the pane's height.)
             <div>
-              {form.isError ? (
+              {drawn.isError ? (
                 <Notice
                   tone="warning"
                   title="The document can't be shown"
-                  action={<TextButton onClick={() => void form.refetch()}>Try again</TextButton>}
+                  action={<TextButton onClick={() => void drawn.refetch()}>Try again</TextButton>}
                 >
-                  {formError(form.error) ?? "Try again in a moment."}
+                  {formError(drawn.error) ?? "Try again in a moment."}
                 </Notice>
               ) : (
                 <SmallText>Loading the document…</SmallText>

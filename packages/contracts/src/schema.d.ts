@@ -630,6 +630,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/envelopes/{envelope_id}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The envelope's document as drawn: its pages and where each value goes */
+        get: operations["get_envelope_document_api_v1_envelopes__envelope_id__document_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}": {
         parameters: {
             query?: never;
@@ -1351,6 +1368,30 @@ export interface components {
             updated_at: string;
         };
         /**
+         * DrawnField
+         * @description A field whose value is drawn as text or a mark: what it holds, how, and where.
+         */
+        DrawnField: {
+            /** Format */
+            format: string | null;
+            /** From Recipient */
+            from_recipient: ("name" | "email") | null;
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Party Id */
+            party_id: string | null;
+            /** Places */
+            places: components["schemas"]["Place"][];
+        };
+        /**
          * DuplicateView
          * @description The same bytes already in the department (§2.3): the screen asks before going on.
          */
@@ -1371,6 +1412,14 @@ export interface components {
         EmailResponse: {
             /** Email */
             email: string;
+        };
+        /** EnvelopeDocument */
+        EnvelopeDocument: {
+            /** Fields */
+            fields: components["schemas"]["DrawnField"][];
+            fit: components["schemas"]["FitRule"];
+            /** Pages */
+            pages: components["schemas"]["PageSize"][];
         };
         /** EnvelopePage */
         EnvelopePage: {
@@ -4913,6 +4962,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeView"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    get_envelope_document_api_v1_envelopes__envelope_id__document_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDocument"];
                 };
             };
             /** @description Validation failed (problem details) */
