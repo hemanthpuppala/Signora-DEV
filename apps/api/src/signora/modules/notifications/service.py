@@ -62,14 +62,16 @@ def send_email(
     category: str,
     workspace_id: uuid.UUID | None = None,
     dedupe_key: str | None = None,
+    reply_to: str | None = None,
 ) -> uuid.UUID | None:
     """Queue one email. Returns its id, or ``None`` when ``dedupe_key`` was already used."""
     row = uow.session.execute(
         sql(
             """
             INSERT INTO email_messages
-                (workspace_id, category, to_address, subject, text_body, html_body, dedupe_key)
-            VALUES (:workspace_id, :category, :to, :subject, :text, :html, :dedupe_key)
+                (workspace_id, category, to_address, subject, text_body, html_body, dedupe_key,
+                 reply_to)
+            VALUES (:workspace_id, :category, :to, :subject, :text, :html, :dedupe_key, :reply_to)
             ON CONFLICT (dedupe_key) DO NOTHING
             RETURNING id
             """
@@ -82,6 +84,7 @@ def send_email(
             "text": text,
             "html": html,
             "dedupe_key": dedupe_key,
+            "reply_to": reply_to,
         },
     ).one_or_none()
     if row is None:
@@ -169,7 +172,7 @@ def make_deliver(
         with context.unit_of_work() as uow:
             message = uow.session.execute(
                 sql(
-                    "SELECT to_address, subject, text_body, html_body, category, status "
+                    "SELECT to_address, subject, text_body, html_body, category, status, reply_to "
                     "FROM email_messages WHERE id = :id"
                 ),
                 {"id": message_id},
@@ -201,6 +204,7 @@ def make_deliver(
                     text=message.text_body,
                     html=message.html_body,
                     message_id=message_id,
+                    reply_to=message.reply_to,
                 )
             )
         except PermanentEmailError as error:

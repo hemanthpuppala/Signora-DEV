@@ -45,6 +45,7 @@ def plain_answer(fields: Fields) -> dict[str, Any]:
             {
                 "id": field_id,
                 "holds": holds,
+                "format": None,
                 "filled_by": filled_by,
                 "label": f"Field {field_id}",
                 "must_fill": True,

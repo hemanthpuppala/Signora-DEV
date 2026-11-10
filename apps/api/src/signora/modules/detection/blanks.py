@@ -29,14 +29,34 @@ CHECKBOX_GLYPHS = frozenset({"☐", "□", "❑", "❒", "▢"})
 RUN_GAP = 6.0  # runs on one row closer than this are one blank ("____ ____" typed in two goes)
 
 
+def _share(box: Box, text: str, start: int, end: int) -> Box:
+    """The part of a word's box that characters ``start:end`` take: their share of its width."""
+    x0, y0, x1, y1 = box
+    width = (x1 - x0) / max(len(text), 1)
+    return (x0 + width * start, y0, x0 + width * end, y1)
+
+
+def split_at_runs(text: str, box: Box) -> list[tuple[str, Box, bool]]:
+    """A word cut where its underscore runs are: each piece with its box and whether it is a run.
+    "20____" gives "20" (words printed before a blank) and the run; a word with no run is itself."""
+    pieces: list[tuple[str, Box, bool]] = []
+    at = 0
+    for match in UNDERSCORES.finditer(text):
+        if match.start() > at:
+            pieces.append((text[at : match.start()], _share(box, text, at, match.start()), False))
+        pieces.append((match.group(), _share(box, text, match.start(), match.end()), True))
+        at = match.end()
+    if at < len(text):
+        pieces.append((text[at:], _share(box, text, at, len(text)), False))
+    return pieces
+
+
 def _runs(page: pymupdf.Page) -> list[Box]:
     """Each run of underscores. A word may hold text and a run ("Date:_____"): the run's part of the
     word is its share of the characters."""
     boxes: list[Box] = []
     for x0, y0, x1, y1, text, *_ in page.get_text("words"):
-        for match in UNDERSCORES.finditer(text):
-            width = (x1 - x0) / max(len(text), 1)
-            boxes.append((x0 + width * match.start(), y0, x0 + width * match.end(), y1))
+        boxes.extend(piece for _, piece, run in split_at_runs(text, (x0, y0, x1, y1)) if run)
     boxes.sort(key=lambda b: (round(center(b)[1]), b[0]))
     merged: list[Box] = []
     for box in boxes:

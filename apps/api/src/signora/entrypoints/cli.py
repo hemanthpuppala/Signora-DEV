@@ -75,6 +75,27 @@ def _audit_verify(args: argparse.Namespace) -> int:
     return 0 if result.ok else 1
 
 
+def _measure_text_sizes(args: argparse.Namespace) -> int:
+    """Measure the text sizes of versions approved before they were measured (Phase 7b)."""
+    from signora.kernel.blobstore import blob_store_from_settings
+    from signora.kernel.db import Database, create_db_engine
+    from signora.modules.review import measure_unmeasured
+
+    settings = get_settings()
+    engine = create_db_engine(settings.db, pool_size=1)
+    try:
+        with Database(engine).unit_of_work() as uow:
+            done = measure_unmeasured(
+                uow.session, blob_store_from_settings(settings.blob_store), args.workspace
+            )
+    finally:
+        engine.dispose()
+    sys.stdout.write(f"measured {done.measured} approved versions\n")
+    for version_id in done.failed:
+        sys.stdout.write(f"could not measure version {version_id} (see the log)\n")
+    return 1 if done.failed else 0
+
+
 def _openapi(args: argparse.Namespace) -> int:
     import json
     from pathlib import Path
@@ -99,6 +120,11 @@ def build_parser() -> argparse.ArgumentParser:
     api.add_argument("--port", type=int, default=8100)
     api.add_argument("--reload", action="store_true", help="reload on code changes (development)")
     commands.add_parser("worker", help="run the background job worker")
+    measure_cmd = commands.add_parser(
+        "measure-text-sizes",
+        help="measure the text beside each place of versions approved before sizes were kept",
+    )
+    measure_cmd.add_argument("--workspace", type=uuid.UUID, help="only this company's versions")
     openapi = commands.add_parser("openapi", help="write the OpenAPI document (deterministic)")
     openapi.add_argument("--output", help="file to write (default: stdout)")
     audit = commands.add_parser("audit", help="audit log operations")
@@ -116,6 +142,7 @@ _COMMANDS = {
     "migrate": _migrate,
     "api": _api,
     "worker": _worker,
+    "measure-text-sizes": _measure_text_sizes,
     "openapi": _openapi,
     "audit": _audit_verify,  # the only audit subcommand
 }

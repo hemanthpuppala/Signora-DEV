@@ -8,20 +8,26 @@ import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import {
   Button,
   ClampedText,
+  DetailsPane,
   Dialog,
   HeadAction,
   HeadRow,
   Heading1,
+  MetaLine,
   Notice,
   Section,
+  StatusPill,
   TextArea,
   TextButton,
   TextField,
+  ViewerLayout,
+  ViewerPane,
 } from "@/shared/ui";
 
 import { documentKey, hasWorkingCopy, useDocument, type DocumentDetail } from "./api";
 import styles from "./document.module.css";
 import { useVersionFields } from "./fields";
+import { VERSION_STATUS } from "./status";
 import { VersionLabel } from "./VersionLabel";
 import { VersionProgress } from "./VersionProgress";
 import { NewVersionForm, useNewVersion } from "./NewVersion";
@@ -59,7 +65,16 @@ function useDocumentAction(id: string) {
  * version's state shows above the viewer until it is ready. People without edit access see the
  * viewer, the versions and downloads only.
  */
-export function DocumentPage({ departmentId, documentId }: { departmentId: string; documentId: string }) {
+export function DocumentPage({
+  departmentId,
+  documentId,
+  onSend,
+}: {
+  departmentId: string;
+  documentId: string;
+  /** Opens the send of the current (approved) version (Phase 7); the route owns it. */
+  onSend?: (() => void) | undefined;
+}) {
   const document = useDocument(documentId);
   const { archive } = useDocumentAction(documentId);
   const [editing, setEditing] = useState(false);
@@ -77,7 +92,7 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
 
   if (document.isError) {
     const missing = document.error instanceof ApiError && document.error.status === 404;
-    return <Notice tone="warning">{missing ? "This document doesn't exist." : formError(document.error)}</Notice>;
+    return <Notice tone="warning">{missing ? "This template doesn't exist." : formError(document.error)}</Notice>;
   }
   const data = document.data;
   if (!data) return null;
@@ -109,10 +124,13 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
     <>
       {/* The way back and the document's actions share one line, so the title block is shorter. */}
       <HeadRow
-        back={{ href: back, label: "Documents" }}
+        back={{ href: back, label: "Templates" }}
         backActions={
           canEdit ? (
-            <div className={styles.headActions} role="group" aria-label="Document actions">
+            <div className={styles.headActions} role="group" aria-label="Template actions">
+              {onSend && data.current_version ? (
+                <HeadAction icon="send" label="Send for signature" variant="primary" onClick={onSend} />
+              ) : null}
               <HeadAction
                 icon="upload"
                 label="New version"
@@ -134,7 +152,7 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
               {!editing ? <HeadAction icon="edit" label="Edit" onClick={() => setEditing(true)} /> : null}
               <HeadAction
                 icon="archive"
-                label="Archive document"
+                label="Archive template"
                 variant="destructive"
                 onClick={() => setConfirmArchive(true)}
               />
@@ -149,13 +167,24 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
               <VersionLabel number={shown.number} current={shown.is_current} />
             </span>
           ) : null}
+          {shown ? (
+            // The version's state in the title's line, not a row of its own.
+            <span className={styles.titleState}>
+              <MetaLine label="Version state">
+                <StatusPill status={VERSION_STATUS[shown.status].pill} label={VERSION_STATUS[shown.status].label} />
+                {shown.approved ? (
+                  <span>{`${shown.approved.by.name} · ${new Date(shown.approved.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}</span>
+                ) : null}
+              </MetaLine>
+            </span>
+          ) : null}
         </div>
         {data.description && !editing ? <ClampedText>{data.description}</ClampedText> : null}
       </HeadRow>
       {editing ? <About document={data} onDone={() => setEditing(false)} /> : null}
       {confirmArchive && canEdit ? (
         <Dialog
-          title="Archive this document?"
+          title="Archive this template?"
           onClose={() => setConfirmArchive(false)}
           actions={
             <>
@@ -181,7 +210,7 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
             ) : undefined
           }
         >
-          {archive.error ? formError(archive.error) : "This document can't get new versions or be sent."}
+          {archive.error ? formError(archive.error) : "This template can't get new versions or be sent."}
         </Notice>
       ) : null}
       {shown ? (
@@ -195,14 +224,14 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
           onOpen={setViewing}
         />
       ) : (
-        <div className={styles.layout}>
-          <div className={styles.main}>{progress}</div>
-          <div className={styles.side}>
-            <Section title="Versions">
+        <ViewerLayout>
+          <ViewerPane>{progress}</ViewerPane>
+          <DetailsPane>
+            <Section title="Versions" collapsible>
               <Versions document={data} viewing={shownId} onOpen={setViewing} canEdit={canEdit} />
             </Section>
-          </div>
-        </div>
+          </DetailsPane>
+        </ViewerLayout>
       )}
     </>
   );
@@ -235,7 +264,7 @@ function About({ document, onDone }: { document: DocumentDetail; onDone: () => v
           required
           maxLength={120}
           value={name}
-          error={nameTaken ? "Another document in this department already has this name" : errors.name}
+          error={nameTaken ? "Another template in this department already has this name" : errors.name}
           onChange={(event) => setName(event.target.value)}
         />
         <TextArea

@@ -39,7 +39,6 @@ const summary = (overrides: Record<string, unknown> = {}) => ({
 const detail = (status: string) => ({
   ...summary({ current_version: null, latest_version: { id: "v-1", number: 1, status, created_at: new Date().toISOString() } }),
   department_id: "d-1",
-  require_email_code: true,
   created_by: { id: "u", name: "Rosa Hale" },
   created_at: "2026-11-07T10:00:00Z",
   access: "edit",
@@ -128,7 +127,7 @@ describe("documents", () => {
     serve({ documents: [summary(), summary({ id: "doc-2", name: "NDA", kind: "docx", page_count: 1, current_version: null, latest_version: { id: "v-9", number: 3, status: "needs_password", created_at: "2026-11-07T10:00:00Z", field_count: null } })] });
     wrap(<DocumentsSection departmentId="d-1" canEdit={false} />);
 
-    const list = await screen.findByRole("list", { name: "Documents list" });
+    const list = await screen.findByRole("list", { name: "Templates" });
     const letter = within(list).getByRole("link", { name: "Engagement letter" }).closest("li") as HTMLElement;
     expect(within(letter).getByRole("link", { name: "Engagement letter" }).getAttribute("href")).toBe("/departments/d-1/documents/doc-1");
     expect(within(letter).getByText(/^PDF · 7 pages · 12 fields · updated /)).toBeTruthy();
@@ -166,7 +165,7 @@ describe("documents", () => {
     const name = (await screen.findByLabelText("Name")) as HTMLInputElement;
     expect(name.value).toBe("Engagement letter v3");
     await user.type(screen.getByLabelText("Instructions for the AI"), "Two clients sign.");
-    await user.click(screen.getByRole("button", { name: "Add document" }));
+    await user.click(screen.getByRole("button", { name: "Add template" }));
 
     await vi.waitFor(() => expect(posted).toHaveLength(1));
     expect(posted[0]?.body).toEqual({
@@ -218,7 +217,7 @@ describe("documents", () => {
     await user.upload(await screen.findByLabelText(/Drop a PDF or Word file/), pdf());
     FakeUpload.sent[0]?.answer(201, uploaded({ duplicate: { document_id: "doc-1", document_name: "Engagement letter", version_number: 2, archived: false } }));
 
-    expect(await screen.findByText("Engagement letter v3.pdf is already in Finance as Engagement letter, version 2. Upload it anyway as a separate document?")).toBeTruthy();
+    expect(await screen.findByText("Engagement letter v3.pdf is already in Finance as Engagement letter, version 2. Upload it anyway as a separate template?")).toBeTruthy();
     // The dialog opens (showModal) in an effect: wait for its button, not only its words.
     await user.click(await screen.findByRole("button", { name: "Cancel" }));
 
@@ -234,7 +233,7 @@ describe("documents", () => {
     FakeUpload.sent[0]?.answer(201, uploaded({ duplicate: { document_id: "doc-1", document_name: "Engagement letter", version_number: 2, archived: true } }));
 
     await user.click(await screen.findByRole("button", { name: "Upload anyway" }));
-    await user.click(screen.getByRole("button", { name: "Add document" }));
+    await user.click(screen.getByRole("button", { name: "Add template" }));
 
     await vi.waitFor(() => expect(posted[0]?.body).toMatchObject({ allow_duplicate: true }));
   });
@@ -248,9 +247,9 @@ describe("documents", () => {
     const user = userEvent.setup();
     await user.upload(await screen.findByLabelText(/Drop a PDF or Word file/), pdf());
     FakeUpload.sent[0]?.answer(201, uploaded());
-    await user.click(await screen.findByRole("button", { name: "Add document" }));
+    await user.click(await screen.findByRole("button", { name: "Add template" }));
 
-    expect(await screen.findByText("Another document in this department already has this name")).toBeTruthy();
+    expect(await screen.findByText("Another template in this department already has this name")).toBeTruthy();
   });
 
   it("shows the server's reason on a refused file", async () => {
@@ -325,7 +324,7 @@ describe("documents", () => {
     const name = await screen.findByLabelText("Name");
     await user.clear(name);
     await user.type(name, "Client letter");
-    await user.click(screen.getByRole("button", { name: "Add document" }));
+    await user.click(screen.getByRole("button", { name: "Add template" }));
 
     expect(await screen.findByText("This upload has expired. Upload the file again")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Try again" }));
@@ -339,7 +338,7 @@ describe("documents", () => {
     serve({});
     handOff("d-1", pdf("Handed over.pdf"));
     wrap(<UploadPage department={{ ...FINANCE, status: "archived" }} />);
-    expect(screen.getByText("This department is archived. Restore it to add documents.")).toBeTruthy();
+    expect(screen.getByText("This department is archived. Restore it to add templates.")).toBeTruthy();
     expect(screen.queryByLabelText(/Drop a PDF or Word file/)).toBeNull();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(FakeUpload.sent).toHaveLength(0);

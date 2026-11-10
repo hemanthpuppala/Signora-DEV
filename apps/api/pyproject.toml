@@ -169,6 +169,7 @@ protected_modules = [
     "signora.modules.departments.errors",
     "signora.modules.departments.models",
     "signora.modules.departments.routes",
+    "signora.modules.departments.sends",
     "signora.modules.departments.service",
 ]
 allowed_importers = ["signora.modules.departments", "signora.models", "signora.handlers"]
@@ -218,8 +219,8 @@ allowed_importers = ["signora.modules.detection", "signora.models", "signora.han
 [[tool.importlinter.contracts]]
 name = "Public interface only: review internals are imported only by review and composition roots"
 type = "protected"
-# review.keys and review.values are pure and public: detection's pure code imports them
-# directly, without the package's database half.
+# review.keys, review.values and review.formats are pure and public: detection's pure code and
+# envelopes import them directly, without the package's database half.
 protected_modules = [
     "signora.modules.review.checks",
     "signora.modules.review.editing",
@@ -233,6 +234,29 @@ protected_modules = [
     "signora.modules.review.views",
 ]
 allowed_importers = ["signora.modules.review", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Public interface only: envelopes internals are imported only by envelopes and composition roots"
+type = "protected"
+# envelopes.links is pure and public (Phase 8's signing reads links).
+protected_modules = [
+    "signora.modules.envelopes.form",
+    "signora.modules.envelopes.models",
+    "signora.modules.envelopes.routes",
+    "signora.modules.envelopes.service",
+]
+allowed_importers = ["signora.modules.envelopes", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Nothing sent depends on how it is sent: documents, review and detection never import envelopes"
+type = "forbidden"
+source_modules = [
+    "signora.modules.documents",
+    "signora.modules.review",
+    "signora.modules.detection",
+    "signora.modules.departments",
+]
+forbidden_modules = ["signora.modules.envelopes"]
 
 [[tool.importlinter.contracts]]
 name = "Documents never depend on detection (detection drives documents through documents.lifecycle)"
@@ -286,5 +310,9 @@ source_modules = [
     # Review's naming of keys and its one list of values, shared with detection.
     "signora.modules.review.keys",
     "signora.modules.review.values",
+    # What a value of each type may be: judged the same way when sending and when signing.
+    "signora.modules.review.formats",
+    # Signing links: made and read from a key, never stored.
+    "signora.modules.envelopes.links",
 ]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]

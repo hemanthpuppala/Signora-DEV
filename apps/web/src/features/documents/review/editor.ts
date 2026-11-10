@@ -34,6 +34,7 @@ export type DraftField = {
   label: string;
   holds: Holds;
   holds_label: string | null;
+  format: string | null; // how a date or a part of one is written; null: the type's default
   filled_by: FilledBy;
   party_id: string | null;
   required: boolean;
@@ -64,6 +65,11 @@ export function defaultSize(holds: Holds): [number, number] {
     case "date_signed":
     case "date":
       return [100, 20];
+    case "day":
+    case "year":
+      return [36, 20];
+    case "month":
+      return [80, 20];
     case "checkbox":
     case "choice":
       return [12, 12];
@@ -83,30 +89,34 @@ export function fromView(view: VersionFields): Draft {
     parties: [...view.roles]
       .sort((a, b) => a.position - b.position)
       .map((role) => ({ id: role.id, label: role.label, kind: role.kind, kind_label: role.kind_label })),
-    fields: view.fields.map((field) => ({
-      id: field.id,
-      key: field.key,
-      label: field.label,
-      holds: field.holds,
-      holds_label: field.holds_label,
-      filled_by: field.filled_by,
-      party_id: field.party_id,
-      required: field.required,
-      sensitive: field.sensitive,
-      depends_on:
-        field.depends_on && idOfKey.has(field.depends_on.key)
-          ? { field_id: idOfKey.get(field.depends_on.key) ?? "", option: field.depends_on.option }
-          : null,
-      needs_review: field.needs_review,
-      places: field.placements.map((place) => ({
-        id: place.id ?? newId(),
-        page: place.page,
-        rect: [place.rect[0] ?? 0, place.rect[1] ?? 0, place.rect[2] ?? 0, place.rect[3] ?? 0],
-        kind: place.kind as PlaceKind,
-        option_value: place.option_value,
-        option_text: place.option_text,
+    // A stored condition between fields that different people fill is not kept (dropConditionsAcross).
+    fields: dropConditionsAcross(
+      view.fields.map((field) => ({
+        id: field.id,
+        key: field.key,
+        label: field.label,
+        holds: field.holds,
+        holds_label: field.holds_label,
+        format: field.format,
+        filled_by: field.filled_by,
+        party_id: field.party_id,
+        required: field.required,
+        sensitive: field.sensitive,
+        depends_on:
+          field.depends_on && idOfKey.has(field.depends_on.key)
+            ? { field_id: idOfKey.get(field.depends_on.key) ?? "", option: field.depends_on.option }
+            : null,
+        needs_review: field.needs_review,
+        places: field.placements.map((place) => ({
+          id: place.id ?? newId(),
+          page: place.page,
+          rect: [place.rect[0] ?? 0, place.rect[1] ?? 0, place.rect[2] ?? 0, place.rect[3] ?? 0],
+          kind: place.kind as PlaceKind,
+          option_value: place.option_value,
+          option_text: place.option_text,
       })),
-    })),
+      })),
+    ),
   };
 }
 
@@ -125,6 +135,7 @@ export function toFieldSet(draft: Draft, revision: number): FieldSet {
       label: field.label.trim(),
       holds: field.holds,
       holds_label: field.holds === "other" ? field.holds_label?.trim() ?? "" : null,
+      format: field.format,
       filled_by: field.filled_by,
       party_id: field.filled_by === "role" ? field.party_id : null,
       required: field.required,
@@ -186,18 +197,40 @@ function dropConditionsOn(fields: DraftField[], gone: ReadonlySet<string>): Draf
   );
 }
 
+type Filled = Pick<DraftField, "filled_by" | "party_id">;
+
+/** Whether the same person fills both: the sender, the same party, or nobody. */
+export function sameFiller(a: Filled, b: Filled): boolean {
+  return a.filled_by === b.filled_by && a.party_id === b.party_id;
+}
+
+/**
+ * Conditions between fields that different people fill, dropped: whoever fills a field must be the
+ * one who answers what it depends on, or nobody could tell them whether it is asked (the server
+ * refuses such a condition on Save). O(F).
+ */
+function dropConditionsAcross(fields: DraftField[]): DraftField[] {
+  const byId = new Map(fields.map((field) => [field.id, field]));
+  return fields.map((field) => {
+    const parent = field.depends_on ? byId.get(field.depends_on.field_id) : undefined;
+    return parent && !sameFiller(field, parent) ? { ...field, depends_on: null } : field;
+  });
+}
+
 /** Change a field's attributes. Editing a field clears its "needs a look" flag (§2.2). */
 export function updateField(draft: Draft, id: string, patch: FieldPatch): Draft {
   let next = mapField(draft, id, (field) => {
     const changed: DraftField = { ...field, ...patch, needs_review: null };
     if (changed.holds !== "other") changed.holds_label = null;
     else if (changed.holds_label === null) changed.holds_label = "";
+    if (changed.holds !== field.holds) changed.format = null; // another type: its default
     if (changed.filled_by !== "role") changed.party_id = null;
     if (changed.holds !== "other") changed.sensitive = PRIVATE.has(changed.holds);
     return changed;
   });
   const field = next.fields.find((candidate) => candidate.id === id);
   if (field && !CONDITIONS.has(field.holds)) next = { ...next, fields: dropConditionsOn(next.fields, new Set([id])) };
+  if ("filled_by" in patch || "party_id" in patch) next = { ...next, fields: dropConditionsAcross(next.fields) };
   return next;
 }
 
@@ -209,6 +242,7 @@ export function newField(holds: Holds, label: string, partyId: string | null, pl
     label,
     holds,
     holds_label: holds === "other" ? "" : null,
+    format: null,
     filled_by: partyId ? "role" : "none",
     party_id: partyId,
     required: true,
@@ -249,12 +283,30 @@ function mapPlace(draft: Draft, placeId: string, change: (place: DraftPlace) => 
   };
 }
 
-/** Move or resize a place, kept on its page and at least MIN_SIDE (§5). */
+/**
+ * Move or resize a place, kept on its page and at least MIN_SIDE (§5). A place already there (at
+ * its page's edge, at the smallest size) is left as it is: no edit, nothing to undo or save.
+ */
 export function setRect(draft: Draft, placeId: string, rect: Rect, pages: readonly PageSize[], keepSize = true): Draft {
-  return mapPlace(draft, placeId, (place) => {
-    const page = pages[place.page - 1];
-    return page ? { ...place, rect: clampRect(rect, page, keepSize) } : place;
-  });
+  const found = findPlace(draft, placeId);
+  return found ? put(draft, found.place, found.place.page, rect, pages, keepSize) : draft;
+}
+
+/**
+ * A place dragged to a spot on a page, its own or another (§5.1): kept on that page, its size
+ * kept. ``rect`` is in that page's points.
+ */
+export function movePlace(draft: Draft, placeId: string, page: number, rect: Rect, pages: readonly PageSize[]): Draft {
+  const found = findPlace(draft, placeId);
+  return found ? put(draft, found.place, page, rect, pages, true) : draft;
+}
+
+function put(draft: Draft, place: DraftPlace, page: number, rect: Rect, pages: readonly PageSize[], keepSize: boolean): Draft {
+  const size = pages[page - 1];
+  if (!size) return draft;
+  const next = clampRect(rect, size, keepSize);
+  if (page === place.page && next.every((value, index) => value === place.rect[index])) return draft;
+  return mapPlace(draft, place.id, (old) => ({ ...old, page, rect: next }));
 }
 
 /** Nudge a place by whole points (arrow keys: 1, with Shift 10). */
@@ -263,6 +315,20 @@ export function nudge(draft: Draft, placeId: string, dx: number, dy: number, pag
   if (!found) return draft;
   const [x0, y0, x1, y1] = found.place.rect;
   return setRect(draft, placeId, [x0 + dx, y0 + dy, x1 + dx, y1 + dy], pages);
+}
+
+/**
+ * A place made larger or smaller by ``factor`` around its centre (the field form's − and +): at
+ * least MIN_SIDE on each side, kept on its page.
+ */
+export function resize(draft: Draft, placeId: string, factor: number, pages: readonly PageSize[]): Draft {
+  const found = findPlace(draft, placeId);
+  if (!found) return draft;
+  const [x0, y0, x1, y1] = found.place.rect;
+  const width = Math.max((x1 - x0) * factor, MIN_SIDE);
+  const height = Math.max((y1 - y0) * factor, MIN_SIDE);
+  const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
+  return setRect(draft, placeId, [cx - width / 2, cy - height / 2, cx + width / 2, cy + height / 2], pages, false);
 }
 
 /** An option's words (a choice's place): what the signer reads; its value, what a condition names, stays. */
@@ -370,12 +436,14 @@ export function removeParty(draft: Draft, id: string, fate: PartyFate): Draft {
   }
   return {
     parties,
-    fields: draft.fields.map((field) =>
-      theirs.has(field.id)
-        ? fate.kind === "move"
-          ? { ...field, party_id: fate.to, needs_review: null }
-          : { ...field, filled_by: "none" as const, party_id: null, needs_review: null }
-        : field,
+    fields: dropConditionsAcross(
+      draft.fields.map((field) =>
+        theirs.has(field.id)
+          ? fate.kind === "move"
+            ? { ...field, party_id: fate.to, needs_review: null }
+            : { ...field, filled_by: "none" as const, party_id: null, needs_review: null }
+          : field,
+      ),
     ),
   };
 }

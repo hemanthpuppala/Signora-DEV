@@ -27,6 +27,7 @@ email_messages = Table(
     Column("attempts", Integer, nullable=False, server_default=text("0")),
     Column("last_error", Text),
     Column("dedupe_key", Text, unique=True),
+    Column("reply_to", Text),  # the person replies reach (Phase 7: the sender)
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("sent_at", DateTime(timezone=True)),
     Column("failed_at", DateTime(timezone=True)),

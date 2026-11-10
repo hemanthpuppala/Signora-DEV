@@ -86,10 +86,10 @@ export function NewDepartmentForm({
         />
       </Section>
       {upload ? (
-        <Section title="Documents">
+        <Section title="Templates">
           {/* One document at a time: the dropzone until a file is chosen, then the file in its place. */}
           {file ? (
-            <TablePanel label="Document to upload">
+            <TablePanel label="Template to upload">
               <table>
                 <thead>
                   <tr>

@@ -160,29 +160,67 @@
         "title": "ChangeRoleRequest",
         "type": "object"
       },
-      "Colleague": {
-        "description": "A member as department lists show them: countersigners, and people edit access can go to.",
+      "Condition": {
+        "properties": {
+          "field_id": {
+            "format": "uuid",
+            "title": "Field Id",
+            "type": "string"
+          },
+          "option": {
+            "title": "Option",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_id",
+          "option"
+        ],
+        "title": "Condition",
+        "type": "object"
+      },
+      "CopyIn": {
+        "additionalProperties": false,
         "properties": {
           "email": {
+            "maxLength": 254,
+            "minLength": 3,
             "title": "Email",
             "type": "string"
           },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
           "name": {
+            "maxLength": 120,
+            "minLength": 1,
             "title": "Name",
             "type": "string"
           }
         },
         "required": [
-          "id",
           "name",
           "email"
         ],
-        "title": "Colleague",
+        "title": "CopyIn",
+        "type": "object"
+      },
+      "CountersignerIn": {
+        "additionalProperties": false,
+        "properties": {
+          "party_id": {
+            "format": "uuid",
+            "title": "Party Id",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "party_id",
+          "user_id"
+        ],
+        "title": "CountersignerIn",
         "type": "object"
       },
       "CountersignersInput": {
@@ -288,6 +326,37 @@
         "title": "CreateDocument",
         "type": "object"
       },
+      "Delivery": {
+        "description": "Their last email: queued, sent, or failed (with why).",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "sent",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "error"
+        ],
+        "title": "Delivery",
+        "type": "object"
+      },
       "Department": {
         "properties": {
           "access": {
@@ -312,7 +381,7 @@
           },
           "countersigners": {
             "items": {
-              "$ref": "#/components/schemas/Colleague"
+              "$ref": "#/components/schemas/signora__modules__departments__routes__Colleague"
             },
             "title": "Countersigners",
             "type": "array"
@@ -646,10 +715,6 @@
             ],
             "title": "Page Count"
           },
-          "require_email_code": {
-            "title": "Require Email Code",
-            "type": "boolean"
-          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -674,7 +739,6 @@
           "updated_at",
           "archived_at",
           "department_id",
-          "require_email_code",
           "created_by",
           "created_at",
           "access",
@@ -769,6 +833,110 @@
         "title": "DocumentSummary",
         "type": "object"
       },
+      "DrawnField": {
+        "description": "A field whose value is drawn as text or a mark: what it holds, how, and where.",
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "from_recipient": {
+            "anyOf": [
+              {
+                "enum": [
+                  "name",
+                  "email"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Recipient"
+          },
+          "holds": {
+            "enum": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name",
+              "full_name",
+              "first_name",
+              "last_name",
+              "company",
+              "title",
+              "date_of_birth",
+              "email",
+              "phone",
+              "address",
+              "city",
+              "state",
+              "postal_code",
+              "country",
+              "url",
+              "tax_id",
+              "bank_account",
+              "date",
+              "day",
+              "month",
+              "year",
+              "number",
+              "currency",
+              "amount_in_words",
+              "percent",
+              "text",
+              "checkbox",
+              "choice",
+              "note",
+              "other"
+            ],
+            "title": "Holds",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "holds",
+          "format",
+          "party_id",
+          "from_recipient",
+          "places"
+        ],
+        "title": "DrawnField",
+        "type": "object"
+      },
       "DuplicateView": {
         "description": "The same bytes already in the department (§2.3): the screen asks before going on.",
         "properties": {
@@ -812,6 +980,279 @@
         "title": "EmailResponse",
         "type": "object"
       },
+      "EnvelopeDocument": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/DrawnField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "fit": {
+            "$ref": "#/components/schemas/FitRule"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageSize"
+            },
+            "title": "Pages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pages",
+          "fields",
+          "fit"
+        ],
+        "title": "EnvelopeDocument",
+        "type": "object"
+      },
+      "EnvelopePage": {
+        "properties": {
+          "envelopes": {
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeSummary"
+            },
+            "title": "Envelopes",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "envelopes",
+          "next_cursor"
+        ],
+        "title": "EnvelopePage",
+        "type": "object"
+      },
+      "EnvelopeSummary": {
+        "properties": {
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          },
+          "signed": {
+            "title": "Signed",
+            "type": "integer"
+          },
+          "signers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Signers",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "sent",
+              "opened",
+              "viewed",
+              "signed",
+              "completed",
+              "declined",
+              "expired",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version_number": {
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "document_id",
+          "document_name",
+          "version_number",
+          "signers",
+          "signed",
+          "sent_at",
+          "expires_at"
+        ],
+        "title": "EnvelopeSummary",
+        "type": "object"
+      },
+      "EnvelopeView": {
+        "properties": {
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "department_id": {
+            "format": "uuid",
+            "title": "Department Id",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "font": {
+            "$ref": "#/components/schemas/FontView"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "max_reminders": {
+            "title": "Max Reminders",
+            "type": "integer"
+          },
+          "notify_emails": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notify Emails",
+            "type": "array"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/RecipientView"
+            },
+            "title": "Recipients",
+            "type": "array"
+          },
+          "reminder_interval_hours": {
+            "title": "Reminder Interval Hours",
+            "type": "integer"
+          },
+          "require_email_code": {
+            "title": "Require Email Code",
+            "type": "boolean"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          },
+          "sent_by": {
+            "$ref": "#/components/schemas/PersonRef"
+          },
+          "status": {
+            "enum": [
+              "sent",
+              "opened",
+              "viewed",
+              "signed",
+              "completed",
+              "declined",
+              "expired",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "title": "Values",
+            "type": "array"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_number": {
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "department_id",
+          "document_id",
+          "document_name",
+          "version_id",
+          "version_number",
+          "sent_by",
+          "sent_at",
+          "expires_at",
+          "cancelled_at",
+          "require_email_code",
+          "reminder_interval_hours",
+          "max_reminders",
+          "notify_emails",
+          "font",
+          "recipients",
+          "values",
+          "timeline"
+        ],
+        "title": "EnvelopeView",
+        "type": "object"
+      },
       "FieldIn": {
         "additionalProperties": false,
         "properties": {
@@ -833,6 +1274,18 @@
             ],
             "title": "Filled By",
             "type": "string"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
           },
           "holds": {
             "enum": [
@@ -857,6 +1310,9 @@
               "tax_id",
               "bank_account",
               "date",
+              "day",
+              "month",
+              "year",
               "number",
               "currency",
               "amount_in_words",
@@ -990,6 +1446,17 @@
             "title": "Filled By",
             "type": "string"
           },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
           "holds": {
             "enum": [
               "signature",
@@ -1013,6 +1480,9 @@
               "tax_id",
               "bank_account",
               "date",
+              "day",
+              "month",
+              "year",
               "number",
               "currency",
               "amount_in_words",
@@ -1114,6 +1584,7 @@
           "label",
           "holds",
           "holds_label",
+          "format",
           "filled_by",
           "role",
           "party_id",
@@ -1125,6 +1596,48 @@
           "placements"
         ],
         "title": "FieldView",
+        "type": "object"
+      },
+      "FitRule": {
+        "properties": {
+          "align": {
+            "enum": [
+              "left",
+              "center"
+            ],
+            "title": "Align",
+            "type": "string"
+          },
+          "baseline_min": {
+            "title": "Baseline Min",
+            "type": "number"
+          },
+          "baseline_ratio": {
+            "title": "Baseline Ratio",
+            "type": "number"
+          },
+          "fallback_cap": {
+            "title": "Fallback Cap",
+            "type": "number"
+          },
+          "fallback_ratio": {
+            "title": "Fallback Ratio",
+            "type": "number"
+          },
+          "min_size": {
+            "title": "Min Size",
+            "type": "number"
+          }
+        },
+        "required": [
+          "min_size",
+          "fallback_ratio",
+          "fallback_cap",
+          "baseline_ratio",
+          "baseline_min",
+          "align"
+        ],
+        "title": "FitRule",
         "type": "object"
       },
       "Flags": {
@@ -1156,6 +1669,285 @@
           }
         },
         "title": "Flags",
+        "type": "object"
+      },
+      "FontView": {
+        "properties": {
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "family",
+          "url"
+        ],
+        "title": "FontView",
+        "type": "object"
+      },
+      "FormCountersigner": {
+        "properties": {
+          "default": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/signora__modules__envelopes__form__Colleague"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "party_id": {
+            "format": "uuid",
+            "title": "Party Id",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "party_id",
+          "label",
+          "position",
+          "default"
+        ],
+        "title": "FormCountersigner",
+        "type": "object"
+      },
+      "FormField": {
+        "properties": {
+          "depends_on": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Condition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "from_recipient": {
+            "anyOf": [
+              {
+                "enum": [
+                  "name",
+                  "email"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Recipient"
+          },
+          "holds": {
+            "enum": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name",
+              "full_name",
+              "first_name",
+              "last_name",
+              "company",
+              "title",
+              "date_of_birth",
+              "email",
+              "phone",
+              "address",
+              "city",
+              "state",
+              "postal_code",
+              "country",
+              "url",
+              "tax_id",
+              "bank_account",
+              "date",
+              "day",
+              "month",
+              "year",
+              "number",
+              "currency",
+              "amount_in_words",
+              "percent",
+              "text",
+              "checkbox",
+              "choice",
+              "note",
+              "other"
+            ],
+            "title": "Holds",
+            "type": "string"
+          },
+          "holds_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holds Label"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "sensitive": {
+            "title": "Sensitive",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "holds",
+          "holds_label",
+          "format",
+          "party_id",
+          "required",
+          "sensitive",
+          "options",
+          "depends_on",
+          "places",
+          "from_recipient"
+        ],
+        "title": "FormField",
+        "type": "object"
+      },
+      "FormSettings": {
+        "properties": {
+          "expiry_days": {
+            "title": "Expiry Days",
+            "type": "integer"
+          },
+          "max_reminders": {
+            "title": "Max Reminders",
+            "type": "integer"
+          },
+          "notify_emails": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notify Emails",
+            "type": "array"
+          },
+          "reminder_interval_hours": {
+            "title": "Reminder Interval Hours",
+            "type": "integer"
+          },
+          "require_email_code": {
+            "title": "Require Email Code",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "require_email_code",
+          "reminder_interval_hours",
+          "max_reminders",
+          "expiry_days",
+          "notify_emails"
+        ],
+        "title": "FormSettings",
+        "type": "object"
+      },
+      "FormSigner": {
+        "properties": {
+          "kind_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind Label"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "party_id": {
+            "format": "uuid",
+            "title": "Party Id",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "party_id",
+          "label",
+          "kind_label",
+          "position"
+        ],
+        "title": "FormSigner",
         "type": "object"
       },
       "Grant": {
@@ -1528,6 +2320,42 @@
         "title": "NameRequest",
         "type": "object"
       },
+      "Option": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "text"
+        ],
+        "title": "Option",
+        "type": "object"
+      },
+      "PageSize": {
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "number"
+          },
+          "width": {
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "title": "PageSize",
+        "type": "object"
+      },
       "PageView": {
         "description": "A page as displayed (rotation applied), in PDF points: the viewer lays pages out from these\nbefore the file loads, and Phase 6 places fields in the same units.",
         "properties": {
@@ -1666,6 +2494,65 @@
           "name"
         ],
         "title": "PersonRef",
+        "type": "object"
+      },
+      "Place": {
+        "description": "Where a field's value is drawn: PDF points on the page as displayed.",
+        "properties": {
+          "option_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Value"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rect": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Rect",
+            "type": "array"
+          },
+          "text_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Size"
+          }
+        },
+        "required": [
+          "page",
+          "rect",
+          "option_value",
+          "text_size"
+        ],
+        "title": "Place",
         "type": "object"
       },
       "PlaceIn": {
@@ -1811,6 +2698,17 @@
             ],
             "title": "Rect",
             "type": "array"
+          },
+          "text_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Size"
           }
         },
         "required": [
@@ -1935,6 +2833,199 @@
           "message"
         ],
         "title": "ProblemFieldError",
+        "type": "object"
+      },
+      "RecipientChange": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "RecipientChange",
+        "type": "object"
+      },
+      "RecipientView": {
+        "properties": {
+          "delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Delivery"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "signer",
+              "countersigner",
+              "copy"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "party_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Label"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          },
+          "status": {
+            "enum": [
+              "waiting",
+              "sent",
+              "opened",
+              "viewed",
+              "signed",
+              "declined"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "viewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewed At"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "party_id",
+          "party_label",
+          "name",
+          "email",
+          "status",
+          "sent_at",
+          "opened_at",
+          "viewed_at",
+          "signed_at",
+          "delivery"
+        ],
+        "title": "RecipientView",
+        "type": "object"
+      },
+      "Reminded": {
+        "properties": {
+          "reminded": {
+            "title": "Reminded",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reminded"
+        ],
+        "title": "Reminded",
+        "type": "object"
+      },
+      "Resent": {
+        "properties": {
+          "recipient_id": {
+            "format": "uuid",
+            "title": "Recipient Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_id"
+        ],
+        "title": "Resent",
         "type": "object"
       },
       "ResetRequest": {
@@ -2128,6 +3219,199 @@
         "title": "Saved",
         "type": "object"
       },
+      "SendForm": {
+        "properties": {
+          "countersigners": {
+            "items": {
+              "$ref": "#/components/schemas/FormCountersigner"
+            },
+            "title": "Countersigners",
+            "type": "array"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FormField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "fit": {
+            "$ref": "#/components/schemas/FitRule"
+          },
+          "font": {
+            "$ref": "#/components/schemas/FontView"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageSize"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/FormSettings"
+          },
+          "signers": {
+            "items": {
+              "$ref": "#/components/schemas/FormSigner"
+            },
+            "title": "Signers",
+            "type": "array"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_number": {
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document_id",
+          "document_name",
+          "version_id",
+          "version_number",
+          "pages",
+          "signers",
+          "countersigners",
+          "fields",
+          "settings",
+          "font",
+          "fit"
+        ],
+        "title": "SendForm",
+        "type": "object"
+      },
+      "SendRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm_same_person": {
+            "default": false,
+            "title": "Confirm Same Person",
+            "type": "boolean"
+          },
+          "copies": {
+            "items": {
+              "$ref": "#/components/schemas/CopyIn"
+            },
+            "maxItems": 10,
+            "title": "Copies",
+            "type": "array"
+          },
+          "countersigners": {
+            "items": {
+              "$ref": "#/components/schemas/CountersignerIn"
+            },
+            "maxItems": 20,
+            "title": "Countersigners",
+            "type": "array"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SettingsIn"
+          },
+          "signers": {
+            "items": {
+              "$ref": "#/components/schemas/SignerIn"
+            },
+            "maxItems": 20,
+            "title": "Signers",
+            "type": "array"
+          },
+          "time_zone": {
+            "default": "UTC",
+            "maxLength": 64,
+            "title": "Time Zone",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ValueIn"
+            },
+            "maxItems": 2000,
+            "title": "Values",
+            "type": "array"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "signers",
+          "settings"
+        ],
+        "title": "SendRequest",
+        "type": "object"
+      },
+      "SettingsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "expiry_days": {
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Expiry Days",
+            "type": "integer"
+          },
+          "max_reminders": {
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Max Reminders",
+            "type": "integer"
+          },
+          "notify_emails": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Notify Emails",
+            "type": "array"
+          },
+          "reminder_interval_hours": {
+            "maximum": 720.0,
+            "minimum": 1.0,
+            "title": "Reminder Interval Hours",
+            "type": "integer"
+          },
+          "require_email_code": {
+            "default": true,
+            "title": "Require Email Code",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reminder_interval_hours",
+          "max_reminders",
+          "expiry_days"
+        ],
+        "title": "SettingsIn",
+        "type": "object"
+      },
       "SettingsInput": {
         "additionalProperties": false,
         "properties": {
@@ -2182,6 +3466,48 @@
           }
         },
         "title": "SettingsInput",
+        "type": "object"
+      },
+      "SignerIn": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "party_id": {
+            "format": "uuid",
+            "title": "Party Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "party_id",
+          "name",
+          "email"
+        ],
+        "title": "SignerIn",
+        "type": "object"
+      },
+      "SigningLink": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "SigningLink",
         "type": "object"
       },
       "SignupCompleteRequest": {
@@ -2252,6 +3578,43 @@
           "status"
         ],
         "title": "StatusResponse",
+        "type": "object"
+      },
+      "TimelineEntry": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          }
+        },
+        "required": [
+          "at",
+          "action",
+          "by",
+          "data"
+        ],
+        "title": "TimelineEntry",
         "type": "object"
       },
       "TokenRequest": {
@@ -2353,17 +3716,6 @@
               }
             ],
             "title": "Name"
-          },
-          "require_email_code": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Require Email Code"
           }
         },
         "title": "UpdateDocument",
@@ -2448,6 +3800,56 @@
         "title": "UserView",
         "type": "object"
       },
+      "ValueIn": {
+        "additionalProperties": false,
+        "properties": {
+          "field_id": {
+            "format": "uuid",
+            "title": "Field Id",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 2000,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_id",
+          "value"
+        ],
+        "title": "ValueIn",
+        "type": "object"
+      },
+      "ValueView": {
+        "properties": {
+          "field_id": {
+            "format": "uuid",
+            "title": "Field Id",
+            "type": "string"
+          },
+          "given_by": {
+            "enum": [
+              "sender",
+              "prefill",
+              "recipient"
+            ],
+            "title": "Given By",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_id",
+          "value",
+          "given_by"
+        ],
+        "title": "ValueView",
+        "type": "object"
+      },
       "VersionFields": {
         "properties": {
           "allowed": {
@@ -2475,6 +3877,9 @@
                   "tax_id",
                   "bank_account",
                   "date",
+                  "day",
+                  "month",
+                  "year",
                   "number",
                   "currency",
                   "amount_in_words",
@@ -2512,6 +3917,9 @@
                 "tax_id",
                 "bank_account",
                 "date",
+                "day",
+                "month",
+                "year",
                 "number",
                 "currency",
                 "amount_in_words",
@@ -2560,6 +3968,9 @@
                 "tax_id",
                 "bank_account",
                 "date",
+                "day",
+                "month",
+                "year",
                 "number",
                 "currency",
                 "amount_in_words",
@@ -2608,6 +4019,57 @@
           },
           "flags": {
             "$ref": "#/components/schemas/Flags"
+          },
+          "formats": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "default": {
+              "date": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "date_of_birth": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "date_signed": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "day": [
+                "D",
+                "Dth"
+              ],
+              "month": [
+                "Month",
+                "MM"
+              ],
+              "year": [
+                "YYYY",
+                "YY"
+              ]
+            },
+            "title": "Formats",
+            "type": "object"
           },
           "found_again_failed": {
             "anyOf": [
@@ -2901,6 +4363,55 @@
           "name"
         ],
         "title": "WorkspaceView",
+        "type": "object"
+      },
+      "signora__modules__departments__routes__Colleague": {
+        "description": "A member as department lists show them: countersigners, and people edit access can go to.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
+        ],
+        "title": "Colleague",
+        "type": "object"
+      },
+      "signora__modules__envelopes__form__Colleague": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "name",
+          "email"
+        ],
+        "title": "Colleague",
         "type": "object"
       },
       "signora__modules__identity_access__routes__schemas__RoleView": {
@@ -4024,7 +5535,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Colleague"
+                    "$ref": "#/components/schemas/signora__modules__departments__routes__Colleague"
                   },
                   "title": "Response Replace Countersigners Api V1 Departments  Department Id  Countersigners Put",
                   "type": "array"
@@ -4267,6 +5778,127 @@
         ]
       }
     },
+    "/api/v1/departments/{department_id}/envelopes": {
+      "get": {
+        "operationId": "list_envelopes_api_v1_departments__department_id__envelopes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "department_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Department Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "sent",
+                    "opened",
+                    "viewed",
+                    "signed",
+                    "completed",
+                    "declined",
+                    "expired",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A department's envelopes, newest first, 50 a page (next_cursor for more)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
     "/api/v1/departments/{department_id}/grants": {
       "get": {
         "operationId": "list_grants_api_v1_departments__department_id__grants_get",
@@ -4460,7 +6092,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Colleague"
+                    "$ref": "#/components/schemas/signora__modules__departments__routes__Colleague"
                   },
                   "title": "Response List Grant Candidates Api V1 Departments  Department Id  Grants Candidates Get",
                   "type": "array"
@@ -5027,6 +6659,97 @@
         "summary": "Make a ready version the one new sends use (repeat-safe)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/envelopes": {
+      "post": {
+        "operationId": "send_envelope_api_v1_documents__document_id__envelopes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Not approved, archived, or one person on two parties"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Send an approved version to its parties (requires Idempotency-Key)",
+        "tags": [
+          "envelopes"
         ]
       }
     },
@@ -5921,6 +7644,97 @@
         ]
       }
     },
+    "/api/v1/documents/{document_id}/versions/{version_id}/send-form": {
+      "get": {
+        "operationId": "send_form_api_v1_documents__document_id__versions__version_id__send_form_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendForm"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "The version is not approved"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "What sending an approved version asks: details, signers, countersigners, settings",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
     "/api/v1/documents/{document_id}/versions/{version_id}/unlock": {
       "post": {
         "operationId": "unlock_version_api_v1_documents__document_id__versions__version_id__unlock_post",
@@ -6016,6 +7830,756 @@
         "summary": "Open a password-protected PDF with its password (never stored)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}": {
+      "get": {
+        "operationId": "get_envelope_api_v1_envelopes__envelope_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "One envelope: recipients, values, timeline",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}/cancel": {
+      "post": {
+        "operationId": "cancel_api_v1_envelopes__envelope_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Withdraw a send: every link stops working (repeat-safe)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}/document": {
+      "get": {
+        "operationId": "get_envelope_document_api_v1_envelopes__envelope_id__document_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The envelope's document as drawn: its pages and where each value goes",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}": {
+      "patch": {
+        "operationId": "change_recipient_api_v1_envelopes__envelope_id__recipients__recipient_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Correct a person's email (a new link is emailed) or, before they open it, their name",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/link": {
+      "get": {
+        "operationId": "signing_link_api_v1_envelopes__envelope_id__recipients__recipient_id__link_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigningLink"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A person's current signing link (Copy signing link); the copy is audited",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/remind": {
+      "post": {
+        "operationId": "remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reminded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "They signed, or it is not their turn yet"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Remind one person who still has to sign (requires Idempotency-Key)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/resend": {
+      "post": {
+        "operationId": "resend_api_v1_envelopes__envelope_id__recipients__recipient_id__resend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Email one person their link again, or retry a failed email (requires Idempotency-Key)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}/remind": {
+      "post": {
+        "operationId": "remind_api_v1_envelopes__envelope_id__remind_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reminded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Remind everyone who still has to sign (requires Idempotency-Key)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/fonts/{font_id}": {
+      "get": {
+        "operationId": "font_file_api_v1_fonts__font_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "font_id",
+            "required": true,
+            "schema": {
+              "title": "Font Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "font/ttf": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A font's file (TrueType); public, and the same bytes for an id forever",
+        "tags": [
+          "typesetting"
         ]
       }
     },

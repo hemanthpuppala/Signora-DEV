@@ -17,6 +17,7 @@ from signora.modules.departments import access as grants
 from signora.modules.departments import service
 from signora.modules.departments.access import DepartmentAccess, GrantRow, load_access
 from signora.modules.departments.countersigners import list_countersigners, set_countersigners
+from signora.modules.departments.sends import SendCounts, send_counts
 from signora.modules.identity_access import Actor, Permission, current_actor, require
 
 router = APIRouter(prefix="/api/v1/departments", tags=["departments"])
@@ -80,7 +81,7 @@ class DepartmentSummary(BaseModel):
     description: str
     status: Literal["active", "archived"]
     created_at: datetime
-    counts: Counts  # counts of sends; zeros until sends exist (Phase 7)
+    counts: Counts  # counts of sends, from the module that sends (Phase 7, departments.sends)
     access: Literal["edit", "read"]  # the caller's access in this department (topic 2)
 
 
@@ -100,14 +101,16 @@ class Department(DepartmentSummary):
     countersigners: list[Colleague]  # who may countersign, in default order
 
 
-def summary(row: service.DepartmentRow, rights: DepartmentAccess) -> DepartmentSummary:
+def summary(
+    row: service.DepartmentRow, rights: DepartmentAccess, counts: SendCounts
+) -> DepartmentSummary:
     return DepartmentSummary(
         id=row.id,
         name=row.name,
         description=row.description,
         status=row.status,
         created_at=row.created_at,
-        counts=Counts(),
+        counts=Counts(sent=counts.sent, signed=counts.signed, pending=counts.pending),
         access=rights.level(row.id),
     )
 
@@ -116,7 +119,11 @@ def detail(session: Session, actor: Actor, row: service.DepartmentRow) -> Depart
     """The full response: the row plus the caller's access and the countersigner list."""
     signers = list_countersigners(session, actor.workspace_id, row.id)
     return Department(
-        **summary(row, load_access(session, actor)).model_dump(),
+        **summary(
+            row,
+            load_access(session, actor),
+            send_counts(session, actor.workspace_id, [row.id])[row.id],
+        ).model_dump(),
         countersigners=[Colleague(id=s.id, name=s.name, email=s.email) for s in signers],
         updated_at=row.updated_at,
         archived_at=row.archived_at,
@@ -155,7 +162,8 @@ def list_departments(
     with _db(request).unit_of_work() as uow:
         rows = service.list_departments(uow.session, actor.workspace_id, status_filter)
         rights = load_access(uow.session, actor)
-    return [summary(row, rights) for row in rows]
+        counts = send_counts(uow.session, actor.workspace_id, [row.id for row in rows])
+    return [summary(row, rights, counts[row.id]) for row in rows]
 
 
 @router.post(

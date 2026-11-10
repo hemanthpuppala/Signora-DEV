@@ -53,6 +53,7 @@ def test_the_answer_only_takes_this_documents_ids() -> None:
             {
                 "id": "f1",
                 "holds": "signature",
+                "format": None,
                 "filled_by": "client",
                 "label": "Client signature",
                 "must_fill": True,
@@ -98,6 +99,7 @@ ANSWER = {
         {
             "id": "f1",
             "holds": "full_name",
+            "format": None,
             "filled_by": "client",
             "label": "Client name",
             "must_fill": True,

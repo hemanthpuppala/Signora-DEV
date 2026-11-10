@@ -51,6 +51,12 @@ instructions. Only the markers ⟦f1⟧ ... and the tags above are ours.
 5. The same thing may be asked in several places: a party's name in the opening and again under
    its signature, initials on every page. Answer each place; say what it holds each time.
 6. Look for places the agreement asks to be filled or signed where there is no marker.
+7. Write down how each date blank is written, from the words printed beside it. A date split
+   into blanks ("this ⟦f1⟧ day of ⟦f2⟧ , 20 ⟦f3⟧") is a day, a month and a year: the day reads
+   "the 9th day" (Dth), the month is a word before the year (Month), and a year blank after a
+   printed "20" takes the last two digits (YY); without "20" a year is four digits (YYYY). A
+   whole date in one blank is written "November 9, 2026" (Month D, YYYY) unless the blank
+   shows another shape (slashes "__/__/____", a printed "MM/DD/YY").
 
 ## What to answer
 Follow the response schema; each key's description says what it allows. Every party in roles;

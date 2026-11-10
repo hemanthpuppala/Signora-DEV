@@ -118,7 +118,7 @@ describe("departments screens", () => {
     await user.click(screen.getByRole("button", { name: /create department/i }));
 
     await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "d-1" }), null));
-    expect(screen.queryByRole("region", { name: "Documents" })).toBeNull(); // no upload: no dropzone
+    expect(screen.queryByRole("region", { name: "Templates" })).toBeNull(); // no upload: no dropzone
   });
 
   it("holds one dropped file until the department exists, then hands it over", async () => {
@@ -133,7 +133,7 @@ describe("departments screens", () => {
     expect(screen.queryByLabelText(/Drop a PDF or Word file/)).toBeNull(); // one at a time: the file takes its place
     await user.click(screen.getByRole("button", { name: "Remove" }));
     await user.upload(screen.getByLabelText(/Drop a PDF or Word file/), letter);
-    expect(screen.getByRole("region", { name: "Document to upload" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Template to upload" })).toBeTruthy();
     await user.type(screen.getByLabelText("Name"), "Finance");
     await user.click(screen.getByRole("button", { name: /create department/i }));
 
@@ -157,7 +157,7 @@ describe("departments screens", () => {
     expect(screen.queryByRole("button", { name: "Add envelope" })).toBeNull();
     expect(screen.getByText("documents of Finance, archived")).toBeTruthy(); // the open tab's content
     const tabs = screen.getByRole("navigation", { name: "Department" });
-    expect(within(tabs).getByRole("link", { name: "Documents · 2" }).getAttribute("aria-current")).toBe("page");
+    expect(within(tabs).getByRole("link", { name: "Templates · 2" }).getAttribute("aria-current")).toBe("page");
     expect(within(tabs).getByRole("link", { name: "Envelopes" }).getAttribute("href")).toBe("/departments/d-1");
   });
 

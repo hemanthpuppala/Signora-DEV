@@ -89,23 +89,12 @@
 }
 
 /* HeadAction: an icon and its words; on a phone a square with the icon alone. */
+/* Its icon in a square; its words in the tooltip, and read aloud. */
 .headAction {
-  gap: 8px;
+  width: 38px;
+  padding: 0;
 }
 
-@media (max-width: 719.98px) {
-  .headAction {
-    width: 38px;
-    padding: 0;
-  }
-
-  /* Hidden but still read (as the shared visuallyHidden; CSS modules can't compose in a media query). */
-  .headActionLabel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
+.headActionLabel {
+  composes: visuallyHidden from "./display.module.css";
 }

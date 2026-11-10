@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Chip, ChipGroup, ExpandableList, ExpandableRow, Notice, SearchField, Section, SmallText } from "@/shared/ui";
+import { Chip, ChipGroup, ExpandableList, ExpandableRow, HeadAction, Notice, SearchField, Section, SmallText } from "@/shared/ui";
 
 import { HOLDS, toneOf, whoFills, type PartyRef, type VersionFields } from "./fields";
 import type { Selection } from "./FieldBoxes";
@@ -64,6 +64,8 @@ export function FieldsPanel({
   filter,
   onFilter,
   editing,
+  follow = true,
+  onEdit,
 }: {
   view: VersionFields;
   draft: Draft;
@@ -73,6 +75,12 @@ export function FieldsPanel({
   filter: Filter;
   onFilter: (filter: Filter) => void;
   editing: PanelEditing | null;
+  /** Bring the chosen field's row into view. Off when the list is under the document and the field
+   * was chosen on the page (a phone): the person stays with the box they touched. */
+  follow?: boolean;
+  /** Start editing an approved version's fields, from here: where the panel is under the document
+   * (a narrow screen) the action is in the panel's first title line, by what it edits. */
+  onEdit?: (() => void) | undefined;
 }) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -80,10 +88,18 @@ export function FieldsPanel({
   const byId = useMemo(() => new Map(draft.fields.map((field) => [field.id, field])), [draft.fields]);
   // A field chosen on the PDF (or from a warning) opens in the list, which comes into view; the
   // list itself brings the open row to its top.
+  // A closed Fields section opens for it first: a closed section has nothing to bring into view.
   const rowId = selected ? (selected.kind === "field" ? `field-${selected.id}` : `pending-${selected.id}`) : null;
+  const [fieldsOpen, setFieldsOpen] = useState(true);
+  const [openedFor, setOpenedFor] = useState(rowId);
+  if (rowId !== openedFor) {
+    setOpenedFor(rowId);
+    if (rowId) setFieldsOpen(true);
+  }
   useEffect(() => {
     const list = rowId ? document.getElementById(rowId)?.parentElement : null;
-    if (list) bringIntoView(list);
+    if (list && follow) bringIntoView(list);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new choice scrolls, not a change of ``follow``
   }, [rowId]);
 
   const rows = useMemo<Row[]>(() => {
@@ -120,7 +136,7 @@ export function FieldsPanel({
   if (view.status === "detecting") {
     const step = STEP_OF_STAGE[view.stage ?? "read"] ?? 0;
     return (
-      <Section title="Fields">
+      <Section title="Fields" collapsible open={fieldsOpen} onOpenChange={setFieldsOpen}>
         <ol className={styles.steps} aria-label="Finding fields">
           {STEPS.map((label, index) => (
             <li key={label} className={index < step ? styles.done : index === step ? styles.running : styles.next}>
@@ -157,7 +173,7 @@ export function FieldsPanel({
   return (
     <>
       {inReview && view.warnings.length > 0 ? (
-        <Section title="Things to check" info={THINGS_TO_CHECK_HELP}>
+        <Section title="Things to check" info={THINGS_TO_CHECK_HELP} collapsible>
           <ThingsToCheck
             warnings={view.warnings}
             stale={(editing?.review.changes ?? 0) > 0}
@@ -170,18 +186,20 @@ export function FieldsPanel({
           />
         </Section>
       ) : null}
-      <Section title="Who signs" info={WHO_SIGNS_HELP}>
+      <Section
+        title="Who signs"
+        info={WHO_SIGNS_HELP}
+        action={onEdit ? <HeadAction icon="edit" label="Edit fields" onClick={onEdit} /> : undefined}
+        collapsible
+      >
         <PartyList parties={draft.parties} fields={draft.fields} sender={sender} edit={editing ? editing.review.edit : null} />
       </Section>
-      <Section title={`Fields · ${draft.fields.length}`} info={FIELDS_HELP}>
+      <Section title={`Fields · ${draft.fields.length}`} info={FIELDS_HELP} collapsible open={fieldsOpen} onOpenChange={setFieldsOpen}>
         {view.flags.no_fields && draft.fields.length === 0 ? (
           <Notice>{editing ? "We couldn't find places to fill or sign. Add them below." : "We couldn't find places to fill or sign."}</Notice>
         ) : null}
         {view.found_again_failed ? (
           <Notice tone="warning">{`${view.found_again_failed}. These are the fields found before.`}</Notice>
-        ) : null}
-        {editing && !editing.canDraw ? (
-          <SmallText>Moving boxes on the document needs a larger screen; their numbers can be changed here.</SmallText>
         ) : null}
         {draft.fields.length > 0 ? (
           <>
@@ -222,12 +240,11 @@ export function FieldsPanel({
               }}
             >
               {tool?.kind === "field" ? (
-                <PlacingRow onCancel={editing.cancelPlacing} />
+                <PlacingRow touch={editing.touch} onCancel={editing.cancelPlacing} />
               ) : (
                 <AddField
                   parties={draft.parties}
                   partyId={filteredParty}
-                  canDraw={editing.canDraw}
                   onPlace={(next) => {
                     setAdding(false);
                     editing.startPlacing(next);

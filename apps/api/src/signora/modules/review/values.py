@@ -37,6 +37,10 @@ AiHolds = Literal[
     "bank_account",
     # values
     "date",
+    # a date the form splits into boxes ("__ day of ____, 20__"): each box holds one part
+    "day",
+    "month",
+    "year",
     "number",
     "currency",
     "amount_in_words",

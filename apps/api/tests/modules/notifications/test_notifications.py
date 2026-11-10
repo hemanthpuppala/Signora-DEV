@@ -6,6 +6,7 @@ import json
 import smtplib
 import uuid
 from collections.abc import Iterator
+from dataclasses import replace
 from typing import Any
 
 import httpx
@@ -288,6 +289,19 @@ def test_sendgrid_sends_with_link_tracking_off() -> None:
     assert tracking["click_tracking"] == {"enable": False, "enable_text": False}
     assert tracking["open_tracking"] == {"enable": False}
     assert [part["type"] for part in body["content"]] == ["text/plain", "text/html"]
+    assert "reply_to" not in body  # only when the email has one
+
+
+def test_sendgrid_sets_reply_to_the_sender() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(202)
+
+    sendgrid(handler).send(replace(outgoing(), reply_to="rosa.hale@firm.example"))
+
+    assert json.loads(seen[0].content)["reply_to"] == {"email": "rosa.hale@firm.example"}
 
 
 @pytest.mark.parametrize(
@@ -328,13 +342,19 @@ def test_smtp_delivers_to_mailpit() -> None:
 
     message_id = transport.send(
         OutgoingEmail(
-            to=to, subject="Mailpit check", text="plain", html="<b>html</b>", message_id="m"
+            to=to,
+            subject="Mailpit check",
+            text="plain",
+            html="<b>html</b>",
+            message_id="m",
+            reply_to="rosa.hale@firm.example",
         )
     )
 
     search = httpx.get(f"{MAILPIT_API}/search", params={"query": f"to:{to}"}).json()
     found = search["messages"][0]
     assert found["Subject"] == "Mailpit check"
+    assert found["ReplyTo"] == [{"Name": "", "Address": "rosa.hale@firm.example"}]
     assert found["From"] == {"Name": "Signora", "Address": "noreply@signora.test"}
     assert message_id.endswith("@signora.test>")
 

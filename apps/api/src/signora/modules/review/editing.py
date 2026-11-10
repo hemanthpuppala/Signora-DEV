@@ -20,6 +20,7 @@ from signora.modules.review.fieldset import (
     PartyIn,
     PlaceIn,
 )
+from signora.modules.review.formats import FORMATS, format_for
 from signora.modules.review.keys import name_words, slug, unique
 from signora.modules.review.values import MANUAL_ALLOWED, PARTY_VALUES, SENSITIVE, SHARED
 from signora.modules.review.views import option_words
@@ -55,6 +56,7 @@ class StoredField:
     label: str
     holds: str
     holds_label: str | None
+    format: str | None
     filled_by: str
     party_id: uuid.UUID | None
     required: bool
@@ -110,6 +112,8 @@ def check(
         new_id(f"{at}.id", item.id)
         if (item.holds == "other") != (item.holds_label is not None):
             errors.append(FieldError(f"{at}.holds_label", "Name the type only for Other"))
+        if item.format is not None and item.format not in FORMATS.get(item.holds, ()):
+            errors.append(FieldError(f"{at}.format", "Choose one of this type's formats"))
         if (item.filled_by == "role") != (item.party_id is not None):
             errors.append(
                 FieldError(f"{at}.party_id", "Name a party exactly when a party fills it")
@@ -156,6 +160,11 @@ def _check_dependency(
         return [FieldError(f"{at}.depends_on", "Only a choice or a checkbox can be a condition")]
     if item.depends_on.option not in options:
         return [FieldError(f"{at}.depends_on", "That option is not one of the field's")]
+    if (item.filled_by, item.party_id) != (target.filled_by, target.party_id):
+        # Whoever fills a field must be the one who answers what it depends on: otherwise the
+        # answer comes after they have filled in their part, or never, and nobody can say
+        # whether the field is asked.
+        return [FieldError(f"{at}.depends_on", "Choose a field the same person fills")]
     return []
 
 
@@ -320,7 +329,16 @@ def option_text_of(place: PlaceIn, before: StoredPlace | None) -> str | None:
 
 # --- the record of changes (§1.4) ---------------------------------------------------------------
 
-_FIELD_ATTRS = ("label", "holds", "holds_label", "filled_by", "party_id", "required", "depends_on")
+_FIELD_ATTRS = (
+    "label",
+    "holds",
+    "holds_label",
+    "format",
+    "filled_by",
+    "party_id",
+    "required",
+    "depends_on",
+)
 
 
 def _field_attrs(item: FieldIn | StoredField) -> dict[str, Any]:
@@ -334,6 +352,7 @@ def _field_attrs(item: FieldIn | StoredField) -> dict[str, Any]:
         sensitive = item.sensitive
     values = {name: getattr(item, name) for name in _FIELD_ATTRS if name != "depends_on"}
     values["party_id"] = str(values["party_id"]) if values["party_id"] else None
+    values["format"] = format_for(item.holds, item.format)  # none given: the type's default
     values["depends_on"] = list(depends) if depends else None
     values["sensitive"] = sensitive
     return values

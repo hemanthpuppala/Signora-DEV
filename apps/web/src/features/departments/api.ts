@@ -35,3 +35,13 @@ export function useDepartment(id: string) {
 export function dayMonth(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "long" });
 }
+
+/** The company's people, for pickers (countersigners, edit access; the send's countersigners). */
+export function useDirectory() {
+  return useQuery({
+    queryKey: ["directory"],
+    queryFn: () => unwrap(api.GET("/api/v1/members/directory")),
+  });
+}
+
+export type Colleague = NonNullable<ReturnType<typeof useDirectory>["data"]>[number];

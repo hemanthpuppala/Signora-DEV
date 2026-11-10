@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { ApiError, formError } from "@/shared/api/errors";
-import { ActionBar, Button, Dialog, Notice, TextButton } from "@/shared/ui";
+import { ActionBar, Button, Dialog, HeadAction, Notice, TextButton } from "@/shared/ui";
 
 import type { Version } from "../api";
 import type { Review } from "./useReview";
@@ -24,25 +24,21 @@ export function ReviewActionBar({
   nextNumber,
   warnings,
   canEdit,
+  editInPanel = false,
 }: {
   review: Review;
   version: Version;
   nextNumber: number;
   warnings: readonly ReviewWarning[];
   canEdit: boolean;
+  /** "Edit fields" is in the panel, by what it edits (a narrow screen): not here, alone on a line
+   * over the document. */
+  editInPanel?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const { changes, editing, approved, inReview } = review;
-  const state = approved
-    ? version.approved
-      ? `Approved by ${version.approved.by.name} on ${new Date(version.approved.at).toLocaleDateString()}`
-      : "Approved"
-    : inReview
-      ? "Needs approval"
-      : null;
+  // The version and its state are under the document's title (DocumentPage); here, what changes.
   const facts = [
-    `Version ${version.number}`,
-    state,
     inReview && warnings.length > 0 ? plural(warnings.length, "thing to check", "things to check") : null,
     changes > 0 ? plural(changes, "unsaved change", "unsaved changes") : null,
     approved && editing ? `Saving makes version ${nextNumber}; version ${version.number} stays as it is` : null,
@@ -51,34 +47,28 @@ export function ReviewActionBar({
   const actions =
     !canEdit ? null : editing && changes > 0 ? (
       <>
-        <TextButton disabled={!review.canUndo} onClick={review.undo}>
-          Undo
-        </TextButton>
-        <TextButton onClick={review.discard}>Discard</TextButton>
-        <Button compact loading={review.saving} loadingLabel="Saving…" onClick={review.save}>
-          {approved ? `Save as version ${nextNumber}` : "Save"}
-        </Button>
+        <HeadAction icon="undo" label="Undo" disabled={!review.canUndo} onClick={review.undo} />
+        <HeadAction icon="discard" label="Discard" onClick={review.discard} />
+        <HeadAction
+          icon="save"
+          label={review.saving ? "Saving…" : approved ? `Save as version ${nextNumber}` : "Save"}
+          variant="primary"
+          disabled={review.saving}
+          onClick={review.save}
+        />
       </>
     ) : review.canApprove ? (
-      <Button compact onClick={() => setConfirming(true)}>
-        Approve version
-      </Button>
-    ) : approved && !editing ? (
-      <Button variant="quiet" compact onClick={review.startEditing}>
-        Edit fields
-      </Button>
+      <HeadAction icon="check" label="Approve version" variant="primary" onClick={() => setConfirming(true)} />
+    ) : approved && !editing && !editInPanel ? (
+      <HeadAction icon="edit" label="Edit fields" onClick={review.startEditing} />
     ) : approved && editing ? (
-      <TextButton onClick={review.stopEditing}>Stop editing</TextButton>
+      <HeadAction icon="close" label="Stop editing" onClick={review.stopEditing} />
     ) : null;
 
   return (
     <>
       <ActionBar label="Review" actions={actions}>
-        {facts.map((fact, index) => (
-          <span key={index} className={index === 0 ? styles.barVersion : undefined}>
-            {fact}
-          </span>
-        ))}
+        {facts.length > 0 ? facts.map((fact, index) => <span key={index}>{fact}</span>) : null}
       </ActionBar>
       {confirming ? (
         <ApproveDialog

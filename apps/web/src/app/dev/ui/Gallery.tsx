@@ -16,7 +16,13 @@ import {
   ExpandableRow,
   Heading1,
   Heading2,
+  IconButton,
   InfoTip,
+  Item,
+  ItemAction,
+  ItemActions,
+  ItemHead,
+  ItemList,
   MetricGrid,
   MetricTile,
   Mono,
@@ -25,6 +31,7 @@ import {
   SearchField,
   Select,
   SmallText,
+  StepDialog,
   STATUSES,
   StatusPill,
   Sub,
@@ -50,6 +57,7 @@ export function Gallery() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState<string | null>("company");
   const [place, setPlace] = useState(0);
+  const [step, setStep] = useState<number | null>(null);
 
   return (
     <>
@@ -123,7 +131,7 @@ export function Gallery() {
           label="Project sections"
           items={[
             { href: "/dev/ui", label: "Envelopes", active: true },
-            { href: "/dev/ui#documents", label: "Documents · 3" },
+            { href: "/dev/ui#documents", label: "Templates · 3" },
           ]}
         />
         <TablePanel label="Example table">
@@ -179,6 +187,49 @@ export function Gallery() {
             </Chip>
           ))}
         </ChipGroup>
+        <div className={styles.row}>
+          <Button variant="quiet" compact onClick={() => setStep(0)}>
+            Open a step dialog
+          </Button>
+        </div>
+        {step !== null ? (
+          <StepDialog
+            title="New envelope"
+            steps={["Template", "Details", "Review"]}
+            current={step}
+            onStep={setStep}
+            onClose={() => setStep(null)}
+            back={step > 0 ? <TextButton onClick={() => setStep(step - 1)}>Back</TextButton> : null}
+            actions={
+              <Button compact onClick={() => (step < 2 ? setStep(step + 1) : setStep(null))}>
+                {step < 2 ? "Next" : "Done"}
+              </Button>
+            }
+          >
+            <SmallText>{`Step ${step + 1}: one part of the task at a time.`}</SmallText>
+          </StepDialog>
+        ) : null}
+        <ItemList label="Recipients" ordered>
+          <Item>
+            <ItemHead>
+              <span>Maya Chen</span>
+              <SmallText>Viewed Nov 9</SmallText>
+            </ItemHead>
+            <SmallText>Signer · Client</SmallText>
+            <SmallText>maya@example.com</SmallText>
+            <ItemActions end={<IconButton icon="edit" label="Change Maya Chen's email" onClick={() => undefined} />}>
+              <ItemAction onClick={() => undefined}>Copy link</ItemAction>
+              <ItemAction onClick={() => undefined}>Send again</ItemAction>
+            </ItemActions>
+          </Item>
+          <Item current>
+            <ItemHead>
+              <span>Rosa Hale</span>
+              <SmallText>Waiting</SmallText>
+            </ItemHead>
+            <SmallText>Countersigner · Firm</SmallText>
+          </Item>
+        </ItemList>
         <ExpandableList label="Fields">
           <ExpandableRow id="gallery-add" tone="add" title="Add field" expanded={false} regionLabel="New field" onToggle={() => undefined} />
           {[
