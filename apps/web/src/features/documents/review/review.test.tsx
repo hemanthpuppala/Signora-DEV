@@ -293,6 +293,29 @@ describe("field review", () => {
     expect(screen.queryByText("Reloading shows their changes; yours will be lost.")).toBeNull();
   });
 
+  it("takes a size as it is typed, digit by digit", async () => {
+    // Each keystroke was clamped and written back into the box: clearing Width gave 8, "5" gave
+    // 8 again, and "0" then made 80. A size starting with a digit under 8 could not be typed.
+    inReview();
+    open();
+    const user = userEvent.setup();
+    await chooseField("Company");
+    const form = await screen.findByRole("region", { name: "Details of Company" });
+    const width = within(form).getByLabelText<HTMLInputElement>("Width");
+    await user.clear(width);
+    expect(width.value).toBe(""); // an empty box stays empty while it is being typed in
+    await user.type(width, "50");
+    expect(width.value).toBe("50");
+    await user.tab();
+    expect(within(form).getByLabelText<HTMLInputElement>("Width").value).toBe("50"); // the place's own number
+
+    const height = within(form).getByLabelText<HTMLInputElement>("Height");
+    await user.clear(height);
+    await user.type(height, "3"); // under the smallest box
+    await user.tab();
+    expect(within(form).getByLabelText<HTMLInputElement>("Height").value).toBe("8"); // kept at the smallest size
+  });
+
   it("approves after listing the things to check, with the revision and the warnings seen", async () => {
     inReview();
     answers["POST /api/v1/documents/doc-1/versions/v-1/approve"] = () => {

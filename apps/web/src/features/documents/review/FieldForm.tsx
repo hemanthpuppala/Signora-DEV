@@ -59,6 +59,30 @@ function conditionOptions(field: DraftField, draft: Draft) {
 }
 
 /**
+ * A number of the place, typed. While the box has the focus it shows what was typed: the place
+ * takes each number as it stands (kept on its page and at its smallest size), but the box is not
+ * rewritten under the person's hands, so "50" can be typed past its "5". Left, it shows the
+ * place's own number again.
+ */
+function NumberBox({ label, value, onNumber }: { label: string; value: number; onNumber: (number: number) => void }) {
+  const [typed, setTyped] = useState<string | null>(null);
+  return (
+    <TextField
+      label={label}
+      type="number"
+      step="1"
+      value={typed ?? String(value)}
+      onChange={(event) => {
+        const text = event.target.value;
+        setTyped(text);
+        if (text.trim() !== "" && Number.isFinite(Number(text))) onNumber(Number(text));
+      }}
+      onBlur={() => setTyped(null)}
+    />
+  );
+}
+
+/**
  * One field's form (Phase 6 §4, §5, §7.1), inside its open row in the list. Its type offers only
  * what every one of its boxes may hold (the server's rule, sent with the fields); position and
  * size are numbers, so a box can be placed without a mouse. Every change is one undo step; typing
@@ -101,10 +125,8 @@ export function FieldForm({
     if (value === NEW_PARTY) setNewParty(true);
     else change(filler(value));
   };
-  const setNumber = (index: 0 | 1 | 2 | 3, value: string) => {
+  const setNumber = (index: 0 | 1 | 2 | 3, number: number) => {
     if (!current) return;
-    const number = Number(value);
-    if (!Number.isFinite(number)) return;
     const [x0, y0, x1, y1] = current.rect;
     const size: Rect = [x0, y0, x1 - x0, y1 - y0];
     size[index] = number;
@@ -241,13 +263,11 @@ export function FieldForm({
                 const [x0, y0, x1, y1] = current.rect;
                 const values = [x0, y0, x1 - x0, y1 - y0];
                 return (
-                  <TextField
-                    key={name}
+                  <NumberBox
+                    key={`${current.id}:${name}`}
                     label={name}
-                    type="number"
-                    step="1"
-                    value={String(Math.round((values[index] ?? 0) * 100) / 100)}
-                    onChange={(event) => setNumber(index as 0 | 1 | 2 | 3, event.target.value)}
+                    value={Math.round((values[index] ?? 0) * 100) / 100}
+                    onNumber={(number) => setNumber(index as 0 | 1 | 2 | 3, number)}
                   />
                 );
               })}
