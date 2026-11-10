@@ -154,13 +154,25 @@
 .placeTools {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 22px;
+  gap: 12px 0;
+  /* A hairline before each group, and the one before the first group of every line cut away:
+     the row starts that far to the left and is clipped just short of it. Only the left is
+     clipped, so focus rings and hover edges show on the other sides. */
+  margin-left: -15px;
+  clip-path: inset(-8px -8px -8px 7px);
 }
 
 .tool {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin-right: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--sep);
+}
+
+.tool:last-child {
+  margin-right: 0;
 }
 
 .toolName {
