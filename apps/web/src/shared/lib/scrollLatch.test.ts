@@ -13,8 +13,8 @@ function scrollingList(): HTMLElement {
   return list;
 }
 
-function wheel(target: EventTarget, deltaY: number, at: number): WheelEvent {
-  const event = new WheelEvent("wheel", { deltaY, bubbles: true, cancelable: true });
+function wheel(target: EventTarget, deltaY: number, at: number, x = 10, y = 10): WheelEvent {
+  const event = new WheelEvent("wheel", { deltaY, bubbles: true, cancelable: true, clientX: x, clientY: y });
   Object.defineProperty(event, "timeStamp", { value: at });
   target.dispatchEvent(event);
   return event;
@@ -47,6 +47,19 @@ describe("a wheel gesture stays with what it started on", () => {
     list.scrollTop = 400; // its end
     expect(wheel(list, 40, 1050).defaultPrevented).toBe(false); // the browser hands it to the page
     expect(wheel(document.body, 40, 1100).defaultPrevented).toBe(false);
+  });
+
+  it("moving the pointer starts a new gesture; content sliding under a still pointer does not", () => {
+    const list = scrollingList();
+    wheel(document.body, 40, 1000, 10, 10);
+    // The page moved the list under the pointer: the pointer reports the same place.
+    window.dispatchEvent(new MouseEvent("pointermove", { clientX: 10, clientY: 10 }));
+    expect(wheel(list, 40, 1050, 10, 10).defaultPrevented).toBe(true); // still the page's gesture
+    // The person moves the pointer onto the list: it scrolls first, scrolled here (the browser's
+    // own latching would still send this gesture to the page for a moment).
+    window.dispatchEvent(new MouseEvent("pointermove", { clientX: 300, clientY: 200 }));
+    expect(wheel(list, 40, 1100, 300, 200).defaultPrevented).toBe(true);
+    expect(list.scrollBy).toHaveBeenCalledWith({ top: 40 });
   });
 
   it("a pause starts a new gesture", () => {
