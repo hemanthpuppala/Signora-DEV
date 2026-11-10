@@ -16,6 +16,12 @@ const SHAPES = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
+  // Arrows: move something that way.
+  up: <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" />,
+  down: <path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" />,
+  left: <path d="M19 12H5M10.5 6.5 5 12l5.5 5.5" />,
+  right: <path d="M5 12h14M13.5 6.5 19 12l-5.5 5.5" />,
   chevron: <path d="m9 6 6 6-6 6" />, // points right; turned to point down when open
   close: <path d="M6 6l12 12M18 6 6 18" />,
   // A bell: remind the people who still have to sign.

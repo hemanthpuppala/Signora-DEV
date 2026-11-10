@@ -2254,6 +2254,11 @@ export interface components {
             settings: components["schemas"]["SettingsIn"];
             /** Signers */
             signers: components["schemas"]["SignerIn"][];
+            /**
+             * Time Zone
+             * @default UTC
+             */
+            time_zone: string;
             /** Title */
             title?: string | null;
             /** Values */

@@ -188,7 +188,7 @@ export function FieldsPanel({
           <Notice tone="warning">{`${view.found_again_failed}. These are the fields found before.`}</Notice>
         ) : null}
         {editing && !editing.canDraw ? (
-          <SmallText>Moving boxes on the document needs a larger screen; their numbers can be changed here.</SmallText>
+          <SmallText>Moving boxes on the document needs a larger screen; the arrows in a field move its box.</SmallText>
         ) : null}
         {draft.fields.length > 0 ? (
           <>

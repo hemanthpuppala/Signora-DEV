@@ -6,7 +6,9 @@ import re
 import time
 import uuid
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -321,3 +323,55 @@ def test_twenty_parties_and_two_hundred_values_send_in_half_a_second(
     assert sent.status_code == 201, sent.text[:500]
     assert len(sent.json()["values"]) == 200
     assert elapsed < 0.5, f"{elapsed:.2f} s"
+
+
+def test_the_emails_give_dates_in_the_senders_time_zone(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    doc = sendable(owner, run, detect)
+    sent = send(
+        owner, doc, {**request_for(owner, doc, company), "time_zone": "America/Los_Angeles"}
+    )
+
+    assert sent.status_code == 201, sent.text
+    envelope = sent.json()
+    address = envelope["recipients"][0]["email"]
+    with committing_db.unit_of_work() as uow:
+        body = uow.session.execute(
+            text(
+                "SELECT text_body FROM email_messages WHERE category = 'sign_request' "
+                "AND to_address = :a"
+            ),
+            {"a": address},
+        ).scalar_one()
+        zone = uow.session.execute(
+            text("SELECT time_zone FROM envelopes WHERE id = :e"), {"e": envelope["id"]}
+        ).scalar_one()
+    assert zone == "America/Los_Angeles"
+    expires = datetime.fromisoformat(envelope["expires_at"]).astimezone(ZoneInfo(zone))
+    assert f"It expires on {expires:%b} {expires.day}, {expires.year} at " in body
+    assert body.split("It expires on", 1)[1].split(".", 1)[0].endswith(("PST", "PDT"))
+
+
+def test_a_time_zone_the_server_does_not_know_sends_in_utc(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    """The zone only words a date and the sender never typed it: a browser's "Etc/Unknown", or
+    the tz database's "localtime" (the server's own zone), is no reason to refuse a send."""
+    doc = sendable(owner, run, detect)
+    for name in ("Etc/Unknown", "localtime"):
+        sent = send(owner, doc, {**request_for(owner, doc, company), "time_zone": name})
+        assert sent.status_code == 201, sent.text
+        with committing_db.unit_of_work() as uow:
+            zone = uow.session.execute(
+                text("SELECT time_zone FROM envelopes WHERE id = :e"), {"e": sent.json()["id"]}
+            ).scalar_one()
+        assert zone == "UTC"

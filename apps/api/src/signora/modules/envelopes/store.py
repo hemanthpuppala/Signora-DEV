@@ -44,13 +44,14 @@ def write_send(
     sent_by: uuid.UUID,
     plan: Plan,
     settings: SettingsIn,
+    time_zone: str,
 ) -> Written:
     envelope = session.execute(
         text(
             "INSERT INTO envelopes (workspace_id, department_id, document_id, version_id, title, "
             "require_email_code, reminder_interval_hours, max_reminders, expires_at, "
-            "notify_emails, sent_by, font) VALUES (:w, :dep, :doc, :v, :title, :code, :every, "
-            ":max, now() + make_interval(days => :days), :notify, :by, :font) "
+            "notify_emails, sent_by, font, time_zone) VALUES (:w, :dep, :doc, :v, :title, :code, "
+            ":every, :max, now() + make_interval(days => :days), :notify, :by, :font, :zone) "
             "RETURNING id, expires_at"
         ),
         {
@@ -61,6 +62,7 @@ def write_send(
             "title": plan.title,
             "code": settings.require_email_code,
             "font": DEFAULT_FONT,  # pinned: the preview's font is the signed PDF's
+            "zone": time_zone,
             "every": settings.reminder_interval_hours,
             "max": settings.max_reminders,
             "days": settings.expiry_days,

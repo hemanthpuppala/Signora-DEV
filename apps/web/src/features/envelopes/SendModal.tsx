@@ -30,7 +30,7 @@ import { FieldInput, refused } from "./FieldInput";
 import { fitsEverywhere, kept, useFontReady, written } from "./typeset";
 import { ValuesOverlay } from "./ValuesOverlay";
 
-const STEPS = ["Document", "Details", "Signers", "Countersigners", "Review"] as const;
+const STEPS = ["Template", "Details", "Signers", "Countersigners", "Review"] as const;
 const DOCUMENT = 0;
 const DETAILS = 1;
 const SIGNERS = 2;
@@ -216,6 +216,8 @@ export function SendModal({
         .map((f) => ({ field_id: f.id, value: values[f.id] ?? "" })),
       settings: effectiveSettings,
       confirm_same_person: confirm,
+      // The sender's time zone: the envelope's emails give its dates as the sender sees them here.
+      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
     send.run(body);
   };
@@ -290,9 +292,9 @@ export function SendModal({
       {form.isError && step === DOCUMENT ? <Notice tone="warning">{formError(form.error)}</Notice> : null}
 
       {step === DOCUMENT ? (
-        <Section title="Choose the document">
-          {documents.length === 0 ? <SmallText>This department has no documents yet.</SmallText> : null}
-          <DocumentGrid label="Documents">
+        <Section title="Choose the template">
+          {documents.length === 0 ? <SmallText>This department has no templates yet.</SmallText> : null}
+          <DocumentGrid label="Templates">
             {documents.map((d) => (
               <DocumentCard
                 key={d.id}
@@ -327,14 +329,14 @@ export function SendModal({
         <div className={styles.steps}>
           {document && !document.current_version ? (
             <Notice tone="warning" title={`${document.name} needs approval`}>
-              Only an approved version can be sent. Approve a version on the document&apos;s page, then send it.
+              Only an approved version can be sent. Approve a version on the template&apos;s page, then send it.
             </Notice>
           ) : form.error ? (
-            <Notice tone="warning" title="This document can't be sent right now">
+            <Notice tone="warning" title="This template can't be sent right now">
               {formError(form.error) ?? "Try again in a moment."}
             </Notice>
           ) : (
-            <SmallText>Loading the document&apos;s fields…</SmallText>
+            <SmallText>Loading the template&apos;s fields…</SmallText>
           )}
         </div>
       ) : null}
@@ -449,7 +451,7 @@ export function SendModal({
         <div className={styles.steps}>
           <Section title="Who countersigns">
             {data.countersigners.length === 0 ? (
-              <SmallText>Nobody countersigns this document: the signers&apos; signatures complete it.</SmallText>
+              <SmallText>Nobody countersigns this template: the signers&apos; signatures complete it.</SmallText>
             ) : null}
             {data.countersigners.map((party, index) => {
               const chosen = countersignerOf(party.party_id, party.default?.user_id);

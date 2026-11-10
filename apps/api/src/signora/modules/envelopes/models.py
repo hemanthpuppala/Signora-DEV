@@ -35,6 +35,8 @@ envelopes = Table(
     Column("require_email_code", Boolean, nullable=False),
     # The font its values are drawn in (Phase 7b): the preview's and the signed PDF's.
     Column("font", Text, nullable=False, server_default=text("'liberation-sans'")),
+    # The sender's time zone (IANA), for the dates in its emails (Phase 7b).
+    Column("time_zone", Text, nullable=False, server_default=text("'UTC'")),
     Column("reminder_interval_hours", Integer, nullable=False),
     Column("max_reminders", Integer, nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),

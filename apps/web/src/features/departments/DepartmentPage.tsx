@@ -118,7 +118,7 @@ export function DepartmentPage({
           { href: `/departments/${id}`, label: "Envelopes", active: tab === "envelopes" },
           {
             href: `/departments/${id}/documents`,
-            label: documentCount === undefined ? "Documents" : `Documents · ${documentCount}`,
+            label: documentCount === undefined ? "Templates" : `Templates · ${documentCount}`,
             active: tab === "documents",
           },
         ]}

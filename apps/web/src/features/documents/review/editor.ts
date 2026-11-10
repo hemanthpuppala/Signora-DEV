@@ -259,12 +259,17 @@ function mapPlace(draft: Draft, placeId: string, change: (place: DraftPlace) => 
   };
 }
 
-/** Move or resize a place, kept on its page and at least MIN_SIDE (§5). */
+/**
+ * Move or resize a place, kept on its page and at least MIN_SIDE (§5). A place already there (at
+ * its page's edge, at the smallest size) is left as it is: no edit, nothing to undo or save.
+ */
 export function setRect(draft: Draft, placeId: string, rect: Rect, pages: readonly PageSize[], keepSize = true): Draft {
-  return mapPlace(draft, placeId, (place) => {
-    const page = pages[place.page - 1];
-    return page ? { ...place, rect: clampRect(rect, page, keepSize) } : place;
-  });
+  const found = findPlace(draft, placeId);
+  const page = found && pages[found.place.page - 1];
+  if (!found || !page) return draft;
+  const next = clampRect(rect, page, keepSize);
+  if (next.every((value, index) => value === found.place.rect[index])) return draft;
+  return mapPlace(draft, placeId, (place) => ({ ...place, rect: next }));
 }
 
 /** Nudge a place by whole points (arrow keys: 1, with Shift 10). */
@@ -273,6 +278,20 @@ export function nudge(draft: Draft, placeId: string, dx: number, dy: number, pag
   if (!found) return draft;
   const [x0, y0, x1, y1] = found.place.rect;
   return setRect(draft, placeId, [x0 + dx, y0 + dy, x1 + dx, y1 + dy], pages);
+}
+
+/**
+ * A place made larger or smaller by ``factor`` around its centre (the field form's − and +): at
+ * least MIN_SIDE on each side, kept on its page.
+ */
+export function resize(draft: Draft, placeId: string, factor: number, pages: readonly PageSize[]): Draft {
+  const found = findPlace(draft, placeId);
+  if (!found) return draft;
+  const [x0, y0, x1, y1] = found.place.rect;
+  const width = Math.max((x1 - x0) * factor, MIN_SIDE);
+  const height = Math.max((y1 - y0) * factor, MIN_SIDE);
+  const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
+  return setRect(draft, placeId, [cx - width / 2, cy - height / 2, cx + width / 2, cy + height / 2], pages, false);
 }
 
 /** An option's words (a choice's place): what the signer reads; its value, what a condition names, stays. */

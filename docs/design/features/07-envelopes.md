@@ -126,7 +126,12 @@ The document's old `require_email_code` column and its PATCH field are removed i
   > Hi Maya, Rosa Hale sent you this to review and sign. It takes a few minutes.
   > **[ Review and sign ]**
   > Or copy this link: `https://…/s/…`
-  > This link is for you only. It expires on Nov 23, 2026. Questions? Reply to this email.
+  > This link is for you only. It expires on Nov 23, 2026 at 8:05 PM PST. Questions? Reply to this email.
+- **Dates in the sender's time zone**: the send records the sender's zone (the browser's IANA name) and every email
+  of the envelope gives its dates in it, with the time and the zone, so the email says what the app shows the sender
+  and a date near midnight cannot be read as the next day. A zone with letters reads "PST"; one the tz database
+  names only by its offset (Sao Paulo, Dubai) reads "UTC-3", "UTC+4". The zone only words a date and the sender
+  never typed it, so a name the server does not know (a browser's "Etc/Unknown") takes UTC and the send goes on.
 - **No copy button in the email**: email apps run no scripts, so a button cannot copy. The link is printed under the
   button where it can be selected and copied; the envelope page has **Copy signing link** for each person.
 - **Reply-To** is the sender, so a question reaches a person.
@@ -197,6 +202,7 @@ envelopes
   reminder_interval_hours  int NOT NULL CHECK (1..720)
   max_reminders            int NOT NULL CHECK (0..20)
   expires_at               timestamptz NOT NULL
+  time_zone                text NOT NULL DEFAULT 'UTC'  -- the sender's (IANA), for the dates in its emails; kept as sent (0022)
   notify_emails            text[] NOT NULL CHECK (cardinality <= 5)
   sent_by                  uuid NOT NULL, sent_at timestamptz NOT NULL DEFAULT now()
   completed_at, cancelled_at timestamptz, cancelled_by uuid
@@ -244,7 +250,7 @@ envelope_values
 | Method and path | What | Notes |
 |---|---|---|
 | `GET /documents/{d}/versions/{v}/send-form` | the generated form: signers (`party_id`, label, asks `name` or `first_name`+`last_name`, `email`), countersigners (`party_id`, label, default `user_id`, choices), sender fields (`field_id`, label, holds, required, options, condition), settings with defaults | `409 version-not-approved`; edit access |
-| `POST /documents/{d}/envelopes` | send: `{version_id, title?, signers: [{party_id, name, email}], countersigners: [{party_id, user_id}], copies: [{name, email}], values: [{field_id, value}], settings, confirm_same_person?}` → `201 Envelope` | `Idempotency-Key`; `422` naming each item; `409 version-not-approved`, `document-archived` |
+| `POST /documents/{d}/envelopes` | send: `{version_id, title?, signers: [{party_id, name, email}], countersigners: [{party_id, user_id}], copies: [{name, email}], values: [{field_id, value}], settings, confirm_same_person?, time_zone?}` → `201 Envelope` | `Idempotency-Key`; `422` naming each item; `409 version-not-approved`, `document-archived` |
 | `GET /departments/{dep}/envelopes?status=&cursor=` | list, newest first, 50 a page | edit access |
 | `GET /envelopes/{e}` | envelope, recipients (with delivery state of their last email), values, timeline | edit access |
 | `GET /envelopes/{e}/recipients/{r}/link` | the signing link (Copy signing link) | audited as `envelope.link_copied` |
@@ -408,3 +414,4 @@ Decided by the owner's "complete everything, follow industry practice" (2026-11-
 | 7.12 | Web: remove the document's email-code remnants; contract | done | the Signing section left the document page with the owner's decision (292ed3c); the column, the model, the API field and the PATCH (now 422) went in 7.2; the contract regenerated with each task; the last web fixtures carrying the field removed |
 | 7.13 | Live check, deploy, PR | in progress | Deployed with `make up-app` (dev database at 0019: envelope tables, the documents' email-code column dropped; the public site on 5a01f54). Gate: 570 API tests, 184 web tests, lint, types, import contracts, contract check, build. The send, follow-ups and emails are exercised end to end by the API tests against Postgres and Mailpit (Reply-To checked in Mailpit). Not yet done: a click-through in a browser (the browser extension was not connected) and real email (Gmail SMTP, the owner's, from 2026-11-10) |
 | 7.14 | Owner review of the send (2026-11-09): Details as titled blocks; the step dialog's progress as a track; a date split into boxes | done | Details: the shared `Blocks`/`Block` panel, yours first ("Filled in by you", "Required to send" said once), then each party, one field a line (1eb296c). Progress: one hairline track, a stop per step, filled when done (said "done" to screen readers), haloed when current (177904d). Date parts: the AI and manual type lists gain `day`, `month`, `year` (a date the form splits into "__ day of ____, 20__" boxes; the AI told when to use them); `check_value` takes a day 1 to 31, a month by number or name (stored as the name), a year of four digits or two (where the form prints "20"); the send asks a day or year as a number and the month from a list of names. Versions approved before keep their three `date` fields (approved versions are frozen): detect again or make a new version to get the parts. Tests: `test_formats.py`, `FieldInput.test.tsx`. Dropdowns: the shared `Select` opens its list in the top layer (a manual popover placed at the trigger, upward when there is no room below, following scrolls), so a dialog's scrolling body no longer clips it; checked in headless Chromium inside a 90px clipping box |
+| 7.15 | Emails give dates in the sender's time zone (§5), with the fixes from the pull request's review | done | `envelopes.time_zone` (0022, kept as sent); `SendRequest.time_zone` (an unknown name takes UTC, the send goes on); `emails._zone` ("PST", or "UTC-3" where the zone has no letters). Tests: `test_emails.py`, `test_send.py` |

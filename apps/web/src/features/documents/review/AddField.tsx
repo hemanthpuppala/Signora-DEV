@@ -40,7 +40,7 @@ export function filler(value: string): { filled_by: FilledBy; party_id: string |
 /**
  * The open "+ Add field" row (Phase 6 §7.1): a type and who fills it, then "Place on the page".
  * Who fills it starts as the party the list is filtered to. Without room to draw (a phone) the
- * field is put on page 1 and moved with its numbers.
+ * field is put on page 1 and moved with its form's arrows.
  */
 export function AddField({
   parties,

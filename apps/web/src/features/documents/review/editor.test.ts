@@ -17,6 +17,7 @@ import {
   nudge,
   onEveryPage,
   redo,
+  resize,
   removeParty,
   setOptionText,
   setRect,
@@ -242,5 +243,47 @@ describe("a date field's format", () => {
     expect(draft.fields[0]?.format).toBeNull(); // the month's default, from the server
     draft = updateField(draft, year.id, { holds: "text" });
     expect(toFieldSet(draft, 0).fields[0]?.format).toBeNull();
+  });
+});
+
+describe("making a place larger or smaller", () => {
+  it("scales it around its centre, never under the smallest box nor off its page", () => {
+    const field = newField("text", "Note", null, { page: 1, rect: [100, 100, 200, 120], option_value: null, option_text: null });
+    const placeId = field.places[0]?.id ?? "";
+    const draft: Draft = { parties: [], fields: [field] };
+    expect(resize(draft, placeId, 1.1, PAGES).fields[0]?.places[0]?.rect).toEqual([95, 99, 205, 121]);
+    let small = draft;
+    for (let i = 0; i < 40; i++) small = resize(small, placeId, 0.9, PAGES);
+    const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = small.fields[0]?.places[0]?.rect ?? [];
+    expect([x1 - x0, y1 - y0]).toEqual([8, 8]); // MIN_SIDE
+  });
+
+  it("comes back to its size when larger is followed by smaller", () => {
+    const field = newField("text", "Note", null, { page: 1, rect: [100, 100, 280, 122], option_value: null, option_text: null });
+    const placeId = field.places[0]?.id ?? "";
+    let draft: Draft = { parties: [], fields: [field] };
+    for (let i = 0; i < 5; i++) draft = resize(resize(draft, placeId, 1.1, PAGES), placeId, 1 / 1.1, PAGES);
+    expect(draft.fields[0]?.places[0]?.rect).toEqual([100, 100, 280, 122]);
+  });
+
+  it("is no edit when nothing changes: at the smallest size, at the page's edge", () => {
+    const tiny = newField("text", "Note", null, { page: 1, rect: [0, 100, 8, 108], option_value: null, option_text: null });
+    const placeId = tiny.places[0]?.id ?? "";
+    const draft: Draft = { parties: [], fields: [{ ...tiny, needs_review: "new" }] };
+    expect(resize(draft, placeId, 0.9, PAGES)).toBe(draft);
+    expect(nudge(draft, placeId, -2, 0, PAGES)).toBe(draft);
+    const history = apply(begin(draft), (d) => nudge(d, placeId, -2, 0, PAGES), `nudge:${placeId}`);
+    expect(unsaved(history)).toBe(0); // nothing to save, nothing to undo
+    expect(history.present.fields[0]?.needs_review).toBe("new"); // and its flag stays
+  });
+
+  it("undoes a run of moves and a run of resizes one at a time", () => {
+    const field = newField("text", "Note", null, { page: 1, rect: [100, 100, 200, 120], option_value: null, option_text: null });
+    const placeId = field.places[0]?.id ?? "";
+    let history = begin({ parties: [], fields: [field] });
+    for (let i = 0; i < 3; i++) history = apply(history, (d) => nudge(d, placeId, 2, 0, PAGES), `nudge:${placeId}`);
+    history = apply(history, (d) => resize(d, placeId, 1.1, PAGES), `resize:${placeId}`);
+    expect(unsaved(history)).toBe(2);
+    expect(undo(history).present.fields[0]?.places[0]?.rect).toEqual([106, 100, 206, 120]); // the moves stay
   });
 });
