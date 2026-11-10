@@ -259,12 +259,17 @@ function mapPlace(draft: Draft, placeId: string, change: (place: DraftPlace) => 
   };
 }
 
-/** Move or resize a place, kept on its page and at least MIN_SIDE (§5). */
+/**
+ * Move or resize a place, kept on its page and at least MIN_SIDE (§5). A place already there (at
+ * its page's edge, at the smallest size) is left as it is: no edit, nothing to undo or save.
+ */
 export function setRect(draft: Draft, placeId: string, rect: Rect, pages: readonly PageSize[], keepSize = true): Draft {
-  return mapPlace(draft, placeId, (place) => {
-    const page = pages[place.page - 1];
-    return page ? { ...place, rect: clampRect(rect, page, keepSize) } : place;
-  });
+  const found = findPlace(draft, placeId);
+  const page = found && pages[found.place.page - 1];
+  if (!found || !page) return draft;
+  const next = clampRect(rect, page, keepSize);
+  if (next.every((value, index) => value === found.place.rect[index])) return draft;
+  return mapPlace(draft, placeId, (place) => ({ ...place, rect: next }));
 }
 
 /** Nudge a place by whole points (arrow keys: 1, with Shift 10). */

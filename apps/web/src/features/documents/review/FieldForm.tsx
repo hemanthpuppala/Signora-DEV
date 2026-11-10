@@ -56,23 +56,24 @@ function conditionOptions(field: DraftField, draft: Draft) {
   return options;
 }
 
-/**
- * One field's form (Phase 6 §4, §5, §7.1), inside its open row in the list. Its type offers only
- * what every one of its boxes may hold (the server's rule, sent with the fields); position and
- * size are numbers, so a box can be placed without a mouse. Every change is one undo step; typing
- * in one box is one.
- */
 const STEP = 2; // points a click moves a place
+const GROW = 1.1; // a click on Larger; Smaller is its inverse, so the two undo each other
 // The place's own controls, besides dragging it: four ways to move, smaller and larger.
 const ADJUST: readonly { icon: IconName; label: string; move: readonly [number, number]; scale?: number }[] = [
   { icon: "left", label: "Move left", move: [-STEP, 0] },
   { icon: "up", label: "Move up", move: [0, -STEP] },
   { icon: "down", label: "Move down", move: [0, STEP] },
   { icon: "right", label: "Move right", move: [STEP, 0] },
-  { icon: "minus", label: "Smaller", move: [0, 0], scale: 0.9 },
-  { icon: "plus", label: "Larger", move: [0, 0], scale: 1.1 },
+  { icon: "minus", label: "Smaller", move: [0, 0], scale: 1 / GROW },
+  { icon: "plus", label: "Larger", move: [0, 0], scale: GROW },
 ];
 
+/**
+ * One field's form (Phase 6 §4, §5, §7.1), inside its open row in the list. Its type offers only
+ * what every one of its boxes may hold (the server's rule, sent with the fields); a row of icons
+ * moves and sizes the chosen place, so a box can be placed without dragging. Every change is one
+ * undo step; typing in one box is one, and so is a run of moves or a run of resizes of one place.
+ */
 export function FieldForm({
   field,
   draft,
@@ -247,11 +248,10 @@ export function FieldForm({
                 icon={icon}
                 label={label}
                 onClick={() =>
-                  edit(
-                    (draft) =>
-                      scale ? resize(draft, current.id, scale, editing.pages) : nudge(draft, current.id, move[0], move[1], editing.pages),
-                    `rect:${current.id}`,
-                  )
+                  // Moves share the arrow keys' undo step; resizes have their own.
+                  scale
+                    ? edit((draft) => resize(draft, current.id, scale, editing.pages), `resize:${current.id}`)
+                    : edit((draft) => nudge(draft, current.id, move[0], move[1], editing.pages), `nudge:${current.id}`)
                 }
               />
             ))}

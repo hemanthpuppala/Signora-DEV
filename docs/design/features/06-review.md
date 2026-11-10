@@ -197,7 +197,9 @@ Attachment (a file the signer uploads), stamp or seal, and calculated fields nee
   in the filter (else "Not asked"), and its form opens. Documents with nothing found are filled this way.
 - **Move and resize**: drag the box; drag its corner and edge handles. Boxes stay inside their page, at least 8 pt.
 - **Keyboard**: with a box selected, arrows nudge it 1 pt (10 with Shift) and Delete removes that place; the form
-  shows its position and size as numbers, so everything can be done without a mouse.
+  has a row of icons for the chosen place (move left, up, down, right by 2 pt; smaller, larger around its centre),
+  so a box can be placed without dragging (WCAG 2.5.7). A run of moves of one place is one undo step, and a run of
+  resizes is another; a move or resize that changes nothing (at the page's edge, at the smallest size) is no edit.
 - **More places for a field**: "Add a place", then click a page; for initials, "On every page" puts one at the same
   spot on each page.
 - **Split**: "Make separate field" turns a place into a field of its own.
@@ -261,7 +263,7 @@ the shown version's state, and choosing a version in the list reviews that one. 
 - **Panel, overview**: "Who signs" (add, rename, reorder, remove); a **Things to check** box listing the warnings,
   each with "Show me"; the filters, search and list.
 - **Panel, a field**: choosing one swaps the overview for its form (label, type, who fills, required; "More": the
-  condition, private, position and size, "Make separate field"; the key is internal and never shown, owner decision 2026-11-09), its places stepper and Delete; "Done"
+  condition, private, "Make separate field"; the key is internal and never shown, owner decision 2026-11-09), its places stepper and Delete; "Done"
   returns.
 - **+ Add field** in the viewer's toolbar opens the palette (§5).
 - **Read-only people** see the same page with no controls.
@@ -290,7 +292,8 @@ click replace the panel with its form, and gave party warnings no way forward. R
   pages, high contrast, with Cancel (`PdfViewer notice`); the Add field row points there.
 - **A field's places** (owner decisions, 2026-11-09): chips ("1 · Page 1", a choice's own words), the chosen one
   filled, replacing the stepper; "Add a place" and "On every page" as quiet buttons with icons; the chosen place's
-  "Make separate field" and "Remove place" under them; the exact numbers folded under "Position and size". The key
+  "Make separate field" and "Remove place" under them; a row of icons that move and size it (no coordinates: points from the page's corner are the PDF's way to say
+  where a box is, not a person's). The key
   is never shown. Design system: `Button icon`, `Chip` / `ChipGroup` (also the list's filters), icons `close`,
   `pages`, `split`, `trash`; corners stay square (`--radius`), rounded chips remain an option.
 - **A "?" on each section** (owner decision, 2026-11-09): Things to check, Who signs, Fields, Versions and a field's
@@ -301,7 +304,7 @@ click replace the panel with its form, and gave party warnings no way forward. R
   the send form in Phase 7 (Phase 3 §5.1 and Phase 4 §1.1 updated).
 - **"+ Add field" is the first row of the field list**: it opens into a row with a Type dropdown (grouped, every
   type) and who fills it (the filtered party by default), then "Place on the page": click where it goes, or drag to
-  draw it. The viewer's toolbar says so while placing. On phones it is placed on page 1 and moved with the numbers.
+  draw it. The viewer's toolbar says so while placing. On phones it is placed on page 1 and moved with the form's icons.
 - **Parties read as text**: tone, name, how they sign, field count, and a pencil that turns that one row into its
   editor (name, kind, order, remove).
 - **Warnings carry their fix**: a field's warning has "Show me"; "has no place to sign" has "Add signature", which
@@ -603,3 +606,4 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.12a | The review screen revised after use (§7.1) | done | `shared/ui`: `ActionBar`, `ExpandableList`/`ExpandableRow` (button named by the title, the facts its description; on `/dev/ui`; tests), the `chevron` icon, `--action-bar-height`; the side column's sections divided by hairlines; `ReviewActionBar` (state, things to check, unsaved changes; Approve, or Undo, Discard, Save; Edit fields); fields as rows that open in place (editable details for editors, text for readers); "+ Add field" the list's first row (Type dropdown, who fills, Place on the page; the viewer's toolbar says what a click does); parties as text with a pencil; "Add signature" on a party's warning; a version's fields stay on screen while it changes state (no blink). Tests: `review.test.tsx` (11), `document.test.tsx` (18), components (2) |
 | 6.13 | Harness rerun, deploy, live check, PR | in progress | Harness rerun on the 9 documents with `url` in the AI layer (2026-11-09, `tests/outputs/SCORES.md`): no document has a website, so `url` changed nothing. Against the unconfirmed drafts the scores moved by run-to-run variance only: the Mutual NDA template's parties came back "Party 1/2" instead of "First/Second Party" (the scorer matches parties by slug, so its who-fills score reads 1/11), and the Trade Secret firm's own name, address and email flip between the firm and the sender in the clean run as well as the hostile one. Two injection checks failed this run for that reason: the hostile PDF gave those three to the sender (the surge check allows two), and the hostile Word file made the firm a signer, the opposite of what the planted text asks; agreement with the clean runs is 92 % and 98 %, the flag and the name held. Kept as run, not rerun to pass. Deploy: `make up-app` (0018 applied to the dev database; 11 versions in review kept, current cleared). Live: stack and dev server answer, review endpoints require sign-in; the browser walkthrough is not done (the browser extension was not connected) |
 | 6.14 | Fixes from the pull request's review (high) | done | Ten findings verified against the code, none dropped. API: `ApproveRequest.accepted` is a set of codes (one code per warning from a page listing ten warnings was refused by the cap of nine; a version with many private values could not be approved); `store.lock_review` is the one locked read of the revision for Save and Approve (Save compared a missing row with −1 where the page reads 0); a PDF box keeps its `option_value` (422 `places[i].option_value`) and its option words survive the editor's "…" view (`editing.option_text_of`; every Save rewrote the stored words); a field's privacy is one of its attributes (`_field_attrs`: toggling Private on an Other type kept the flag and left the audit entry empty); `derive_version` reads the document and the source once and returns the version it wrote (four reads and permission checks per revision before). Web: arrow keys and Backspace in the shared Select (a combobox) no longer nudge or remove the chosen box (`ReviewLayout` `typing`); a new option of a choice is named after none it has (`nextOptionName`; "Option 3" twice after removing one); an Other party with no words is sent as "" and refused by name, like a field's empty Other type; the option words editor is one place edit (`setOptionText`, clearing the flag like every other); `ExpandableList` measures itself when its open row or its rows change (`open` prop), not on every keystroke; the Approve body sends each code once (the contract says `uniqueItems`). Tests, each failing without its fix: `test_approve` (1), `test_save` (2), `editor.test.ts` (2), `review.test.tsx` (1) |
+| 6.15 | A place moves and resizes from icons, not coordinates (§5, §7.1), with the fixes from the pull request's review | done | `FieldForm.tsx` (the row of icons; moves share the arrow keys' undo step, resizes have their own; Smaller is the inverse of Larger); `editor.setRect` (a move or resize that changes nothing is no edit). Tests: `editor.test.ts`, `review.test.tsx` |

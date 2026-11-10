@@ -294,7 +294,7 @@ export function SendModal({
       {step === DOCUMENT ? (
         <Section title="Choose the template">
           {documents.length === 0 ? <SmallText>This department has no templates yet.</SmallText> : null}
-          <DocumentGrid label="Documents">
+          <DocumentGrid label="Templates">
             {documents.map((d) => (
               <DocumentCard
                 key={d.id}
