@@ -64,6 +64,7 @@ export function FieldsPanel({
   filter,
   onFilter,
   editing,
+  follow = true,
 }: {
   view: VersionFields;
   draft: Draft;
@@ -73,6 +74,9 @@ export function FieldsPanel({
   filter: Filter;
   onFilter: (filter: Filter) => void;
   editing: PanelEditing | null;
+  /** Bring the chosen field's row into view. Off when the list is under the document and the field
+   * was chosen on the page (a phone): the person stays with the box they touched. */
+  follow?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -90,7 +94,8 @@ export function FieldsPanel({
   }
   useEffect(() => {
     const list = rowId ? document.getElementById(rowId)?.parentElement : null;
-    if (list) bringIntoView(list);
+    if (list && follow) bringIntoView(list);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new choice scrolls, not a change of ``follow``
   }, [rowId]);
 
   const rows = useMemo<Row[]>(() => {
@@ -187,9 +192,6 @@ export function FieldsPanel({
         {view.found_again_failed ? (
           <Notice tone="warning">{`${view.found_again_failed}. These are the fields found before.`}</Notice>
         ) : null}
-        {editing && !editing.canDraw ? (
-          <SmallText>Moving boxes on the document needs a larger screen; the arrows in a field move its box.</SmallText>
-        ) : null}
         {draft.fields.length > 0 ? (
           <>
             <ChipGroup label="Show fields of">
@@ -229,12 +231,11 @@ export function FieldsPanel({
               }}
             >
               {tool?.kind === "field" ? (
-                <PlacingRow onCancel={editing.cancelPlacing} />
+                <PlacingRow touch={editing.touch} onCancel={editing.cancelPlacing} />
               ) : (
                 <AddField
                   parties={draft.parties}
                   partyId={filteredParty}
-                  canDraw={editing.canDraw}
                   onPlace={(next) => {
                     setAdding(false);
                     editing.startPlacing(next);

@@ -197,11 +197,9 @@ export function FieldForm({
         </div>
         <PlaceChips places={field.places} place={place} onPlace={onPlace} choice={field.holds === "choice"} />
         <div className={styles.toolRow}>
-          {editing.canDraw ? (
-            <Button variant="quiet" compact icon="plus" onClick={() => editing.onAddPlace(field.id)}>
-              Add a place
-            </Button>
-          ) : null}
+          <Button variant="quiet" compact icon="plus" onClick={() => editing.onAddPlace(field.id)}>
+            Add a place
+          </Button>
           {current && editing.pages.length > 1 ? (
             <Button variant="quiet" compact icon="pages" onClick={() => edit((draft) => onEveryPage(draft, current.id, editing.pages))}>
               On every page
