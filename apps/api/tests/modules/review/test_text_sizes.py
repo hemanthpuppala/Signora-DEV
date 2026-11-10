@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -30,6 +31,7 @@ def test_approval_measures_each_written_place_and_earlier_versions_are_measured_
     detect: Callable[..., None],
     committing_db: Database,
     settings: Settings,
+    tmp_path: Path,
 ) -> None:
     document_id, version_id = _in_review(owner, run, detect)
     assert set(_sizes(_view(owner, document_id, version_id)).values()) == {None}  # in review
@@ -47,9 +49,13 @@ def test_approval_measures_each_written_place_and_earlier_versions_are_measured_
         workspace_id = uow.session.execute(
             text("SELECT workspace_id FROM document_versions WHERE id = :v"), {"v": version_id}
         ).scalar_one()
+    # A version whose file cannot be read is named and left; it never stops the run.
+    with committing_db.unit_of_work() as uow:
+        lost = measure_unmeasured(uow.session, LocalBlobStore(tmp_path), workspace_id)
+    assert (lost.measured, [str(v) for v in lost.failed]) == (0, [version_id])
     blobs = LocalBlobStore(settings.blob_store.dir)
     with committing_db.unit_of_work() as uow:
-        assert measure_unmeasured(uow.session, blobs, workspace_id) == 1
+        assert measure_unmeasured(uow.session, blobs, workspace_id).measured == 1
     assert _sizes(_view(owner, document_id, version_id)) == measured
     with committing_db.unit_of_work() as uow:
-        assert measure_unmeasured(uow.session, blobs, workspace_id) == 0
+        assert measure_unmeasured(uow.session, blobs, workspace_id).measured == 0

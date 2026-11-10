@@ -6,12 +6,16 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from signora.kernel.blobstore import BlobRef, BlobStore
+from signora.kernel.logging import get_logger
 from signora.modules.typesetting import Measured, text_sizes
+
+log = get_logger("signora.review.text_sizes")
 
 # Places a value is written in: a PDF's text box or a blank line, of a field holding text.
 _WRITTEN = (
@@ -26,11 +30,9 @@ def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: Blob
         Measured(row.id, row.page, (row.x0, row.y0, row.x1, row.y1))
         for row in session.execute(
             text(
-                "SELECT p.id, p.page, p.x0, p.y0, p.x1, p.y1 FROM field_placements p "
-                "JOIN version_fields f ON f.id = p.field_id WHERE p.version_id = :v "
-                # Places a value is written in: a PDF's text box or a blank, of a field of text.
-                "AND p.kind IN ('text', 'blank') "
-                "AND f.holds NOT IN ('checkbox', 'choice', 'signature', 'initials')"
+                # _WRITTEN is a constant of this module, never input.
+                "SELECT p.id, p.page, p.x0, p.y0, p.x1, p.y1 FROM field_placements p "  # noqa: S608
+                "JOIN version_fields f ON f.id = p.field_id WHERE p.version_id = :v AND " + _WRITTEN
             ),
             {"v": version_id},
         )
@@ -54,25 +56,40 @@ def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: Blob
     return len(sizes)
 
 
+@dataclass(frozen=True)
+class Backfill:
+    measured: int  # versions measured
+    failed: list[uuid.UUID]  # versions that could not be read: left as they were
+
+
 def measure_unmeasured(
     session: Session, blobs: BlobStore, workspace_id: uuid.UUID | None = None
-) -> int:
-    """Every approved version (of one company, if given) with a written place not measured yet;
-    how many were measured.
+) -> Backfill:
+    """Every approved version (of one company, if given) with a written place not measured yet.
     A place with no words on its page (a scanned page) stays unmeasured and is drawn by the
-    fallback rule; such a version is read again by the next run, which writes nothing."""
+    fallback rule; such a version is read again by the next run, which writes nothing.
+
+    Each version is measured in a savepoint of its own: one that cannot be read (its file gone, a
+    PDF that does not open) is logged and left, and the others are still measured."""
     versions = session.execute(
         text(
-            "SELECT v.id, v.workspace_id, v.pdf_sha256, v.pdf_bytes FROM document_versions v "
+            # _WRITTEN is a constant of this module, never input.
+            "SELECT v.id, v.workspace_id, v.pdf_sha256, v.pdf_bytes FROM document_versions v "  # noqa: S608
             "WHERE v.status = 'approved' AND v.pdf_sha256 IS NOT NULL AND EXISTS "
             "(SELECT 1 FROM field_placements p JOIN version_fields f ON f.id = p.field_id "
-            "WHERE p.version_id = v.id AND p.kind IN ('text', 'blank') "
-            "AND f.holds NOT IN ('checkbox', 'choice', 'signature', 'initials') "
+            "WHERE p.version_id = v.id AND " + _WRITTEN + " "
             "AND NOT EXISTS (SELECT 1 FROM placement_text_sizes s WHERE s.placement_id = p.id)) "
             "AND (CAST(:w AS uuid) IS NULL OR v.workspace_id = :w)"
         ),
         {"w": workspace_id},
     ).all()
+    failed: list[uuid.UUID] = []
     for row in versions:
-        measure(session, blobs, row.id, BlobRef(row.workspace_id, row.pdf_sha256, row.pdf_bytes))
-    return len(versions)
+        pdf = BlobRef(row.workspace_id, row.pdf_sha256, row.pdf_bytes)
+        try:
+            with session.begin_nested():
+                measure(session, blobs, row.id, pdf)
+        except Exception as error:  # a batch: one bad version never stops the rest
+            failed.append(row.id)
+            log.warning("text_sizes.version_failed", version_id=str(row.id), error=repr(error))
+    return Backfill(measured=len(versions) - len(failed), failed=failed)

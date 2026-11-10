@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 
@@ -132,6 +133,59 @@ def test_the_sender_cannot_fill_what_comes_from_the_signer() -> None:
         [f"fields.{FULL}", f"fields.{EMAIL}"]
     )
     assert {e.message for e in refused.value.field_errors} == {"Filled in from the signer"}
+
+
+def test_an_empty_value_is_left_for_the_signer_whatever_the_field() -> None:
+    # A client that sends every field, empty where nothing was typed: nothing to refuse.
+    values = plan({PLAN: "Silver", FULL: "", EMAIL: "  "})
+    assert FULL not in values
+    assert values[EMAIL] == "maya@example.com"
+
+
+def test_what_is_left_in_a_field_no_longer_asked_never_refuses_the_send() -> None:
+    # Typed under Gold, then Silver chosen: the year under it is not asked, so a value that
+    # would be refused there (a letter, or a year too wide for its box) is dropped, not judged.
+    under_gold = FORM.model_copy(
+        update={
+            "fields": [
+                f.model_copy(
+                    update={
+                        "format": "YYYY",
+                        "depends_on": Condition(field_id=PLAN, option="Gold"),
+                    }
+                )
+                if f.id == YEAR
+                else f
+                for f in FORM.fields
+            ]
+        }
+    )
+
+    def planned(values: dict[uuid.UUID, str]) -> dict[uuid.UUID, str]:
+        request = SendRequest.model_validate(
+            {
+                "version_id": FORM.version_id,
+                "signers": [{"party_id": CLIENT, "name": "Maya", "email": "maya@example.com"}],
+                "values": [{"field_id": k, "value": v} for k, v in values.items()],
+                "settings": {"reminder_interval_hours": 24, "max_reminders": 5, "expiry_days": 14},
+            }
+        )
+        return plan_send(under_gold, request, colleagues={}, normalize_email=normalize_email).values
+
+    assert YEAR not in planned({PLAN: "Silver", YEAR: "2026"})  # too wide for its box
+    assert YEAR not in planned({PLAN: "Silver", YEAR: "soon"})  # not a year
+    with pytest.raises(ValidationFailed):
+        planned({PLAN: "Gold", CARD: "4111", YEAR: "2026"})  # asked: judged
+
+
+def test_a_year_written_in_two_digits_is_of_the_printed_century() -> None:
+    # After a printed "20", 1999 would read 2099.
+    with pytest.raises(ValidationFailed) as refused:
+        plan({PLAN: "Silver", YEAR: "1999"})
+    century = datetime.now(UTC).year // 100
+    assert [(e.field, e.message) for e in refused.value.field_errors] == [
+        (f"fields.{YEAR}", f"Enter a year from {century}00 to {century}99")
+    ]
 
 
 def test_split_name() -> None:

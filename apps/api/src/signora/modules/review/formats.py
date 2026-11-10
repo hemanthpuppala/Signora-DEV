@@ -160,6 +160,18 @@ def format_for(holds: str, chosen: str | None) -> str | None:
     return chosen if chosen in formats else formats[0]
 
 
+def check_written(holds: str, value: str, chosen: str | None) -> None:
+    """Whether a canonical value can be written in its field's format without saying something
+    else; ``InvalidValueError`` when it cannot. A year written in two digits follows a printed
+    century, today's (two digits typed are read in it too): a year of another century would print
+    as a different year ("1999" after a printed "20" reads 2099)."""
+    if holds != "year" or format_for(holds, chosen) != "YY":
+        return
+    century = datetime.now(UTC).year // 100
+    if int(value) // 100 != century:
+        raise InvalidValueError(f"Enter a year from {century}00 to {century}99")
+
+
 def _ordinal(day: int) -> str:
     suffix = "th" if 11 <= day % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
     return f"{day}{suffix}"

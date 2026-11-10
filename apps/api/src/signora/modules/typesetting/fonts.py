@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pymupdf
 
+from signora.modules.typesetting.mupdf import MUPDF_LOCK
+
 
 @dataclass(frozen=True)
 class Font:
@@ -55,5 +57,13 @@ def font_path(font_id: str) -> Path:
 
 @cache
 def metrics(font_id: str) -> pymupdf.Font:
-    """The font's glyph widths, read once per process."""
+    """The font's glyph widths, read once per process. Not for use across threads: measure with
+    ``text_width``."""
     return pymupdf.Font(fontfile=str(font_path(font_id)))
+
+
+def text_width(text: str, font_id: str, size: float = 1.0) -> float:
+    """The width of ``text`` in the font at ``size`` points: the sum of its glyphs' advances, no
+    kerning (as the PDF draws it). O(len(text)); safe from any thread."""
+    with MUPDF_LOCK:
+        return float(metrics(font_id).text_length(text, fontsize=size))
