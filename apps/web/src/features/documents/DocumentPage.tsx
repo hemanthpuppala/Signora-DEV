@@ -13,8 +13,10 @@ import {
   HeadAction,
   HeadRow,
   Heading1,
+  MetaLine,
   Notice,
   Section,
+  StatusPill,
   TextArea,
   TextButton,
   TextField,
@@ -25,6 +27,7 @@ import {
 import { documentKey, hasWorkingCopy, useDocument, type DocumentDetail } from "./api";
 import styles from "./document.module.css";
 import { useVersionFields } from "./fields";
+import { VERSION_STATUS } from "./status";
 import { VersionLabel } from "./VersionLabel";
 import { VersionProgress } from "./VersionProgress";
 import { NewVersionForm, useNewVersion } from "./NewVersion";
@@ -162,6 +165,17 @@ export function DocumentPage({
           {shown ? (
             <span className={styles.number}>
               <VersionLabel number={shown.number} current={shown.is_current} />
+            </span>
+          ) : null}
+          {shown ? (
+            // The version's state in the title's line, not a row of its own.
+            <span className={styles.titleState}>
+              <MetaLine label="Version state">
+                <StatusPill status={VERSION_STATUS[shown.status].pill} label={VERSION_STATUS[shown.status].label} />
+                {shown.approved ? (
+                  <span>{`${shown.approved.by.name} · ${new Date(shown.approved.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}</span>
+                ) : null}
+              </MetaLine>
             </span>
           ) : null}
         </div>

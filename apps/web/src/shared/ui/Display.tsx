@@ -168,3 +168,15 @@ export function Tabs({ items, label, actions }: { items: readonly TabItem[]; lab
     </div>
   );
 }
+
+/**
+ * Facts about the thing on screen in one quiet line, a dot between them ("● Sent · Nov 9 · expires
+ * Nov 23"): under a title or in a bar, never a row of its own.
+ */
+export function MetaLine({ children, label }: { children: ReactNode; label?: string }) {
+  return (
+    <div className={styles.metaLine} {...(label ? { role: "group", "aria-label": label } : {})}>
+      {children}
+    </div>
+  );
+}

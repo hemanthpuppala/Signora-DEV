@@ -33,16 +33,8 @@ export function ReviewActionBar({
 }) {
   const [confirming, setConfirming] = useState(false);
   const { changes, editing, approved, inReview } = review;
-  const state = approved
-    ? version.approved
-      ? `Approved by ${version.approved.by.name} on ${new Date(version.approved.at).toLocaleDateString()}`
-      : "Approved"
-    : inReview
-      ? "Needs approval"
-      : null;
+  // The version and its state are under the document's title (DocumentPage); here, what changes.
   const facts = [
-    `Version ${version.number}`,
-    state,
     inReview && warnings.length > 0 ? plural(warnings.length, "thing to check", "things to check") : null,
     changes > 0 ? plural(changes, "unsaved change", "unsaved changes") : null,
     approved && editing ? `Saving makes version ${nextNumber}; version ${version.number} stays as it is` : null,
@@ -74,11 +66,7 @@ export function ReviewActionBar({
   return (
     <>
       <ActionBar label="Review" actions={actions}>
-        {facts.map((fact, index) => (
-          <span key={index} className={index === 0 ? styles.barVersion : undefined}>
-            {fact}
-          </span>
-        ))}
+        {facts.length > 0 ? facts.map((fact, index) => <span key={index}>{fact}</span>) : null}
       </ActionBar>
       {confirming ? (
         <ApproveDialog

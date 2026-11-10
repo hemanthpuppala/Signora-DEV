@@ -20,6 +20,7 @@ import {
   ItemActions,
   ItemHead,
   ItemList,
+  MetaLine,
   Notice,
   PdfViewer,
   Section,
@@ -237,29 +238,13 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
     <>
       <HeadRow back={{ href: `/departments/${departmentId}`, label: "Envelopes" }}>
         <Heading1>{data.title}</Heading1>
-        <SmallText>{`${data.document_name} · version ${data.version_number} · sent by ${data.sent_by.name}`}</SmallText>
+        <MetaLine label="Envelope">
+          <StatusPill status={status.pill} label={status.label} />
+          <span>{`Sent ${day(data.sent_at)} by ${data.sent_by.name}`}</span>
+          <span>{data.cancelled_at ? `Withdrawn ${day(data.cancelled_at)}` : `Expires ${day(data.expires_at)}`}</span>
+          <span>{`${data.document_name} · version ${data.version_number}`}</span>
+        </MetaLine>
       </HeadRow>
-      <ActionBar
-        label="Envelope"
-        actions={
-          open ? (
-            <>
-              {waiting > 0 ? (
-                <Button variant="quiet" compact loading={remind.isPending} loadingLabel="Reminding…" onClick={() => remind.mutate()}>
-                  Remind now
-                </Button>
-              ) : null}
-              <Button variant="destructive" compact onClick={() => setConfirmCancel(true)}>
-                Cancel envelope
-              </Button>
-            </>
-          ) : null
-        }
-      >
-        <StatusPill status={status.pill} label={status.label} />
-        <span>{`Sent ${day(data.sent_at)}`}</span>
-        <span>{data.cancelled_at ? `Withdrawn ${day(data.cancelled_at)}` : `Expires ${day(data.expires_at)}`}</span>
-      </ActionBar>
       {remind.error ? <Notice tone="warning">{formError(remind.error)}</Notice> : null}
       {failed.length > 0 ? (
         <Notice tone="warning" title={failed.length === 1 ? "An email was not delivered" : "Emails were not delivered"}>
@@ -267,7 +252,7 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
         </Notice>
       ) : null}
 
-      <ViewerLayout underBar>
+      <ViewerLayout>
         <ViewerPane>
           {form.data ? (
             <PdfViewer
@@ -284,6 +269,23 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
         </ViewerPane>
 
         <DetailsPane>
+          <ActionBar
+            label="Envelope"
+            actions={
+              open ? (
+                <>
+                  {waiting > 0 ? (
+                    <Button variant="quiet" compact loading={remind.isPending} loadingLabel="Reminding…" onClick={() => remind.mutate()}>
+                      Remind now
+                    </Button>
+                  ) : null}
+                  <Button variant="destructive" compact onClick={() => setConfirmCancel(true)}>
+                    Cancel envelope
+                  </Button>
+                </>
+              ) : null
+            }
+          />
           {GROUPS.map((group) => {
             const people = data.recipients.filter((r) => r.kind === group.kind);
             if (people.length === 0) return null;

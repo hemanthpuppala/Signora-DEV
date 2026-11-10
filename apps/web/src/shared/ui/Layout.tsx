@@ -83,11 +83,11 @@ export function Block({ title, hint, children }: { title: string; hint?: string;
  * A document beside its details (the document page, review, an envelope): a ``ViewerPane``
  * (notices, then the PDF viewer last, which takes the height left) pinned one screen tall from
  * laptop width, and a ``DetailsPane`` scrolling beside it, its sections divided by hairlines; one
- * column on phones. ``underBar`` starts the pinned viewer below a sticky ``ActionBar``. Use it
- * with ``ConsoleShell width="full"``.
+ * column on phones. A screen's ``ActionBar`` heads the ``DetailsPane``, so the viewer keeps the
+ * window's full height. Use it with ``ConsoleShell width="full"``.
  */
-export function ViewerLayout({ children, underBar = false }: { children: ReactNode; underBar?: boolean }) {
-  return <div className={underBar ? `${styles.viewerLayout} ${styles.underBar}` : styles.viewerLayout}>{children}</div>;
+export function ViewerLayout({ children }: { children: ReactNode }) {
+  return <div className={styles.viewerLayout}>{children}</div>;
 }
 
 /** The document side of a ``ViewerLayout``. */

@@ -1,10 +1,6 @@
 /* Field review and approval (Phase 6 LLD §7.1): the action bar's facts, rows, forms, adding a field. */
 
 /* --- the action bar's facts and a save problem -------------------------------------------- */
-.barVersion {
-  color: var(--ink);
-}
-
 .problems {
   display: flex;
   flex-direction: column;

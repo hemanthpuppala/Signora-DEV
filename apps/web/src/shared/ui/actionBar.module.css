@@ -35,7 +35,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px 16px;
+  margin-left: auto; /* always at the bar's right end, with or without facts before them */
 }
 
 /* Facts read as one line: "Version 2 · Needs approval · 1 thing to check". */

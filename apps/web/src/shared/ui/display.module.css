@@ -238,3 +238,21 @@
     padding-inline: 16px;
   }
 }
+
+/* Facts in one line (MetaLine): "● Sent · Nov 9 · expires Nov 23". */
+.metaLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--t60);
+}
+
+.metaLine > * + *::before {
+  margin-right: 10px;
+  color: var(--t30);
+  content: "·";
+}

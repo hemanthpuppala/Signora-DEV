@@ -195,6 +195,12 @@
   border-top: 1px solid var(--sep);
 }
 
+/* Under the action bar heading the column, its own rule divides: no second one. */
+.details > :first-child:is([role="region"]) + * {
+  padding-top: 0;
+  border-top: 0;
+}
+
 @media (min-width: 960px) {
   .viewerLayout {
     grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
@@ -215,9 +221,4 @@
     min-height: 0;
   }
 
-  /* Under a sticky ActionBar the pinned viewer starts below the bar. */
-  .viewerLayout.underBar > .viewer {
-    top: calc(var(--topbar-height) + var(--action-bar-height) + 16px);
-    height: calc(100dvh - var(--topbar-height) - var(--action-bar-height) - 32px);
-  }
 }

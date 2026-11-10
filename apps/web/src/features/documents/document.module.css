@@ -14,6 +14,13 @@
   white-space: nowrap; /* V2 and its star stay together */
 }
 
+/* The version's state after its number, in the title's line (wrapping under it when narrow). */
+.titleState {
+  display: inline-flex;
+  margin-left: 16px;
+  vertical-align: middle;
+}
+
 /* The document's actions in the head: buttons 8px apart (HeadAction). */
 .headActions {
   display: flex;
