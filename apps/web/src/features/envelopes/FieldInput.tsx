@@ -102,20 +102,47 @@ export function FieldInput({
   if (field.holds === "note") {
     return <TextArea label={label} {...hint} maxLength={2000} value={value} error={error} onChange={(event) => onChange(event.target.value)} />;
   }
+  const year = field.holds === "year" ? (field.format === "YY" ? 2 : 4) : null;
   return (
     <TextField
       label={label}
       {...hint}
       type={inputType(field.holds)}
       inputMode={NUMERIC.has(field.holds) ? "decimal" : WHOLE.has(field.holds) ? "numeric" : undefined}
+      autoComplete="off" // the document's values, not the sender's own details
       {...(field.holds === "day"
         ? { placeholder: "1 to 31", maxLength: 2 }
-        : field.holds === "year"
-          ? { placeholder: "2026", maxLength: 4 } // the whole year; the field writes 26 where the form prints 20
+        : year !== null
+          ? // As the blank prints it: two digits after a printed "20" (kept as the whole year).
+            { placeholder: year === 2 ? "26" : "2026", maxLength: year }
           : { maxLength: 2000 })}
       value={value}
       error={error}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) => {
+        const next = accepted(field.holds, event.target.value);
+        if (next !== null) onChange(next);
+      }}
     />
   );
+}
+
+/** What each type may be typed with; anything else never reaches the box (the server checks again). */
+const TYPED: Partial<Record<FormField["holds"], RegExp>> = {
+  day: /[^0-9]/g,
+  year: /[^0-9]/g,
+  number: /[^0-9.,-]/g,
+  currency: /[^0-9.,]/g,
+  percent: /[^0-9.%]/g,
+  phone: /[^0-9+()\-. ]/g,
+};
+
+/**
+ * The text a keystroke or a paste leaves in the box: characters its type cannot hold are dropped,
+ * and a day stays within 1 to 31 (a keystroke that would leave it outside is refused: ``null``).
+ */
+export function accepted(holds: FormField["holds"], raw: string): string | null {
+  const strip = TYPED[holds];
+  const text = strip ? raw.replace(strip, "") : raw;
+  if (holds === "day" && text !== "" && (Number(text) > 31 || /^0{2}/.test(text))) return null;
+  return text;
 }
