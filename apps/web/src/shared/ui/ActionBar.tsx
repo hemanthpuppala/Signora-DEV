@@ -3,14 +3,16 @@ import type { ReactNode } from "react";
 import styles from "./actionBar.module.css";
 
 /**
- * A screen's state and its actions on one line that stays in view under the top bar (Phase 6
- * §7.1): what is true now on the left ("Version 2 · Needs approval · 1 thing to check"), what can
- * be done on the right (Approve; with unsaved changes Undo, Discard, Save). One per screen.
+ * A screen's actions on one line that stays in view under the top bar (Phase 6 §7.1), with what
+ * is changing now beside them ("1 unsaved change"); what is simply true (the version, its state)
+ * belongs under the title (``MetaLine``). Beside a document it heads the details column
+ * (``DetailsPane``), so the document keeps the window's full height. One per screen.
  */
-export function ActionBar({ label, children, actions }: { label: string; children: ReactNode; actions?: ReactNode }) {
+export function ActionBar({ label, children, actions }: { label: string; children?: ReactNode; actions?: ReactNode }) {
+  if (!children && !actions) return null; // nothing to do and nothing changing: no bar
   return (
     <div className={styles.bar} role="region" aria-label={label}>
-      <div className={styles.status}>{children}</div>
+      {children ? <div className={styles.status}>{children}</div> : null}
       {actions ? <div className={styles.actions}>{actions}</div> : null}
     </div>
   );

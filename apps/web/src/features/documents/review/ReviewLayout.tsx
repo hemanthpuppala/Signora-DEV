@@ -6,8 +6,11 @@ import {
   Button,
   Dialog,
   PdfViewer,
+  DetailsPane,
   Section,
   TextButton,
+  ViewerLayout,
+  ViewerPane,
   type PdfOverlayArgs,
 } from "@/shared/ui";
 
@@ -56,6 +59,7 @@ const LOADING: VersionFields = {
   revision: 0,
   warnings: [],
   allowed: {},
+  formats: {},
 } as unknown as VersionFields;
 
 /** Drawing, moving and resizing need a fine pointer and room (§5); the forms work everywhere. */
@@ -306,6 +310,7 @@ export function ReviewLayout({
         review,
         pages: version.pages,
         allowed: view.allowed,
+        formats: view.formats,
         canDraw,
         onAddPlace: (fieldId) => {
           const field = draft.fields.find((f) => f.id === fieldId);
@@ -342,19 +347,17 @@ export function ReviewLayout({
 
   return (
     <>
-      {loaded ? (
-        <ReviewActionBar
-          review={review}
-          version={version}
-          nextNumber={nextNumber}
-          warnings={view.warnings}
-          canEdit={canEdit}
-        />
-      ) : null}
-      <div
-        className={`${documentStyles.layout}${loaded ? ` ${documentStyles.underBar}` : ""}`}
-      >
-        <div className={documentStyles.main}>
+      <ViewerLayout>
+        {loaded ? (
+          <ReviewActionBar
+            review={review}
+            version={version}
+            nextNumber={nextNumber}
+            warnings={view.warnings}
+            canEdit={canEdit}
+          />
+        ) : null}
+        <ViewerPane>
           {top}
           {version.id !== current?.id && current ? (
             <div className={documentStyles.caption}>
@@ -407,8 +410,8 @@ export function ReviewLayout({
                 }
               : {})}
           />
-        </div>
-        <div className={documentStyles.side}>
+        </ViewerPane>
+        <DetailsPane>
           {review.problem ? (
             <SaveProblem
               review={review}
@@ -429,7 +432,7 @@ export function ReviewLayout({
               editing={panelEditing}
             />
           ) : null}
-            <Section title="Versions" info={VERSIONS_HELP}>
+            <Section title="Versions" info={VERSIONS_HELP} collapsible>
             <Versions
               document={document}
               viewing={version.id}
@@ -437,7 +440,7 @@ export function ReviewLayout({
               canEdit={canEdit}
             />
           </Section>
-        </div>
+        </DetailsPane>
         {pending ? (
           <Dialog
             title={pending.message}
@@ -478,7 +481,7 @@ export function ReviewLayout({
             Leaving this page loses your changes to these fields.
           </Dialog>
         ) : null}
-      </div>
+      </ViewerLayout>
     </>
   );
 }

@@ -20,6 +20,7 @@ from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, list_countersigners, load_access
 from signora.modules.documents import VersionNotApproved, version_for_review
 from signora.modules.envelopes import emails, store
+from signora.modules.envelopes.document import EnvelopeDocument, build_document
 from signora.modules.envelopes.errors import (
     EnvelopeClosed,
     NotTheirTurn,
@@ -225,6 +226,18 @@ def get_envelope(session: Session, actor: Actor, envelope_id: uuid.UUID) -> Enve
     return view
 
 
+def envelope_document(session: Session, actor: Actor, envelope_id: uuid.UUID) -> EnvelopeDocument:
+    """The sent version's pages and where its values are drawn, for whoever may see the envelope.
+    Read, never the send form: an envelope shows its document after the document or its
+    department is archived (sends already out are unaffected, Phase 4 §1.4)."""
+    envelope = get_envelope(session, actor, envelope_id)
+    version = version_for_review(
+        session, actor, envelope.document_id, envelope.version_id, edit=False
+    )
+    _, fields = read_set(session, envelope.version_id)
+    return build_document(version.pages, fields)
+
+
 # --- following a send (§6) -----------------------------------------------------------------------
 
 CLOSED = frozenset({"completed", "declined", "expired", "cancelled"})
@@ -298,13 +311,27 @@ def _one(session: Session, envelope_id: uuid.UUID, recipient_id: uuid.UUID) -> _
     return found[0]
 
 
-def remind(uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID) -> int:
+def remind(
+    uow: UnitOfWork,
+    *,
+    actor: Actor,
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID | None = None,
+) -> int:
     """Remind now: everyone who still has to act and holds a link (signers; countersigners once
-    it is their turn). Returns how many were emailed."""
+    it is their turn), or one of them. Returns how many were emailed."""
     session = uow.session
     envelope = _open(session, actor, envelope_id)
+    if recipient_id is None:
+        due = [r for r in _recipients(session, envelope_id) if r.status in LIVE]
+    else:
+        one = _one(session, envelope_id, recipient_id)
+        if one.status == "signed":
+            raise RecipientSigned
+        if one.status not in LIVE:
+            raise NotTheirTurn
+        due = [one]
     sender = _from(session, actor, envelope.sent_by)
-    due = [r for r in _recipients(session, envelope_id) if r.status in LIVE]
     for recipient in due:
         count = recipient.reminders_sent + 1
         letter = emails.sign_reminder(
@@ -330,7 +357,8 @@ def remind(uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID) -> int:
             {"n": count, "r": recipient.id},
         )
         record_email(session, recipient.id, email_id)
-    _audit(uow, actor, "envelope.reminded", envelope_id, recipients=len(due))
+    details = {"recipient_id": str(recipient_id)} if recipient_id else {}
+    _audit(uow, actor, "envelope.reminded", envelope_id, recipients=len(due), **details)
     return len(due)
 
 
@@ -448,7 +476,8 @@ def change_recipient(
 
 
 def _refill(session: Session, recipient_id: uuid.UUID, name: str, email: str) -> None:
-    """Their prefilled fields follow a corrected name or email (§2)."""
+    """Their prefilled fields follow a corrected name or email (§2). Since Phase 7b only Email
+    fields are prefilled; name rows are those of envelopes sent before it."""
     first, last = split_name(name)
     session.execute(
         text(

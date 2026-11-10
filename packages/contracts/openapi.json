@@ -833,6 +833,110 @@
         "title": "DocumentSummary",
         "type": "object"
       },
+      "DrawnField": {
+        "description": "A field whose value is drawn as text or a mark: what it holds, how, and where.",
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "from_recipient": {
+            "anyOf": [
+              {
+                "enum": [
+                  "name",
+                  "email"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Recipient"
+          },
+          "holds": {
+            "enum": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name",
+              "full_name",
+              "first_name",
+              "last_name",
+              "company",
+              "title",
+              "date_of_birth",
+              "email",
+              "phone",
+              "address",
+              "city",
+              "state",
+              "postal_code",
+              "country",
+              "url",
+              "tax_id",
+              "bank_account",
+              "date",
+              "day",
+              "month",
+              "year",
+              "number",
+              "currency",
+              "amount_in_words",
+              "percent",
+              "text",
+              "checkbox",
+              "choice",
+              "note",
+              "other"
+            ],
+            "title": "Holds",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "holds",
+          "format",
+          "party_id",
+          "from_recipient",
+          "places"
+        ],
+        "title": "DrawnField",
+        "type": "object"
+      },
       "DuplicateView": {
         "description": "The same bytes already in the department (§2.3): the screen asks before going on.",
         "properties": {
@@ -874,6 +978,34 @@
           "email"
         ],
         "title": "EmailResponse",
+        "type": "object"
+      },
+      "EnvelopeDocument": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/DrawnField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "fit": {
+            "$ref": "#/components/schemas/FitRule"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageSize"
+            },
+            "title": "Pages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pages",
+          "fields",
+          "fit"
+        ],
+        "title": "EnvelopeDocument",
         "type": "object"
       },
       "EnvelopePage": {
@@ -1012,6 +1144,9 @@
             "title": "Expires At",
             "type": "string"
           },
+          "font": {
+            "$ref": "#/components/schemas/FontView"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1110,6 +1245,7 @@
           "reminder_interval_hours",
           "max_reminders",
           "notify_emails",
+          "font",
           "recipients",
           "values",
           "timeline"
@@ -1138,6 +1274,18 @@
             ],
             "title": "Filled By",
             "type": "string"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
           },
           "holds": {
             "enum": [
@@ -1298,6 +1446,17 @@
             "title": "Filled By",
             "type": "string"
           },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
           "holds": {
             "enum": [
               "signature",
@@ -1425,6 +1584,7 @@
           "label",
           "holds",
           "holds_label",
+          "format",
           "filled_by",
           "role",
           "party_id",
@@ -1436,6 +1596,48 @@
           "placements"
         ],
         "title": "FieldView",
+        "type": "object"
+      },
+      "FitRule": {
+        "properties": {
+          "align": {
+            "enum": [
+              "left",
+              "center"
+            ],
+            "title": "Align",
+            "type": "string"
+          },
+          "baseline_min": {
+            "title": "Baseline Min",
+            "type": "number"
+          },
+          "baseline_ratio": {
+            "title": "Baseline Ratio",
+            "type": "number"
+          },
+          "fallback_cap": {
+            "title": "Fallback Cap",
+            "type": "number"
+          },
+          "fallback_ratio": {
+            "title": "Fallback Ratio",
+            "type": "number"
+          },
+          "min_size": {
+            "title": "Min Size",
+            "type": "number"
+          }
+        },
+        "required": [
+          "min_size",
+          "fallback_ratio",
+          "fallback_cap",
+          "baseline_ratio",
+          "baseline_min",
+          "align"
+        ],
+        "title": "FitRule",
         "type": "object"
       },
       "Flags": {
@@ -1467,6 +1669,29 @@
           }
         },
         "title": "Flags",
+        "type": "object"
+      },
+      "FontView": {
+        "properties": {
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "family",
+          "url"
+        ],
+        "title": "FontView",
         "type": "object"
       },
       "FormCountersigner": {
@@ -1515,6 +1740,32 @@
                 "type": "null"
               }
             ]
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "from_recipient": {
+            "anyOf": [
+              {
+                "enum": [
+                  "name",
+                  "email"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Recipient"
           },
           "holds": {
             "enum": [
@@ -1615,12 +1866,14 @@
           "label",
           "holds",
           "holds_label",
+          "format",
           "party_id",
           "required",
           "sensitive",
           "options",
           "depends_on",
-          "places"
+          "places",
+          "from_recipient"
         ],
         "title": "FormField",
         "type": "object"
@@ -1663,14 +1916,6 @@
       },
       "FormSigner": {
         "properties": {
-          "email_field_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "title": "Email Field Ids",
-            "type": "array"
-          },
           "kind_label": {
             "anyOf": [
               {
@@ -1686,14 +1931,6 @@
             "title": "Label",
             "type": "string"
           },
-          "name_field_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "title": "Name Field Ids",
-            "type": "array"
-          },
           "party_id": {
             "format": "uuid",
             "title": "Party Id",
@@ -1708,9 +1945,7 @@
           "party_id",
           "label",
           "kind_label",
-          "position",
-          "name_field_ids",
-          "email_field_ids"
+          "position"
         ],
         "title": "FormSigner",
         "type": "object"
@@ -2298,12 +2533,24 @@
             ],
             "title": "Rect",
             "type": "array"
+          },
+          "text_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Size"
           }
         },
         "required": [
           "page",
           "rect",
-          "option_value"
+          "option_value",
+          "text_size"
         ],
         "title": "Place",
         "type": "object"
@@ -2451,6 +2698,17 @@
             ],
             "title": "Rect",
             "type": "array"
+          },
+          "text_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Size"
           }
         },
         "required": [
@@ -2986,6 +3244,12 @@
             "title": "Fields",
             "type": "array"
           },
+          "fit": {
+            "$ref": "#/components/schemas/FitRule"
+          },
+          "font": {
+            "$ref": "#/components/schemas/FontView"
+          },
           "pages": {
             "items": {
               "$ref": "#/components/schemas/PageSize"
@@ -3022,7 +3286,9 @@
           "signers",
           "countersigners",
           "fields",
-          "settings"
+          "settings",
+          "font",
+          "fit"
         ],
         "title": "SendForm",
         "type": "object"
@@ -3747,6 +4013,57 @@
           },
           "flags": {
             "$ref": "#/components/schemas/Flags"
+          },
+          "formats": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "default": {
+              "date": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "date_of_birth": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "date_signed": [
+                "Month D, YYYY",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "MM/DD/YY",
+                "DD/MM/YY",
+                "YYYY-MM-DD",
+                "D Month YYYY"
+              ],
+              "day": [
+                "D",
+                "Dth"
+              ],
+              "month": [
+                "Month",
+                "MM"
+              ],
+              "year": [
+                "YYYY",
+                "YY"
+              ]
+            },
+            "title": "Formats",
+            "type": "object"
           },
           "found_again_failed": {
             "anyOf": [
@@ -7666,6 +7983,84 @@
         ]
       }
     },
+    "/api/v1/envelopes/{envelope_id}/document": {
+      "get": {
+        "operationId": "get_envelope_document_api_v1_envelopes__envelope_id__document_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The envelope's document as drawn: its pages and where each value goes",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
     "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}": {
       "patch": {
         "operationId": "change_recipient_api_v1_envelopes__envelope_id__recipients__recipient_id__patch",
@@ -7852,6 +8247,97 @@
         ]
       }
     },
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/remind": {
+      "post": {
+        "operationId": "remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reminded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "They signed, or it is not their turn yet"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Remind one person who still has to sign (requires Idempotency-Key)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
     "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/resend": {
       "post": {
         "operationId": "resend_api_v1_envelopes__envelope_id__recipients__recipient_id__resend_post",
@@ -8015,6 +8501,79 @@
         "summary": "Remind everyone who still has to sign (requires Idempotency-Key)",
         "tags": [
           "envelopes"
+        ]
+      }
+    },
+    "/api/v1/fonts/{font_id}": {
+      "get": {
+        "operationId": "font_file_api_v1_fonts__font_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "font_id",
+            "required": true,
+            "schema": {
+              "title": "Font Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "font/ttf": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A font's file (TrueType); public, and the same bytes for an id forever",
+        "tags": [
+          "typesetting"
         ]
       }
     },

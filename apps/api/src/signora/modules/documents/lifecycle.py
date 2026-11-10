@@ -113,6 +113,7 @@ class VersionForReview:
     pages: list[tuple[float, float]]  # (width, height) in PDF points, rotation applied
     name: str | None
     description: str | None
+    pdf: BlobRef | None  # the working copy the page shows; none until processed
 
 
 def version_for_review(
@@ -135,7 +136,8 @@ def version_for_review(
             raise DocumentArchived
     row = session.execute(
         text(
-            "SELECT id, workspace_id, document_id, version_no, status, pages, name, description "
+            "SELECT id, workspace_id, document_id, version_no, status, pages, name, description, "
+            "pdf_sha256, pdf_bytes "
             "FROM document_versions WHERE id = :v AND document_id = :d AND workspace_id = :w"
             + (" FOR UPDATE" if lock else "")
         ),
@@ -154,6 +156,9 @@ def version_for_review(
         pages=_page_sizes(row.pages),
         name=row.name,
         description=row.description,
+        pdf=BlobRef(row.workspace_id, row.pdf_sha256, row.pdf_bytes)
+        if row.pdf_sha256 is not None and row.pdf_bytes is not None
+        else None,
     )
 
 
@@ -185,8 +190,9 @@ def derive_version(
         raise DocumentArchived
     source = session.execute(
         text(
-            "SELECT workspace_id, version_no, status, name, description, pages, "
-            "derived_from_version_id FROM document_versions WHERE id = :id AND document_id = :d"
+            "SELECT workspace_id, version_no, status, name, description, pages, pdf_sha256, "
+            "pdf_bytes, derived_from_version_id FROM document_versions "
+            "WHERE id = :id AND document_id = :d"
         ),
         {"id": source_id, "d": document_id},
     ).one_or_none()
@@ -234,6 +240,9 @@ def derive_version(
         pages=_page_sizes(source.pages),
         name=name,
         description=source.description,
+        pdf=BlobRef(source.workspace_id, source.pdf_sha256, source.pdf_bytes)
+        if source.pdf_sha256 is not None and source.pdf_bytes is not None
+        else None,  # the same working copy
     )
 
 

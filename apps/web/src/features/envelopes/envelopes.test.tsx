@@ -91,9 +91,11 @@ describe("envelopes", () => {
   const fetchMock = vi.fn<typeof fetch>();
   const calls: { method: string; path: string; query: string; body: unknown; key: string | null }[] = [];
   let envelope: Record<string, unknown>;
+  let documentFails: boolean; // the envelope's document cannot be had
 
   beforeEach(() => {
     calls.length = 0;
+    documentFails = false;
     envelope = structuredClone(ENVELOPE);
     Element.prototype.scrollTo = vi.fn() as unknown as Element["scrollTo"];
     vi.stubGlobal("fetch", fetchMock);
@@ -110,9 +112,17 @@ describe("envelopes", () => {
         return reply(200, { envelopes: [summary("env-1", "Mutual NDA · Maya Chen")], next_cursor: "next" });
       }
       if (route === "GET /api/v1/envelopes/env-1") return reply(200, envelope);
-      if (route.endsWith("/send-form")) return reply(404, { type: "x", title: "x", status: 404, code: "not-found" });
+      if (route.endsWith("/env-1/document")) {
+        if (documentFails) return reply(500, { type: "x", title: "x", status: 500, code: "internal" });
+        return reply(200, {
+          pages: [{ width: 612, height: 792 }],
+          fields: [],
+          fit: { min_size: 6, fallback_ratio: 0.72, fallback_cap: 11, baseline_ratio: 0.18, baseline_min: 1.5, align: "center" },
+        });
+      }
       if (route.endsWith("/link")) return reply(200, { url: "https://signora.example/s/abc" });
       if (route.endsWith("/resend")) return reply(200, { recipient_id: "r-ben" });
+      if (route.endsWith("/recipients/r-maya/remind")) return reply(200, { reminded: 1 });
       if (route.endsWith("/remind")) return reply(200, { reminded: 2 });
       if (route.endsWith("/cancel")) return reply(200, { ...envelope, status: "cancelled", cancelled_at: "2026-11-10T10:00:00Z" });
       if (request.method === "PATCH") return reply(200, { ...envelope, recipients: [recipient("r-maya", { email: "maya.chen@example.org" })] });
@@ -145,21 +155,31 @@ describe("envelopes", () => {
     const user = userEvent.setup(); // installs a clipboard: spy on that one
     const writeText = vi.spyOn(navigator.clipboard, "writeText");
 
-    const recipients = await screen.findByRole("list", { name: "Recipients" });
-    const rows = within(recipients).getAllByRole("listitem");
-    expect(rows[2]?.textContent).toContain("Countersigner · Firm");
-    expect(rows[2]?.textContent).toContain("Waiting");
-    expect(within(rows[2] as HTMLElement).queryByRole("button", { name: "Copy link" })).toBeNull(); // not their turn
+    // Grouped: who signs, who countersigns; each person a card with their moments.
+    const signers = await screen.findByRole("list", { name: "Signers" });
+    const rows = within(signers).getAllByRole("listitem");
+    const firm = within(screen.getByRole("list", { name: "Countersigners" })).getByRole("listitem");
+    expect(firm.textContent).toContain("Firm · rosa@firm.example");
+    expect(firm.textContent).toContain("Emailed once every signer has signed");
+    expect(within(firm).queryByRole("button", { name: "Copy link" })).toBeNull(); // not their turn
+    expect(rows[0]?.textContent).toContain("Sent Nov 9");
+    expect(within(rows[0] as HTMLElement).queryByRole("button", { name: "Send again" })).toBeNull(); // delivered
     expect(screen.getByText("Email not delivered: mailbox full")).toBeTruthy();
     expect(screen.getByText("Emailed Ben Ode again")).toBeTruthy();
     expect(screen.getByText("Sent to 2 signers")).toBeTruthy();
-    expect(within(screen.getByRole("region", { name: "Envelope" })).getByText("Email code on")).toBeTruthy();
+    // The settings sit beside the recipients; the action bar keeps the state and the dates.
+    const settings = screen.getAllByLabelText("Settings").find((el) => el.tagName === "DL") as HTMLElement;
+    expect(within(settings).getByText("Required to open")).toBeTruthy();
 
     await user.click(within(rows[0] as HTMLElement).getByRole("button", { name: "Copy link" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://signora.example/s/abc"));
     expect(await screen.findByText("Maya Chen's link copied")).toBeTruthy();
 
-    await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Send again" }));
+    await user.click(within(rows[0] as HTMLElement).getByRole("button", { name: "Remind" }));
+    await waitFor(() => expect(sentTo("/recipients/r-maya/remind")).toHaveLength(1));
+    expect(await screen.findByText("Reminded Maya Chen")).toBeTruthy();
+
+    await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Send again" })); // undelivered: retry
     await waitFor(() => expect(sentTo("/recipients/r-ben/resend")).toHaveLength(1));
     expect(sentTo("/recipients/r-ben/resend")[0]?.key).toBeTruthy();
 
@@ -175,6 +195,17 @@ describe("envelopes", () => {
     expect(await screen.findByText("Reminded 2 people")).toBeTruthy();
   });
 
+  it("says when the document can't be shown, and offers to ask again, instead of a blank pane", async () => {
+    documentFails = true;
+    wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
+    expect(await screen.findByText("The document can't be shown")).toBeTruthy();
+    // Its own read, never the send form's: that one refuses an archived document.
+    expect(calls.some((c) => c.path.endsWith("/send-form"))).toBe(false);
+    documentFails = false;
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(screen.queryByText("The document can't be shown")).toBeNull());
+  });
+
   it("cancels only after confirming", async () => {
     wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
     const user = userEvent.setup();
@@ -185,7 +216,7 @@ describe("envelopes", () => {
     await user.click(within(dialog).getByRole("button", { name: "Cancel envelope" }));
 
     await waitFor(() => expect(sentTo("/cancel")).toHaveLength(1));
-    expect(await screen.findByText("Withdrawn")).toBeTruthy();
+    expect((await screen.findAllByText("Withdrawn")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Remind now" })).toBeNull(); // closed
   });
 });

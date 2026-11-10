@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button, Checkbox, InfoTip, Notice, Select, SmallText, TextField } from "@/shared/ui";
 
-import { HOLD_GROUPS, HOLDS, whoFills } from "../fields";
+import { FORMAT_EXAMPLES, whoFills } from "../fields";
 import { PLACES_HELP } from "./help";
 import { PlaceChips } from "./PlaceChips";
 import type { PanelEditing } from "./useReview";
@@ -24,7 +24,7 @@ import {
   type Holds,
   type Rect,
 } from "./editor";
-import { filler, fillerOptions } from "./AddField";
+import { filler, fillerOptions, typeOptions } from "./AddField";
 import { NewParty } from "./PartyList";
 import styles from "./review.module.css";
 
@@ -86,11 +86,8 @@ export function FieldForm({
     edit((draft) => updateField(draft, field.id, patch), merge);
 
   const kinds = new Set(field.places.map((p) => p.kind));
-  const allowed = HOLD_GROUPS.flatMap((group) =>
-    group.holds
-      .filter((holds) => [...kinds].every((kind) => editing.allowed[kind]?.includes(holds)))
-      .map((holds) => ({ value: holds, label: `${HOLDS[holds]} · ${group.label}` })),
-  );
+  const formats = editing.formats[field.holds] ?? [];
+  const allowed = typeOptions((holds) => [...kinds].every((kind) => editing.allowed[kind]?.includes(holds)));
   const fillers = [...fillerOptions(draft.parties), { value: NEW_PARTY, label: "Someone else…" }];
   const conditions = conditionOptions(field, draft);
   const conditionValue = field.depends_on ? `${field.depends_on.field_id}|${field.depends_on.option}` : "";
@@ -122,6 +119,14 @@ export function FieldForm({
         onChange={(event) => change({ label: event.target.value }, `label:${field.id}`)}
       />
       <Select label="Type" options={allowed} value={field.holds} onChange={(value) => change({ holds: value as Holds })} />
+      {formats.length > 0 ? (
+        <Select
+          label="Written as"
+          options={formats.map((format) => ({ value: format, label: FORMAT_EXAMPLES[format] ?? format }))}
+          value={field.format ?? formats[0] ?? null}
+          onChange={(value) => change({ format: value })}
+        />
+      ) : null}
       {field.holds === "other" ? (
         <>
           <TextField

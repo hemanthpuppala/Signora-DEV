@@ -89,7 +89,8 @@
   min-height: 0;
   height: var(--pdf-viewer-height, min(78vh, 1100px));
   overflow: auto;
-  /* At its end, scrolling carries on to the page, unless the page pins the viewer (--pdf-overscroll). */
+  /* At its end, scrolling carries on to the page (inside to outside; never into another panel's
+     lists: shared/lib/scrollLatch). A page may still keep it to itself (--pdf-overscroll). */
   overscroll-behavior: var(--pdf-overscroll, auto);
   scrollbar-width: thin;
   scrollbar-color: var(--r25) transparent;

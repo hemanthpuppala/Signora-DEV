@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { cx } from "@/shared/lib/cx";
 
+import { ScrollLatch } from "./ScrollLatch";
 import styles from "./shell.module.css";
 
 export type NavItem = { href: string; label: string; active?: boolean };
@@ -52,6 +53,7 @@ export function TopBar({ workspace, nav = [], actions }: Omit<AppShellProps, "ch
 export function AppShell({ workspace, nav, actions, width = "content", children }: AppShellProps) {
   return (
     <>
+      <ScrollLatch />
       <TopBar
         {...(workspace ? { workspace } : {})}
         {...(nav ? { nav } : {})}

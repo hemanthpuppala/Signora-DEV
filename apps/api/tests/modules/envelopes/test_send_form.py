@@ -35,11 +35,15 @@ def test_the_form_asks_what_the_document_needs(
 
     client, firm = doc.party("Client"), doc.party("Firm")
     assert [s["party_id"] for s in form["signers"]] == [client["id"]]
-    assert form["signers"][0]["email_field_ids"] == [
-        f["id"]
-        for f in doc.view["fields"]
-        if f["party_id"] == client["id"] and f["holds"] == "email"
-    ]
+    from_client = {
+        f["id"]: f["from_recipient"] for f in form["fields"] if f["party_id"] == client["id"]
+    }
+    for f in doc.view["fields"]:  # the signer's own details are theirs, never asked (7b)
+        if f["party_id"] == client["id"] and f["holds"] == "email":
+            assert from_client[f["id"]] == "email"
+        if f["party_id"] == client["id"] and f["holds"] in ("full_name", "first_name", "last_name"):
+            assert from_client[f["id"]] == "name"
+    assert "email" in from_client.values()
     (countersigner,) = form["countersigners"]
     assert countersigner["party_id"] == firm["id"]
     assert countersigner["default"]["user_id"] == str(company.user_id)  # the department's first
@@ -66,7 +70,8 @@ def test_the_form_asks_what_the_document_needs(
     assert form["pages"] and form["pages"][0]["width"] > 0  # for drawing the values
     effective = by_id[doc.field("Effective date")["id"]]
     assert effective["places"] == [
-        {"page": 1, "rect": [300.0, 40.0, 400.0, 60.0], "option_value": None}
+        # the agreement's text beside it, measured when the version was approved (7b)
+        {"page": 1, "rect": [300.0, 40.0, 400.0, 60.0], "option_value": None, "text_size": 10.0}
     ]
 
 

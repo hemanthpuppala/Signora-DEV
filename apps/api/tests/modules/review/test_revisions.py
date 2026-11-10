@@ -268,6 +268,7 @@ def test_rekey_moves_every_reference_with_its_id() -> None:
                 "Card",
                 "text",
                 None,
+                None,  # no format: text has none
                 "role",
                 party,
                 True,

@@ -16,7 +16,13 @@ import {
   ExpandableRow,
   Heading1,
   Heading2,
+  IconButton,
   InfoTip,
+  Item,
+  ItemAction,
+  ItemActions,
+  ItemHead,
+  ItemList,
   MetricGrid,
   MetricTile,
   Mono,
@@ -203,6 +209,27 @@ export function Gallery() {
             <SmallText>{`Step ${step + 1}: one part of the task at a time.`}</SmallText>
           </StepDialog>
         ) : null}
+        <ItemList label="Recipients" ordered>
+          <Item>
+            <ItemHead>
+              <span>Maya Chen</span>
+              <SmallText>Viewed Nov 9</SmallText>
+            </ItemHead>
+            <SmallText>Signer · Client</SmallText>
+            <SmallText>maya@example.com</SmallText>
+            <ItemActions end={<IconButton icon="edit" label="Change Maya Chen's email" onClick={() => undefined} />}>
+              <ItemAction onClick={() => undefined}>Copy link</ItemAction>
+              <ItemAction onClick={() => undefined}>Send again</ItemAction>
+            </ItemActions>
+          </Item>
+          <Item current>
+            <ItemHead>
+              <span>Rosa Hale</span>
+              <SmallText>Waiting</SmallText>
+            </ItemHead>
+            <SmallText>Countersigner · Firm</SmallText>
+          </Item>
+        </ItemList>
         <ExpandableList label="Fields">
           <ExpandableRow id="gallery-add" tone="add" title="Add field" expanded={false} regionLabel="New field" onToggle={() => undefined} />
           {[

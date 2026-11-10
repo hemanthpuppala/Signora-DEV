@@ -126,13 +126,8 @@ def test_sending_writes_the_envelope_emails_every_signer_and_waits_for_the_firm(
     assert (copy["kind"], copy["party_id"], copy["status"]) == ("copy", None, "waiting")
     values = {v["field_id"]: v["value"] for v in envelope["values"]}
     assert values[doc.field("Effective date")["id"]] == "2026-12-01"
-    client_email = [
-        f
-        for f in doc.view["fields"]
-        if f["party_id"] == signer["party_id"] and f["holds"] == "email"
-    ]
-    for field in client_email:  # prefilled from the signer, as DocuSign does
-        assert values[field["id"]] == address
+    assert values[doc.field("Client email")["id"]] == address  # the signer's, from the send
+    assert doc.field("Client printed name")["id"] not in values  # the name they sign as, later
     assert envelope["timeline"][0]["action"] == "envelope.sent"
     assert owner.get(f"/api/v1/envelopes/{envelope['id']}").json() == envelope
 

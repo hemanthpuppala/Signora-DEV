@@ -167,3 +167,149 @@
   gap: var(--page-gap);
   min-width: 0;
 }
+
+/*
+ * A document beside its details (ViewerLayout: the document page, review, an envelope). The
+ * document is the largest thing on the page, its details beside it (below on phones). From laptop
+ * width the viewer takes 3/5 and stays pinned, one screen tall, with the PDF scrolling inside it;
+ * the page scrolls the details beside it.
+ */
+.viewerLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--page-gap);
+  align-items: start;
+}
+
+.viewer,
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* The details' sections, divided by hairlines. */
+.details > * + * {
+  padding-top: 24px;
+  border-top: 1px solid var(--sep);
+}
+
+/* On phones the screen's action bar (the layout's first child) comes first and, sticky as it is,
+   stays under the top bar while the whole page scrolls. */
+
+@media (min-width: 960px) {
+  /* One screen tall: the page scrolls only what is above it (the title), and each side scrolls
+     inside itself; at its end a side hands the scroll to the page (shared/lib/scrollLatch keeps it
+     from going back in). The document takes the left column's whole height; the right column is
+     the action bar, when the screen has one, over the details. */
+  .viewerLayout {
+    grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0 32px;
+    height: calc(100dvh - var(--topbar-height) - 32px);
+  }
+
+  .viewerLayout > .viewer {
+    grid-area: 1 / 1 / -1 / 2;
+    height: 100%;
+    --pdf-frame-height: 100%;
+    --pdf-viewer-height: auto;
+  }
+
+  .viewerLayout > .viewer > :last-child {
+    flex: 1 1 auto; /* the viewer takes what the notices above it leave */
+    min-height: 0;
+  }
+
+  /* Above the details, not inside what scrolls: its tooltips are never clipped, and it needs no
+     pinning of its own. */
+  .viewerLayout > [role="region"]:first-child {
+    grid-area: 1 / 2;
+    position: static;
+    padding-top: 0;
+  }
+
+  .viewerLayout > .details {
+    grid-area: 2 / 2;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    padding-right: 8px;
+    scroll-padding-top: 12px; /* rows brought into view stop a little under its top edge */
+  }
+
+  /* Under the action bar: the gap every block has, which what scrolls passes through. */
+  .viewerLayout > [role="region"]:first-child ~ .details {
+    padding-top: 24px;
+  }
+}
+
+/* A section that opens and closes (Section collapsible): its title line, then what it holds. */
+.collapse {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  list-style: none; /* no browser marker: the chevron says it */
+  cursor: pointer;
+  user-select: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 4px;
+}
+
+.summary > p {
+  margin: 0;
+  transition: color 0.15s;
+}
+
+.summary:hover > p {
+  color: var(--ink);
+}
+
+.count {
+  font: 400 11px/1 var(--mono);
+  color: var(--t55);
+}
+
+.infoSlot {
+  display: inline-flex;
+}
+
+.chevron {
+  margin-left: auto;
+  color: var(--t55);
+  transform: rotate(90deg); /* open: pointing down */
+  transition: transform 0.15s ease-out;
+}
+
+.collapse:not([open]) .chevron {
+  transform: none; /* closed: pointing right */
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

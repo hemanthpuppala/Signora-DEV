@@ -8,20 +8,26 @@ import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import {
   Button,
   ClampedText,
+  DetailsPane,
   Dialog,
   HeadAction,
   HeadRow,
   Heading1,
+  MetaLine,
   Notice,
   Section,
+  StatusPill,
   TextArea,
   TextButton,
   TextField,
+  ViewerLayout,
+  ViewerPane,
 } from "@/shared/ui";
 
 import { documentKey, hasWorkingCopy, useDocument, type DocumentDetail } from "./api";
 import styles from "./document.module.css";
 import { useVersionFields } from "./fields";
+import { VERSION_STATUS } from "./status";
 import { VersionLabel } from "./VersionLabel";
 import { VersionProgress } from "./VersionProgress";
 import { NewVersionForm, useNewVersion } from "./NewVersion";
@@ -161,6 +167,17 @@ export function DocumentPage({
               <VersionLabel number={shown.number} current={shown.is_current} />
             </span>
           ) : null}
+          {shown ? (
+            // The version's state in the title's line, not a row of its own.
+            <span className={styles.titleState}>
+              <MetaLine label="Version state">
+                <StatusPill status={VERSION_STATUS[shown.status].pill} label={VERSION_STATUS[shown.status].label} />
+                {shown.approved ? (
+                  <span>{`${shown.approved.by.name} · ${new Date(shown.approved.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}</span>
+                ) : null}
+              </MetaLine>
+            </span>
+          ) : null}
         </div>
         {data.description && !editing ? <ClampedText>{data.description}</ClampedText> : null}
       </HeadRow>
@@ -207,14 +224,14 @@ export function DocumentPage({
           onOpen={setViewing}
         />
       ) : (
-        <div className={styles.layout}>
-          <div className={styles.main}>{progress}</div>
-          <div className={styles.side}>
-            <Section title="Versions">
+        <ViewerLayout>
+          <ViewerPane>{progress}</ViewerPane>
+          <DetailsPane>
+            <Section title="Versions" collapsible>
               <Versions document={data} viewing={shownId} onOpen={setViewing} canEdit={canEdit} />
             </Section>
-          </div>
-        </div>
+          </DetailsPane>
+        </ViewerLayout>
       )}
     </>
   );

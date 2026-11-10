@@ -36,6 +36,7 @@ class ProposedField:
     needs_review: str | None
     depends_on: tuple[str, str] | None  # (the key it depends on, the option)
     places: list[ProposedPlace] = field(default_factory=list)
+    format: str | None = None  # how a date or a part of one is written (7c); the type's default
 
 
 @dataclass(frozen=True)

@@ -7,5 +7,5 @@ import { ConsoleShell } from "@/shared/session";
 
 export default function EnvelopeRoute() {
   const { id, envelopeId } = useParams<{ id: string; envelopeId: string }>();
-  return <ConsoleShell>{() => <EnvelopePage departmentId={id} envelopeId={envelopeId} />}</ConsoleShell>;
+  return <ConsoleShell width="full">{() => <EnvelopePage departmentId={id} envelopeId={envelopeId} />}</ConsoleShell>;
 }

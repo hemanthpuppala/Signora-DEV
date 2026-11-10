@@ -77,6 +77,29 @@ def test_remind_emails_who_still_has_to_sign_and_never_the_waiting_firm(
     assert after["timeline"][0]["action"] == "envelope.reminded"
 
 
+def test_one_person_can_be_reminded_but_never_a_countersigner_before_their_turn(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    _, envelope = sent_envelope(owner, run, detect, company)
+    signer, firm, _ = envelope["recipients"]
+
+    reminded = post(owner, f"{ENVELOPES}/{envelope['id']}/recipients/{signer['id']}/remind")
+
+    assert (reminded.status_code, reminded.json()) == (200, {"reminded": 1})
+    assert [e.category for e in emails_to(committing_db, signer["email"])] == [
+        "sign_request",
+        "sign_reminder",
+    ]
+    entry = owner.get(f"{ENVELOPES}/{envelope['id']}").json()["timeline"][0]
+    assert (entry["action"], entry["data"]["recipient_id"]) == ("envelope.reminded", signer["id"])
+    waiting = post(owner, f"{ENVELOPES}/{envelope['id']}/recipients/{firm['id']}/remind")
+    assert (waiting.status_code, waiting.json()["code"]) == (409, "not-their-turn")
+
+
 def test_resend_emails_the_same_link_and_waits_for_a_countersigners_turn(
     owner: TestClient,
     run: Callable[..., None],
@@ -231,3 +254,37 @@ def test_people_without_send_access_cannot_follow_up(
             ).status_code
             == 403
         )
+
+
+def test_an_envelope_shows_its_document_after_the_document_is_archived(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    make_client: Callable[..., TestClient],
+    add_member: Callable[..., Account],
+) -> None:
+    doc, envelope = sent_envelope(owner, run, detect, company)
+    path = f"{ENVELOPES}/{envelope['id']}/document"
+    before = owner.get(path)
+    assert before.status_code == 200, before.text
+    drawn = {f["id"]: f for f in before.json()["fields"]}
+    # What is typed or comes from the signer is drawn; a signature is not a typed value.
+    assert drawn[doc.field("Effective date")["id"]]["places"][0]["rect"] == [300, 40, 400, 60]
+    assert drawn[doc.field("Client printed name")["id"]]["from_recipient"] == "name"
+    assert doc.field("Firm signature")["id"] not in drawn
+    assert before.json()["pages"] and before.json()["fit"]["min_size"] > 0
+
+    documents = "/api/v1/documents"
+    archived = owner.post(f"{documents}/{doc.document_id}/archive", headers=csrf_headers(owner))
+    assert archived.json()["archived_at"] is not None
+    # Sending it again is refused; the send already out is unaffected.
+    form = owner.get(f"{documents}/{doc.document_id}/versions/{doc.version_id}/send-form")
+    assert (form.status_code, form.json()["code"]) == (409, "document-archived")
+    assert owner.get(path).json() == before.json()
+
+    viewer = add_member(company, role="read")  # may not see sends: nor their documents
+    with make_client() as theirs:
+        log_in(theirs, viewer.email)
+        assert theirs.get(path).status_code == 403
+    assert owner.get(f"{ENVELOPES}/{uuid.uuid4()}/document").status_code == 404

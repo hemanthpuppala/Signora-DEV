@@ -25,6 +25,7 @@ def _field(id_: str, holds: str, filled_by: str, label: str, **extra: Any) -> di
     return {
         "id": id_,
         "holds": holds,
+        "format": extra.pop("format", None),
         "filled_by": filled_by,
         "label": label,
         "must_fill": extra.pop("must_fill", True),
@@ -146,6 +147,7 @@ def test_every_check_finds_its_problem() -> None:
                 "page": 1,
                 "anchor_text": "Nowhere in this document",
                 "holds": "initials",
+                "format": None,
                 "filled_by": "party_1",
                 "label": "Initials",
                 "must_fill": True,
@@ -264,6 +266,7 @@ def test_an_extra_field_is_placed_from_its_words_and_one_not_found_is_dropped() 
                 "page": 1,
                 "anchor_text": "Continues until terminated.",
                 "holds": "initials",
+                "format": None,
                 "filled_by": "party_1",
                 "label": "Initials",
                 "must_fill": True,
@@ -272,6 +275,7 @@ def test_an_extra_field_is_placed_from_its_words_and_one_not_found_is_dropped() 
                 "page": 1,
                 "anchor_text": "Not in the document",
                 "holds": "text",
+                "format": None,
                 "filled_by": "sender",
                 "label": "Ghost",
                 "must_fill": False,
@@ -296,6 +300,7 @@ def test_an_extra_signature_is_a_partys_never_the_senders() -> None:
                 "page": 1,
                 "anchor_text": "Continues until terminated.",
                 "holds": "signature",
+                "format": None,
                 "filled_by": "sender",
                 "label": "Witness signature",
                 "must_fill": True,
@@ -471,3 +476,20 @@ def test_one_value_whose_places_disagree_on_their_condition_applies_always_and_i
     assert initials.needs_review == (
         "its places do not all apply under the same option; check when it applies"
     )
+
+
+def test_a_date_fields_format_is_kept_when_its_type_has_it_and_defaulted_when_not() -> None:
+    reading, document = _open(forms.nda_like())
+    ids = _ids(reading)
+
+    def proposed(holds: str, fmt: str | None) -> dict[str, str | None]:
+        answer = _nda_answer(reading)
+        answer["fields"][0] = _field(ids["Governing Law"], holds, "sender", "Year", format=fmt)
+        result = derive(reading, answer, document, problems=[], repaired=False)
+        return {f.label: f.format for f in result.fields}
+
+    assert proposed("year", "YY")["Year"] == "YY"  # a year after a printed "20"
+    assert proposed("year", "Month")["Year"] == "YYYY"  # a month's format: the year's default
+    assert proposed("date", None)["Year"] == "Month D, YYYY"  # none given: the default
+    assert proposed("text", "YY")["Year"] is None  # text has no formats
+    assert proposed("year", "YY")["MNDA term in years"] is None

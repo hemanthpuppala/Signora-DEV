@@ -34,6 +34,7 @@ export type DraftField = {
   label: string;
   holds: Holds;
   holds_label: string | null;
+  format: string | null; // how a date or a part of one is written; null: the type's default
   filled_by: FilledBy;
   party_id: string | null;
   required: boolean;
@@ -94,6 +95,7 @@ export function fromView(view: VersionFields): Draft {
       label: field.label,
       holds: field.holds,
       holds_label: field.holds_label,
+      format: field.format,
       filled_by: field.filled_by,
       party_id: field.party_id,
       required: field.required,
@@ -130,6 +132,7 @@ export function toFieldSet(draft: Draft, revision: number): FieldSet {
       label: field.label.trim(),
       holds: field.holds,
       holds_label: field.holds === "other" ? field.holds_label?.trim() ?? "" : null,
+      format: field.format,
       filled_by: field.filled_by,
       party_id: field.filled_by === "role" ? field.party_id : null,
       required: field.required,
@@ -197,6 +200,7 @@ export function updateField(draft: Draft, id: string, patch: FieldPatch): Draft 
     const changed: DraftField = { ...field, ...patch, needs_review: null };
     if (changed.holds !== "other") changed.holds_label = null;
     else if (changed.holds_label === null) changed.holds_label = "";
+    if (changed.holds !== field.holds) changed.format = null; // another type: its default
     if (changed.filled_by !== "role") changed.party_id = null;
     if (changed.holds !== "other") changed.sensitive = PRIVATE.has(changed.holds);
     return changed;
@@ -214,6 +218,7 @@ export function newField(holds: Holds, label: string, partyId: string | null, pl
     label,
     holds,
     holds_label: holds === "other" ? "" : null,
+    format: null,
     filled_by: partyId ? "role" : "none",
     party_id: partyId,
     required: true,

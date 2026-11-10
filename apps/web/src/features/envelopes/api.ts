@@ -29,6 +29,18 @@ export function useSendForm(documentId: string | null, versionId: string | null)
   });
 }
 
+/**
+ * An envelope's document as drawn: the sent version's pages and where each value goes. Its own
+ * read, not the send form's: it is there after the document is archived.
+ */
+export function useEnvelopeDocument(envelopeId: string) {
+  return useQuery({
+    queryKey: [...envelopeKey(envelopeId), "document"],
+    queryFn: () =>
+      unwrap(api.GET("/api/v1/envelopes/{envelope_id}/document", { params: { path: { envelope_id: envelopeId } } })),
+  });
+}
+
 /** A department's envelopes, newest first, 50 a page ("Show more" asks for the next). */
 export function useEnvelopes(departmentId: string, status: EnvelopeStatus | null) {
   return useInfiniteQuery({
@@ -77,6 +89,7 @@ export const RECIPIENT_STATUS: Record<Recipient["status"], string> = {
 
 // Types as the typed client returns them (it gives the API's 4-number tuples back as arrays).
 export type SendForm = NonNullable<ReturnType<typeof useSendForm>["data"]>;
+export type EnvelopeDocument = NonNullable<ReturnType<typeof useEnvelopeDocument>["data"]>;
 export type FormField = SendForm["fields"][number];
 export type FormSigner = SendForm["signers"][number];
 export type FormCountersigner = SendForm["countersigners"][number];

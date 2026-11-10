@@ -70,6 +70,12 @@ const fieldsView = (overrides: Record<string, unknown> = {}) => ({
   pending: [],
   flags: { no_fields: false, addressed_to_ai: false, xfa: false, already_signed: false, repaired: false },
   revision: 0,
+  formats: {
+    date: ["Month D, YYYY", "MM/DD/YYYY", "DD/MM/YYYY", "MM/DD/YY", "DD/MM/YY", "YYYY-MM-DD", "D Month YYYY"],
+    day: ["D", "Dth"],
+    month: ["Month", "MM"],
+    year: ["YYYY", "YY"],
+  },
   allowed: { text: TEXTUAL, blank: [...TEXTUAL, "checkbox", "choice"], signature: ["signature", "initials"], checkbox: ["checkbox"], radio: ["choice"], combobox: ["choice"], listbox: ["choice"] },
   warnings: [{ code: "needs_a_look", message: "1 field needs a look; approving accepts them as found", count: 1 }],
   roles: [{ id: "party-client", slug: "client", label: "Client", kind: "signer", kind_label: null, position: 1, field_count: 1 }],
@@ -80,6 +86,7 @@ const fieldsView = (overrides: Record<string, unknown> = {}) => ({
       label: "Client signature",
       holds: "signature",
       holds_label: null,
+      format: null,
       filled_by: "role",
       role: "client",
       party_id: "party-client",
@@ -96,6 +103,7 @@ const fieldsView = (overrides: Record<string, unknown> = {}) => ({
       label: "Company",
       holds: "company",
       holds_label: null,
+      format: null,
       filled_by: "sender",
       role: null,
       party_id: null,
@@ -167,6 +175,8 @@ describe("field review", () => {
     await userEvent.click(within(list).getByRole("button", { name: label }));
   };
   const bar = () => screen.getByRole("region", { name: "Review" });
+  // The version on screen and its state, in the title's line (V2 · Needs approval).
+  const shownVersion = () => screen.getByRole("heading", { level: 1 }).parentElement as HTMLElement;
 
   it("edits a field, saves it in place, and approves only what is saved", async () => {
     inReview();
@@ -261,7 +271,7 @@ describe("field review", () => {
       expect(screen.getByRole("button", { name: `About ${section}` })).toBeTruthy(); // each section explains itself
     }
     expect(within(bar()).getByText("1 thing to check")).toBeTruthy();
-    expect(within(bar()).getByText("Needs approval")).toBeTruthy();
+    expect(within(screen.getByRole("group", { name: "Version state" })).getByText("Needs approval")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Approve version" }));
     const dialog = screen.getByRole("dialog", { name: "Approve version 1?" });
@@ -269,7 +279,8 @@ describe("field review", () => {
     await user.click(within(dialog).getByRole("button", { name: "Approve anyway" }));
 
     expect(sentTo("POST /api/v1/documents/doc-1/versions/v-1/approve")[0]?.body).toEqual({ revision: 0, accepted: ["needs_a_look"] });
-    await waitFor(() => expect(within(bar()).getByText(/^Approved by Rosa Hale on /)).toBeTruthy());
+    // Approved, by whom and when: in the title's line.
+    await waitFor(() => expect(within(screen.getByRole("group", { name: "Version state" })).getByText(/^Rosa Hale · /)).toBeTruthy());
     expect(within(bar()).getByRole("button", { name: "Edit fields" })).toBeTruthy();
   });
 
@@ -304,7 +315,7 @@ describe("field review", () => {
     const [revised] = sentTo("POST /api/v1/documents/doc-1/versions/v-1/revisions");
     expect(revised?.key).toBeTruthy();
     expect(revised?.body).toMatchObject({ revision: 0, fields: [{ id: "f-sign" }, { id: "f-company", required: false }] });
-    await waitFor(() => expect(within(bar()).getByText("Version 2")).toBeTruthy()); // the new version opens
+    await waitFor(() => expect(within(shownVersion()).getByText("V2")).toBeTruthy()); // the new version opens
     expect(screen.getByText(/from version 1/)).toBeTruthy();
   });
 
@@ -344,7 +355,7 @@ describe("field review", () => {
     await screen.findByRole("list", { name: "Fields" });
     await user.click(screen.getByRole("button", { name: "Add field" })); // the list's first row
     const row = screen.getByRole("region", { name: "New field" });
-    expect(within(row).getByRole("combobox", { name: "Type" }).textContent).toContain("Signature · Signing"); // one dropdown
+    expect(within(row).getByRole("combobox", { name: "Type" }).textContent).toBe("Signature"); // one dropdown; its group beside each option
     await user.click(within(row).getByRole("button", { name: "Place on the page" }));
     // Pinned over the pages, where the click goes; the row points there.
     expect(screen.getByRole("status")).toHaveTextContent("Click where the signature goes, or drag to draw it");
@@ -433,16 +444,17 @@ describe("field review", () => {
     };
     open();
     const user = userEvent.setup();
-    await within(await screen.findByRole("region", { name: "Review" })).findByText("Version 1");
+    await within(await screen.findByRole("region", { name: "Review" })).findByRole("button", { name: "Edit fields" });
+    expect(within(shownVersion()).getByText("V1")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Open" }));
-    await waitFor(() => expect(within(bar()).getByText("Version 2")).toBeTruthy());
+    await waitFor(() => expect(within(shownVersion()).getByText("V2")).toBeTruthy());
     await chooseField("Company");
     await user.click(screen.getByLabelText("Required"));
     await user.click(screen.getByRole("button", { name: "Back to the current version" }));
 
     const dialog = screen.getByRole("dialog", { name: "Discard 1 unsaved change?" });
     await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
-    expect(within(bar()).getByText("Version 2")).toBeTruthy();
+    expect(within(shownVersion()).getByText("V2")).toBeTruthy();
   });
 
   it("gives read-only members the fields without any way to change them", async () => {

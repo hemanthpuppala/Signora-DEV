@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeQueryClient } from "@/shared/api/QueryProvider";
 
 import { SendModal, type SendableDocument } from "./SendModal";
+import { MEASURED_AT } from "./typeset";
 
 vi.mock("pdfjs-dist", () => ({
   version: "6.4.299",
@@ -23,7 +24,8 @@ const field = (id: string, label: string, holds: string, extra: Record<string, u
   sensitive: false,
   options: [],
   depends_on: null,
-  places: [{ page: 1, rect: [100, 100, 200, 120], option_value: null }],
+  places: [{ page: 1, rect: [100, 100, 200, 120], option_value: null, text_size: 10 }],
+  from_recipient: null,
   ...extra,
 });
 
@@ -39,8 +41,6 @@ const FORM = {
       label: "Client",
       kind_label: null,
       position: 1,
-      name_field_ids: ["f-name"],
-      email_field_ids: ["f-email"],
     },
   ],
   countersigners: [
@@ -52,8 +52,9 @@ const FORM = {
     },
   ],
   fields: [
-    field("f-name", "Client name", "full_name", { party_id: "p-client" }),
-    field("f-email", "Client email", "email", { party_id: "p-client" }),
+    field("f-name", "Client name", "full_name", { party_id: "p-client", from_recipient: "name" }),
+    field("f-email", "Client email", "email", { party_id: "p-client", from_recipient: "email" }),
+    field("f-company", "Client company", "company", { party_id: "p-client" }),
     field("f-date", "Effective date", "date", { required: true }),
     field("f-plan", "Plan", "choice", {
       options: [
@@ -64,6 +65,8 @@ const FORM = {
     field("f-card", "Card", "text", { depends_on: { field_id: "f-plan", option: "Gold" } }),
   ],
   settings: { require_email_code: true, reminder_interval_hours: 24, max_reminders: 5, expiry_days: 14, notify_emails: [] },
+  font: { id: "liberation-sans", family: "Liberation Sans", url: "/api/v1/fonts/liberation-sans" },
+  fit: { min_size: 6, fallback_ratio: 0.72, fallback_cap: 11, baseline_ratio: 0.18, baseline_min: 1.5 },
 };
 
 const DOCUMENTS: SendableDocument[] = [
@@ -117,7 +120,7 @@ describe("the send", () => {
   };
   const next = () => userEvent.click(screen.getByRole("button", { name: "Next" }));
 
-  it("walks the five steps and sends what was filled, proposing the signer from the details", async () => {
+  it("walks the five steps and sends what was filled; the signer's own name and email are never asked", async () => {
     const { onSent } = open();
     const user = userEvent.setup();
     const steps = screen.getByRole("list", { name: "Steps" });
@@ -130,19 +133,21 @@ describe("the send", () => {
     expect(screen.getByRole("button", { name: "Mutual NDA" }).getAttribute("aria-pressed")).toBe("true");
     await next();
 
-    // 2. Details: optional, except what only the sender can fill; a condition hides its field.
-    await screen.findByLabelText("Client name");
+    // 2. Details: optional, except what only the sender can fill; a condition hides its field; the
+    //    signer's name and email are theirs (the email from the send, the name when they sign).
+    await screen.findByLabelText("Client company");
+    expect(screen.queryByLabelText("Client name")).toBeNull();
+    expect(screen.queryByLabelText("Client email")).toBeNull();
     expect(screen.queryByLabelText("Card")).toBeNull();
     expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
-    await user.type(screen.getByLabelText("Client name"), "Maya Chen");
-    await user.type(screen.getByLabelText("Client email"), "maya@example.com");
+    await user.type(screen.getByLabelText("Client company"), "Chen Studio");
     await user.type(screen.getByLabelText("Effective date"), "2026-12-01");
     await next();
 
-    // 3. Signers: proposed from what was typed; someone receives a copy.
-    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Maya Chen");
-    expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("maya@example.com");
+    // 3. Signers: typed here; someone receives a copy.
     expect(screen.getByText("Signer 1 · Client")).toBeTruthy();
+    await user.type(screen.getByLabelText("Name"), "Maya Chen");
+    await user.type(screen.getByLabelText("Email"), "maya@example.com");
     await user.click(screen.getByRole("button", { name: "+ Add someone" }));
     const copyName = screen.getAllByLabelText("Name")[1] as HTMLInputElement;
     await user.type(copyName, "Records");
@@ -170,8 +175,7 @@ describe("the send", () => {
       countersigners: [{ party_id: "p-firm", user_id: "u-rosa" }],
       copies: [{ name: "Records", email: "records@firm.example" }],
       values: [
-        { field_id: "f-name", value: "Maya Chen" },
-        { field_id: "f-email", value: "maya@example.com" },
+        { field_id: "f-company", value: "Chen Studio" },
         { field_id: "f-date", value: "2026-12-01" },
       ],
       settings: FORM.settings,
@@ -222,6 +226,43 @@ describe("the send", () => {
     await user.click(screen.getByRole("button", { name: "Send anyway" }));
     await waitFor(() => expect(onSent).toHaveBeenCalledWith({ id: "env-2" }));
     expect((sent[1]?.body as { confirm_same_person: boolean }).confirm_same_person).toBe(true);
+  });
+
+  it("says when a value is too long for its box, and holds Next until it fits", async () => {
+    // Every character half a point wide per point of size (the test DOM cannot measure text).
+    const measure = vi
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({ font: "", measureText: (t: string) => ({ width: t.length * 0.5 * MEASURED_AT }) } as unknown as CanvasRenderingContext2D);
+    // The envelope's font arrives (the test DOM has no FontFace): widths are judged only in it.
+    vi.stubGlobal(
+      "FontFace",
+      class {
+        load() {
+          return Promise.resolve(this);
+        }
+      },
+    );
+    Object.defineProperty(document, "fonts", { value: { add: () => {} }, configurable: true });
+    open({ initialDocumentId: "doc-1" });
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Effective date"), "2026-12-01");
+    // The company box is 100 pt wide: at 10 pt down to 6 pt, 33 characters fit, not 40.
+    await user.type(screen.getByLabelText("Client company"), "x".repeat(40));
+
+    expect(await screen.findByText("Too long for its box")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.clear(screen.getByLabelText("Client company"));
+    await user.type(screen.getByLabelText("Client company"), "Chen Studio");
+    expect(screen.queryByText("Too long for its box")).toBeNull();
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(false);
+    measure.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("says a document needs approval instead of an empty step", async () => {
+    open({ initialDocumentId: "doc-2" }); // a document with no approved version
+    expect(await screen.findByText("Draft letter needs approval")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("asks before closing once something is filled in", async () => {

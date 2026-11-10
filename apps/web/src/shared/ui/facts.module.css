@@ -1,0 +1,43 @@
+/* Facts as label and value (FactList): a hairline panel, one row each. */
+.facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 16px;
+  border: 1px solid var(--sep);
+  background: var(--surface);
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 20px;
+  padding: 13px 0;
+}
+
+.fact + .fact {
+  border-top: 1px solid var(--sep);
+}
+
+.term {
+  font: 400 10px/1.5 var(--sans);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.value {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 479.98px) {
+  .fact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

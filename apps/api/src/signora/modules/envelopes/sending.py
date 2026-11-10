@@ -14,8 +14,14 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, ConfigDict, Field
 
 from signora.kernel.errors import FieldError, ValidationFailed
-from signora.modules.envelopes.form import NAME_HOLDS, Colleague, FormField, SendForm
-from signora.modules.review.formats import InvalidValueError, check_value
+from signora.modules.envelopes.form import Colleague, FormField, SendForm
+from signora.modules.review.formats import (
+    InvalidValueError,
+    check_value,
+    check_written,
+    written,
+)
+from signora.modules.typesetting import fitted_size, place_size
 
 MAX_COPIES = 10
 
@@ -82,7 +88,7 @@ class Plan:
     countersigners: list[Person]
     copies: list[Person]
     values: dict[uuid.UUID, str]  # the sender's own
-    prefill: dict[uuid.UUID, dict[uuid.UUID, str]]  # per signer party: their name and email
+    prefill: dict[uuid.UUID, dict[uuid.UUID, str]]  # per party: its recipient's email
     notify_emails: list[str]
     shared_emails: list[str] = field(default_factory=list)  # the same person on two parties
 
@@ -99,25 +105,32 @@ def _asked(item: FormField, values: Mapping[uuid.UUID, str]) -> bool:
 
 
 def prefill(
-    fields: Iterable[FormField],
-    party_id: uuid.UUID,
-    person: Person,
-    typed: Mapping[uuid.UUID, str],
+    fields: Iterable[FormField], party_id: uuid.UUID, person: Person
 ) -> dict[uuid.UUID, str]:
-    """What a signer's name and email fill in their party's fields, as DocuSign does: their email
-    in every Email field; their name in each Full name, First name and Last name field the sender
-    left empty (a Legal name may be a company's, so only when typed)."""
-    first, last = split_name(person.name)
-    by_holds = {"full_name": person.name, "first_name": first, "last_name": last}
-    filled: dict[uuid.UUID, str] = {}
-    for item in fields:
-        if item.party_id != party_id:
-            continue
-        if item.holds == "email":
-            filled[item.id] = person.email
-        elif item.holds in NAME_HOLDS and item.id not in typed and by_holds[item.holds]:
-            filled[item.id] = by_holds[item.holds]
-    return filled
+    """What a recipient's details fill at send, as DocuSign's Email field shows the recipient's
+    email: their email in each of their party's Email fields. Their name fields are not filled
+    here: they show the name they sign as, at signing (Phase 7b)."""
+    return {
+        item.id: person.email
+        for item in fields
+        if item.party_id == party_id and item.from_recipient == "email"
+    }
+
+
+MARKS = frozenset({"checkbox", "choice"})  # drawn as a tick, never as text
+
+
+def fits(item: FormField, value: str, font_id: str) -> bool:
+    """Whether a value can be drawn in every place of its field (Phase 7b), written as its field
+    writes it (7c): at the agreement's text size, or smaller down to the smallest readable size.
+    Marks are ticks, always fitting."""
+    if item.holds in MARKS:
+        return True
+    text = written(item.holds, value, item.format)
+    return all(
+        fitted_size(text, place.rect, place_size(place.text_size, place.rect), font_id) is not None
+        for place in item.places
+    )
 
 
 def split_name(name: str) -> tuple[str, str]:
@@ -202,7 +215,7 @@ def plan_send(
     # Values: known fields, valid for their type; the sender's required fields when asked.
     by_id = {item.id: item for item in form.fields}
     values: dict[uuid.UUID, str] = {}
-    invalid: set[uuid.UUID] = set()  # named once, by what is wrong with it
+    invalid: dict[uuid.UUID, str] = {}  # what is wrong with a value, named once
     raw = {value.field_id: (i, value.value) for i, value in enumerate(request.values)}
     for field_id, (i, text) in raw.items():
         item = by_id.get(field_id)
@@ -211,6 +224,9 @@ def plan_send(
             continue
         if not text.strip():
             continue  # left for the signer (prefilling is optional, §2)
+        if item.from_recipient is not None:
+            errors.append(FieldError(f"fields.{field_id}", "Filled in from the signer"))
+            continue
         try:
             values[field_id] = check_value(
                 item.holds,
@@ -218,30 +234,32 @@ def plan_send(
                 options=[option.value for option in item.options],
                 normalize_email=normalize_email,
             )
+            check_written(item.holds, values[field_id], item.format)
         except InvalidValueError as error:
-            invalid.add(field_id)
-            errors.append(FieldError(f"fields.{field_id}", str(error)))
+            values.pop(field_id, None)
+            invalid[field_id] = str(error)
     for item in form.fields:
         if item.id not in values or _asked(item, values):
             continue
         del values[item.id]  # its condition is not met: never asked, never sent
+    # Only what is asked is judged: a value left in a field its condition has since hidden is
+    # dropped above, never a reason to refuse the send.
     for item in form.fields:
-        if (
-            item.required
-            and _asked(item, values)
-            and item.id not in values
-            and item.id not in invalid
-        ):
+        if not _asked(item, values):
+            continue
+        if item.id in invalid:
+            errors.append(FieldError(f"fields.{item.id}", invalid[item.id]))
+        elif item.id in values:
+            if not fits(item, values[item.id], form.font.id):
+                errors.append(FieldError(f"fields.{item.id}", "Too long for its box"))
+        elif item.required:
             errors.append(FieldError(f"fields.{item.id}", "Fill this in before sending"))
 
-    # Prefill (§2): a signer's email in their Email fields; their name in Name fields left empty.
+    # Prefill: each signer's and countersigner's email in their party's Email fields.
     prefilled = {
-        party_id: prefill(form.fields, party_id, person, values)
-        for party_id, person in given_signers.items()
+        party_id: prefill(form.fields, party_id, person)
+        for party_id, person in (*given_signers.items(), *given_firm.items())
     }
-    for fills in prefilled.values():
-        for field_id in fills:
-            values.pop(field_id, None)  # the signer's own details, not the sender's
 
     notify = [
         email(f"settings.notify_emails[{i}]", raw)

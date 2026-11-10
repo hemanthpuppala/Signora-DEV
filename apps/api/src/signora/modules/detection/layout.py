@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pymupdf
 
+from signora.modules.detection.blanks import split_at_runs
 from signora.modules.detection.geometry import Box, RowIndex, center, unrotated
 from signora.modules.detection.page_text import pages
 from signora.modules.detection.reading import Reading
@@ -42,9 +43,11 @@ def layout_text(document: pymupdf.Document, reading: Reading) -> str:
         )
         tokens = list(markers)
         for x0, y0, x1, y1, word, *_ in page.get_text("words"):
-            box = (x0, y0, x1, y1)
-            if next(covering.holding(center(box)), None) is None:
-                tokens.append((clean(word), box, False))
+            # A word may hold a blank and words printed with it ("20____", "____,"): each part is
+            # placed on its own, so the words stay in the text and only the blank is the marker.
+            for piece, box, _ in split_at_runs(word, (x0, y0, x1, y1)):
+                if next(covering.holding(center(box)), None) is None:
+                    tokens.append((clean(piece), box, False))
         tokens = [token for token in tokens if token[0]]
         tokens.sort(key=lambda token: center(token[1])[1])
         rows: list[list[tuple[str, Box, bool]]] = []

@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -15,6 +15,7 @@ import {
   IconButton,
   InfoTip,
   SearchField,
+  Section,
   StepDialog,
   Select,
   StatusPill,
@@ -23,6 +24,7 @@ import {
   ToastProvider,
   useToast,
 } from "./index";
+import { SEARCH_FROM } from "./Select";
 
 describe("Button", () => {
   it("shows the loading label, disables itself and marks busy while loading", () => {
@@ -82,10 +84,15 @@ describe("IconButton", () => {
     const button = screen.getByRole("button", { name: "Make current" });
     const tip = screen.getByText("Make current");
     expect(tip.getAttribute("aria-hidden")).toBe("true"); // the name is the button's; the tooltip only shows it
-    await user.click(button);
+    expect(tip.className).not.toMatch(/shown/);
+    await user.click(button); // the pointer is over it now
     expect(onClick).toHaveBeenCalledOnce();
+    expect(tip.className).toMatch(/shown/);
     await user.keyboard("{Escape}");
-    expect(tip.className).toMatch(/dismissed/);
+    expect(tip.className).not.toMatch(/shown/);
+    await user.unhover(button);
+    await user.hover(button);
+    expect(tip.className).toMatch(/shown/); // dismissed only until the pointer leaves
   });
 
   it("can be a download link", () => {
@@ -391,5 +398,88 @@ describe("DocumentCard, choosing", () => {
     expect(screen.getByRole("button", { name: "Draft" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Mutual NDA" }));
     expect(onChoose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Section, collapsible", () => {
+  it("opens and closes from its title line, which says how many it holds; its ? does not", async () => {
+    render(
+      <Section title="Signers" count={3} info="Who signs, in order." collapsible>
+        <p>Maya Chen</p>
+      </Section>,
+    );
+    const group = screen.getByText("Signers").closest("details") as HTMLDetailsElement;
+    expect(group.open).toBe(true);
+    expect(screen.getByText("3")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "About Signers" }));
+    expect(group.open).toBe(true); // the ? explains, it does not close
+    await userEvent.click(screen.getByText("Signers"));
+    expect(group.open).toBe(false);
+  });
+});
+
+describe("Section, opened by its screen", () => {
+  it("opens when the screen says so, and tells the screen when its title line is used", async () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <Section title="Fields" collapsible open={false} onOpenChange={onOpenChange}>
+        <p>Client name</p>
+      </Section>,
+    );
+    const group = screen.getByText("Fields").closest("details") as HTMLDetailsElement;
+    expect(group.open).toBe(false);
+    rerender(
+      <Section title="Fields" collapsible open onOpenChange={onOpenChange}>
+        <p>Client name</p>
+      </Section>,
+    );
+    expect(group.open).toBe(true); // a field chosen on the document: its section opens for it
+    await userEvent.click(screen.getByText("Fields"));
+    await waitFor(() => expect(onOpenChange).toHaveBeenLastCalledWith(false));
+  });
+});
+
+describe("Select, searchable", () => {
+  it("finds an option by its name or the word beside it, and chooses it with Enter", async () => {
+    const onChange = vi.fn();
+    render(
+      <Select
+        label="Type"
+        searchable
+        options={[
+          { value: "date", label: "Date", hint: "Dates" },
+          { value: "year", label: "Year", hint: "Dates" },
+          { value: "tax_id", label: "Tax number", hint: "Private" },
+        ]}
+        value="date"
+        onChange={onChange}
+      />,
+    );
+    await userEvent.click(screen.getByRole("combobox", { name: "Type" }));
+    const search = screen.getByRole("combobox", { name: "Search Type" });
+    expect(document.activeElement).toBe(search);
+    await userEvent.type(search, "priv");
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Tax numberPrivate"]);
+    await userEvent.clear(search);
+    await userEvent.type(search, "year{Enter}");
+    expect(onChange).toHaveBeenCalledWith("year");
+    await userEvent.click(screen.getByRole("combobox", { name: "Type" }));
+    await userEvent.type(screen.getByRole("combobox", { name: "Search Type" }), "zzz");
+    expect(screen.getByText("No match")).toBeTruthy();
+  });
+});
+
+describe("Select, search by length", () => {
+  const options = (n: number) => Array.from({ length: n }, (_, i) => ({ value: String(i), label: `Option ${i}` }));
+
+  it("gives a long list a search box and keeps a short one plain", async () => {
+    const { unmount } = render(<Select label="Month" options={options(SEARCH_FROM)} value={null} onChange={vi.fn()} />);
+    await userEvent.click(screen.getByRole("combobox", { name: "Month" }));
+    expect(screen.getByRole("combobox", { name: "Search Month" })).toBeTruthy();
+    unmount();
+
+    render(<Select label="Invite as" options={options(SEARCH_FROM - 1)} value={null} onChange={vi.fn()} />);
+    await userEvent.click(screen.getByRole("combobox", { name: "Invite as" }));
+    expect(screen.queryByRole("combobox", { name: "Search Invite as" })).toBeNull();
   });
 });

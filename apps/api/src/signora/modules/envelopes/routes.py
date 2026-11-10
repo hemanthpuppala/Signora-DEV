@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from signora.kernel.db import Database
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.envelopes import service
+from signora.modules.envelopes.document import EnvelopeDocument
 from signora.modules.envelopes.form import SendForm
 from signora.modules.envelopes.sending import SendRequest
 from signora.modules.envelopes.views import EnvelopePage, EnvelopeStatus, EnvelopeView
@@ -65,6 +66,17 @@ def get_envelope(envelope_id: uuid.UUID, request: Request, actor: Member) -> Env
         return service.get_envelope(uow.session, actor, envelope_id)
 
 
+@router.get(
+    "/envelopes/{envelope_id}/document",
+    summary="The envelope's document as drawn: its pages and where each value goes",
+)
+def get_envelope_document(
+    envelope_id: uuid.UUID, request: Request, actor: Member
+) -> EnvelopeDocument:
+    with _db(request).unit_of_work() as uow:
+        return service.envelope_document(uow.session, actor, envelope_id)
+
+
 class RecipientChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
     email: str | None = Field(default=None, max_length=254)
@@ -94,6 +106,26 @@ def remind(
         if (replay := guard.begin(uow)) is not None:
             return replay
         count = service.remind(uow, actor=actor, envelope_id=envelope_id)
+        return guard.finish(uow, status.HTTP_200_OK, {"reminded": count})
+
+
+@router.post(
+    "/envelopes/{envelope_id}/recipients/{recipient_id}/remind",
+    response_model=Reminded,
+    summary="Remind one person who still has to sign (requires Idempotency-Key)",
+    responses={409: {"description": "They signed, or it is not their turn yet"}},
+)
+def remind_one(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    request: Request,
+    actor: Member,
+    guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
+) -> JSONResponse:
+    with _db(request).unit_of_work() as uow:
+        if (replay := guard.begin(uow)) is not None:
+            return replay
+        count = service.remind(uow, actor=actor, envelope_id=envelope_id, recipient_id=recipient_id)
         return guard.finish(uow, status.HTTP_200_OK, {"reminded": count})
 
 

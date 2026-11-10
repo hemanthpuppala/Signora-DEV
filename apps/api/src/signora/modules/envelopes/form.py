@@ -2,24 +2,29 @@
 
 What it asks: every field someone types (grouped by party, then "before sending"), each signer's
 name and email, each countersigner (defaulting to the department's list in order), the settings.
-Signatures, initials and signing dates are given by signing, never asked here.
+Signatures, initials and signing dates are given by signing, never asked here; a party's name and
+email fields come from the person who signs as it (``from_recipient``), never asked either.
 """
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from typing import Literal
 
 from pydantic import BaseModel
 
 from signora.modules.review import FieldView, RoleView
 from signora.modules.review.formats import NOT_TYPED
 from signora.modules.review.values import ManualHolds
+from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, FitRule, FontView, font_view
 
-# A signer's name and email fill these of their party's fields when the sender left them empty
-# (as DocuSign fills its Full Name, First Name, Last Name and Email fields from the recipient).
+# A party's fields that come from the person signing as it, as DocuSign's Full Name, First Name,
+# Last Name and Email fields do (Phase 7b): the email at send, the name at signing (the name they
+# sign as, which they may correct). A Legal name may be a company's, so it stays the sender's.
 NAME_HOLDS = frozenset({"full_name", "first_name", "last_name"})
 EMAIL_HOLDS = frozenset({"email"})
+FromRecipient = Literal["name", "email"]
 
 
 class Option(BaseModel):
@@ -38,6 +43,7 @@ class Place(BaseModel):
     page: int
     rect: tuple[float, float, float, float]
     option_value: str | None  # a choice's place stands for one option
+    text_size: float | None  # the agreement's text size beside it (Phase 7b), when measured
 
 
 class PageSize(BaseModel):
@@ -50,12 +56,14 @@ class FormField(BaseModel):
     label: str
     holds: ManualHolds
     holds_label: str | None
+    format: str | None  # how a date or a part of one is written on the page (7c)
     party_id: uuid.UUID | None  # None: filled in before sending, or asked of nobody
     required: bool  # only the sender's own required fields: nobody else can fill them (§15.2)
     sensitive: bool
     options: list[Option]  # a choice's options
     depends_on: Condition | None
     places: list[Place]  # where the value shows on the document (the review step)
+    from_recipient: FromRecipient | None  # not asked: the party's signer gives it (Phase 7b)
 
 
 class FormSigner(BaseModel):
@@ -63,8 +71,6 @@ class FormSigner(BaseModel):
     label: str
     kind_label: str | None  # an Other kind's words ("Witness")
     position: int
-    name_field_ids: list[uuid.UUID]  # where their name may already be typed (step 2)
-    email_field_ids: list[uuid.UUID]
 
 
 class Colleague(BaseModel):
@@ -98,6 +104,8 @@ class SendForm(BaseModel):
     countersigners: list[FormCountersigner]
     fields: list[FormField]
     settings: FormSettings
+    font: FontView  # what values are drawn in, and how they fit (Phase 7b)
+    fit: FitRule
 
 
 def options_of(field: FieldView) -> list[Option]:
@@ -109,6 +117,30 @@ def options_of(field: FieldView) -> list[Option]:
                 value=place.option_value, text=place.option_text or place.option_value
             )
     return list(seen.values())
+
+
+def places_of(field: FieldView) -> list[Place]:
+    """Where a field's value is drawn, one place per box."""
+    return [
+        Place(
+            page=place.page,
+            rect=place.rect,
+            option_value=place.option_value,
+            text_size=place.text_size,
+        )
+        for place in field.placements
+    ]
+
+
+def from_recipient(field: FieldView) -> FromRecipient | None:
+    """Whether a field comes from the person signing as its party, and which of their details."""
+    if field.filled_by != "role":
+        return None
+    if field.holds in NAME_HOLDS:
+        return "name"
+    if field.holds in EMAIL_HOLDS:
+        return "email"
+    return None
 
 
 def build_form(
@@ -134,14 +166,6 @@ def build_form(
             label=party.label,
             kind_label=party.kind_label,
             position=party.position,
-            name_field_ids=[
-                f.id
-                for f in typed
-                if f.party_id == party.id and f.holds in NAME_HOLDS | {"party_name"}
-            ],
-            email_field_ids=[
-                f.id for f in typed if f.party_id == party.id and f.holds in EMAIL_HOLDS
-            ],
         )
         for party in ordered
         if party.kind == "signer"
@@ -162,14 +186,13 @@ def build_form(
             label=field.label,
             holds=field.holds,
             holds_label=field.holds_label,
+            format=field.format,
             party_id=field.party_id if field.filled_by == "role" else None,
             required=field.filled_by == "sender" and field.required,
+            from_recipient=from_recipient(field),
             sensitive=field.sensitive,
             options=options_of(field) if field.holds == "choice" else [],
-            places=[
-                Place(page=place.page, rect=place.rect, option_value=place.option_value)
-                for place in field.placements
-            ],
+            places=places_of(field),
             depends_on=Condition(
                 field_id=id_of_key[field.depends_on.key], option=field.depends_on.option
             )
@@ -188,4 +211,6 @@ def build_form(
         countersigners=countersigning,
         fields=form_fields,
         settings=settings,
+        font=font_view(DEFAULT_FONT),
+        fit=FIT_RULE,
     )

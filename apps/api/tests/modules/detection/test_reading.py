@@ -185,3 +185,19 @@ def test_the_same_placeholder_twice_on_a_line_is_two_blanks_each_in_its_place() 
     assert first.placements[0].continued == [] and second.placements[0].continued == []
     assert second.label_left is not None and "(Discloser) and" in second.label_left
     assert reading.layout.count("⟦f") == 2
+
+
+def test_words_printed_with_a_blank_stay_in_the_text_around_its_marker() -> None:
+    """ "20____" and "________," are one word each in a PDF's text: the "20" and the comma are
+    the document's words (a two-digit year, the end of a clause), not part of the blank."""
+    document = pymupdf.open()
+    page = document.new_page(width=612, height=792)
+    page.insert_text(
+        (72, 120), "entered into as of this ____ day of ________, 20____ by and", fontsize=12
+    )
+    reading = read_document(document.tobytes())
+
+    day, month, year = sorted(reading.asked, key=lambda f: f.placements[0].rect[0])
+    assert re.search(
+        rf"⟦{day.id}⟧ +day +of +⟦{month.id}⟧ *, +20 *⟦{year.id}⟧ +by +and", reading.layout
+    )

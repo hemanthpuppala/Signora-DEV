@@ -95,19 +95,24 @@
 .values {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
   pointer-events: none;
 }
 
+/* Letter by letter, as the PDF draws a value: no kerning or ligatures, so it is as wide here. */
 .value {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  padding: 0 2px;
-  font-family: var(--sans);
-  line-height: 1;
-  color: var(--paper-ink);
-  white-space: nowrap;
+  fill: var(--paper-ink);
+  white-space: pre;
+  font-kerning: none;
+  font-variant-ligatures: none;
+}
+
+/* A name the signer gives when signing: shown as what is to come, not as a value. */
+.atSigning {
+  opacity: 0.45;
+  font-style: italic;
 }
 
 /* The list: a row's title opens its envelope; a quieter second line under each cell. */
@@ -128,30 +133,26 @@
   color: var(--t60);
 }
 
-/* The envelope page: sections one under another, recipients as rows with their actions. */
-.envelope {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  margin-top: 24px;
-}
+/* The envelope page: the document beside its recipients, settings and timeline (ViewerLayout). */
 
-.recipients {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--sep);
-  list-style: none;
-}
-
-.recipient {
-  display: flex;
-  flex-wrap: wrap;
+/* A person's initials, where a document card shows its page. */
+.monogram {
+  display: inline-flex;
   align-items: center;
-  gap: 8px 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--sep);
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--r25);
+  font: 400 13px/1 var(--serif);
+  letter-spacing: 0.04em;
+  color: var(--t75);
+}
+
+/* A person's moments: sent, read, signed, time left. */
+.times {
+  font: 400 10.5px/1.5 var(--mono);
+  letter-spacing: 0.02em;
+  color: var(--t55);
 }
 
 .who {
@@ -166,17 +167,6 @@
   color: var(--ink);
 }
 
-.state {
-  font-size: 13px;
-  color: var(--t75);
-}
-
-.rowActions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 14px;
-}
 
 .change {
   display: flex;
@@ -185,19 +175,67 @@
   gap: 12px;
 }
 
-.timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 14px;
-  color: var(--t75);
+/* The timeline scrolls inside itself as it grows; at its ends, the page scrolls on. */
+.timelineScroll {
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
 }
 
-.timeline li {
-  display: grid;
-  grid-template-columns: minmax(110px, auto) 1fr auto;
-  gap: 4px 16px;
+/* The timeline: a thin rail, a dot at each event, the time small above what happened. */
+.timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0;
+  padding: 2px 0 2px 20px;
+  list-style: none;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 3px;
+  width: 1px;
+  background: var(--sep);
+}
+
+.event {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.event::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: -20px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--r40);
+}
+
+.event:first-child::before {
+  background: var(--ink); /* the latest */
+  box-shadow: none;
+}
+
+.at {
+  font: 400 11px/1.4 var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--t55);
+}
+
+.what {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
 }

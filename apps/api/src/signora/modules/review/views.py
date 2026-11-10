@@ -35,6 +35,8 @@ class PlacementView(BaseModel):
     kind: str
     option_value: str | None
     option_text: str | None
+    # The agreement's text size beside it, measured at approval (Phase 7b); none before that
+    text_size: float | None = None
 
 
 class DependencyView(BaseModel):
@@ -48,6 +50,7 @@ class FieldView(BaseModel):
     label: str
     holds: ManualHolds  # the contract's enum: the interface's labels must cover it (§1.8)
     holds_label: str | None  # the typed text of an Other type
+    format: str | None  # how a date or a part of one is written (7c); its type's default if unset
     filled_by: FilledBy
     role: str | None  # the role's slug when filled_by is "role"
     party_id: uuid.UUID | None  # the same party, by id (what editing uses)

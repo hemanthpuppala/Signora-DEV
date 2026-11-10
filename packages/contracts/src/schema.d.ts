@@ -630,6 +630,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/envelopes/{envelope_id}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The envelope's document as drawn: its pages and where each value goes */
+        get: operations["get_envelope_document_api_v1_envelopes__envelope_id__document_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}": {
         parameters: {
             query?: never;
@@ -664,6 +681,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remind one person who still has to sign (requires Idempotency-Key) */
+        post: operations["remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/resend": {
         parameters: {
             query?: never;
@@ -692,6 +726,23 @@ export interface paths {
         put?: never;
         /** Remind everyone who still has to sign (requires Idempotency-Key) */
         post: operations["remind_api_v1_envelopes__envelope_id__remind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fonts/{font_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A font's file (TrueType); public, and the same bytes for an id forever */
+        get: operations["font_file_api_v1_fonts__font_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1317,6 +1368,30 @@ export interface components {
             updated_at: string;
         };
         /**
+         * DrawnField
+         * @description A field whose value is drawn as text or a mark: what it holds, how, and where.
+         */
+        DrawnField: {
+            /** Format */
+            format: string | null;
+            /** From Recipient */
+            from_recipient: ("name" | "email") | null;
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Party Id */
+            party_id: string | null;
+            /** Places */
+            places: components["schemas"]["Place"][];
+        };
+        /**
          * DuplicateView
          * @description The same bytes already in the department (§2.3): the screen asks before going on.
          */
@@ -1337,6 +1412,14 @@ export interface components {
         EmailResponse: {
             /** Email */
             email: string;
+        };
+        /** EnvelopeDocument */
+        EnvelopeDocument: {
+            /** Fields */
+            fields: components["schemas"]["DrawnField"][];
+            fit: components["schemas"]["FitRule"];
+            /** Pages */
+            pages: components["schemas"]["PageSize"][];
         };
         /** EnvelopePage */
         EnvelopePage: {
@@ -1404,6 +1487,7 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
+            font: components["schemas"]["FontView"];
             /**
              * Id
              * Format: uuid
@@ -1452,6 +1536,8 @@ export interface components {
              * @enum {string}
              */
             filled_by: "role" | "sender" | "none";
+            /** Format */
+            format?: string | null;
             /**
              * Holds
              * @enum {string}
@@ -1495,6 +1581,8 @@ export interface components {
              * @enum {string}
              */
             filled_by: "role" | "sender" | "none";
+            /** Format */
+            format: string | null;
             /**
              * Holds
              * @enum {string}
@@ -1529,6 +1617,24 @@ export interface components {
             /** Sensitive */
             sensitive: boolean;
         };
+        /** FitRule */
+        FitRule: {
+            /**
+             * Align
+             * @enum {string}
+             */
+            align: "left" | "center";
+            /** Baseline Min */
+            baseline_min: number;
+            /** Baseline Ratio */
+            baseline_ratio: number;
+            /** Fallback Cap */
+            fallback_cap: number;
+            /** Fallback Ratio */
+            fallback_ratio: number;
+            /** Min Size */
+            min_size: number;
+        };
         /** Flags */
         Flags: {
             /**
@@ -1557,6 +1663,15 @@ export interface components {
              */
             xfa: boolean;
         };
+        /** FontView */
+        FontView: {
+            /** Family */
+            family: string;
+            /** Id */
+            id: string;
+            /** Url */
+            url: string;
+        };
         /** FormCountersigner */
         FormCountersigner: {
             default: components["schemas"]["signora__modules__envelopes__form__Colleague"] | null;
@@ -1573,6 +1688,10 @@ export interface components {
         /** FormField */
         FormField: {
             depends_on: components["schemas"]["Condition"] | null;
+            /** Format */
+            format: string | null;
+            /** From Recipient */
+            from_recipient: ("name" | "email") | null;
             /**
              * Holds
              * @enum {string}
@@ -1613,14 +1732,10 @@ export interface components {
         };
         /** FormSigner */
         FormSigner: {
-            /** Email Field Ids */
-            email_field_ids: string[];
             /** Kind Label */
             kind_label: string | null;
             /** Label */
             label: string;
-            /** Name Field Ids */
-            name_field_ids: string[];
             /**
              * Party Id
              * Format: uuid
@@ -1875,6 +1990,8 @@ export interface components {
                 number,
                 number
             ];
+            /** Text Size */
+            text_size: number | null;
         };
         /** PlaceIn */
         PlaceIn: {
@@ -1921,6 +2038,8 @@ export interface components {
                 number,
                 number
             ];
+            /** Text Size */
+            text_size?: number | null;
         };
         /**
          * Problem
@@ -2106,6 +2225,8 @@ export interface components {
             document_name: string;
             /** Fields */
             fields: components["schemas"]["FormField"][];
+            fit: components["schemas"]["FitRule"];
+            font: components["schemas"]["FontView"];
             /** Pages */
             pages: components["schemas"]["PageSize"][];
             settings: components["schemas"]["FormSettings"];
@@ -2413,6 +2534,53 @@ export interface components {
             /** Fields From */
             fields_from: ("form_fields" | "blanks" | "none") | null;
             flags: components["schemas"]["Flags"];
+            /**
+             * Formats
+             * @default {
+             *       "date": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "date_of_birth": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "date_signed": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "day": [
+             *         "D",
+             *         "Dth"
+             *       ],
+             *       "month": [
+             *         "Month",
+             *         "MM"
+             *       ],
+             *       "year": [
+             *         "YYYY",
+             *         "YY"
+             *       ]
+             *     }
+             */
+            formats: {
+                [key: string]: string[];
+            };
             /** Found Again Failed */
             found_again_failed?: string | null;
             /** Pending */
@@ -4828,6 +4996,58 @@ export interface operations {
             };
         };
     };
+    get_envelope_document_api_v1_envelopes__envelope_id__document_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDocument"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     change_recipient_api_v1_envelopes__envelope_id__recipients__recipient_id__patch: {
         parameters: {
             query?: never;
@@ -4938,6 +5158,66 @@ export interface operations {
             };
         };
     };
+    remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminded"];
+                };
+            };
+            /** @description They signed, or it is not their turn yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     resend_api_v1_envelopes__envelope_id__recipients__recipient_id__resend_post: {
         parameters: {
             query?: never;
@@ -5009,6 +5289,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Reminded"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    font_file_api_v1_fonts__font_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                font_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "font/ttf": unknown;
                 };
             };
             /** @description Validation failed (problem details) */
