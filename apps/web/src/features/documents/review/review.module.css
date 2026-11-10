@@ -148,21 +148,34 @@
   color: var(--t60);
 }
 
-/* Under a field's place chips: what can be done with its places, then the chosen place's own
-   move and resize. Quiet named icons, the two groups on one line where the form is wide enough
-   and one under the other where it is not (a phone, a narrow panel). */
+/* Under a field's place chips: what can be done with its places, in small named groups of quiet
+   icons (Add, Move, Size, and the chosen place's own). Side by side where the form is wide enough,
+   wrapping where it is not (a phone, a narrow panel); never a line for each action. */
 .placeTools {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 28px;
+  gap: 12px 22px;
 }
 
-.adjust {
+.tool {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toolName {
+  font: 500 9px/1.4 var(--sans);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--t55);
+}
+
+.toolIcons {
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-left: -7px; /* the buttons' padding: their icons line up with the text above */
+  margin-left: -7px; /* the buttons' own inset: their icons line up with the name above */
 }
 
 .formEnd {

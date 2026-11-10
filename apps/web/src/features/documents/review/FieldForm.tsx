@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Button, Checkbox, IconButton, InfoTip, Notice, Select, SmallText, TextField, type IconName } from "@/shared/ui";
 
@@ -58,15 +58,29 @@ function conditionOptions(field: DraftField, draft: Draft) {
 
 const STEP = 2; // points a click moves a place
 const GROW = 1.1; // a click on Larger; Smaller is its inverse, so the two undo each other
-// The place's own controls, besides dragging it: four ways to move, smaller and larger.
-const ADJUST: readonly { icon: IconName; label: string; move: readonly [number, number]; scale?: number }[] = [
-  { icon: "left", label: "Move left", move: [-STEP, 0] },
-  { icon: "up", label: "Move up", move: [0, -STEP] },
-  { icon: "down", label: "Move down", move: [0, STEP] },
-  { icon: "right", label: "Move right", move: [STEP, 0] },
-  { icon: "minus", label: "Smaller", move: [0, 0], scale: 1 / GROW },
-  { icon: "plus", label: "Larger", move: [0, 0], scale: GROW },
+// The chosen place's own controls, besides dragging it: four ways to move, smaller and larger.
+const MOVES: readonly { icon: IconName; label: string; by: readonly [number, number] }[] = [
+  { icon: "left", label: "Move left", by: [-STEP, 0] },
+  { icon: "up", label: "Move up", by: [0, -STEP] },
+  { icon: "down", label: "Move down", by: [0, STEP] },
+  { icon: "right", label: "Move right", by: [STEP, 0] },
 ];
+const SIZES: readonly { icon: IconName; label: string; scale: number }[] = [
+  { icon: "minus", label: "Smaller", scale: 1 / GROW },
+  { icon: "plus", label: "Larger", scale: GROW },
+];
+
+/** A few icon buttons under one short name ("Move"), so icons alone are never a guess. */
+function ToolGroup({ name, label, children }: { name: string; label: string; children: ReactNode }) {
+  return (
+    <div className={styles.tool} role="group" aria-label={label}>
+      <span className={styles.toolName} aria-hidden="true">
+        {name}
+      </span>
+      <div className={styles.toolIcons}>{children}</div>
+    </div>
+  );
+}
 
 /**
  * One field's form (Phase 6 §4, §5, §7.1), inside its open row in the list. Its type offers only
@@ -196,57 +210,65 @@ export function FieldForm({
           <InfoTip label="places">{PLACES_HELP}</InfoTip>
         </div>
         <PlaceChips places={field.places} place={place} onPlace={onPlace} choice={field.holds === "choice"} />
-        {/* The places' actions and the chosen place's own moves: named icons on one line where
-            there is room, two short ones on a phone; never a line for each. */}
+        {/* What can be done with the places, in named groups of named icons: side by side where
+            there is room, wrapping where there is not; never a line for each action. */}
         <div className={styles.placeTools}>
-          <div className={styles.adjust} role="group" aria-label="This field's places">
+          <ToolGroup name="Add" label="Add places">
             <IconButton icon="plus" label="Add a place" onClick={() => editing.onAddPlace(field.id)} />
             {current && editing.pages.length > 1 ? (
               <IconButton icon="pages" label="On every page" onClick={() => edit((draft) => onEveryPage(draft, current.id, editing.pages))} />
             ) : null}
-            {current && field.places.length > 1 ? (
-              <>
-                <IconButton
-                  icon="split"
-                  label="Make separate field"
-                  onClick={() => {
-                    let made: string | null = null;
-                    edit((draft) => {
-                      const split = splitPlace(draft, current.id);
-                      made = split.fieldId;
-                      return split.draft;
-                    });
-                    if (made) onSelect({ kind: "field", id: made, place: 0 });
-                  }}
-                />
-                <IconButton
-                  icon="close"
-                  label="Remove place"
-                  onClick={() => {
-                    edit((draft) => deletePlace(draft, current.id));
-                    onPlace(Math.max(0, place - 1));
-                  }}
-                />
-              </>
-            ) : null}
-          </div>
+          </ToolGroup>
           {current ? (
-            // Dragging the box moves and sizes it; these do the same without a drag.
-            <div className={styles.adjust} role="group" aria-label="Move or resize this place">
-              {ADJUST.map(({ icon, label, move, scale }) => (
-                <IconButton
-                  key={icon}
-                  icon={icon}
-                  label={label}
-                  onClick={() =>
-                    // Moves share the arrow keys' undo step; resizes have their own.
-                    scale
-                      ? edit((draft) => resize(draft, current.id, scale, editing.pages), `resize:${current.id}`)
-                      : edit((draft) => nudge(draft, current.id, move[0], move[1], editing.pages), `nudge:${current.id}`)
-                  }
-                />
-              ))}
-            </div>
+            // Dragging the box moves and sizes it; these do the same without a drag. Moves share
+            // the arrow keys' undo step; resizes have their own.
+            <>
+              <ToolGroup name="Move" label="Move this place">
+                {MOVES.map(({ icon, label, by }) => (
+                  <IconButton
+                    key={icon}
+                    icon={icon}
+                    label={label}
+                    onClick={() => edit((draft) => nudge(draft, current.id, by[0], by[1], editing.pages), `nudge:${current.id}`)}
+                  />
+                ))}
+              </ToolGroup>
+              <ToolGroup name="Size" label="Resize this place">
+                {SIZES.map(({ icon, label, scale }) => (
+                  <IconButton
+                    key={icon}
+                    icon={icon}
+                    label={label}
+                    onClick={() => edit((draft) => resize(draft, current.id, scale, editing.pages), `resize:${current.id}`)}
+                  />
+                ))}
+              </ToolGroup>
+            </>
+          ) : null}
+          {current && field.places.length > 1 ? (
+            <ToolGroup name={`Place ${place + 1}`} label={`Place ${place + 1}`}>
+              <IconButton
+                icon="split"
+                label="Make separate field"
+                onClick={() => {
+                  let made: string | null = null;
+                  edit((draft) => {
+                    const split = splitPlace(draft, current.id);
+                    made = split.fieldId;
+                    return split.draft;
+                  });
+                  if (made) onSelect({ kind: "field", id: made, place: 0 });
+                }}
+              />
+              <IconButton
+                icon="close"
+                label="Remove place"
+                onClick={() => {
+                  edit((draft) => deletePlace(draft, current.id));
+                  onPlace(Math.max(0, place - 1));
+                }}
+              />
+            </ToolGroup>
           ) : null}
         </div>
       </section>

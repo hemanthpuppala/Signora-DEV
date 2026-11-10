@@ -371,16 +371,16 @@ describe("field review", () => {
     const form = await screen.findByRole("region", { name: "Details of Signature" });
     expect(within(form).getByRole("button", { name: "Add a place" })).toBeTruthy(); // clear actions, with icons
     expect(within(form).getByRole("button", { name: "On every page" })).toBeTruthy();
-    // Its place moves and resizes without a drag too: a quiet row of named icons, no numbers.
-    const adjust = within(form).getByRole("group", { name: "Move or resize this place" });
-    expect(within(adjust).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
-      "Move left",
-      "Move up",
-      "Move down",
-      "Move right",
-      "Smaller",
-      "Larger",
-    ]);
+    // Its place moves and resizes without a drag too: named groups of named icons, no numbers.
+    const named = (group: string) =>
+      within(within(form).getByRole("group", { name: group }))
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label"));
+    expect(named("Add places")).toEqual(["Add a place", "On every page"]);
+    expect(named("Move this place")).toEqual(["Move left", "Move up", "Move down", "Move right"]);
+    expect(named("Resize this place")).toEqual(["Smaller", "Larger"]);
+    expect(within(form).queryByRole("group", { name: "Place 1" })).toBeNull(); // one place: nothing to split or remove
+    const adjust = form;
     await user.click(within(form).getByRole("button", { name: "About places" }));
     expect(within(form).getByRole("note").textContent).toContain("Add a place: click on the document to show this field there too.");
     await user.keyboard("{Escape}");
