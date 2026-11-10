@@ -20,6 +20,7 @@ import {
   redo,
   resize,
   removeParty,
+  sameFiller,
   setOptionText,
   setRect,
   splitPlace,
@@ -150,6 +151,24 @@ describe("the review editor", () => {
     expect(draft.fields[1]?.places).toHaveLength(1);
     draft = deletePlace(draft, draft.fields[1]?.places[0]?.id ?? "");
     expect(draft.fields.map((f) => f.id)).not.toContain("card"); // its last place took the field
+  });
+
+  it("keeps a condition only between fields the same person fills", () => {
+    // Card (the client's) is asked when the client's Plan is Gold. Whoever fills a field must be
+    // the one who answers what it depends on.
+    const start = fromView(VIEW);
+    expect(sameFiller(start.fields[0]!, start.fields[1]!)).toBe(true);
+    // The field given to someone else: its condition goes.
+    expect(updateField(start, "card", { filled_by: "sender" }).fields[1]?.depends_on).toBeNull();
+    expect(updateField(start, "card", { filled_by: "role", party_id: "guarantor" }).fields[1]?.depends_on).toBeNull();
+    // The field it depends on given to someone else: the conditions on it go.
+    expect(updateField(start, "plan", { filled_by: "role", party_id: "guarantor" }).fields[1]?.depends_on).toBeNull();
+    // Any other change keeps it; so does moving both to another party together.
+    expect(updateField(start, "card", { required: false }).fields[1]?.depends_on).not.toBeNull();
+    expect(removeParty(start, "client", { kind: "move", to: "guarantor" }).fields[1]?.depends_on).not.toBeNull();
+    // One stored before the rule (the sender's Card under the client's Plan) is not kept.
+    const stored = { ...VIEW, fields: [VIEW.fields[0], { ...VIEW.fields[1], filled_by: "sender", role: null, party_id: null }] } as VersionFields;
+    expect(fromView(stored).fields[1]?.depends_on).toBeNull();
   });
 
   it("deleting a choice drops the conditions on it", () => {

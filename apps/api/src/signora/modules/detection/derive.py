@@ -538,7 +538,21 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
             note = "its places do not all apply under the same option; check when it applies"
             existing.needs_review = "; ".join(filter(None, [existing.needs_review, note]))
     _break_loops(fields)
+    _keep_conditions_with_one_filler(fields)
     return list(fields.values())
+
+
+def _keep_conditions_with_one_filler(fields: dict[str, FieldOut]) -> None:
+    """A field applies under an option of a field the same person fills (review refuses any other:
+    whoever fills a field must be the one who answers what it depends on). Where the proposal
+    has two people, the condition is dropped and the field needs a look. O(F)."""
+    for field in fields.values():
+        parent = fields.get(field.depends_on.key) if field.depends_on is not None else None
+        if parent is None or (parent.filled_by, parent.role) == (field.filled_by, field.role):
+            continue
+        field.depends_on = None
+        note = "its condition was on a field someone else fills; check when it applies"
+        field.needs_review = "; ".join(filter(None, [field.needs_review, note]))
 
 
 def _break_loops(fields: dict[str, FieldOut]) -> None:

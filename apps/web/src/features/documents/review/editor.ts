@@ -89,31 +89,34 @@ export function fromView(view: VersionFields): Draft {
     parties: [...view.roles]
       .sort((a, b) => a.position - b.position)
       .map((role) => ({ id: role.id, label: role.label, kind: role.kind, kind_label: role.kind_label })),
-    fields: view.fields.map((field) => ({
-      id: field.id,
-      key: field.key,
-      label: field.label,
-      holds: field.holds,
-      holds_label: field.holds_label,
-      format: field.format,
-      filled_by: field.filled_by,
-      party_id: field.party_id,
-      required: field.required,
-      sensitive: field.sensitive,
-      depends_on:
-        field.depends_on && idOfKey.has(field.depends_on.key)
-          ? { field_id: idOfKey.get(field.depends_on.key) ?? "", option: field.depends_on.option }
-          : null,
-      needs_review: field.needs_review,
-      places: field.placements.map((place) => ({
-        id: place.id ?? newId(),
-        page: place.page,
-        rect: [place.rect[0] ?? 0, place.rect[1] ?? 0, place.rect[2] ?? 0, place.rect[3] ?? 0],
-        kind: place.kind as PlaceKind,
-        option_value: place.option_value,
-        option_text: place.option_text,
+    // A stored condition between fields that different people fill is not kept (dropConditionsAcross).
+    fields: dropConditionsAcross(
+      view.fields.map((field) => ({
+        id: field.id,
+        key: field.key,
+        label: field.label,
+        holds: field.holds,
+        holds_label: field.holds_label,
+        format: field.format,
+        filled_by: field.filled_by,
+        party_id: field.party_id,
+        required: field.required,
+        sensitive: field.sensitive,
+        depends_on:
+          field.depends_on && idOfKey.has(field.depends_on.key)
+            ? { field_id: idOfKey.get(field.depends_on.key) ?? "", option: field.depends_on.option }
+            : null,
+        needs_review: field.needs_review,
+        places: field.placements.map((place) => ({
+          id: place.id ?? newId(),
+          page: place.page,
+          rect: [place.rect[0] ?? 0, place.rect[1] ?? 0, place.rect[2] ?? 0, place.rect[3] ?? 0],
+          kind: place.kind as PlaceKind,
+          option_value: place.option_value,
+          option_text: place.option_text,
       })),
-    })),
+      })),
+    ),
   };
 }
 
@@ -194,6 +197,26 @@ function dropConditionsOn(fields: DraftField[], gone: ReadonlySet<string>): Draf
   );
 }
 
+type Filled = Pick<DraftField, "filled_by" | "party_id">;
+
+/** Whether the same person fills both: the sender, the same party, or nobody. */
+export function sameFiller(a: Filled, b: Filled): boolean {
+  return a.filled_by === b.filled_by && a.party_id === b.party_id;
+}
+
+/**
+ * Conditions between fields that different people fill, dropped: whoever fills a field must be the
+ * one who answers what it depends on, or nobody could tell them whether it is asked (the server
+ * refuses such a condition on Save). O(F).
+ */
+function dropConditionsAcross(fields: DraftField[]): DraftField[] {
+  const byId = new Map(fields.map((field) => [field.id, field]));
+  return fields.map((field) => {
+    const parent = field.depends_on ? byId.get(field.depends_on.field_id) : undefined;
+    return parent && !sameFiller(field, parent) ? { ...field, depends_on: null } : field;
+  });
+}
+
 /** Change a field's attributes. Editing a field clears its "needs a look" flag (§2.2). */
 export function updateField(draft: Draft, id: string, patch: FieldPatch): Draft {
   let next = mapField(draft, id, (field) => {
@@ -207,6 +230,7 @@ export function updateField(draft: Draft, id: string, patch: FieldPatch): Draft 
   });
   const field = next.fields.find((candidate) => candidate.id === id);
   if (field && !CONDITIONS.has(field.holds)) next = { ...next, fields: dropConditionsOn(next.fields, new Set([id])) };
+  if ("filled_by" in patch || "party_id" in patch) next = { ...next, fields: dropConditionsAcross(next.fields) };
   return next;
 }
 
@@ -412,12 +436,14 @@ export function removeParty(draft: Draft, id: string, fate: PartyFate): Draft {
   }
   return {
     parties,
-    fields: draft.fields.map((field) =>
-      theirs.has(field.id)
-        ? fate.kind === "move"
-          ? { ...field, party_id: fate.to, needs_review: null }
-          : { ...field, filled_by: "none" as const, party_id: null, needs_review: null }
-        : field,
+    fields: dropConditionsAcross(
+      draft.fields.map((field) =>
+        theirs.has(field.id)
+          ? fate.kind === "move"
+            ? { ...field, party_id: fate.to, needs_review: null }
+            : { ...field, filled_by: "none" as const, party_id: null, needs_review: null }
+          : field,
+      ),
     ),
   };
 }

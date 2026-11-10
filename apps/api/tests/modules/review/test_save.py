@@ -244,6 +244,18 @@ def test_malformed_sets_are_refused_naming_the_item(
 
     assert any(path.endswith(".depends_on") for path in refused(loop))
 
+    # A condition is on a field the same person fills: the sender's fee under the client's tick
+    # could not be asked of the sender in time, or ever.
+    def across(body: dict[str, Any]) -> None:
+        tick = _drawn("Tick", client_id, holds="checkbox", rect=[300, 300, 312, 312])
+        fee = _drawn("Fee", None, depends_on={"field_id": tick["id"], "option": "checked"})
+        mine = _drawn(
+            "Mine", client_id, y=400.0, depends_on={"field_id": tick["id"], "option": "checked"}
+        )
+        body["fields"] += [tick, fee, mine]  # "Mine" is the client's own: kept
+
+    assert refused(across) == {f"fields[{len(base['fields']) + 1}].depends_on"}
+
 
 def test_a_second_signature_of_a_party_becomes_more_places_of_the_first(
     owner: TestClient, run: Callable[..., None], detect: Callable[..., None]
