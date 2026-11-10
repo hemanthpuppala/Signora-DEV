@@ -208,6 +208,71 @@ describe("the send", () => {
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull(); // started at the details
   });
 
+  const toReview = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.type(await screen.findByLabelText("Effective date"), "2026-12-01");
+    await next();
+    await user.type(screen.getByLabelText("Name"), "Maya Chen");
+    await user.type(screen.getByLabelText("Email"), "maya@example.com");
+    await next();
+    await next();
+  };
+
+  it("says a setting's rule at its box and sends nothing until it is a number in range", async () => {
+    open({ initialDocumentId: "doc-1" });
+    const user = userEvent.setup();
+    await toReview(user);
+    const expiry = screen.getByLabelText<HTMLInputElement>("Expires after (days)");
+    await user.clear(expiry);
+    expect(expiry.value).toBe(""); // an empty box stays empty: it was sent as 0 days
+    await user.click(screen.getByRole("button", { name: "Send envelope" }));
+
+    expect(screen.getByText("Enter a whole number from 1 to 365")).toBeTruthy();
+    expect(expiry.closest("details")?.open).toBe(true); // the box with the problem is on show
+    expect(sent).toHaveLength(0);
+
+    await user.type(expiry, "400");
+    expect(screen.getByText("Enter a whole number from 1 to 365")).toBeTruthy();
+    await user.clear(expiry);
+    await user.type(expiry, "30");
+    expect(screen.queryByText("Enter a whole number from 1 to 365")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Send envelope" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.body).toMatchObject({ settings: { expiry_days: 30, max_reminders: 5, reminder_interval_hours: 24 } });
+  });
+
+  it("shows the server's word for any setting at its box", async () => {
+    answer = () =>
+      reply(422, {
+        type: "x",
+        title: "Some fields are invalid",
+        status: 422,
+        code: "validation-failed",
+        errors: [
+          { field: "settings.max_reminders", message: "Input should be less than or equal to 20" },
+          { field: "settings.expiry_days", message: "Input should be greater than or equal to 1" },
+        ],
+      });
+    open({ initialDocumentId: "doc-1" });
+    const user = userEvent.setup();
+    await toReview(user);
+    await user.click(screen.getByRole("button", { name: "Send envelope" }));
+
+    expect(await screen.findByText("Input should be less than or equal to 20")).toBeTruthy();
+    expect(screen.getByText("Input should be greater than or equal to 1")).toBeTruthy();
+    expect(screen.getByLabelText("Reminders at most").closest("details")?.open).toBe(true);
+  });
+
+  it("says when no party signs first, where the signers would be", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const path = new URL((input as Request).url).pathname;
+      return path.endsWith("/send-form") ? reply(200, { ...FORM, signers: [], fields: [] }) : reply(404, {});
+    });
+    open({ initialDocumentId: "doc-1" });
+    await screen.findByText("Nothing to fill in before sending.");
+    await next();
+    expect(screen.getByText("No party signs this template first, so nobody is emailed a link to sign.")).toBeTruthy();
+  });
+
   it("asks before sending one person as two parties", async () => {
     answer = () =>
       sent.length === 1
