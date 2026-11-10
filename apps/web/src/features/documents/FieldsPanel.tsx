@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Chip, ChipGroup, ExpandableList, ExpandableRow, Notice, SearchField, Section, SmallText } from "@/shared/ui";
+import { Chip, ChipGroup, ExpandableList, ExpandableRow, HeadAction, Notice, SearchField, Section, SmallText } from "@/shared/ui";
 
 import { HOLDS, toneOf, whoFills, type PartyRef, type VersionFields } from "./fields";
 import type { Selection } from "./FieldBoxes";
@@ -65,6 +65,7 @@ export function FieldsPanel({
   onFilter,
   editing,
   follow = true,
+  onEdit,
 }: {
   view: VersionFields;
   draft: Draft;
@@ -77,6 +78,9 @@ export function FieldsPanel({
   /** Bring the chosen field's row into view. Off when the list is under the document and the field
    * was chosen on the page (a phone): the person stays with the box they touched. */
   follow?: boolean;
+  /** Start editing an approved version's fields, from here: where the panel is under the document
+   * (a narrow screen) the action is in the panel's first title line, by what it edits. */
+  onEdit?: (() => void) | undefined;
 }) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -182,7 +186,12 @@ export function FieldsPanel({
           />
         </Section>
       ) : null}
-      <Section title="Who signs" info={WHO_SIGNS_HELP} collapsible>
+      <Section
+        title="Who signs"
+        info={WHO_SIGNS_HELP}
+        action={onEdit ? <HeadAction icon="edit" label="Edit fields" onClick={onEdit} /> : undefined}
+        collapsible
+      >
         <PartyList parties={draft.parties} fields={draft.fields} sender={sender} edit={editing ? editing.review.edit : null} />
       </Section>
       <Section title={`Fields · ${draft.fields.length}`} info={FIELDS_HELP} collapsible open={fieldsOpen} onOpenChange={setFieldsOpen}>

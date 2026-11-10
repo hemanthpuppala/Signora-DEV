@@ -114,7 +114,9 @@ type Pending = {
  *
  * On a narrow screen the panel is under the document (§5.1). A box chosen on the page keeps the
  * person there, to move it; its name is pinned over the pages with "Details", which goes to its
- * form. Placing brings the pages into view.
+ * form. Placing brings the pages into view. "Edit fields" is in the panel's first title line, by
+ * what it edits, where it takes no line of its own; the bar over the document is kept for what
+ * must stay in reach while working on it (Save, Undo, Approve).
  */
 export function ReviewLayout({
   document,
@@ -380,6 +382,7 @@ export function ReviewLayout({
             nextNumber={nextNumber}
             warnings={view.warnings}
             canEdit={canEdit}
+            editInPanel={!beside}
           />
         ) : null}
         <ViewerPane>
@@ -446,6 +449,7 @@ export function ReviewLayout({
               onFilter={setFilter}
               editing={panelEditing}
               follow={!stay}
+              onEdit={!beside && canEdit && review.approved && !editing ? review.startEditing : undefined}
             />
           ) : null}
             <Section title="Versions" info={VERSIONS_HELP} collapsible>

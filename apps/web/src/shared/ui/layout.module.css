@@ -290,6 +290,16 @@
   display: inline-flex;
 }
 
+/* A section's own action, at the end of its title line (before the chevron, when it has one). */
+.actionSlotEnd {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.actionSlotEnd + .chevron {
+  margin-left: 0;
+}
+
 .chevron {
   margin-left: auto;
   color: var(--t55);

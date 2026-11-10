@@ -24,12 +24,16 @@ export function ReviewActionBar({
   nextNumber,
   warnings,
   canEdit,
+  editInPanel = false,
 }: {
   review: Review;
   version: Version;
   nextNumber: number;
   warnings: readonly ReviewWarning[];
   canEdit: boolean;
+  /** "Edit fields" is in the panel, by what it edits (a narrow screen): not here, alone on a line
+   * over the document. */
+  editInPanel?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const { changes, editing, approved, inReview } = review;
@@ -55,7 +59,7 @@ export function ReviewActionBar({
       </>
     ) : review.canApprove ? (
       <HeadAction icon="check" label="Approve version" variant="primary" onClick={() => setConfirming(true)} />
-    ) : approved && !editing ? (
+    ) : approved && !editing && !editInPanel ? (
       <HeadAction icon="edit" label="Edit fields" onClick={review.startEditing} />
     ) : approved && editing ? (
       <HeadAction icon="close" label="Stop editing" onClick={review.stopEditing} />

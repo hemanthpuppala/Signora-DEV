@@ -593,5 +593,24 @@ describe("field review", () => {
       expect(scrolled).toHaveBeenCalled();
       expect(screen.queryByRole("status")).toBeNull();
     });
+
+    it("under the document, Edit fields is in the panel's title line, not on a line of its own above", async () => {
+      screenIs("(pointer: coarse)");
+      state = {
+        document: documentWith([version(1, { status: "approved", approved: APPROVAL, is_current: true })], {
+          current_version: { id: "v-1", number: 1 },
+        }),
+        fields: { "v-1": fieldsView({ status: "approved", warnings: [] }) },
+      };
+      open();
+      const user = userEvent.setup();
+      const who = await screen.findByRole("region", { name: "Who signs" });
+      expect(screen.queryByRole("region", { name: "Review" })).toBeNull(); // no bar for one button
+      await user.click(within(who).getByRole("button", { name: "Edit fields" }));
+      expect(within(who).getByText("Client")).toBeTruthy(); // pressing it never closes the section
+      expect(await screen.findByRole("button", { name: "Add field" })).toBeTruthy(); // editing
+      expect(within(who).queryByRole("button", { name: "Edit fields" })).toBeNull();
+      expect(within(bar()).getByRole("button", { name: "Stop editing" })).toBeTruthy(); // what stays in reach
+    });
   });
 });
