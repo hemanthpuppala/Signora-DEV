@@ -239,20 +239,34 @@
   }
 }
 
-/* Facts in one line (MetaLine): "● Sent · Nov 9 · expires Nov 23". */
+/* Facts in one line (MetaLine): "● Sent · Nov 9 · expires Nov 23". Every fact has its dot before
+   it, and the line is shifted left by one dot's room and clipped, so the dot that starts each
+   line (when it wraps on a phone) is hidden and only dots between facts show. */
 .metaLine {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.metaItems {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
-  min-width: 0;
+  row-gap: 4px;
+  margin-left: -20px;
   font-size: 13px;
   line-height: 1.5;
   color: var(--t60);
 }
 
-.metaLine > * + *::before {
-  margin-right: 10px;
+.metaItems > *::before {
+  display: inline-block;
+  width: 20px;
   color: var(--t30);
+  text-align: center;
   content: "·";
+}
+
+.metaItems > * {
+  display: inline-flex;
+  align-items: center;
 }

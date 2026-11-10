@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { ApiError, formError } from "@/shared/api/errors";
-import { ActionBar, Button, Dialog, Notice, TextButton } from "@/shared/ui";
+import { ActionBar, Button, Dialog, HeadAction, Notice, TextButton } from "@/shared/ui";
 
 import type { Version } from "../api";
 import type { Review } from "./useReview";
@@ -43,24 +43,22 @@ export function ReviewActionBar({
   const actions =
     !canEdit ? null : editing && changes > 0 ? (
       <>
-        <TextButton disabled={!review.canUndo} onClick={review.undo}>
-          Undo
-        </TextButton>
-        <TextButton onClick={review.discard}>Discard</TextButton>
-        <Button compact loading={review.saving} loadingLabel="Saving…" onClick={review.save}>
-          {approved ? `Save as version ${nextNumber}` : "Save"}
-        </Button>
+        <HeadAction icon="undo" label="Undo" disabled={!review.canUndo} onClick={review.undo} />
+        <HeadAction icon="discard" label="Discard" onClick={review.discard} />
+        <HeadAction
+          icon="save"
+          label={review.saving ? "Saving…" : approved ? `Save as version ${nextNumber}` : "Save"}
+          variant="primary"
+          disabled={review.saving}
+          onClick={review.save}
+        />
       </>
     ) : review.canApprove ? (
-      <Button compact onClick={() => setConfirming(true)}>
-        Approve version
-      </Button>
+      <HeadAction icon="check" label="Approve version" variant="primary" onClick={() => setConfirming(true)} />
     ) : approved && !editing ? (
-      <Button variant="quiet" compact onClick={review.startEditing}>
-        Edit fields
-      </Button>
+      <HeadAction icon="edit" label="Edit fields" onClick={review.startEditing} />
     ) : approved && editing ? (
-      <TextButton onClick={review.stopEditing}>Stop editing</TextButton>
+      <HeadAction icon="close" label="Stop editing" onClick={review.stopEditing} />
     ) : null;
 
   return (

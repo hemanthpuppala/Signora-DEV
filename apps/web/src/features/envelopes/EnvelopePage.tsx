@@ -12,6 +12,7 @@ import {
   Dialog,
   Disclosure,
   FactList,
+  HeadAction,
   HeadRow,
   Heading1,
   IconButton,
@@ -275,13 +276,9 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
               open ? (
                 <>
                   {waiting > 0 ? (
-                    <Button variant="quiet" compact loading={remind.isPending} loadingLabel="Reminding…" onClick={() => remind.mutate()}>
-                      Remind now
-                    </Button>
+                    <HeadAction icon="bell" label="Remind now" disabled={remind.isPending} onClick={() => remind.mutate()} />
                   ) : null}
-                  <Button variant="destructive" compact onClick={() => setConfirmCancel(true)}>
-                    Cancel envelope
-                  </Button>
+                  <HeadAction icon="cancel" label="Cancel envelope" variant="destructive" onClick={() => setConfirmCancel(true)} />
                 </>
               ) : null
             }

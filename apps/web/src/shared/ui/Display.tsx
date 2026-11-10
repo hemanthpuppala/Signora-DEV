@@ -176,7 +176,7 @@ export function Tabs({ items, label, actions }: { items: readonly TabItem[]; lab
 export function MetaLine({ children, label }: { children: ReactNode; label?: string }) {
   return (
     <div className={styles.metaLine} {...(label ? { role: "group", "aria-label": label } : {})}>
-      {children}
+      <div className={styles.metaItems}>{children}</div>
     </div>
   );
 }
