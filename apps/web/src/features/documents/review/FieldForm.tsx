@@ -196,65 +196,59 @@ export function FieldForm({
           <InfoTip label="places">{PLACES_HELP}</InfoTip>
         </div>
         <PlaceChips places={field.places} place={place} onPlace={onPlace} choice={field.holds === "choice"} />
-        <div className={styles.toolRow}>
-          <Button variant="quiet" compact icon="plus" onClick={() => editing.onAddPlace(field.id)}>
-            Add a place
-          </Button>
-          {current && editing.pages.length > 1 ? (
-            <Button variant="quiet" compact icon="pages" onClick={() => edit((draft) => onEveryPage(draft, current.id, editing.pages))}>
-              On every page
-            </Button>
+        {/* The places' actions and the chosen place's own moves: named icons on one line where
+            there is room, two short ones on a phone; never a line for each. */}
+        <div className={styles.placeTools}>
+          <div className={styles.adjust} role="group" aria-label="This field's places">
+            <IconButton icon="plus" label="Add a place" onClick={() => editing.onAddPlace(field.id)} />
+            {current && editing.pages.length > 1 ? (
+              <IconButton icon="pages" label="On every page" onClick={() => edit((draft) => onEveryPage(draft, current.id, editing.pages))} />
+            ) : null}
+            {current && field.places.length > 1 ? (
+              <>
+                <IconButton
+                  icon="split"
+                  label="Make separate field"
+                  onClick={() => {
+                    let made: string | null = null;
+                    edit((draft) => {
+                      const split = splitPlace(draft, current.id);
+                      made = split.fieldId;
+                      return split.draft;
+                    });
+                    if (made) onSelect({ kind: "field", id: made, place: 0 });
+                  }}
+                />
+                <IconButton
+                  icon="close"
+                  label="Remove place"
+                  onClick={() => {
+                    edit((draft) => deletePlace(draft, current.id));
+                    onPlace(Math.max(0, place - 1));
+                  }}
+                />
+              </>
+            ) : null}
+          </div>
+          {current ? (
+            // Dragging the box moves and sizes it; these do the same without a drag.
+            <div className={styles.adjust} role="group" aria-label="Move or resize this place">
+              {ADJUST.map(({ icon, label, move, scale }) => (
+                <IconButton
+                  key={icon}
+                  icon={icon}
+                  label={label}
+                  onClick={() =>
+                    // Moves share the arrow keys' undo step; resizes have their own.
+                    scale
+                      ? edit((draft) => resize(draft, current.id, scale, editing.pages), `resize:${current.id}`)
+                      : edit((draft) => nudge(draft, current.id, move[0], move[1], editing.pages), `nudge:${current.id}`)
+                  }
+                />
+              ))}
+            </div>
           ) : null}
         </div>
-        {current && field.places.length > 1 ? (
-          <div className={styles.toolRow} role="group" aria-label={`Place ${place + 1}`}>
-            <Button
-              variant="quiet"
-              compact
-              icon="split"
-              onClick={() => {
-                let made: string | null = null;
-                edit((draft) => {
-                  const split = splitPlace(draft, current.id);
-                  made = split.fieldId;
-                  return split.draft;
-                });
-                if (made) onSelect({ kind: "field", id: made, place: 0 });
-              }}
-            >
-              Make separate field
-            </Button>
-            <Button
-              variant="quiet"
-              compact
-              icon="close"
-              onClick={() => {
-                edit((draft) => deletePlace(draft, current.id));
-                onPlace(Math.max(0, place - 1));
-              }}
-            >
-              Remove place
-            </Button>
-          </div>
-        ) : null}
-        {current ? (
-          // Dragging the box moves and sizes it; this row does the same without a drag.
-          <div className={styles.adjust} role="group" aria-label="Move or resize this place">
-            {ADJUST.map(({ icon, label, move, scale }) => (
-              <IconButton
-                key={icon}
-                icon={icon}
-                label={label}
-                onClick={() =>
-                  // Moves share the arrow keys' undo step; resizes have their own.
-                  scale
-                    ? edit((draft) => resize(draft, current.id, scale, editing.pages), `resize:${current.id}`)
-                    : edit((draft) => nudge(draft, current.id, move[0], move[1], editing.pages), `nudge:${current.id}`)
-                }
-              />
-            ))}
-          </div>
-        ) : null}
       </section>
       <div className={styles.formEnd}>
         <Button variant="destructive" compact icon="trash" onClick={() => editing.onDeleteField(field.id)}>
