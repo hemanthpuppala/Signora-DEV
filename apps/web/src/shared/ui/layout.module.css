@@ -220,4 +220,23 @@
     min-height: 0;
   }
 
+  /* The details are a scroll area of their own, pinned and one screen tall like the viewer: the
+     page scrolls only what is above them (the title), and each side scrolls inside itself; at its
+     end a side hands the scroll to the page (shared/lib/scrollLatch keeps it from going back in). */
+  .viewerLayout > .details {
+    position: sticky;
+    top: calc(var(--topbar-height) + 16px);
+    height: calc(100dvh - var(--topbar-height) - 32px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    padding-right: 8px;
+    /* Rows brought into view stop under the action bar heading the column. */
+    scroll-padding-top: calc(var(--action-bar-height) + 12px);
+  }
+
+  /* The action bar heads the column while it scrolls: sticky to the column, not the page. */
+  .viewerLayout > .details > :first-child:is([role="region"]) {
+    top: 0;
+  }
 }
