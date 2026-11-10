@@ -9,8 +9,10 @@
   box-sizing: border-box;
 }
 
+/* What a scroll into view stops below: the sticky top bar (and an ActionBar, see
+   actionBar.module.css), so a row brought to the top is never under them. */
 html {
-  scroll-padding-top: env(safe-area-inset-top, 0px);
+  scroll-padding-top: calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 12px);
 }
 
 body {

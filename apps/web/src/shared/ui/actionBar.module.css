@@ -16,6 +16,11 @@
   background: var(--bg);
 }
 
+/* While a screen shows its action bar, a scroll into view stops below it too. */
+:global(html):has(.bar) {
+  scroll-padding-top: calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + var(--action-bar-height) + 12px);
+}
+
 .status {
   display: flex;
   flex-wrap: wrap;
