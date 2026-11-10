@@ -28,7 +28,9 @@ import {
 type Revised = { version_id: string; number: number; revision: number };
 export type SaveProblem = { message: string; items: { fieldId: string | null; message: string }[]; stale: boolean };
 
-/** "fields[3].places[0].rect" → the draft's fourth field (the body lists fields in draft order). */
+/** "fields[3].places[0].rect" → the fourth field of the draft that was sent (the body lists its
+ * fields in order). Read against that draft, never the one edited since: a field deleted after the
+ * refusal would shift every later error onto the wrong field. */
 export function problemOf(error: unknown, draft: Draft): SaveProblem | null {
   if (!error) return null;
   if (error instanceof ApiError && error.code === "fields-changed") {
@@ -90,6 +92,8 @@ export function useReview({
   const hold = (next: History): Held =>
     held ? { ...held, history: next } : { versionId: version.id, revision: view.revision, status: view.status, history: next };
   const [editingApproved, setEditingApproved] = useState<string | null>(null);
+  // The draft as it was last sent: a refused save names its fields by their place in that body.
+  const [sent, setSent] = useState<Draft | null>(null);
 
   const approved = version.status === "approved";
   const inReview = version.status === "ready" && view.status === "ready";
@@ -151,6 +155,7 @@ export function useReview({
   const save = () => {
     if (savedElsewhere) return; // the server would refuse it: the notice already says why
     const body = toFieldSet(history.present, held?.revision ?? view.revision);
+    setSent(history.present);
     if (approved) revise.run(body);
     else saveInPlace.mutate(body);
   };
@@ -175,7 +180,7 @@ export function useReview({
     discard,
     save,
     saving,
-    problem: savedElsewhere ? { message: SAVED_ELSEWHERE, items: [], stale: true } : problemOf(saveError, history.present),
+    problem: savedElsewhere ? { message: SAVED_ELSEWHERE, items: [], stale: true } : problemOf(saveError, sent ?? history.present),
     startEditing: () => setEditingApproved(version.id),
     stopEditing: () => {
       discard();

@@ -317,6 +317,52 @@ describe("field review", () => {
     expect(within(form).getByLabelText<HTMLInputElement>("Height").value).toBe("8"); // kept at the smallest size
   });
 
+  it("keeps a refused save's errors on the fields they were about, whatever is edited next", async () => {
+    // The errors name fields by their place in the body that was sent. Read against the draft as
+    // it is now, deleting an earlier field moved each one onto the wrong field, or onto none.
+    inReview();
+    answers["PUT /api/v1/documents/doc-1/versions/v-1/fields"] = () =>
+      reply(422, {
+        type: "x",
+        title: "Validation failed",
+        status: 422,
+        code: "validation-failed",
+        errors: [{ field: "fields[1].places[0].rect", message: "The box must stay on its page" }],
+      });
+    open();
+    const user = userEvent.setup();
+    await chooseField("Company");
+    await user.click(screen.getByLabelText("Required"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("button", { name: "Company: The box must stay on its page" })).toBeTruthy();
+
+    await chooseField("Client signature"); // the field before it
+    await user.click(screen.getByRole("button", { name: "Delete field" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete field" }));
+
+    expect(screen.getByRole("button", { name: "Company: The box must stay on its page" })).toBeTruthy();
+  });
+
+  it("gives each thing to check its own row, two about one field included", async () => {
+    // A box over two others is two warnings with one field: they had one React key.
+    inReview();
+    state.fields["v-1"] = fieldsView({
+      warnings: [
+        { code: "overlapping_places", message: "Company overlaps Client signature on page 2", field_id: "f-company" },
+        { code: "overlapping_places", message: "Company overlaps Date on page 2", field_id: "f-company" },
+      ],
+    });
+    const complaints = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      open();
+      const check = await screen.findByRole("list", { name: "Things to check" });
+      expect(within(check).getAllByRole("listitem")).toHaveLength(2);
+      expect(complaints.mock.calls.filter((call) => String(call[0]).includes("same key"))).toHaveLength(0);
+    } finally {
+      complaints.mockRestore();
+    }
+  });
+
   it("approves after listing the things to check, with the revision and the warnings seen", async () => {
     inReview();
     answers["POST /api/v1/documents/doc-1/versions/v-1/approve"] = () => {
