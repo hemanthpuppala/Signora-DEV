@@ -70,7 +70,7 @@ export function Versions({
 
   return (
     <>
-      <ItemList label="Versions" ordered>
+      <ItemList label="Versions" ordered visible={2}>
         {document.versions.map((version) => {
           const status = VERSION_STATUS[version.status];
           const pages = version.page_count === null ? null : `${version.page_count} ${version.page_count === 1 ? "page" : "pages"}`;
