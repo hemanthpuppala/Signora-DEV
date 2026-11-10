@@ -12,6 +12,8 @@ import type { Selection } from "../FieldBoxes";
 import {
   addParty,
   CONDITIONS,
+  conditionKey,
+  conditionOf,
   joinsOnSave,
   mayHold,
   OPTION_MAX,
@@ -45,13 +47,13 @@ function conditionOptions(field: DraftField, draft: Draft) {
   for (const other of draft.fields) {
     if (other.id === field.id || !CONDITIONS.has(other.holds)) continue;
     if (other.holds === "checkbox") {
-      options.push({ value: `${other.id}|checked`, label: `When “${other.label}” is ticked` });
+      options.push({ value: conditionKey({ field_id: other.id, option: "checked" }), label: `When “${other.label}” is ticked` });
       continue;
     }
     for (const place of other.places) {
       if (!place.option_value) continue;
       options.push({
-        value: `${other.id}|${place.option_value}`,
+        value: conditionKey({ field_id: other.id, option: place.option_value }),
         label: `When “${other.label}” is ${place.option_text ?? place.option_value}`,
       });
     }
@@ -120,7 +122,7 @@ export function FieldForm({
   const fillers = [...fillerOptions(draft.parties), { value: NEW_PARTY, label: "Someone else…" }];
   const conditions = conditionOptions(field, draft);
   const joined = joinsOnSave(draft, field, editing.shared);
-  const conditionValue = field.depends_on ? `${field.depends_on.field_id}|${field.depends_on.option}` : "";
+  const conditionValue = field.depends_on ? conditionKey(field.depends_on) : "";
   const privateByType = PRIVATE.has(field.holds);
 
   const setFiller = (value: string) => {
@@ -189,10 +191,7 @@ export function FieldForm({
           label="Asked"
           options={conditions}
           value={conditionValue}
-          onChange={(value) => {
-            const [fieldId = "", option = ""] = value.split("|");
-            change({ depends_on: value ? { field_id: fieldId, option } : null });
-          }}
+          onChange={(value) => change({ depends_on: conditionOf(value) })}
         />
       ) : null}
       {field.holds === "choice" ? (

@@ -314,6 +314,17 @@ export function deletePlace(draft: Draft, placeId: string): Draft {
   }));
 }
 
+type Condition = NonNullable<DraftField["depends_on"]>;
+
+/** A condition as one text (a select's value): the field's id, then the option, which may hold any character. */
+export const conditionKey = (condition: Condition): string => `${condition.field_id}|${condition.option}`;
+
+/** The condition a key stands for: cut at the first bar only, since an id has none and an option may. */
+export function conditionOf(key: string): Condition | null {
+  const at = key.indexOf("|");
+  return at < 0 ? null : { field_id: key.slice(0, at), option: key.slice(at + 1) };
+}
+
 /**
  * The field this one joins when saved, if any (the server's editing.settle): a party gives a
  * shared value (a signature, initials, a signing date, a name) once, however many places ask for

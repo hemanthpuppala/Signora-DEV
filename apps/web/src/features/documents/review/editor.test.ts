@@ -17,6 +17,8 @@ import {
   nudge,
   onEveryPage,
   redo,
+  conditionKey,
+  conditionOf,
   joinsOnSave,
   mayHold,
   removeParty,
@@ -176,6 +178,15 @@ describe("the review editor", () => {
     expect(joinsOnSave(other, other.fields.find((f) => f.id === made.id)!, SHARED)).toBeNull();
     const retyped = updateField(split.draft, made.id, { holds: "text" });
     expect(joinsOnSave(retyped, retyped.fields.find((f) => f.id === made.id)!, SHARED)).toBeNull();
+  });
+
+  it("reads a condition back exactly as it was written, whatever its option holds", () => {
+    // A grouped checkbox's option is named by its own words: "Monthly | Quarterly" was cut at its
+    // bar, so the condition named no option and the save was refused.
+    const condition = { field_id: "0b9c1d1e-plan", option: "Monthly | Quarterly" };
+    expect(conditionOf(conditionKey(condition))).toEqual(condition);
+    expect(conditionOf(conditionKey({ field_id: "f", option: "checked" }))).toEqual({ field_id: "f", option: "checked" });
+    expect(conditionOf("")).toBeNull(); // "Always asked"
   });
 
   it("deleting a choice drops the conditions on it", () => {
