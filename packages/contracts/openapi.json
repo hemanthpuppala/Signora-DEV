@@ -467,7 +467,7 @@
             "type": "string"
           },
           "option": {
-            "maxLength": 200,
+            "maxLength": 400,
             "minLength": 1,
             "title": "Option",
             "type": "string"
@@ -1692,7 +1692,7 @@
           "option_text": {
             "anyOf": [
               {
-                "maxLength": 200,
+                "maxLength": 400,
                 "type": "string"
               },
               {
@@ -1704,7 +1704,7 @@
           "option_value": {
             "anyOf": [
               {
-                "maxLength": 200,
+                "maxLength": 400,
                 "type": "string"
               },
               {

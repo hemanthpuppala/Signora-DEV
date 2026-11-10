@@ -21,11 +21,10 @@ from signora.modules.detection.geometry import Box
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
 from signora.modules.detection.schema import ALLOWED
 from signora.modules.review.keys import name_words, unique
-from signora.modules.review.values import OWN, PARTY_VALUES, SENSITIVE, SHARED
+from signora.modules.review.values import LABEL_MAX, OWN, PARTY_VALUES, SENSITIVE, SHARED
 
 NAME_MAX = 120
 DESCRIPTION_MAX = 300
-LABEL_MAX = 120
 TOKEN = re.compile(r"\{(f\d+)(?:=[^{}]*)?\}")
 # Links and scripts in what the AI writes (§3.5): personal data is a later feature (Presidio).
 UNSAFE_TEXT = re.compile(
@@ -390,7 +389,7 @@ def derive(
             notes.append(f"checkbox group {group['label']!r} not used")
             continue
         for member in members:
-            items[member].group, items[member].group_label = number, group["label"]
+            items[member].group, items[member].group_label = number, group["label"][:LABEL_MAX]
 
     fields = _keyed(items)
     # Roles in signing order: signers by where they first appear, then countersigners (§4.5).

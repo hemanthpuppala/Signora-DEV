@@ -21,7 +21,7 @@ from signora.modules.review.fieldset import (
     PlaceIn,
 )
 from signora.modules.review.keys import name_words, slug, unique
-from signora.modules.review.values import MANUAL_ALLOWED, PARTY_VALUES, SENSITIVE, SHARED
+from signora.modules.review.values import PARTY_VALUES, SENSITIVE, SHARED, may_hold
 from signora.modules.review.views import option_words
 
 EDGE_TOLERANCE = 0.5  # points: a box may touch its page's edge
@@ -133,7 +133,7 @@ def check(
                 )
             if before is None and place.kind != "blank":
                 errors.append(FieldError(f"{where}.kind", "A new box is drawn (blank)"))
-            if item.holds not in MANUAL_ALLOWED[place.kind]:
+            if not may_hold(place.kind, item.holds, is_option=place.option_value is not None):
                 errors.append(FieldError(f"{at}.holds", f"A {place.kind} box cannot hold this"))
             errors.extend(_check_place(where, place.page, place.rect, before, pages))
     errors.extend(_check_loops(fieldset.fields))

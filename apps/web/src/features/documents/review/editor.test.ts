@@ -17,6 +17,7 @@ import {
   nudge,
   onEveryPage,
   redo,
+  mayHold,
   removeParty,
   setOptionText,
   setRect,
@@ -146,6 +147,17 @@ describe("the review editor", () => {
     expect(draft.fields[1]?.places).toHaveLength(1);
     draft = deletePlace(draft, draft.fields[1]?.places[0]?.id ?? "");
     expect(draft.fields.map((f) => f.id)).not.toContain("card"); // its last place took the field
+  });
+
+  it("lets a place hold what its kind allows, and a grouped checkbox its choice", () => {
+    // The server's rule (review.values.may_hold): detection groups a PDF's checkboxes into one
+    // choice, each standing for an option. The type list offered such a field only "Checkbox".
+    const allowed = { checkbox: ["checkbox"], text: ["text", "date"] };
+    expect(mayHold(allowed, { kind: "checkbox", option_value: "Individual" }, "choice")).toBe(true);
+    expect(mayHold(allowed, { kind: "checkbox", option_value: null }, "choice")).toBe(false);
+    expect(mayHold(allowed, { kind: "checkbox", option_value: null }, "checkbox")).toBe(true);
+    expect(mayHold(allowed, { kind: "text", option_value: null }, "date")).toBe(true);
+    expect(mayHold(allowed, { kind: "radio", option_value: "Gold" }, "choice")).toBe(false); // not in this map
   });
 
   it("deleting a choice drops the conditions on it", () => {

@@ -72,6 +72,22 @@ export function defaultSize(holds: Holds): [number, number] {
   }
 }
 
+/** The most characters of an option's words (the server's review.values.OPTION_MAX). */
+export const OPTION_MAX = 400;
+
+/**
+ * Whether a place may belong to a field of this type (the server's review.values.may_hold): what
+ * its kind allows, and a PDF's checkbox that stands for an option (detection grouped it with
+ * others into one choice) holds that choice.
+ */
+export function mayHold(
+  allowed: Readonly<Record<string, readonly string[] | undefined>>,
+  place: Pick<DraftPlace, "kind" | "option_value">,
+  holds: string,
+): boolean {
+  return (allowed[place.kind]?.includes(holds) ?? false) || (place.kind === "checkbox" && holds === "choice" && place.option_value !== null);
+}
+
 export const newId = (): string => crypto.randomUUID();
 
 // --- from the API and back --------------------------------------------------------------------

@@ -12,6 +12,8 @@ import type { Selection } from "../FieldBoxes";
 import {
   addParty,
   CONDITIONS,
+  mayHold,
+  OPTION_MAX,
   onEveryPage,
   PRIVATE,
   setOptionText,
@@ -85,10 +87,9 @@ export function FieldForm({
   const change = (patch: Parameters<typeof updateField>[2], merge?: string) =>
     edit((draft) => updateField(draft, field.id, patch), merge);
 
-  const kinds = new Set(field.places.map((p) => p.kind));
   const allowed = HOLD_GROUPS.flatMap((group) =>
     group.holds
-      .filter((holds) => [...kinds].every((kind) => editing.allowed[kind]?.includes(holds)))
+      .filter((holds) => field.places.every((place) => mayHold(editing.allowed, place, holds)))
       .map((holds) => ({ value: holds, label: `${HOLDS[holds]} · ${group.label}` })),
   );
   const fillers = [...fillerOptions(draft.parties), { value: NEW_PARTY, label: "Someone else…" }];
@@ -172,7 +173,7 @@ export function FieldForm({
             <TextField
               key={option.id}
               label={`Option ${index + 1}`}
-              maxLength={200}
+              maxLength={OPTION_MAX}
               value={option.option_text ?? option.option_value ?? ""}
               onChange={(event) => {
                 const text = event.target.value;
