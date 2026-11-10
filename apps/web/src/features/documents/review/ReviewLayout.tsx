@@ -432,7 +432,7 @@ export function ReviewLayout({
               editing={panelEditing}
             />
           ) : null}
-            <Section title="Versions" info={VERSIONS_HELP}>
+            <Section title="Versions" info={VERSIONS_HELP} collapsible>
             <Versions
               document={document}
               viewing={version.id}

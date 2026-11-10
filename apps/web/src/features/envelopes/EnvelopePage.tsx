@@ -10,7 +10,6 @@ import {
   Button,
   DetailsPane,
   Dialog,
-  Disclosure,
   FactList,
   HeadAction,
   HeadRow,
@@ -287,7 +286,7 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
             const people = data.recipients.filter((r) => r.kind === group.kind);
             if (people.length === 0) return null;
             return (
-              <Disclosure key={group.kind} title={group.title} count={people.length}>
+              <Section key={group.kind} title={group.title} count={people.length} collapsible>
                 <ItemList label={group.title} ordered={group.kind !== "copy"} cards visible={2}>
                   {people.map((recipient) =>
                     editing === recipient.id ? (
@@ -342,12 +341,12 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
                     ),
                   )}
                 </ItemList>
-              </Disclosure>
+              </Section>
             );
           })}
           {resend.error ?? remindOne.error ? <Notice tone="warning">{formError(resend.error ?? remindOne.error)}</Notice> : null}
 
-          <Section title="Settings">
+          <Section title="Settings" collapsible>
             <FactList
               label="Settings"
               facts={[
@@ -361,7 +360,7 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
             />
           </Section>
 
-          <Disclosure title="Timeline" count={data.timeline.length}>
+          <Section title="Timeline" count={data.timeline.length} collapsible>
             <div className={styles.timelineScroll}>
               <ol className={styles.timeline} aria-label="Timeline">
                 {data.timeline.map((entry, index) => (
@@ -375,7 +374,7 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
                 ))}
               </ol>
             </div>
-          </Disclosure>
+          </Section>
         </DetailsPane>
       </ViewerLayout>
 

@@ -7,7 +7,6 @@ import {
   ActionBar,
   Button,
   ClampedText,
-  Disclosure,
   DocumentCard,
   DocumentGrid,
   EmailField,
@@ -16,6 +15,7 @@ import {
   IconButton,
   InfoTip,
   SearchField,
+  Section,
   StepDialog,
   Select,
   StatusPill,
@@ -396,16 +396,18 @@ describe("DocumentCard, choosing", () => {
   });
 });
 
-describe("Disclosure", () => {
-  it("opens and closes its group from its title line, which says how many it holds", async () => {
+describe("Section, collapsible", () => {
+  it("opens and closes from its title line, which says how many it holds; its ? does not", async () => {
     render(
-      <Disclosure title="Signers" count={3}>
+      <Section title="Signers" count={3} info="Who signs, in order." collapsible>
         <p>Maya Chen</p>
-      </Disclosure>,
+      </Section>,
     );
     const group = screen.getByText("Signers").closest("details") as HTMLDetailsElement;
     expect(group.open).toBe(true);
     expect(screen.getByText("3")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "About Signers" }));
+    expect(group.open).toBe(true); // the ? explains, it does not close
     await userEvent.click(screen.getByText("Signers"));
     expect(group.open).toBe(false);
   });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { FormHTMLAttributes, ReactNode } from "react";
 
+import { Icon } from "./Icon";
 import { InfoTip } from "./InfoTip";
 import styles from "./layout.module.css";
 import { Eyebrow } from "./Typography";
@@ -100,19 +101,56 @@ export function DetailsPane({ children }: { children: ReactNode }) {
   return <div className={styles.details}>{children}</div>;
 }
 
-/** A titled block of a console page (prototype .section); ``info`` adds a "?" that explains it. */
-export function Section({ title, info, children }: { title: string; info?: ReactNode; children: ReactNode }) {
+/**
+ * A titled block of a console page (prototype .section); ``info`` adds a "?" that explains it.
+ * ``collapsible``: its title line opens and closes it in place (a native ``<details>``, so it
+ * works by keyboard and is announced as expanded or collapsed), with ``count`` beside the title
+ * and a chevron at the end; open to begin with unless ``defaultOpen`` is false.
+ */
+export function Section({
+  title,
+  info,
+  count,
+  collapsible = false,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  info?: ReactNode;
+  count?: number | undefined;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const heading = (
+    <>
+      <Eyebrow>{title}</Eyebrow>
+      {count !== undefined ? <span className={styles.count}>{count}</span> : null}
+      {info ? (
+        // Its "?" explains the section without opening or closing it.
+        <span className={styles.infoSlot} onClick={(event) => event.preventDefault()}>
+          <InfoTip label={title}>{info}</InfoTip>
+        </span>
+      ) : null}
+    </>
+  );
+  if (!collapsible) {
+    return (
+      <section className={styles.section} aria-label={title}>
+        {info || count !== undefined ? <div className={styles.sectionTitle}>{heading}</div> : <Eyebrow>{title}</Eyebrow>}
+        {children}
+      </section>
+    );
+  }
   return (
     <section className={styles.section} aria-label={title}>
-      {info ? (
-        <div className={styles.sectionTitle}>
-          <Eyebrow>{title}</Eyebrow>
-          <InfoTip label={title}>{info}</InfoTip>
-        </div>
-      ) : (
-        <Eyebrow>{title}</Eyebrow>
-      )}
-      {children}
+      <details className={styles.collapse} open={defaultOpen}>
+        <summary className={styles.summary}>
+          {heading}
+          <Icon name="chevron" size={14} className={styles.chevron} />
+        </summary>
+        <div className={styles.sectionBody}>{children}</div>
+      </details>
     </section>
   );
 }

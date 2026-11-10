@@ -120,7 +120,7 @@ export function FieldsPanel({
   if (view.status === "detecting") {
     const step = STEP_OF_STAGE[view.stage ?? "read"] ?? 0;
     return (
-      <Section title="Fields">
+      <Section title="Fields" collapsible>
         <ol className={styles.steps} aria-label="Finding fields">
           {STEPS.map((label, index) => (
             <li key={label} className={index < step ? styles.done : index === step ? styles.running : styles.next}>
@@ -157,7 +157,7 @@ export function FieldsPanel({
   return (
     <>
       {inReview && view.warnings.length > 0 ? (
-        <Section title="Things to check" info={THINGS_TO_CHECK_HELP}>
+        <Section title="Things to check" info={THINGS_TO_CHECK_HELP} collapsible>
           <ThingsToCheck
             warnings={view.warnings}
             stale={(editing?.review.changes ?? 0) > 0}
@@ -170,10 +170,10 @@ export function FieldsPanel({
           />
         </Section>
       ) : null}
-      <Section title="Who signs" info={WHO_SIGNS_HELP}>
+      <Section title="Who signs" info={WHO_SIGNS_HELP} collapsible>
         <PartyList parties={draft.parties} fields={draft.fields} sender={sender} edit={editing ? editing.review.edit : null} />
       </Section>
-      <Section title={`Fields · ${draft.fields.length}`} info={FIELDS_HELP}>
+      <Section title={`Fields · ${draft.fields.length}`} info={FIELDS_HELP} collapsible>
         {view.flags.no_fields && draft.fields.length === 0 ? (
           <Notice>{editing ? "We couldn't find places to fill or sign. Add them below." : "We couldn't find places to fill or sign."}</Notice>
         ) : null}

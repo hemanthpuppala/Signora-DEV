@@ -227,7 +227,7 @@ export function DocumentPage({
         <ViewerLayout>
           <ViewerPane>{progress}</ViewerPane>
           <DetailsPane>
-            <Section title="Versions">
+            <Section title="Versions" collapsible>
               <Versions document={data} viewing={shownId} onOpen={setViewing} canEdit={canEdit} />
             </Section>
           </DetailsPane>

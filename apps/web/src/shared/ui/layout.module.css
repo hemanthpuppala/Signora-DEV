@@ -240,3 +240,71 @@
     top: 0;
   }
 }
+
+/* A section that opens and closes (Section collapsible): its title line, then what it holds. */
+.collapse {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  list-style: none; /* no browser marker: the chevron says it */
+  cursor: pointer;
+  user-select: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 4px;
+}
+
+.summary > p {
+  margin: 0;
+  transition: color 0.15s;
+}
+
+.summary:hover > p {
+  color: var(--ink);
+}
+
+.count {
+  font: 400 11px/1 var(--mono);
+  color: var(--t55);
+}
+
+.infoSlot {
+  display: inline-flex;
+}
+
+.chevron {
+  margin-left: auto;
+  color: var(--t55);
+  transform: rotate(90deg); /* open: pointing down */
+  transition: transform 0.15s ease-out;
+}
+
+.collapse:not([open]) .chevron {
+  transform: none; /* closed: pointing right */
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
