@@ -64,6 +64,40 @@ describe("a wheel gesture stays with what it began on, and stops at its end", ()
     expect(event.defaultPrevented).toBe(false); // the viewer under the pointer decides
   });
 
+  it("leaves shift+wheel alone: the browser scrolls a wide table sideways", () => {
+    // Browsers report it as an up-and-down delta with Shift held; taken as a scroll, the table
+    // stayed where it was and the page moved instead.
+    const list = scrollingList();
+    const event = wheel(list, 40, 1000, 10, 10, { shiftKey: true });
+    expect(list.scrollBy).not.toHaveBeenCalled();
+    expect(page).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("never moves the page while a modal dialog holds it still", () => {
+    document.documentElement.style.overflowY = "hidden"; // globals.css: html:has(dialog:modal)
+    try {
+      const event = wheel(document.body, 40, 1000);
+      expect(page).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(true); // nor does the browser move anything else
+    } finally {
+      document.documentElement.style.overflowY = "";
+    }
+  });
+
+  it("what is shown over the page is not held by the areas behind it", () => {
+    // A dialog opened from inside a scrolling column: a wheel over it is the page's, never the
+    // column's, which is behind it.
+    const column = scrollingList();
+    const dialog = document.createElement("dialog");
+    // The test DOM has no top layer: this dialog says it is a modal one.
+    dialog.matches = ((selectors: string) => selectors.includes(":modal")) as HTMLDialogElement["matches"];
+    column.append(dialog);
+    wheel(dialog, 40, 1000);
+    expect(column.scrollBy).not.toHaveBeenCalled();
+    expect(page).toHaveBeenCalledWith({ top: 40 });
+  });
+
   it("moving the pointer starts a new gesture; content sliding under a still pointer does not", () => {
     const list = scrollingList();
     wheel(document.body, 40, 1000, 10, 10);

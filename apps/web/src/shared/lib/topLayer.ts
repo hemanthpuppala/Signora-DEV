@@ -13,3 +13,11 @@ const browserHasPopover = () => "showPopover" in HTMLElement.prototype;
 export function useTopLayer(): boolean {
   return useSyncExternalStore(noSubscription, browserHasPopover, () => false);
 }
+
+/**
+ * Whether an element is shown in the top layer: a modal dialog or an open popover. It sits over
+ * the page, not in it, so what scrolls around its place in the document does not hold it.
+ */
+export function inTopLayer(element: Element): boolean {
+  return element.matches(browserHasPopover() ? ":modal, :popover-open" : ":modal");
+}

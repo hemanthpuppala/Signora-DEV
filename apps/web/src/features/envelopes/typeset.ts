@@ -13,7 +13,8 @@ export type FitRule = {
   align: "left" | "center";
 };
 
-const MONTHS = [
+/** The months by name, in order: the one list for the month picker and a written date. */
+export const MONTHS = [
   "January",
   "February",
   "March",
@@ -76,12 +77,42 @@ export function written(holds: string, value: string, format: string | null): st
   }
 }
 
+export const NUMBER_MAX_DIGITS = 28;
+const NUMBERS = new Set(["number", "currency", "percent"]);
+// A sign, digits (commas between them are grouping), a decimal point: the digits 0-9 only.
+const NUMBER = /^([+-]?)([0-9][0-9,]*)?(?:\.([0-9]*))?$/;
+
+/**
+ * A typed number, amount or percentage as the server keeps it, or why the server refuses it, in
+ * its words (review.formats.check_value; the two run the same examples,
+ * packages/contracts/vectors/numbers.json). Kept without grouping or leading zeros, with a decimal
+ * part only when it says something. O(len(typed)).
+ */
+export function number(holds: string, typed: string): { kept: string } | { refused: string } {
+  const text = holds === "percent" ? typed.trim().replace(/%$/, "").trimEnd() : typed.trim();
+  const match = NUMBER.exec(text);
+  const digits = (match?.[2] ?? "").replaceAll(",", "");
+  const decimals = match?.[3] ?? "";
+  if (!match || digits + decimals === "") return { refused: "Enter a number" };
+  if ((digits + decimals).length > NUMBER_MAX_DIGITS) return { refused: `Use ${NUMBER_MAX_DIGITS} or fewer digits` };
+  const whole = digits.replace(/^0+/, "") || "0";
+  const part = /[1-9]/.test(decimals) ? decimals : "";
+  const negative = match[1] === "-" && !(whole === "0" && part === "");
+  const over = whole.length > 3 || (whole.length === 3 && whole > "100") || (whole === "100" && part !== "");
+  if (holds === "percent" && (negative || over)) return { refused: "Enter a percentage from 0 to 100" };
+  return { kept: `${negative ? "-" : ""}${whole}${part ? `.${part}` : ""}` };
+}
+
 /**
  * A typed value as the server keeps it (review.formats.check_value), where that changes what is
- * drawn: a year typed in two digits is kept whole, in today's century. Everything else is drawn as
- * typed.
+ * drawn: a year typed in two digits is kept whole, in today's century; a number is kept canonical
+ * (``number``). Everything else, and a value the server would refuse, is drawn as typed.
  */
 export function kept(holds: string, value: string): string {
+  if (NUMBERS.has(holds)) {
+    const judged = number(holds, value);
+    return "kept" in judged ? judged.kept : value;
+  }
   if (holds !== "year" || !/^\d{2}$/.test(value)) return value;
   return String(Math.floor(new Date().getUTCFullYear() / 100) * 100 + Number(value));
 }

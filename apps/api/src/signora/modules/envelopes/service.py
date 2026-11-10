@@ -19,7 +19,7 @@ from signora.kernel.errors import FieldError, NotFound, ValidationFailed
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, list_countersigners, load_access
-from signora.modules.documents import VersionNotApproved, version_for_review
+from signora.modules.documents import VersionForReview, VersionNotApproved, version_for_review
 from signora.modules.envelopes import emails, store
 from signora.modules.envelopes.document import EnvelopeDocument, build_document
 from signora.modules.envelopes.errors import (
@@ -43,6 +43,13 @@ def send_form(
 ) -> SendForm:
     """What sending this version asks (§2), for someone with edit access; only an approved version
     is sent (platform FR-16)."""
+    return _sendable(session, actor, document_id, version_id)[1]
+
+
+def _sendable(
+    session: Session, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+) -> tuple[VersionForReview, SendForm]:
+    """The approved version and its send form, from one read of the version."""
     version = version_for_review(session, actor, document_id, version_id, edit=True)
     if version.status != "approved":
         raise VersionNotApproved
@@ -52,7 +59,7 @@ def send_form(
         Colleague(user_id=person.id, name=person.name, email=person.email)
         for person in list_countersigners(session, actor.workspace_id, version.department_id)
     ]
-    return build_form(
+    form = build_form(
         document_id=document_id,
         document_name=version.document_name,
         version_id=version_id,
@@ -69,6 +76,7 @@ def send_form(
             notify_emails=list(department.notify_emails),
         ),
     )
+    return version, form
 
 
 # --- sending -------------------------------------------------------------------------------------
@@ -165,8 +173,7 @@ def send(
     transaction, every signer emailed their own link (the emails are queued, so a failure never
     undoes the send); countersigners wait for every signer (§3)."""
     session = uow.session
-    form = send_form(session, actor, document_id, request.version_id)
-    version = version_for_review(session, actor, document_id, request.version_id, edit=True)
+    version, form = _sendable(session, actor, document_id, request.version_id)
     plan = plan_send(
         form,
         request,

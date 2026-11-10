@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import vectors from "../../../../../packages/contracts/vectors/date-formats.json";
+import numbers from "../../../../../packages/contracts/vectors/numbers.json";
 
-import { fitsEverywhere, kept, MEASURED_AT, written } from "./typeset";
+import { fitsEverywhere, kept, MEASURED_AT, number, written } from "./typeset";
 
 const DATE_TYPES = new Set(["date", "date_signed", "date_of_birth", "day", "month", "year"]);
 
@@ -44,5 +45,17 @@ describe("a value's width", () => {
     expect(fitsEverywhere("AV", [{ rect: [0, 0, 9, 12], text_size: 10 }], face, rule)).toBe(true);
     expect(measured).toEqual(["A", "V"]); // each character once, however often it is asked
     canvas.mockRestore();
+  });
+});
+
+describe("a typed number is kept as the server keeps it (the server runs the same examples)", () => {
+  it.each(numbers.kept)("$holds $typed is kept as $kept", ({ holds, typed, kept: canonical }) => {
+    expect(number(holds, typed)).toEqual({ kept: canonical });
+    expect(kept(holds, typed)).toBe(canonical); // what the preview draws and measures
+  });
+
+  it.each(numbers.refused)("$holds $typed is refused: $message", ({ holds, typed, message }) => {
+    expect(number(holds, typed)).toEqual({ refused: message });
+    expect(kept(holds, typed)).toBe(typed); // drawn as typed; the box says why
   });
 });

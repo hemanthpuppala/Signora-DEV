@@ -9,7 +9,14 @@
  *   never takes it over.
  * - A gesture ends with a pause, or when the person moves the pointer. Content sliding under a
  *   still pointer is not a move.
+ *
+ * Only an up-and-down scroll is taken. A pinch or Ctrl/Cmd+wheel (the viewer's zoom), a sideways
+ * gesture and Shift+wheel (the browser's sideways scroll of a wide table or a zoomed page) are
+ * left to the browser. What is shown over the page (a modal dialog, an open list) is not held by
+ * the areas behind it, and the page itself does not move while a modal dialog holds it still.
  */
+
+import { inTopLayer } from "./topLayer";
 
 const GESTURE_GAP_MS = 200; // wheel events closer than this are one gesture
 const LINE_PX = 16;
@@ -26,6 +33,7 @@ const scrollsY = (el: Element) => {
 export function canMove(scroller: Scroller, deltaY: number): boolean {
   if (scroller === window) {
     const page = document.documentElement;
+    if (getComputedStyle(page).overflowY === "hidden") return false; // held still behind a modal dialog (globals.css)
     return deltaY > 0 ? window.scrollY + window.innerHeight < page.scrollHeight - 1 : window.scrollY > 0;
   }
   const el = scroller as Element;
@@ -33,10 +41,11 @@ export function canMove(scroller: Scroller, deltaY: number): boolean {
 }
 
 /** Where a gesture beginning on ``target`` goes: the innermost scroll area holding it with room to
- * move that way, else the page. */
+ * move that way, else the page. The search stops at what is shown over the page. */
 export function scrollerFor(target: EventTarget | null, deltaY: number): Scroller {
   for (let el = target instanceof Element ? target : null; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
     if (scrollsY(el) && canMove(el, deltaY)) return el;
+    if (inTopLayer(el)) break; // over the page, not in it: the areas behind it never take its scroll
   }
   return window;
 }
@@ -53,6 +62,7 @@ export function latchWheel(): () => void {
 
   const onWheel = (event: WheelEvent) => {
     if (event.ctrlKey || event.metaKey) return; // a pinch, or ctrl/cmd+wheel: the viewer's zoom, never a scroll
+    if (event.shiftKey) return; // shift+wheel: the browser's sideways scroll, reported as an up-and-down delta
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return; // sideways: left alone
     if (event.timeStamp - last > GESTURE_GAP_MS) latched = null;
     last = event.timeStamp;

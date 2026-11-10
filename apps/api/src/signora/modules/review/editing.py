@@ -160,6 +160,11 @@ def _check_dependency(
         return [FieldError(f"{at}.depends_on", "Only a choice or a checkbox can be a condition")]
     if item.depends_on.option not in options:
         return [FieldError(f"{at}.depends_on", "That option is not one of the field's")]
+    if (item.filled_by, item.party_id) != (target.filled_by, target.party_id):
+        # Whoever fills a field must be the one who answers what it depends on: otherwise the
+        # answer comes after they have filled in their part, or never, and nobody can say
+        # whether the field is asked.
+        return [FieldError(f"{at}.depends_on", "Choose a field the same person fills")]
     return []
 
 

@@ -118,7 +118,7 @@ def test_dependencies_that_loop_are_broken_and_flagged() -> None:
     on_consent = {"id": "f10", "option": "checked"}
     answer = _answer(
         [
-            _field("f10", "checkbox", "party_1", "Consent", depends_on=on_fee),
+            _field("f10", "checkbox", "sender", "Consent", depends_on=on_fee),
             _field("f11", "choice", "sender", "Fee basis", depends_on=on_consent),
         ]
     )
@@ -130,6 +130,34 @@ def test_dependencies_that_loop_are_broken_and_flagged() -> None:
     cut = fee if linked == [consent] else consent
     assert cut.needs_review is not None and "loop" in cut.needs_review
     assert linked[0].depends_on is not None and linked[0].depends_on.key == cut.key
+
+
+def test_a_condition_on_a_field_someone_else_fills_is_dropped_and_flagged() -> None:
+    """Whoever fills a field must be the one who answers what it depends on: the sender's fee
+    under a party's tick could never be asked of the sender in time. Review refuses such a
+    condition, so a proposal never carries one."""
+    reading, document = _open(forms.all_types())
+    answer = _answer(
+        [
+            _field("f10", "checkbox", "party_1", "Consent"),
+            _field(
+                "f11",
+                "choice",
+                "sender",
+                "Fee basis",
+                depends_on={"id": "f10", "option": "checked"},
+            ),
+            _field(
+                "f12", "text", "party_1", "Notes", depends_on={"id": "f10", "option": "checked"}
+            ),
+        ]
+    )
+    result = derive(reading, answer, document, problems=[], repaired=False)
+    by_label = {f.label: f for f in result.fields}
+    fee, notes = by_label["Fee basis"], by_label["Notes"]
+    assert fee.depends_on is None
+    assert fee.needs_review is not None and "someone else fills" in fee.needs_review
+    assert notes.depends_on is not None and notes.needs_review is None  # the same party: kept
 
 
 def test_every_check_finds_its_problem() -> None:

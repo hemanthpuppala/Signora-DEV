@@ -268,8 +268,11 @@ envelope_values
 - The same email on two parties is refused unless they are the same person by intent: one person holding two
   parties is allowed only when `confirm_same_person` lists both (§15 open question; default refuse).
 - Countersigners: every countersigner party exactly once; an active member of the company.
+- Copies: name 1–120 after trimming; email valid.
 - Values: optional for every field, except as §15.2 decides for required "Filled in before sending" fields;
   signature, initials and signing dates refused; each value valid for its type (§11.3); unknown fields refused.
+- Conditions: a field is asked only when the field it depends on is itself asked and holds the option. Only what
+  is asked is kept and judged; a value left in a field that is not asked is dropped, never a reason to refuse.
 - Settings within the department's ranges (§4); title 1–120.
 
 ## 11. Algorithms and complexity
@@ -279,7 +282,7 @@ R parties, F fields, V sender values.
 | Step | Approach | Cost |
 |---|---|---|
 | Send form | one read of the version's parties and fields (review's `read_set`), group by `filled_by`; conditions resolved against the chosen options | O(R + F) |
-| Validate a send | maps by party and field id, one pass; type checks per value (§11.3) | O(R + V) |
+| Validate a send | maps by party and field id, one pass; type checks per value (§11.3); each chain of conditions walked once with its answers kept (`sending.asked`), in any order of the fields | O(R + F + V) |
 | Prefill | for each signer party, the party's name/email fields by `holds` from an index built once | O(R + F) |
 | Write | one multi-row insert each for recipients and values, one per email (constant number of statements) | O(R + V) |
 | List | index range on `(workspace, department, status, sent_at)`, keyset paging | O(log N + 50) |
@@ -309,6 +312,13 @@ every type in the manual layer: text and note (1–2 000), email (`normalize_ema
 stripping), date (ISO `YYYY-MM-DD`), number/currency/percent (decimal; percent 0–100), checkbox (`true`/`false`),
 choice (one of its option values), URL (`https://` only), and the private types as text. The send form and the
 signer's submit (Phase 8) both call it, so a value is judged once, the same way. O(1) per value.
+
+A number, an amount or a percentage is a sign, the digits 0–9 (commas between them are grouping) and a decimal
+point: at most 28 digits, no exponent, no other script's digits. It is kept canonical, read from its text and never
+through arithmetic: no grouping or leading zeros, a decimal part only when it says something (`1,250,000.00` is
+`1250000`; `1.50` stays `1.50`), a minus only on a number that is not zero. Only a percentage may end in `%`. A day,
+month or year takes the digits 0–9 only. The send's preview applies the same rule (`typeset.number`), so it draws and
+measures what is stored; both run `packages/contracts/vectors/numbers.json`. O(length) per value.
 
 ### 11.4 Emails
 
@@ -415,3 +425,30 @@ Decided by the owner's "complete everything, follow industry practice" (2026-11-
 | 7.13 | Live check, deploy, PR | in progress | Deployed with `make up-app` (dev database at 0019: envelope tables, the documents' email-code column dropped; the public site on 5a01f54). Gate: 570 API tests, 184 web tests, lint, types, import contracts, contract check, build. The send, follow-ups and emails are exercised end to end by the API tests against Postgres and Mailpit (Reply-To checked in Mailpit). Not yet done: a click-through in a browser (the browser extension was not connected) and real email (Gmail SMTP, the owner's, from 2026-11-10) |
 | 7.14 | Owner review of the send (2026-11-09): Details as titled blocks; the step dialog's progress as a track; a date split into boxes | done | Details: the shared `Blocks`/`Block` panel, yours first ("Filled in by you", "Required to send" said once), then each party, one field a line (1eb296c). Progress: one hairline track, a stop per step, filled when done (said "done" to screen readers), haloed when current (177904d). Date parts: the AI and manual type lists gain `day`, `month`, `year` (a date the form splits into "__ day of ____, 20__" boxes; the AI told when to use them); `check_value` takes a day 1 to 31, a month by number or name (stored as the name), a year of four digits or two (where the form prints "20"); the send asks a day or year as a number and the month from a list of names. Versions approved before keep their three `date` fields (approved versions are frozen): detect again or make a new version to get the parts. Tests: `test_formats.py`, `FieldInput.test.tsx`. Dropdowns: the shared `Select` opens its list in the top layer (a manual popover placed at the trigger, upward when there is no room below, following scrolls), so a dialog's scrolling body no longer clips it; checked in headless Chromium inside a 90px clipping box |
 | 7.15 | Emails give dates in the sender's time zone (§5), with the fixes from the pull request's review | done | `envelopes.time_zone` (0022, kept as sent); `SendRequest.time_zone` (an unknown name takes UTC, the send goes on); `emails._zone` ("PST", or "UTC-3" where the zone has no letters). Tests: `test_emails.py`, `test_send.py` |
+| 7.16 | Fixes from the review of the pull request (§17) | done | §17, each with its test |
+
+## 17. Review of the pull request (2026-11-10)
+
+Each problem was reproduced before it was changed: over HTTP against the test database, in the web tests, and for
+scrolling in Firefox 159 and Chromium 145.
+
+| # | Problem | Change | Evidence |
+|---|---|---|---|
+| 17.1 | A whole number of 29 digits or more (`1e28`) failed in the rounding that wrote it, outside what the send catches: a 500. The parser also took an exponent, an underscore and other scripts' digits; a day of `²` failed the same way | A number is read from its text (§11.3); date parts take the digits 0–9 only | `test_formats.py` (the shared vectors, date parts) |
+| 17.2 | The preview drew a number as typed (`1,250,000.00`) while `1250000` was stored | The preview keeps the server's rule; a number the server would refuse is said at its box | `typeset.test.ts` (the same vectors), `FieldInput.test.tsx` |
+| 17.3 | Conditions were dropped in one pass in form order: in a chain, a value outlived the field it depended on when it came first. The send modal showed and sent a field whose condition's own field was hidden with its value still in it | A field is asked only when what it depends on is asked (§10.1), on the server (`sending.asked`) and in the modal (`conditions.askedFields`): each chain once, O(F) | `test_sending.py` (three orders of one chain, a loop), `conditions.test.ts` |
+| 17.4 | Review accepted a field under a condition that someone else answers: the sender's required field under a party's answer was hidden in the send and could be filled by nobody | Refused on Save, never offered by the editor, dropped and flagged by detection (Phase 6 §2) | `test_save.py`, `test_derive.py`, `editor.test.ts` |
+| 17.5 | A copy's name of spaces was stripped to nothing and failed the table's check: a 500 | Refused at `copies[i].name` | `test_sending.py` |
+| 17.6 | A version whose every party countersigns was approved without a warning and sent to nobody | The `no_signer` warning covers it; the send's Signers step says nobody is emailed. A warning, never a block (Phase 6 §2.1) | `test_checks.py`, `send.test.tsx` |
+| 17.7 | A working copy that could not be read failed the approval (500, rolled back), though a size has a fallback rule | Measured in a savepoint, the failure logged, the version left for `signora measure-text-sizes` (`text_sizes.measure_if_readable`, also used by the command) | `test_text_sizes.py` |
+| 17.8 | A cleared setting was sent as 0; the server's refusal showed nowhere | Each box keeps its text; its rule is said at the box and nothing is sent until it holds; the server's word for any setting shows at its box | `send.test.tsx` |
+| 17.9 | Shift+wheel no longer moved a wide table sideways; a wheel over a modal dialog moved the page behind it | Shift+wheel is the browser's; the page is held still behind a modal dialog (its scrollbar's room kept); the scroll rule stops at what is shown over the page | `scrollLatch.test.ts`; both browsers: the table moves 120 px and the page 0; behind a dialog the page and its column stay at 0 |
+| 17.10 | The months by name were listed twice in the web app; a send read its version twice | One list (`typeset.MONTHS`); one read (`service._sendable`) | `test_send.py`, the web tests |
+
+Not changed:
+
+- A recipient's email wider than its Email box is never a reason to refuse a send: the person must still be reached.
+  The preview squeezes it into the box (Phase 7b).
+- A version with no signer can still be sent: review warns, the send says so, and neither blocks.
+- A version approved before 17.4 keeps a condition that someone else answers; a new version is needed to change it.
+- An approval still reads the PDF's sizes under the version's lock and the PDF library's. Not measured on a large PDF.

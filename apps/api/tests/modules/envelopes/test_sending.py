@@ -17,7 +17,7 @@ from signora.modules.envelopes.form import (
     Place,
     SendForm,
 )
-from signora.modules.envelopes.sending import SendRequest, plan_send, split_name
+from signora.modules.envelopes.sending import SendRequest, asked, plan_send, split_name
 from signora.modules.identity_access import normalize_email
 from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, font_view
 
@@ -176,6 +176,68 @@ def test_what_is_left_in_a_field_no_longer_asked_never_refuses_the_send() -> Non
     assert YEAR not in planned({PLAN: "Silver", YEAR: "soon"})  # not a year
     with pytest.raises(ValidationFailed):
         planned({PLAN: "Gold", CARD: "4111", YEAR: "2026"})  # asked: judged
+
+
+A, B, C = (uuid.uuid4() for _ in range(3))
+CHAIN = [
+    field(A, "text", depends_on=Condition(field_id=B, option="checked")),
+    field(B, "checkbox", depends_on=Condition(field_id=C, option="checked")),
+    field(C, "checkbox"),
+]
+
+
+@pytest.mark.parametrize("order", [(0, 1, 2), (2, 1, 0), (1, 0, 2)], ids=["ABC", "CBA", "BAC"])
+def test_a_chain_of_conditions_is_followed_whatever_order_the_fields_come_in(
+    order: tuple[int, int, int],
+) -> None:
+    # A is asked when B is ticked, B when C is. With C unticked B is not asked, so the tick left
+    # in B is dropped and no longer keeps A; in one pass in form order A outlived it when it came
+    # before B.
+    chained = FORM.model_copy(update={"fields": [CHAIN[i] for i in order]})
+
+    def kept(values: dict[uuid.UUID, str]) -> dict[uuid.UUID, str]:
+        request = SendRequest.model_validate(
+            {
+                "version_id": FORM.version_id,
+                "signers": [{"party_id": CLIENT, "name": "Maya", "email": "maya@example.com"}],
+                "values": [{"field_id": k, "value": v} for k, v in values.items()],
+                "settings": {"reminder_interval_hours": 24, "max_reminders": 5, "expiry_days": 14},
+            }
+        )
+        return plan_send(chained, request, colleagues={}, normalize_email=normalize_email).values
+
+    assert kept({A: "left over", B: "true", C: "false"}) == {C: "false"}
+    assert kept({A: "left over", B: "true"}) == {}
+    assert kept({A: "asked", B: "true", C: "true"}) == {A: "asked", B: "true", C: "true"}
+
+
+def test_conditions_that_loop_ask_nothing_and_end() -> None:
+    # Review refuses a loop; a set that has one anyway is walked once and none of it is asked.
+    looped = [
+        field(A, "checkbox", depends_on=Condition(field_id=B, option="checked")),
+        field(B, "checkbox", depends_on=Condition(field_id=A, option="checked")),
+        field(C, "checkbox"),
+    ]
+    assert asked(looped, {A: "true", B: "true", C: "true"}) == {C}
+
+
+def test_a_copy_needs_a_name_as_a_signer_does() -> None:
+    # A name of spaces passed the request's length check, was stripped to nothing and reached the
+    # table's check: a 500.
+    request = SendRequest.model_validate(
+        {
+            "version_id": FORM.version_id,
+            "signers": [{"party_id": CLIENT, "name": "Maya", "email": "maya@example.com"}],
+            "copies": [{"name": "   ", "email": "records@firm.example"}],
+            "values": [{"field_id": PLAN, "value": "Silver"}],
+            "settings": {"reminder_interval_hours": 24, "max_reminders": 5, "expiry_days": 14},
+        }
+    )
+    with pytest.raises(ValidationFailed) as refused:
+        plan_send(FORM, request, colleagues={}, normalize_email=normalize_email)
+    assert [(e.field, e.message) for e in refused.value.field_errors] == [
+        ("copies[0].name", "Enter a name")
+    ]
 
 
 def test_a_year_written_in_two_digits_is_of_the_printed_century() -> None:

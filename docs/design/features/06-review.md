@@ -109,7 +109,7 @@ jumps to its field). Approve opens a confirmation listing them, and approving re
 
 | Code | Warning |
 |---|---|
-| `no_signer` | No party signs |
+| `no_signer` | No party signs, or every party countersigns (countersigners sign after the signers, so a send would email nobody) |
 | `party_cannot_sign` | A signer or countersigner has no signature place |
 | `own_value_not_a_partys` | A signature, initials or signing date is filled by the sender or by nobody |
 | `needs_a_look` | Fields still flagged by detection (one warning with the count) |
@@ -131,6 +131,11 @@ left, and the approval's audit entry and metrics record them as accepted as dete
 - **Well-formed data** is checked when it is saved, not at approval: a Save whose condition points to a field or
   option that does not exist, whose place lies outside its page or is smaller than 8 pt, or whose name (or typed
   "Other") is empty is refused (`422`, naming the field). These are the shape of the data, not judgements about it.
+  So is a condition between fields that different people fill: whoever fills a field must be the one who answers
+  what it depends on (the sender, the same party, or nobody). The sender fills in before anyone signs, and a party
+  never sees another's answer in time, so nobody could say whether such a field is asked. The editor offers only
+  conditions the same person can answer and drops one when either field is given to someone else; detection drops
+  one from its proposal and flags the field. A version approved before this rule keeps its conditions (it is frozen).
 
 ## 3. Editing parties (owner decisions, 2026-11-09)
 
@@ -163,7 +168,7 @@ Choosing a field (in the list or by its box) opens its form in the panel:
   choice); boxes drawn by hand can be any type.
 - **Who fills**: a party, "Filled in before sending", "Not asked", or Other (a new party, §3).
 - **Required** or optional.
-- **Condition**: "only when ⟨choice⟩ is ⟨option⟩", picked from the choices and checkboxes that exist.
+- **Condition**: "only when ⟨choice⟩ is ⟨option⟩", picked from the choices and checkboxes the same person fills.
 - **Private**: automatic for tax number, bank account and date of birth; a toggle for an Other type.
 - **Delete**: the field and all its places.
 - **Shared values follow the type**: a field made Signature for a party that already has one becomes another place

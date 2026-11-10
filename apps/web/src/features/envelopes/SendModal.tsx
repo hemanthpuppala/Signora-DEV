@@ -25,6 +25,7 @@ import {
 } from "@/shared/ui";
 
 import { useSendForm, type Envelope, type FormField, type SendForm, type SendRequest } from "./api";
+import { askedFields } from "./conditions";
 import styles from "./envelopes.module.css";
 import { FieldInput, refused } from "./FieldInput";
 import { fitsEverywhere, kept, useFontReady, written } from "./typeset";
@@ -49,11 +50,20 @@ export type Colleague = { id: string; name: string; email: string };
 type Person = { name: string; email: string };
 type Copy = Person & { key: string };
 
-/** A field under a condition is asked only when its choice has that option (or the checkbox is ticked). */
-function asked(field: FormField, values: Readonly<Record<string, string>>): boolean {
-  if (!field.depends_on) return true;
-  const given = values[field.depends_on.field_id];
-  return given === field.depends_on.option || (field.depends_on.option === "checked" && given === "true");
+/** The settings typed as numbers, each within the range the server takes (envelopes.sending.SettingsIn). */
+const LIMITS = {
+  reminder_interval_hours: { label: "Remind every (hours)", min: 1, max: 720 },
+  max_reminders: { label: "Reminders at most", min: 0, max: 20 },
+  expiry_days: { label: "Expires after (days)", min: 1, max: 365 },
+} as const;
+type Limited = keyof typeof LIMITS;
+const LIMITED = Object.keys(LIMITS) as Limited[];
+
+/** Why a setting cannot be sent as typed: the rule, as its hint would state it. */
+function outOfRange(setting: Limited, text: string): string | undefined {
+  const { min, max } = LIMITS[setting];
+  const whole = /^\d+$/.test(text.trim());
+  return whole && Number(text) >= min && Number(text) <= max ? undefined : `Enter a whole number from ${min} to ${max}`;
 }
 
 /** Which step a server error is about, from its path ("signers[0].email", "fields.{id}", "parties.{id}"). */
@@ -98,11 +108,18 @@ export function SendModal({
   const [copies, setCopies] = useState<Copy[]>([]);
   const [countersigners, setCountersigners] = useState<Record<string, string>>({});
   const [settings, setSettings] = useState<SendRequest["settings"] | null>(null);
+  // A numeric setting as it stands in its box: kept as text, so an empty or half-typed box is
+  // never sent as a number it does not say.
+  const [typed, setTyped] = useState<Partial<Record<Limited, string>>>({});
+  const [more, setMore] = useState(false); // the settings' details, opened by the person
   const [title, setTitle] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [left, setLeft] = useState<ReadonlySet<string>>(new Set()); // boxes typed in and left
 
   const data = form.data;
+  // What is asked follows the values: a field under a condition shows only while it is met.
+  const isAsked = useMemo(() => askedFields(data?.fields ?? [], values), [data, values]);
+  const asked = (f: FormField) => isAsked.has(f.id);
   // Asked for as soon as the form is in, so the Details step measures in it, not in a stand-in.
   const fontReady = useFontReady(data?.font);
   const touched = Object.keys(values).length > 0 || Object.keys(signers).length > 0 || copies.length > 0;
@@ -148,6 +165,8 @@ export function SendModal({
   }, [data]);
 
   const effectiveSettings = settings ?? (data ? { ...data.settings } : null);
+  const settingText = (setting: Limited) => typed[setting] ?? (effectiveSettings ? String(effectiveSettings[setting]) : "");
+  const badSettings = LIMITED.filter((setting) => outOfRange(setting, settingText(setting)) !== undefined);
   const firstSigner = data?.signers[0] ? signers[data.signers[0].party_id] : undefined;
   const effectiveTitle =
     title ?? (data ? (firstSigner?.name ? `${data.document_name} · ${firstSigner.name}` : data.document_name) : "");
@@ -159,12 +178,12 @@ export function SendModal({
    */
   const tooLong = (f: FormField): boolean => {
     const value = values[f.id]?.trim();
-    if (!data || !fontReady || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f, values)) return false;
+    if (!data || !fontReady || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f)) return false;
     return !fitsEverywhere(written(f.holds, kept(f.holds, value), f.format), f.places, data.font, data.fit);
   };
 
   /** A day or a year the server would refuse, in its words. */
-  const unkept = (f: FormField): string | undefined => (asked(f, values) ? refused(f.holds, values[f.id]?.trim() ?? "") : undefined);
+  const unkept = (f: FormField): string | undefined => (asked(f) ? refused(f.holds, values[f.id]?.trim() ?? "") : undefined);
 
   /** Who signs as a party, as chosen so far: a signer typed in, or the countersigning colleague. */
   const personOf = (partyId: string): Person | undefined => {
@@ -184,7 +203,7 @@ export function SendModal({
     if (step === DOCUMENT) return !documentId;
     if (step === DETAILS)
       return data.fields.some(
-        (f) => (f.required && asked(f, values) && !values[f.id]?.trim()) || tooLong(f) || unkept(f) !== undefined,
+        (f) => (f.required && asked(f) && !values[f.id]?.trim()) || tooLong(f) || unkept(f) !== undefined,
       );
     if (step === SIGNERS)
       return (
@@ -198,6 +217,11 @@ export function SendModal({
 
   const submit = (confirm: boolean) => {
     if (!data || !effectiveSettings || !versionId) return;
+    if (badSettings.length > 0) {
+      // Said at each box, with the settings open, instead of a send the server would refuse.
+      setLeft((current) => new Set([...current, ...badSettings.map((setting) => `settings.${setting}`)]));
+      return;
+    }
     const body: SendRequest = {
       version_id: versionId,
       title: effectiveTitle.trim() || null,
@@ -212,7 +236,7 @@ export function SendModal({
       })),
       copies: copies.map(({ name, email }) => ({ name: name.trim(), email: email.trim() })),
       values: data.fields
-        .filter((f) => asked(f, values) && values[f.id]?.trim())
+        .filter((f) => asked(f) && values[f.id]?.trim())
         .map((f) => ({ field_id: f.id, value: values[f.id] ?? "" })),
       settings: effectiveSettings,
       confirm_same_person: confirm,
@@ -242,6 +266,9 @@ export function SendModal({
 
   const close = () => (touched && !sent ? setConfirmLeave(true) : onClose());
   const fieldError = (id: string) => errors[`fields.${id}`];
+  /** What is wrong with a setting: the server's word for it, else its rule once its box was left. */
+  const settingError = (setting: Limited): string | undefined =>
+    errors[`settings.${setting}`] ?? (left.has(`settings.${setting}`) ? outOfRange(setting, settingText(setting)) : undefined);
   const next = () => {
     setStep(step + 1);
   };
@@ -307,6 +334,7 @@ export function SendModal({
                       setSigners({});
                       setCountersigners({});
                       setSettings(null);
+                      setTyped({});
                       setTitle(null);
                     }
                     setDocumentId(d.id);
@@ -350,7 +378,7 @@ export function SendModal({
                 return (
                   <Block key={group.label} title={group.label} hint={group.hint}>
                     {group.fields
-                      .filter((f) => asked(f, values))
+                      .filter((f) => asked(f))
                       .map((f) => (
                         <FieldInput
                           key={f.id}
@@ -378,6 +406,9 @@ export function SendModal({
       {step === SIGNERS && data ? (
         <div className={styles.steps}>
           <Section title="Who signs">
+            {data.signers.length === 0 ? (
+              <SmallText>No party signs this template first, so nobody is emailed a link to sign.</SmallText>
+            ) : null}
             {data.signers.map((signer, index) => {
               const person = signers[signer.party_id] ?? { name: "", email: "" };
               const set = (patch: Partial<Person>) =>
@@ -502,7 +533,7 @@ export function SendModal({
                     }
                     const value = values[f.id]?.trim();
                     // As the server keeps it, so the preview is what the signed PDF prints.
-                    return asked(f, values) && value
+                    return asked(f) && value
                       ? [{ places: f.places, holds: f.holds, value: kept(f.holds, value), format: f.format }]
                       : [];
                   })}
@@ -565,34 +596,29 @@ export function SendModal({
               >
                 Ask for a code sent to their email before they sign
               </Checkbox>
-              <details className={styles.more}>
-                <summary>{`Reminds every ${effectiveSettings.reminder_interval_hours} hours, up to ${effectiveSettings.max_reminders} · expires in ${effectiveSettings.expiry_days} days`}</summary>
+              <details
+                className={styles.more}
+                open={more || LIMITED.some((setting) => settingError(setting) !== undefined)}
+                onToggle={(event) => setMore(event.currentTarget.open)}
+              >
+                <summary>{`Reminds every ${settingText("reminder_interval_hours")} hours, up to ${settingText("max_reminders")} · expires in ${settingText("expiry_days")} days`}</summary>
                 <div className={styles.pair}>
-                  <TextField
-                    label="Remind every (hours)"
-                    type="number"
-                    min={1}
-                    max={720}
-                    value={String(effectiveSettings.reminder_interval_hours)}
-                    error={errors["settings.reminder_interval_hours"]}
-                    onChange={(event) => setSettings({ ...effectiveSettings, reminder_interval_hours: Number(event.target.value) })}
-                  />
-                  <TextField
-                    label="Reminders at most"
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={String(effectiveSettings.max_reminders)}
-                    onChange={(event) => setSettings({ ...effectiveSettings, max_reminders: Number(event.target.value) })}
-                  />
-                  <TextField
-                    label="Expires after (days)"
-                    type="number"
-                    min={1}
-                    max={365}
-                    value={String(effectiveSettings.expiry_days)}
-                    onChange={(event) => setSettings({ ...effectiveSettings, expiry_days: Number(event.target.value) })}
-                  />
+                  {LIMITED.map((setting) => (
+                    <TextField
+                      key={setting}
+                      label={LIMITS[setting].label}
+                      inputMode="numeric"
+                      maxLength={3}
+                      value={settingText(setting)}
+                      error={settingError(setting)}
+                      onBlur={() => setLeft((current) => new Set(current).add(`settings.${setting}`))}
+                      onChange={(event) => {
+                        const text = event.target.value.replace(/[^0-9]/g, "");
+                        setTyped((current) => ({ ...current, [setting]: text }));
+                        if (outOfRange(setting, text) === undefined) setSettings({ ...effectiveSettings, [setting]: Number(text) });
+                      }}
+                    />
+                  ))}
                 </div>
                 {effectiveSettings.notify_emails?.length ? (
                   <SmallText>{`Also notified when it is signed: ${effectiveSettings.notify_emails.join(", ")}`}</SmallText>

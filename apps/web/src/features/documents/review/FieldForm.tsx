@@ -12,6 +12,7 @@ import type { Selection } from "../FieldBoxes";
 import {
   addParty,
   CONDITIONS,
+  sameFiller,
   onEveryPage,
   PRIVATE,
   setOptionText,
@@ -36,11 +37,12 @@ function fillerValue(field: DraftField): string {
   return field.filled_by === "sender" ? "sender" : "none";
 }
 
-/** Conditions on offer: every other choice's options and every checkbox ticked. */
+/** Conditions on offer: the options of every other choice, and every other checkbox ticked, that
+ * the same person fills (``sameFiller``). */
 function conditionOptions(field: DraftField, draft: Draft) {
   const options = [{ value: "", label: "Always asked" }];
   for (const other of draft.fields) {
-    if (other.id === field.id || !CONDITIONS.has(other.holds)) continue;
+    if (other.id === field.id || !CONDITIONS.has(other.holds) || !sameFiller(other, field)) continue;
     if (other.holds === "checkbox") {
       options.push({ value: `${other.id}|checked`, label: `When “${other.label}” is ticked` });
       continue;

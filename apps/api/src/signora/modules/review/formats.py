@@ -14,13 +14,16 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Collection
 from datetime import UTC, date, datetime
-from decimal import Decimal, InvalidOperation
 
 from signora.modules.review.values import MANUAL_HOLDS
 
 TEXT_MAX = 2000
 NOT_TYPED = frozenset({"signature", "initials", "date_signed"})  # given by signing (Phase 8)
 _NUMBERS = frozenset({"number", "currency", "percent"})
+NUMBER_MAX_DIGITS = 28
+# A number as people type one: a sign, digits (commas between them are grouping), a decimal point.
+# ASCII digits only: no exponent, no other script's digits, nothing else a parser would let through.
+_NUMBER = re.compile(r"(?P<sign>[+-]?)(?P<whole>[0-9][0-9,]*)?(?:\.(?P<part>[0-9]*))?", re.ASCII)
 _PHONE = re.compile(r"^\+?[0-9 ().-]{7,30}$")
 _URL = re.compile(r"^https://[^\s/$.?#][^\s]*$", re.IGNORECASE)
 
@@ -80,16 +83,7 @@ def check_value(
     if holds in ("day", "month", "year"):
         return _date_part(holds, value)
     if holds in _NUMBERS:
-        try:
-            number = Decimal(value.replace(",", "").removesuffix("%").strip())
-        except InvalidOperation:
-            raise InvalidValueError("Enter a number") from None
-        if not number.is_finite():
-            raise InvalidValueError("Enter a number")
-        if holds == "percent" and not Decimal(0) <= number <= Decimal(100):
-            raise InvalidValueError("Enter a percentage from 0 to 100")
-        whole = number == number.to_integral_value()
-        return str(number.quantize(Decimal(1))) if whole else str(number)  # "100", not "1E+2"
+        return _number(holds, value)
     if holds == "checkbox":
         if value not in ("true", "false"):
             raise InvalidValueError("Tick it or leave it")
@@ -105,22 +99,55 @@ def check_value(
     return value  # text, names, addresses, tax and bank numbers, notes, other
 
 
+def _number(holds: str, value: str) -> str:
+    """A number kept canonical: digits without grouping or leading zeros, a decimal part only when
+    it says something ("1,250,000.00" is "1250000"; "1.50" stays "1.50"), a minus only on a number
+    that is not zero. A percentage may end in "%" and is from 0 to 100. Read from its text, never
+    through arithmetic, so its length is the only limit: O(len(value)). The preview keeps the same
+    rule (the web's ``typeset.kept``; both run packages/contracts/vectors/numbers.json)."""
+    text = value.removesuffix("%").rstrip() if holds == "percent" else value
+    match = _NUMBER.fullmatch(text)
+    whole = (match["whole"] or "").replace(",", "") if match else ""
+    part = (match["part"] or "") if match else ""
+    if match is None or not whole + part:
+        raise InvalidValueError("Enter a number")
+    if len(whole + part) > NUMBER_MAX_DIGITS:
+        raise InvalidValueError(f"Use {NUMBER_MAX_DIGITS} or fewer digits")
+    whole = whole.lstrip("0") or "0"
+    part = part if part.strip("0") else ""
+    zero = whole == "0" and not part
+    negative = match["sign"] == "-" and not zero
+    if holds == "percent" and (
+        negative or (len(whole), whole) > (3, "100") or (whole == "100" and part)
+    ):
+        raise InvalidValueError("Enter a percentage from 0 to 100")
+    return ("-" if negative else "") + whole + (f".{part}" if part else "")
+
+
+def _digits(value: str) -> bool:
+    """Only the digits 0-9: ``str.isdigit`` alone also takes "²" and other scripts' digits, which
+    ``int`` refuses or which would be printed as typed."""
+    return value.isascii() and value.isdigit()
+
+
 def _date_part(holds: str, value: str) -> str:
     """One part of a date split into boxes, kept canonical (Phase 7c): a day 1-31; a month as its
     number, given as a number or a name; a year in four digits, two read in today's century. How
     it is written on the page is its field's format (``written``)."""
     if holds == "month":
-        if value.isdigit() and 1 <= int(value) <= 12:
+        if _digits(value):
+            if not 1 <= int(value) <= 12:
+                raise InvalidValueError("Enter a month")
             return str(int(value))
         named = [m for m in _MONTHS if len(value) >= 3 and m.lower().startswith(value.lower())]
         if len(named) != 1:
             raise InvalidValueError("Enter a month")
         return str(_MONTHS.index(named[0]) + 1)
     if holds == "day":
-        if not value.isdigit() or not 1 <= int(value) <= 31:
+        if not _digits(value) or not 1 <= int(value) <= 31:
             raise InvalidValueError("Enter a day from 1 to 31")
         return str(int(value))
-    if not value.isdigit() or len(value) not in (2, 4):
+    if not _digits(value) or len(value) not in (2, 4):
         raise InvalidValueError("Enter a year, such as 2026")
     return value if len(value) == 4 else str(datetime.now(UTC).year // 100 * 100 + int(value))
 
