@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 from typing import Any
@@ -214,3 +215,51 @@ def test_two_thousand_fields_approve_in_under_a_second(
 
     assert approved.status_code == 204, approved.text
     assert elapsed < 1.0, f"approve took {elapsed:.2f} s"
+
+
+def test_an_approval_takes_the_documents_lock_before_any_other(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """One order of locks for every change of a document: its row, then a version's, then the
+    audit chain's. An approval took the version's and the audit chain's first and the document's
+    last (to move the current version), so it could deadlock with a rename, an upload or a new
+    search for fields, which hold the document's and then write their audit entry."""
+    document_id, version_id = _in_review(owner, run, detect)
+    answer: list[Any] = []
+    approving = threading.Thread(
+        target=lambda: answer.append(_approve(owner, document_id, version_id))
+    )
+
+    with committing_db.unit_of_work() as other:  # another change of the document, mid-way
+        other.session.execute(
+            text("SELECT id FROM documents WHERE id = :d FOR NO KEY UPDATE"), {"d": document_id}
+        )
+        approving.start()
+        with committing_db.unit_of_work() as watch:
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:  # until the approval waits for a lock
+                waiting = watch.session.execute(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                        "AND wait_event_type = 'Lock'"
+                    )
+                ).scalar_one()
+                if waiting:
+                    break
+                time.sleep(0.05)
+            assert waiting == 1
+            # It waits for the document holding nothing another change of the document needs: the
+            # audit chain's lock is not taken yet.
+            advisory = watch.session.execute(
+                text(
+                    "SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid "
+                    "WHERE a.wait_event_type = 'Lock' AND l.granted AND l.locktype = 'advisory'"
+                )
+            ).scalar_one()
+            assert advisory == 0
+
+    approving.join(timeout=20)
+    assert answer and answer[0].status_code == 204

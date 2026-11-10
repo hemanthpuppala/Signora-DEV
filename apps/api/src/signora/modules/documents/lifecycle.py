@@ -125,7 +125,18 @@ def version_for_review(
     """A version of a document the actor may read (or, with ``edit``, change); ``404`` for one that
     is not this document's or this company's. ``lock`` takes the version's row lock, so a Save or
     an Approve decides on a state no one else is changing. An archived document's versions are
-    read, never changed (Phase 4 §1.4)."""
+    read, never changed (Phase 4 §1.4).
+
+    Locks are taken in one order by everything that changes a document: the document's row, then
+    a version's, then the audit chain's (``documents.service.lock_document`` first, the audit
+    entry last). ``lock`` therefore takes the document's row lock before the version's: an
+    approval moves the document's current version, and taking that lock after the others could
+    deadlock with a rename, an upload or a new search for fields."""
+    if lock:
+        session.execute(
+            text("SELECT id FROM documents WHERE id = :d AND workspace_id = :w FOR NO KEY UPDATE"),
+            {"d": document_id, "w": actor.workspace_id},
+        )
     document = get_document(session, actor.workspace_id, document_id)
     if edit:
         require_edit(session, actor, document.department_id)
