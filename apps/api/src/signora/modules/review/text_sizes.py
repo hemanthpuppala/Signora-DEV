@@ -1,6 +1,8 @@
 """The agreement's text size beside each text place of an approved version (Phase 7b LLD), read
 from its working copy once and kept in ``placement_text_sizes``: at approval, and by
-``signora measure-text-sizes`` for versions approved before sizes were measured."""
+``signora measure-text-sizes`` for versions approved before sizes were measured or whose file
+could not be read then. A size is a refinement: without one a value is drawn by the fallback rule
+(typesetting.fit), so a file that cannot be read never fails what asked for the sizes."""
 
 from __future__ import annotations
 
@@ -56,6 +58,21 @@ def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: Blob
     return len(sizes)
 
 
+def measure_if_readable(
+    session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: BlobRef
+) -> bool:
+    """Measure one version in a savepoint of its own; whether it was measured. A version that
+    cannot be read (its file gone, a PDF that does not open) is logged and left as it was, for
+    the command to measure later: the caller's transaction goes on."""
+    try:
+        with session.begin_nested():
+            measure(session, blobs, version_id, pdf)
+    except Exception as error:  # whatever the file or the PDF library raises: sizes are optional
+        log.warning("text_sizes.version_failed", version_id=str(version_id), error=repr(error))
+        return False
+    return True
+
+
 @dataclass(frozen=True)
 class Backfill:
     measured: int  # versions measured
@@ -69,8 +86,8 @@ def measure_unmeasured(
     A place with no words on its page (a scanned page) stays unmeasured and is drawn by the
     fallback rule; such a version is read again by the next run, which writes nothing.
 
-    Each version is measured in a savepoint of its own: one that cannot be read (its file gone, a
-    PDF that does not open) is logged and left, and the others are still measured."""
+    Each version is measured in a savepoint of its own (``measure_if_readable``): one that cannot
+    be read is logged and left, and the others are still measured."""
     versions = session.execute(
         text(
             # _WRITTEN is a constant of this module, never input.
@@ -83,13 +100,11 @@ def measure_unmeasured(
         ),
         {"w": workspace_id},
     ).all()
-    failed: list[uuid.UUID] = []
-    for row in versions:
-        pdf = BlobRef(row.workspace_id, row.pdf_sha256, row.pdf_bytes)
-        try:
-            with session.begin_nested():
-                measure(session, blobs, row.id, pdf)
-        except Exception as error:  # a batch: one bad version never stops the rest
-            failed.append(row.id)
-            log.warning("text_sizes.version_failed", version_id=str(row.id), error=repr(error))
+    failed = [
+        row.id
+        for row in versions
+        if not measure_if_readable(
+            session, blobs, row.id, BlobRef(row.workspace_id, row.pdf_sha256, row.pdf_bytes)
+        )
+    ]
     return Backfill(measured=len(versions) - len(failed), failed=failed)

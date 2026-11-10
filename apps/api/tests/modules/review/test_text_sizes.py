@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from signora.kernel.blobstore import LocalBlobStore
+from signora.kernel.blobstore import BlobRef, LocalBlobStore
 from signora.kernel.config import Settings
 from signora.kernel.db import Database
 from signora.modules.review import measure_unmeasured
@@ -59,3 +59,36 @@ def test_approval_measures_each_written_place_and_earlier_versions_are_measured_
     assert _sizes(_view(owner, document_id, version_id)) == measured
     with committing_db.unit_of_work() as uow:
         assert measure_unmeasured(uow.session, blobs, workspace_id).measured == 0
+
+
+def test_a_working_copy_that_cannot_be_read_never_refuses_the_approval(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+    settings: Settings,
+) -> None:
+    """A size is a refinement with a fallback rule. A file gone from the store, or one that no
+    longer opens, failed the approval with a 500 and rolled it back."""
+    document_id, version_id = _in_review(owner, run, detect)
+    with committing_db.unit_of_work() as uow:
+        row = uow.session.execute(
+            text("SELECT workspace_id, pdf_sha256, pdf_bytes FROM document_versions WHERE id = :v"),
+            {"v": version_id},
+        ).one()
+    blobs = LocalBlobStore(settings.blob_store.dir)
+    path = blobs.path(BlobRef(row.workspace_id, row.pdf_sha256, row.pdf_bytes))
+    original = path.read_bytes()
+    path.write_bytes(b"%PDF-1.7 not a pdf at all")
+    try:
+        assert _approve(owner, document_id, version_id).status_code == 204
+    finally:
+        path.write_bytes(original)
+
+    view = _view(owner, document_id, version_id)
+    assert view["status"] == "approved"
+    assert set(_sizes(view).values()) == {None}  # drawn by the fallback rule
+    # The command measures it once the file can be read again.
+    with committing_db.unit_of_work() as uow:
+        assert measure_unmeasured(uow.session, blobs, row.workspace_id).measured == 1
+    assert None not in _sizes(_view(owner, document_id, version_id)).values()
