@@ -118,7 +118,7 @@ export function FieldForm({
         value={field.label}
         onChange={(event) => change({ label: event.target.value }, `label:${field.id}`)}
       />
-      <Select label="Type" options={allowed} value={field.holds} onChange={(value) => change({ holds: value as Holds })} searchable />
+      <Select label="Type" options={allowed} value={field.holds} onChange={(value) => change({ holds: value as Holds })} />
       {formats.length > 0 ? (
         <Select
           label="Written as"

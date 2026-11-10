@@ -24,6 +24,7 @@ import {
   ToastProvider,
   useToast,
 } from "./index";
+import { SEARCH_FROM } from "./Select";
 
 describe("Button", () => {
   it("shows the loading label, disables itself and marks busy while loading", () => {
@@ -437,5 +438,20 @@ describe("Select, searchable", () => {
     await userEvent.click(screen.getByRole("combobox", { name: "Type" }));
     await userEvent.type(screen.getByRole("combobox", { name: "Search Type" }), "zzz");
     expect(screen.getByText("No match")).toBeTruthy();
+  });
+});
+
+describe("Select, search by length", () => {
+  const options = (n: number) => Array.from({ length: n }, (_, i) => ({ value: String(i), label: `Option ${i}` }));
+
+  it("gives a long list a search box and keeps a short one plain", async () => {
+    const { unmount } = render(<Select label="Month" options={options(SEARCH_FROM)} value={null} onChange={vi.fn()} />);
+    await userEvent.click(screen.getByRole("combobox", { name: "Month" }));
+    expect(screen.getByRole("combobox", { name: "Search Month" })).toBeTruthy();
+    unmount();
+
+    render(<Select label="Invite as" options={options(SEARCH_FROM - 1)} value={null} onChange={vi.fn()} />);
+    await userEvent.click(screen.getByRole("combobox", { name: "Invite as" }));
+    expect(screen.queryByRole("combobox", { name: "Search Invite as" })).toBeNull();
   });
 });

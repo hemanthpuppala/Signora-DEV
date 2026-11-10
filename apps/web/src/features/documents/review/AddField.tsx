@@ -57,7 +57,7 @@ export function AddField({
   const [who, setWho] = useState(partyId ? `party:${partyId}` : "none");
   return (
     <div className={styles.addField}>
-      <Select label="Type" options={TYPE_OPTIONS} value={holds} onChange={(value) => setHolds(value as Holds)} searchable />
+      <Select label="Type" options={TYPE_OPTIONS} value={holds} onChange={(value) => setHolds(value as Holds)} />
       <Select label="Who fills it" options={fillerOptions(parties)} value={who} onChange={setWho} />
       <div className={styles.actions}>
         <Button compact onClick={() => onPlace({ kind: "field", holds, ...filler(who) })}>

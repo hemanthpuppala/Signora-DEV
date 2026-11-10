@@ -8,6 +8,8 @@ import fieldStyles from "./field.module.css";
 import styles from "./select.module.css";
 
 const LIST_MAX_HEIGHT = 280;
+/** From this many options a list starts with a search box: shorter ones are read at a glance. */
+export const SEARCH_FROM = 8;
 const noSubscription = () => () => {};
 const browserHasPopover = () => "showPopover" in HTMLElement.prototype;
 
@@ -24,7 +26,10 @@ export type SelectProps = {
   name?: string;
   disabled?: boolean;
   className?: string;
-  /** A search box at the top of the open list: typing keeps the options whose label or hint has it. */
+  /**
+   * A search box at the top of the open list: typing keeps the options whose label or hint has
+   * it. By default a list of ``SEARCH_FROM`` options or more has one; set it to force either way.
+   */
   searchable?: boolean;
 };
 
@@ -47,8 +52,9 @@ export function Select({
   name,
   disabled = false,
   className,
-  searchable = false,
+  searchable: searchableProp,
 }: SelectProps) {
+  const searchable = searchableProp ?? options.length >= SEARCH_FROM;
   const id = useId();
   const listId = `${id}-list`;
   const labelId = `${id}-label`;
