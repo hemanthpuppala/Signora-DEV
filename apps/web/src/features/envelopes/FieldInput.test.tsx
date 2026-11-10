@@ -76,5 +76,8 @@ describe("a day or a year the server would refuse", () => {
     expect(refused("year", "2026")).toBeUndefined();
     expect(refused("year", "")).toBeUndefined(); // empty is "Required"'s to say
     expect(refused("text", "0")).toBeUndefined();
+    expect(refused("currency", "1,250,000.00")).toBeUndefined();
+    expect(refused("number", "1.2.3")).toBe("Enter a number");
+    expect(refused("percent", "120")).toBe("Enter a percentage from 0 to 100");
   });
 });

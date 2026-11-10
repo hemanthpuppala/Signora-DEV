@@ -101,6 +101,34 @@ def test_a_value_is_written_as_its_format_says(case: dict[str, str | None]) -> N
     assert written(str(case["holds"]), str(case["value"]), case["format"]) == case["written"]
 
 
+NUMBERS = json.loads(
+    (Path(__file__).parents[5] / "packages/contracts/vectors/numbers.json").read_text()
+)
+
+
+@pytest.mark.parametrize("case", NUMBERS["kept"], ids=lambda c: f"{c['holds']}:{c['typed']}")
+def test_a_number_is_kept_canonical(case: dict[str, str]) -> None:
+    assert check(case["holds"], case["typed"]) == case["kept"]
+    assert check(case["holds"], case["kept"]) == case["kept"]  # what is kept is kept as it is
+
+
+@pytest.mark.parametrize("case", NUMBERS["refused"], ids=lambda c: f"{c['holds']}:{c['typed']}")
+def test_what_is_not_a_plain_number_is_refused_in_words(case: dict[str, str]) -> None:
+    with pytest.raises(InvalidValueError, match=f"^{case['message']}$"):
+        check(case["holds"], case["typed"])
+
+
+@pytest.mark.parametrize(
+    ("holds", "value"),
+    [("day", "²"), ("day", "٣"), ("month", "²"), ("month", "١٢"), ("year", "²²"), ("year", "٢٠٢٦")],
+)
+def test_a_date_part_is_in_the_digits_0_to_9(holds: str, value: str) -> None:
+    """Other digits pass ``str.isdigit``: "²" then failed in ``int`` (a 500), and another script's
+    year was kept and printed as typed."""
+    with pytest.raises(InvalidValueError):
+        check(holds, value)
+
+
 def test_every_date_type_has_formats_and_a_default_and_nothing_else_does() -> None:
     for holds, formats in FORMATS.items():
         assert default_format(holds) == formats[0]

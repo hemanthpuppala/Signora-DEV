@@ -1,0 +1,41 @@
+{
+  "about": "How a typed number, amount or percentage is kept, or why it is refused. Hand-written; run by the API's tests (review.formats.check_value) and the web's (typeset.number), so the preview draws what the server stores.",
+  "kept": [
+    { "holds": "number", "typed": "100", "kept": "100" },
+    { "holds": "number", "typed": "007", "kept": "7" },
+    { "holds": "number", "typed": "+5", "kept": "5" },
+    { "holds": "number", "typed": "-12.5", "kept": "-12.5" },
+    { "holds": "number", "typed": "-0", "kept": "0" },
+    { "holds": "number", "typed": "-0.00", "kept": "0" },
+    { "holds": "number", "typed": ".5", "kept": "0.5" },
+    { "holds": "number", "typed": "1.", "kept": "1" },
+    { "holds": "number", "typed": "1.50", "kept": "1.50" },
+    { "holds": "number", "typed": "0.050", "kept": "0.050" },
+    { "holds": "number", "typed": "9999999999999999999999999999", "kept": "9999999999999999999999999999" },
+    { "holds": "currency", "typed": "1,250,000.00", "kept": "1250000" },
+    { "holds": "currency", "typed": "12,500.50", "kept": "12500.50" },
+    { "holds": "currency", "typed": "12,50,000", "kept": "1250000" },
+    { "holds": "percent", "typed": "5%", "kept": "5" },
+    { "holds": "percent", "typed": "12.5 %", "kept": "12.5" },
+    { "holds": "percent", "typed": "100.0", "kept": "100" },
+    { "holds": "percent", "typed": "0", "kept": "0" }
+  ],
+  "refused": [
+    { "holds": "number", "typed": "twelve", "message": "Enter a number" },
+    { "holds": "number", "typed": "1e30", "message": "Enter a number" },
+    { "holds": "number", "typed": "1_000", "message": "Enter a number" },
+    { "holds": "number", "typed": "NaN", "message": "Enter a number" },
+    { "holds": "number", "typed": "Infinity", "message": "Enter a number" },
+    { "holds": "number", "typed": "١٢٣", "message": "Enter a number" },
+    { "holds": "number", "typed": ".", "message": "Enter a number" },
+    { "holds": "number", "typed": ",5", "message": "Enter a number" },
+    { "holds": "number", "typed": "1.2.3", "message": "Enter a number" },
+    { "holds": "number", "typed": "5%", "message": "Enter a number" },
+    { "holds": "currency", "typed": "$100", "message": "Enter a number" },
+    { "holds": "number", "typed": "12345678901234567890123456789", "message": "Use 28 or fewer digits" },
+    { "holds": "number", "typed": "0.1234567890123456789012345678", "message": "Use 28 or fewer digits" },
+    { "holds": "percent", "typed": "120", "message": "Enter a percentage from 0 to 100" },
+    { "holds": "percent", "typed": "100.01", "message": "Enter a percentage from 0 to 100" },
+    { "holds": "percent", "typed": "-1", "message": "Enter a percentage from 0 to 100" }
+  ]
+}
