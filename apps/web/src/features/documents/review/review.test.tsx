@@ -151,9 +151,9 @@ describe("field review", () => {
     fetchMock.mockReset();
   });
 
-  const open = () =>
+  const open = (client = makeQueryClient()) =>
     render(
-      <QueryClientProvider client={makeQueryClient()}>
+      <QueryClientProvider client={client}>
         <ToastProvider>
           <DocumentPage departmentId="d-1" documentId="doc-1" />
         </ToastProvider>
@@ -243,6 +243,54 @@ describe("field review", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     await user.click(await screen.findByRole("button", { name: "Company: The box must stay on its page" }));
     expect(screen.getByRole("region", { name: "Details of Company" })).toBeTruthy();
+  });
+
+  it("keeps unsaved edits when the fields are saved elsewhere, says so, and reloads only when asked", async () => {
+    // Optimistic concurrency on this side too: the newer fields replaced the draft unasked, with
+    // the unsaved count back at 0 and no word of it.
+    inReview();
+    const client = makeQueryClient();
+    open(client);
+    const user = userEvent.setup();
+    await chooseField("Company");
+    await user.click(screen.getByLabelText("Required"));
+    expect(within(bar()).getByText(/1 unsaved change/)).toBeTruthy();
+
+    state.fields["v-1"] = fieldsView({ revision: 1 }); // someone else saved
+    await client.invalidateQueries({ queryKey: ["fields", "v-1"] });
+
+    expect(await screen.findByText("Reloading shows their changes; yours will be lost.")).toBeTruthy();
+    expect(within(bar()).getByText(/1 unsaved change/)).toBeTruthy(); // the edit is still here
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(sentTo("PUT /api/v1/documents/doc-1/versions/v-1/fields")).toHaveLength(0); // it would be refused
+
+    await user.click(screen.getByRole("button", { name: "Reload" }));
+    await waitFor(() => expect(screen.queryByText(/unsaved change/)).toBeNull());
+    expect(screen.queryByText("Reloading shows their changes; yours will be lost.")).toBeNull();
+  });
+
+  it("takes no edit while a save is on its way, and shows what was saved without a false alarm", async () => {
+    inReview();
+    let finish: (response: Response) => void = () => {};
+    answers["PUT /api/v1/documents/doc-1/versions/v-1/fields"] = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    open();
+    const user = userEvent.setup();
+    await chooseField("Company");
+    const required = () => screen.getByLabelText<HTMLInputElement>("Required");
+    await user.click(required());
+    const sentAs = required().checked;
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await user.click(required()); // while the request is in flight
+    expect(required().checked).toBe(sentAs); // not taken: it would have been lost on the reload
+
+    state.fields["v-1"] = fieldsView({ revision: 1 });
+    finish(new Response(JSON.stringify({ revision: 1 }), { status: 200, headers: { "content-type": "application/json" } }));
+    await waitFor(() => expect(screen.queryByText(/unsaved change/)).toBeNull());
+    expect(screen.queryByText("Reloading shows their changes; yours will be lost.")).toBeNull();
   });
 
   it("approves after listing the things to check, with the revision and the warnings seen", async () => {
