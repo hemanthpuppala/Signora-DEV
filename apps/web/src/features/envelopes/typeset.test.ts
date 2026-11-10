@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import vectors from "../../../../../packages/contracts/vectors/date-formats.json";
 
-import { fitsEverywhere, kept, written } from "./typeset";
+import { fitsEverywhere, kept, MEASURED_AT, written } from "./typeset";
 
 const DATE_TYPES = new Set(["date", "date_signed", "date_of_birth", "day", "month", "year"]);
 
@@ -33,7 +33,7 @@ describe("a value's width", () => {
       font: "",
       measureText: (text: string) => {
         measured.push(text);
-        return { width: text === "AV" ? 120 : text.length * 70 };
+        return { width: (text === "AV" ? 1.2 : text.length * 0.7) * MEASURED_AT };
       },
     } as unknown as CanvasRenderingContext2D);
     const face = { family: "Kerned Test", url: "/font" };

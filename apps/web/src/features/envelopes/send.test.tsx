@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeQueryClient } from "@/shared/api/QueryProvider";
 
 import { SendModal, type SendableDocument } from "./SendModal";
+import { MEASURED_AT } from "./typeset";
 
 vi.mock("pdfjs-dist", () => ({
   version: "6.4.299",
@@ -231,7 +232,7 @@ describe("the send", () => {
     // Every character half a point wide per point of size (the test DOM cannot measure text).
     const measure = vi
       .spyOn(HTMLCanvasElement.prototype, "getContext")
-      .mockReturnValue({ font: "", measureText: (t: string) => ({ width: t.length * 50 }) } as unknown as CanvasRenderingContext2D);
+      .mockReturnValue({ font: "", measureText: (t: string) => ({ width: t.length * 0.5 * MEASURED_AT }) } as unknown as CanvasRenderingContext2D);
     // The envelope's font arrives (the test DOM has no FontFace): widths are judged only in it.
     vi.stubGlobal(
       "FontFace",

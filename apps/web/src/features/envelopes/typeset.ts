@@ -121,6 +121,15 @@ export function useFontReady(face: Typeface | null | undefined): boolean {
   );
 }
 
+/**
+ * The size widths are measured at. A browser rounds a character's width to its pixel grid, so at
+ * a small size each character is a little off and a long value is off by their sum. At the font's
+ * own grid (2048 units to the em in a TrueType font such as the default) a character's width is
+ * the font's number exactly, as the server reads it; in another grid the error is under 1/2048 of
+ * the size per character.
+ */
+export const MEASURED_AT = 2048;
+
 let canvas: HTMLCanvasElement | null = null;
 const advances = new Map<string, Map<string, number>>(); // per family: a character's width at 1 pt
 /**
@@ -132,14 +141,14 @@ function widthPerPoint(text: string, family: string): number {
   canvas ??= document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (!context) return 0;
-  context.font = `100px "${family}"`;
+  context.font = `${MEASURED_AT}px "${family}"`;
   let known = advances.get(family);
   if (!known) advances.set(family, (known = new Map()));
   let width = 0;
   for (const character of text) {
     let advance = known.get(character);
     if (advance === undefined) {
-      advance = context.measureText(character).width / 100;
+      advance = context.measureText(character).width / MEASURED_AT;
       known.set(character, advance);
     }
     width += advance;
