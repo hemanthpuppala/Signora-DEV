@@ -65,11 +65,13 @@ export function AddField({
   );
 }
 
-/** While placing, what a press on the pages does (pinned over the PDF, where the press goes): a
- * finger taps, and its drag scrolls; a mouse clicks, or draws. */
+/** While placing, what a press on the pages does (pinned at the PDF, where the press goes): a
+ * finger taps, and its drag scrolls; a mouse clicks, or draws. For a finger the words are short:
+ * they have one line of a phone. */
 export function placingMessage(tool: Tool, touch: boolean): string {
+  if (touch) return tool.kind === "field" ? `Tap where the ${HOLDS[tool.holds].toLowerCase()} goes` : `Tap another place for ${tool.label}`;
   const what = tool.kind === "field" ? `the ${HOLDS[tool.holds].toLowerCase()}` : `another place of ${tool.label}`;
-  return touch ? `Tap where ${what} goes` : `Click where ${what} goes, or drag to draw it`;
+  return `Click where ${what} goes, or drag to draw it`;
 }
 
 /** The open "+ Add field" row while placing: where to look, and how to stop. */

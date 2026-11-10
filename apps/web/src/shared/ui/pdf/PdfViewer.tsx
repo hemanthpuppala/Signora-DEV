@@ -45,7 +45,8 @@ export type PdfViewerProps = {
   /** A box to bring into the middle of the view (a field chosen in a list); a new ``token``
    * scrolls to it again. */
   focus?: { page: number; rect: Rect; token: number } | null;
-  /** A message pinned over the top of the pages, where the eye is when acting on them (field
+  /** A message pinned over the top of the pages (on a narrow screen: one line above them, so it
+   * hides no part of them), where the eye is when acting on them (field
    * review: "Click where the signature goes"), with an optional action such as Cancel. One that
    * asks for a press on the pages (``reveal``) brings them into view: on a narrow screen they may
    * be scrolled away, above the list the person was in. */
