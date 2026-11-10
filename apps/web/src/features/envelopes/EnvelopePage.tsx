@@ -253,6 +253,19 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
       ) : null}
 
       <ViewerLayout>
+        <ActionBar
+          label="Envelope"
+          actions={
+            open ? (
+              <>
+                {waiting > 0 ? (
+                  <HeadAction icon="bell" label="Remind now" disabled={remind.isPending} onClick={() => remind.mutate()} />
+                ) : null}
+                <HeadAction icon="cancel" label="Cancel envelope" variant="destructive" onClick={() => setConfirmCancel(true)} />
+              </>
+            ) : null
+          }
+        />
         <ViewerPane>
           {form.data ? (
             <PdfViewer
@@ -264,24 +277,25 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
               )}
             />
           ) : (
-            <SmallText>{`${data.values.length} ${data.values.length === 1 ? "value" : "values"} filled in before sending.`}</SmallText>
+            // Never a blank pane: why the document is not here, and the way to ask again. (In a
+            // block of its own: the pane's last child is stretched to the pane's height.)
+            <div>
+              {form.isError ? (
+                <Notice
+                  tone="warning"
+                  title="The document can't be shown"
+                  action={<TextButton onClick={() => void form.refetch()}>Try again</TextButton>}
+                >
+                  {formError(form.error) ?? "Try again in a moment."}
+                </Notice>
+              ) : (
+                <SmallText>Loading the document…</SmallText>
+              )}
+            </div>
           )}
         </ViewerPane>
 
         <DetailsPane>
-          <ActionBar
-            label="Envelope"
-            actions={
-              open ? (
-                <>
-                  {waiting > 0 ? (
-                    <HeadAction icon="bell" label="Remind now" disabled={remind.isPending} onClick={() => remind.mutate()} />
-                  ) : null}
-                  <HeadAction icon="cancel" label="Cancel envelope" variant="destructive" onClick={() => setConfirmCancel(true)} />
-                </>
-              ) : null
-            }
-          />
           {GROUPS.map((group) => {
             const people = data.recipients.filter((r) => r.kind === group.kind);
             if (people.length === 0) return null;

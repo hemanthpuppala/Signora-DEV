@@ -5,11 +5,14 @@
   min-width: 0;
 }
 
+/* Placed by the component over what it names (fixed, in the top layer, so no scrolling panel clips
+   it); the popover's own centring and inset are undone. */
 .tip {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
+  position: fixed;
+  inset: auto;
   z-index: 20;
+  margin: 0;
+  overflow: visible;
   padding: 5px 8px;
   border: 1px solid var(--r15);
   background: var(--surface-3);
@@ -22,15 +25,13 @@
   pointer-events: none;
   /* Hidden, it takes no room: an invisible tip at the page's edge would widen the page. */
   display: none;
-  transform: translate(-50%, 0);
   transition:
     opacity 0.12s,
     transform 0.12s,
     display 0.12s allow-discrete;
 }
 
-.anchor:hover > .tip,
-.anchor:has(:focus-visible) > .tip {
+.tip.shown {
   display: block;
   opacity: 1;
   transition-delay: 0.25s;
@@ -38,15 +39,10 @@
 
 /* Fading in from just below, each time it appears. */
 @starting-style {
-  .anchor:hover > .tip,
-  .anchor:has(:focus-visible) > .tip {
+  .tip.shown {
     opacity: 0;
-    transform: translate(-50%, 2px);
+    transform: translateY(2px);
   }
-}
-
-.anchor > .tip.dismissed {
-  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

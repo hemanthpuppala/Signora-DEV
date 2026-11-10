@@ -52,7 +52,7 @@ export function latchWheel(): () => void {
   };
 
   const onWheel = (event: WheelEvent) => {
-    if (event.ctrlKey) return; // a pinch or ctrl+wheel zooms
+    if (event.ctrlKey || event.metaKey) return; // a pinch, or ctrl/cmd+wheel: the viewer's zoom, never a scroll
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return; // sideways: left alone
     if (event.timeStamp - last > GESTURE_GAP_MS) latched = null;
     last = event.timeStamp;

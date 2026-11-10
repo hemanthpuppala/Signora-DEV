@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 
 import { cx } from "@/shared/lib/cx";
+import { useTopLayer } from "@/shared/lib/topLayer";
 
 import fieldStyles from "./field.module.css";
 import styles from "./select.module.css";
@@ -10,8 +11,8 @@ import styles from "./select.module.css";
 const LIST_MAX_HEIGHT = 280;
 /** From this many options a list starts with a search box: shorter ones are read at a glance. */
 export const SEARCH_FROM = 8;
-const noSubscription = () => () => {};
-const browserHasPopover = () => "showPopover" in HTMLElement.prototype;
+/** A finger, not a mouse: a keyboard raised unasked would cover the list it is for. */
+const touchFirst = () => window.matchMedia?.("(pointer: coarse)").matches ?? false;
 
 /** An option; ``hint`` is a quieter word beside it (the group a type belongs to). */
 export type SelectOption = { value: string; label: string; hint?: string };
@@ -36,8 +37,10 @@ export type SelectProps = {
 /**
  * Select-only combobox (WAI-ARIA APG pattern): focus stays on the trigger, the highlighted option is
  * conveyed with ``aria-activedescendant``. Keys: ArrowDown/ArrowUp open and move, Home/End jump,
- * Enter/Space choose, Escape and Tab close. ``searchable``: the open list starts with a search box
- * that takes the focus and the same keys; its options are announced through it.
+ * Enter/Space choose, Escape and Tab close; the highlighted option is always in view.
+ * ``searchable``: the open list starts with a search box that takes the focus and the same keys;
+ * its options are announced through it. On a touch screen the focus stays on the trigger until the
+ * search box is tapped, so opening a list never raises the keyboard over it.
  *
  * The open list sits above everything (the browser's top layer, as a manual popover) at the
  * trigger's place, so a dialog or a scrolling panel never clips it; it opens upward when there is
@@ -62,11 +65,11 @@ export function Select({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const optionsRef = useRef<HTMLUListElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState<CSSProperties>({});
-  // Known only in the browser (not on the server, nor in every test DOM): until then a plain list.
-  const canPop = useSyncExternalStore(noSubscription, browserHasPopover, () => false);
+  const canPop = useTopLayer();
   const selectedIndex = options.findIndex((option) => option.value === value);
   // What the list shows: every option, or those matching the search (by label or hint).
   const needle = query.trim().toLowerCase();
@@ -94,8 +97,12 @@ export function Select({
       const at = trigger.getBoundingClientRect();
       const gap = 6;
       const edge = 16;
-      const below = window.innerHeight - at.bottom - gap - edge;
-      const above = at.top - gap - edge;
+      // What can be seen: less than the window while a phone's keyboard is up.
+      const view = window.visualViewport;
+      const top = view?.offsetTop ?? 0;
+      const bottom = top + (view?.height ?? window.innerHeight);
+      const below = bottom - at.bottom - gap - edge;
+      const above = at.top - top - gap - edge;
       const wanted = Math.min(list.scrollHeight, LIST_MAX_HEIGHT);
       const up = below < wanted && above > below;
       const width = Math.max(at.width, list.offsetWidth);
@@ -109,16 +116,30 @@ export function Select({
     follow();
     window.addEventListener("scroll", follow, true);
     window.addEventListener("resize", follow);
+    window.visualViewport?.addEventListener("resize", follow);
     return () => {
       window.removeEventListener("scroll", follow, true);
       window.removeEventListener("resize", follow);
+      window.visualViewport?.removeEventListener("resize", follow);
       if (canPop && list.matches(":popover-open")) list.hidePopover();
     };
   }, [open, canPop]);
 
   useEffect(() => {
-    if (open && searchable) searchRef.current?.focus();
+    if (open && searchable && !touchFirst()) searchRef.current?.focus();
   }, [open, searchable]);
+
+  // The highlighted option stays in view: the list is moved only as far as it takes, and nothing
+  // around the list moves (scrollIntoView would scroll the page too).
+  const activeIndex = shown[active]?.index;
+  useLayoutEffect(() => {
+    const list = optionsRef.current;
+    const option = open && activeIndex !== undefined ? document.getElementById(`${id}-option-${activeIndex}`) : null;
+    if (!list || !option) return;
+    const top = option.offsetTop - list.offsetTop;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (top + option.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = top + option.offsetHeight - list.clientHeight;
+  }, [open, activeIndex, id, place]);
 
   function openAt(index: number) {
     setQuery("");
@@ -207,7 +228,7 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        aria-activedescendant={searchable ? undefined : activeId}
+        aria-activedescendant={activeId}
         disabled={disabled}
         onClick={() => (open ? close(false) : openAt(selectedIndex >= 0 ? selectedIndex : 0))}
         onKeyDown={onKeyDown}
@@ -240,7 +261,7 @@ export function Select({
             onKeyDown={onKeyDown}
           />
         ) : null}
-        <ul id={listId} role="listbox" aria-labelledby={labelId} className={styles.options}>
+        <ul ref={optionsRef} id={listId} role="listbox" aria-labelledby={labelId} className={styles.options}>
           {shown.map(({ option, index }, position) => (
             <li
               key={option.value}

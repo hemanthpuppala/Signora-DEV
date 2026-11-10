@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -84,10 +84,15 @@ describe("IconButton", () => {
     const button = screen.getByRole("button", { name: "Make current" });
     const tip = screen.getByText("Make current");
     expect(tip.getAttribute("aria-hidden")).toBe("true"); // the name is the button's; the tooltip only shows it
-    await user.click(button);
+    expect(tip.className).not.toMatch(/shown/);
+    await user.click(button); // the pointer is over it now
     expect(onClick).toHaveBeenCalledOnce();
+    expect(tip.className).toMatch(/shown/);
     await user.keyboard("{Escape}");
-    expect(tip.className).toMatch(/dismissed/);
+    expect(tip.className).not.toMatch(/shown/);
+    await user.unhover(button);
+    await user.hover(button);
+    expect(tip.className).toMatch(/shown/); // dismissed only until the pointer leaves
   });
 
   it("can be a download link", () => {
@@ -410,6 +415,27 @@ describe("Section, collapsible", () => {
     expect(group.open).toBe(true); // the ? explains, it does not close
     await userEvent.click(screen.getByText("Signers"));
     expect(group.open).toBe(false);
+  });
+});
+
+describe("Section, opened by its screen", () => {
+  it("opens when the screen says so, and tells the screen when its title line is used", async () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <Section title="Fields" collapsible open={false} onOpenChange={onOpenChange}>
+        <p>Client name</p>
+      </Section>,
+    );
+    const group = screen.getByText("Fields").closest("details") as HTMLDetailsElement;
+    expect(group.open).toBe(false);
+    rerender(
+      <Section title="Fields" collapsible open onOpenChange={onOpenChange}>
+        <p>Client name</p>
+      </Section>,
+    );
+    expect(group.open).toBe(true); // a field chosen on the document: its section opens for it
+    await userEvent.click(screen.getByText("Fields"));
+    await waitFor(() => expect(onOpenChange).toHaveBeenLastCalledWith(false));
   });
 });
 

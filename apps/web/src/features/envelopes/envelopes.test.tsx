@@ -186,6 +186,14 @@ describe("envelopes", () => {
     expect(await screen.findByText("Reminded 2 people")).toBeTruthy();
   });
 
+  it("says when the document can't be shown, and offers to ask again, instead of a blank pane", async () => {
+    wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
+    expect(await screen.findByText("The document can't be shown")).toBeTruthy();
+    const before = calls.filter((c) => c.path.endsWith("/send-form")).length;
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/send-form")).length).toBeGreaterThan(before));
+  });
+
   it("cancels only after confirming", async () => {
     wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
     const user = userEvent.setup();

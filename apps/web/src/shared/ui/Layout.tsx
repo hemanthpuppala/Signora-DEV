@@ -82,10 +82,14 @@ export function Block({ title, hint, children }: { title: string; hint?: string;
 
 /**
  * A document beside its details (the document page, review, an envelope): a ``ViewerPane``
- * (notices, then the PDF viewer last, which takes the height left) pinned one screen tall from
- * laptop width, and a ``DetailsPane`` scrolling beside it, its sections divided by hairlines; one
- * column on phones. A screen's ``ActionBar`` heads the ``DetailsPane``, so the viewer keeps the
- * window's full height. Use it with ``ConsoleShell width="full"``.
+ * (notices, then the PDF viewer last, which takes the height left) and a ``DetailsPane``, its
+ * sections divided by hairlines. From laptop width the two sit side by side, one screen tall, each
+ * scrolling inside itself; on phones they are one column.
+ *
+ * A screen's ``ActionBar`` is the layout's first child, before the panes. From laptop width it
+ * heads the details column, above what scrolls, so the viewer keeps the window's full height; on
+ * phones it comes first and stays under the top bar while the whole page scrolls, so Save is
+ * never below the document. Use it with ``ConsoleShell width="full"``.
  */
 export function ViewerLayout({ children }: { children: ReactNode }) {
   return <div className={styles.viewerLayout}>{children}</div>;
@@ -105,7 +109,9 @@ export function DetailsPane({ children }: { children: ReactNode }) {
  * A titled block of a console page (prototype .section); ``info`` adds a "?" that explains it.
  * ``collapsible``: its title line opens and closes it in place (a native ``<details>``, so it
  * works by keyboard and is announced as expanded or collapsed), with ``count`` beside the title
- * and a chevron at the end; open to begin with unless ``defaultOpen`` is false.
+ * and a chevron at the end; open to begin with unless ``defaultOpen`` is false. A screen that must
+ * open it itself (to show something chosen elsewhere) keeps its state: ``open`` and
+ * ``onOpenChange``.
  */
 export function Section({
   title,
@@ -113,6 +119,8 @@ export function Section({
   count,
   collapsible = false,
   defaultOpen = true,
+  open,
+  onOpenChange,
   children,
 }: {
   title: string;
@@ -120,6 +128,8 @@ export function Section({
   count?: number | undefined;
   collapsible?: boolean;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
   const heading = (
@@ -144,7 +154,11 @@ export function Section({
   }
   return (
     <section className={styles.section} aria-label={title}>
-      <details className={styles.collapse} open={defaultOpen}>
+      <details
+        className={styles.collapse}
+        open={open ?? defaultOpen}
+        onToggle={onOpenChange ? (event) => onOpenChange(event.currentTarget.open) : undefined}
+      >
         <summary className={styles.summary}>
           {heading}
           <Icon name="chevron" size={14} className={styles.chevron} />

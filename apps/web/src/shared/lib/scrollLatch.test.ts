@@ -13,8 +13,8 @@ function scrollingList(): HTMLElement & { scrollBy: ReturnType<typeof vi.fn> } {
   return list as unknown as HTMLElement & { scrollBy: ReturnType<typeof vi.fn> };
 }
 
-function wheel(target: EventTarget, deltaY: number, at: number, x = 10, y = 10): WheelEvent {
-  const event = new WheelEvent("wheel", { deltaY, bubbles: true, cancelable: true, clientX: x, clientY: y });
+function wheel(target: EventTarget, deltaY: number, at: number, x = 10, y = 10, keys: WheelEventInit = {}): WheelEvent {
+  const event = new WheelEvent("wheel", { deltaY, bubbles: true, cancelable: true, clientX: x, clientY: y, ...keys });
   Object.defineProperty(event, "timeStamp", { value: at });
   target.dispatchEvent(event);
   return event;
@@ -54,6 +54,14 @@ describe("a wheel gesture stays with what it began on, and stops at its end", ()
     wheel(list, 40, 1050);
     expect(page).toHaveBeenCalledTimes(2);
     expect(list.scrollBy).not.toHaveBeenCalled();
+  });
+
+  it.each([{ ctrlKey: true }, { metaKey: true }])("leaves a zoom alone: %o scrolls nothing", (keys) => {
+    const list = scrollingList();
+    const event = wheel(list, 40, 1000, 10, 10, keys);
+    expect(list.scrollBy).not.toHaveBeenCalled();
+    expect(page).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false); // the viewer under the pointer decides
   });
 
   it("moving the pointer starts a new gesture; content sliding under a still pointer does not", () => {

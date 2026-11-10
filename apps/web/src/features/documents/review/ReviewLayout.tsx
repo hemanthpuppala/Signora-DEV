@@ -348,6 +348,15 @@ export function ReviewLayout({
   return (
     <>
       <ViewerLayout>
+        {loaded ? (
+          <ReviewActionBar
+            review={review}
+            version={version}
+            nextNumber={nextNumber}
+            warnings={view.warnings}
+            canEdit={canEdit}
+          />
+        ) : null}
         <ViewerPane>
           {top}
           {version.id !== current?.id && current ? (
@@ -403,15 +412,6 @@ export function ReviewLayout({
           />
         </ViewerPane>
         <DetailsPane>
-          {loaded ? (
-            <ReviewActionBar
-              review={review}
-              version={version}
-              nextNumber={nextNumber}
-              warnings={view.warnings}
-              canEdit={canEdit}
-            />
-          ) : null}
           {review.problem ? (
             <SaveProblem
               review={review}

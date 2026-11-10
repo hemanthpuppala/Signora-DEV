@@ -90,6 +90,13 @@
   color: var(--ink);
 }
 
+/* On a touch screen a box under 16px makes the browser zoom the page in when it is tapped. */
+@media (pointer: coarse) {
+  .search {
+    font-size: 16px;
+  }
+}
+
 .search::placeholder {
   color: var(--t55);
 }

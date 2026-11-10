@@ -195,22 +195,24 @@
   border-top: 1px solid var(--sep);
 }
 
-/* Under the action bar heading the column, its own rule divides: no second one. */
-.details > :first-child:is([role="region"]) + * {
-  padding-top: 0;
-  border-top: 0;
-}
+/* On phones the screen's action bar (the layout's first child) comes first and, sticky as it is,
+   stays under the top bar while the whole page scrolls. */
 
 @media (min-width: 960px) {
+  /* One screen tall: the page scrolls only what is above it (the title), and each side scrolls
+     inside itself; at its end a side hands the scroll to the page (shared/lib/scrollLatch keeps it
+     from going back in). The document takes the left column's whole height; the right column is
+     the action bar, when the screen has one, over the details. */
   .viewerLayout {
     grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
-    gap: 32px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0 32px;
+    height: calc(100dvh - var(--topbar-height) - 32px);
   }
 
   .viewerLayout > .viewer {
-    position: sticky;
-    top: calc(var(--topbar-height) + 16px);
-    height: calc(100dvh - var(--topbar-height) - 32px);
+    grid-area: 1 / 1 / -1 / 2;
+    height: 100%;
     --pdf-frame-height: 100%;
     --pdf-viewer-height: auto;
   }
@@ -220,24 +222,27 @@
     min-height: 0;
   }
 
-  /* The details are a scroll area of their own, pinned and one screen tall like the viewer: the
-     page scrolls only what is above them (the title), and each side scrolls inside itself; at its
-     end a side hands the scroll to the page (shared/lib/scrollLatch keeps it from going back in). */
+  /* Above the details, not inside what scrolls: its tooltips are never clipped, and it needs no
+     pinning of its own. */
+  .viewerLayout > [role="region"]:first-child {
+    grid-area: 1 / 2;
+    position: static;
+    padding-top: 0;
+  }
+
   .viewerLayout > .details {
-    position: sticky;
-    top: calc(var(--topbar-height) + 16px);
-    height: calc(100dvh - var(--topbar-height) - 32px);
+    grid-area: 2 / 2;
+    height: 100%;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-gutter: stable;
     padding-right: 8px;
-    /* Rows brought into view stop under the action bar heading the column. */
-    scroll-padding-top: calc(var(--action-bar-height) + 12px);
+    scroll-padding-top: 12px; /* rows brought into view stop a little under its top edge */
   }
 
-  /* The action bar heads the column while it scrolls: sticky to the column, not the page. */
-  .viewerLayout > .details > :first-child:is([role="region"]) {
-    top: 0;
+  /* Under the action bar: the gap every block has, which what scrolls passes through. */
+  .viewerLayout > [role="region"]:first-child ~ .details {
+    padding-top: 24px;
   }
 }
 
