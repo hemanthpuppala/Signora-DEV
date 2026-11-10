@@ -213,7 +213,6 @@
     height: calc(100dvh - var(--topbar-height) - 32px);
     --pdf-frame-height: 100%;
     --pdf-viewer-height: auto;
-    --pdf-overscroll: contain; /* pinned: scrolling the PDF never moves the details beside it */
   }
 
   .viewerLayout > .viewer > :last-child {
