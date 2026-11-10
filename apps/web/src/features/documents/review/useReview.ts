@@ -85,6 +85,8 @@ export function useReview({
   const reload = async () => {
     await queryClient.invalidateQueries({ queryKey: ["fields", version.id] });
     await queryClient.invalidateQueries({ queryKey: documentKey(documentId) });
+    // The department's list carries each document's current version: what the send offers.
+    await queryClient.invalidateQueries({ queryKey: ["documents"] });
   };
 
   const path = { document_id: documentId, version_id: version.id };
@@ -112,6 +114,7 @@ export function useReview({
   useEffect(() => {
     if (!revised) return;
     // The page then shows the new version; its review starts afresh (the layout is keyed by version).
+    void queryClient.invalidateQueries({ queryKey: ["documents"] });
     void queryClient.invalidateQueries({ queryKey: documentKey(documentId) }).then(() => onRevised(revised.version_id));
   }, [revised, queryClient, documentId, onRevised]);
 

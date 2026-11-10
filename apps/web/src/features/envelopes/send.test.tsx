@@ -247,6 +247,12 @@ describe("the send", () => {
     measure.mockRestore();
   });
 
+  it("says a document needs approval instead of an empty step", async () => {
+    open({ initialDocumentId: "doc-2" }); // a document with no approved version
+    expect(await screen.findByText("Draft letter needs approval")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("asks before closing once something is filled in", async () => {
     const { onClose } = open({ initialDocumentId: "doc-1" });
     const user = userEvent.setup();

@@ -275,7 +275,7 @@ export function SendModal({
           What you filled in is not kept.
         </Notice>
       ) : null}
-      {form.isError ? <Notice tone="warning">{formError(form.error)}</Notice> : null}
+      {form.isError && step === DOCUMENT ? <Notice tone="warning">{formError(form.error)}</Notice> : null}
 
       {step === DOCUMENT ? (
         <Section title="Choose the document">
@@ -308,6 +308,23 @@ export function SendModal({
             ))}
           </DocumentGrid>
         </Section>
+      ) : null}
+
+      {step !== DOCUMENT && !data ? (
+        // Never a blank step: why there is nothing to fill in yet.
+        <div className={styles.steps}>
+          {document && !document.current_version ? (
+            <Notice tone="warning" title={`${document.name} needs approval`}>
+              Only an approved version can be sent. Approve a version on the document&apos;s page, then send it.
+            </Notice>
+          ) : form.error ? (
+            <Notice tone="warning" title="This document can't be sent right now">
+              {formError(form.error) ?? "Try again in a moment."}
+            </Notice>
+          ) : (
+            <SmallText>Loading the document&apos;s fields…</SmallText>
+          )}
+        </div>
       ) : null}
 
       {step === DETAILS && data ? (
