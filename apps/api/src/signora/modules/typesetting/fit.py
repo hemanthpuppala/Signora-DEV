@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Final
 
-from signora.modules.typesetting.fonts import metrics
+from signora.modules.typesetting.fonts import text_width
 
 MIN_SIZE = 6.0  # points: smaller is not readable on paper
 FALLBACK_RATIO = 0.72  # without the agreement's text size: this share of the box's height
@@ -36,7 +36,7 @@ def fitted_size(text: str, rect: Rect, size: float, font_id: str) -> float | Non
     it must, ``None`` when even ``MIN_SIZE`` is too wide. Only width refuses: a short box's own
     size may be under ``MIN_SIZE``, and a value that fits at it is drawn at it. O(len(text))."""
     width = rect[2] - rect[0]
-    per_point = metrics(font_id).text_length(text, fontsize=1)
+    per_point = text_width(text, font_id)
     if per_point <= 0:
         return size
     fitted = min(size, width / per_point)
@@ -51,5 +51,5 @@ def baseline(rect: Rect, size: float) -> float:
 def left_edge(rect: Rect, text: str, size: float, font_id: str) -> float:
     """Where the value starts: centred in its box (``ALIGN``). A value that had to shrink fills
     the box's width, so it starts at the box's left edge."""
-    width = float(metrics(font_id).text_length(text, fontsize=size))
+    width = text_width(text, font_id, size)
     return rect[0] + max(0.0, (rect[2] - rect[0]) - width) / 2

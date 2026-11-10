@@ -35,3 +35,24 @@ def test_a_place_takes_the_size_of_the_words_on_its_row_or_else_the_pages() -> N
     assert sizes[small] == 9.0
     assert sizes[alone] == 11.0
     assert elsewhere not in sizes
+
+
+def test_text_too_small_to_read_is_not_the_agreements_text() -> None:
+    # A scan's hidden text layer on the blank's row: 0.2 pt would round to no size at all, and
+    # 1 pt would have values drawn at 1 pt.
+    document = pymupdf.open()
+    page = document.new_page(width=612, height=792)
+    page.insert_text((72, 200), "made and entered into as of this", fontsize=11)
+    page.insert_text((72, 300), "hidden layer", fontsize=0.2)
+    page.insert_text((72, 400), "hidden layer", fontsize=1)
+    tiny, small, body = (uuid.uuid4() for _ in range(3))
+    sizes = text_sizes(
+        document.tobytes(),
+        [
+            Measured(tiny, 1, (140, 296, 300, 302)),
+            Measured(small, 1, (140, 392, 300, 402)),
+            Measured(body, 1, (260, 188, 320, 202)),
+        ],
+    )
+
+    assert sizes == {tiny: 11.0, small: 11.0, body: 11.0}  # the page's readable text

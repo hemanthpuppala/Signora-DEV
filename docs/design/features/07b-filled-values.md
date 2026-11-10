@@ -166,5 +166,23 @@ Envelopes keep `font` among the columns their trigger keeps as sent. Existing en
 | 9.7 | The envelope page's document pane says "Loading the document…" while its form loads, and why with "Try again" when it cannot be had; it showed a count of values in both cases | `envelopes.test.tsx` |
 | 9.8 | The scroll rule leaves Cmd+wheel alone as it does Ctrl+wheel: the PDF viewer zooms on either, and the page scrolled as it zoomed on macOS | `scrollLatch.test.ts` |
 | 9.9 | `Select`: the highlighted option is kept in view (the list alone is moved); on a touch screen the search box is 16 px and takes the focus only when tapped, so opening a list neither zooms the page nor raises the keyboard over it; the list is placed in what the keyboard leaves visible | headless Chromium: 30 options, the last chosen, in view on opening and after Home, twelve ArrowDown and End; at 390 px with touch the focus stays on the trigger and the box is 16 px |
+| 9.10 | The envelope page reads its document from the envelope: `GET /envelopes/{e}/document` gives the sent version's pages, where each typed value is drawn (and which come from a signer), and the fit rule, to whoever may see the envelope. It had read the send form, which is for sending and refuses an archived document or department, so an envelope lost its document when its document was archived; sends already out are unaffected by archiving (Phase 4 §1.4). O(F + P) for F fields and P places, one read of the version's set | `test_follow.py` (an envelope shows its document after the document is archived: the same answer before and after, 403 without access to sends, 404 for another's); `envelopes.test.tsx` (the page never asks for the send form) |
+| 9.11 | The preview measures a character at the font's own grid size (2048 px) and scales down: at 100 px the browser rounded each character to a pixel, and a long value was off by their sum | headless Chromium with the font's file: "AVALON TOWER" is 805.664 at 100 pt, the server's number to the digit (791 measured whole with kerning, 807 a character at a time at 100 px) |
 
-Open, for the owner: the envelope page draws its document from the send form, which is for sending: it refuses an archived document and an archived department. An envelope sent before its document or department was archived therefore shows 9.7's message instead of the document. (Access is not the cause: seeing sends and sending are always held together, by the Editor role or a department grant.) Showing it needs the envelope's own read of its pages, places and fit rule (a contract change).
+### Code review of the backend (2026-11-09)
+
+| # | Change | Evidence |
+|---|---|---|
+| 10.1 | One caller in MuPDF at a time (`typesetting/mupdf.py`): the library is not made for threads, and the API reads a font's widths (a send) and a PDF's text sizes (an approval) on request threads. Widths go through `fonts.text_width` | `test_typesetting.py`, `test_send.py` |
+| 10.2 | Text smaller than the smallest size a value is drawn at (6 pt) is not counted as the agreement's text: a scan's hidden layer of 0.2 pt rounded to no size, which the table refuses, so the version could never be approved; one of 1 pt had values drawn at 1 pt. A page's images are no longer decoded to read its words | `test_sizes.py` (text too small to read) |
+| 10.3 | A send judges only what is asked: a value left in a field its condition has since hidden is dropped, not checked for type or fit; an empty value is left for the signer whatever the field | `test_sending.py` |
+| 10.4 | A year written in two digits is of the printed century, today's (`formats.check_written`): 1999 after a printed "20" would read 2099 | `test_sending.py` |
+| 10.5 | `signora measure-text-sizes` measures each version in a savepoint of its own: one that cannot be read is logged, named in the output (exit 1) and left, and the others are measured. The rule for which places are measured is one constant | `test_text_sizes.py` |
+
+Not changed, for the owner:
+
+- A value is one line. A note, or a PDF's multi-line text box, takes up to 2,000 characters in the form, but a value wider than its box at 6 pt is refused. Wrapping needs one rule for the server, the preview and the signed PDF (Phase 8).
+- A recipient's email wider than its box is not refused at send; the preview squeezes it into the box.
+- A version approved before formats (7c) writes a year in four digits; its fields are frozen, so a "20__" blank there needs a new version.
+- `placement_text_sizes` has no foreign key to its placement (its rows go with their version). Adding one is a migration.
+- A Save replaces the whole set: a field sent without `format` gets its type's default.

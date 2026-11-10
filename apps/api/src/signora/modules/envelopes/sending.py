@@ -15,7 +15,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.modules.envelopes.form import Colleague, FormField, SendForm
-from signora.modules.review.formats import InvalidValueError, check_value, written
+from signora.modules.review.formats import (
+    InvalidValueError,
+    check_value,
+    check_written,
+    written,
+)
 from signora.modules.typesetting import fitted_size, place_size
 
 MAX_COPIES = 10
@@ -210,18 +215,18 @@ def plan_send(
     # Values: known fields, valid for their type; the sender's required fields when asked.
     by_id = {item.id: item for item in form.fields}
     values: dict[uuid.UUID, str] = {}
-    invalid: set[uuid.UUID] = set()  # named once, by what is wrong with it
+    invalid: dict[uuid.UUID, str] = {}  # what is wrong with a value, named once
     raw = {value.field_id: (i, value.value) for i, value in enumerate(request.values)}
     for field_id, (i, text) in raw.items():
         item = by_id.get(field_id)
         if item is None:
             errors.append(FieldError(f"values[{i}].field_id", "Not a field of this document"))
             continue
+        if not text.strip():
+            continue  # left for the signer (prefilling is optional, §2)
         if item.from_recipient is not None:
             errors.append(FieldError(f"fields.{field_id}", "Filled in from the signer"))
             continue
-        if not text.strip():
-            continue  # left for the signer (prefilling is optional, §2)
         try:
             values[field_id] = check_value(
                 item.holds,
@@ -229,24 +234,25 @@ def plan_send(
                 options=[option.value for option in item.options],
                 normalize_email=normalize_email,
             )
+            check_written(item.holds, values[field_id], item.format)
         except InvalidValueError as error:
-            invalid.add(field_id)
-            errors.append(FieldError(f"fields.{field_id}", str(error)))
-            continue
-        if not fits(item, values[field_id], form.font.id):
-            invalid.add(field_id)
-            errors.append(FieldError(f"fields.{field_id}", "Too long for its box"))
+            values.pop(field_id, None)
+            invalid[field_id] = str(error)
     for item in form.fields:
         if item.id not in values or _asked(item, values):
             continue
         del values[item.id]  # its condition is not met: never asked, never sent
+    # Only what is asked is judged: a value left in a field its condition has since hidden is
+    # dropped above, never a reason to refuse the send.
     for item in form.fields:
-        if (
-            item.required
-            and _asked(item, values)
-            and item.id not in values
-            and item.id not in invalid
-        ):
+        if not _asked(item, values):
+            continue
+        if item.id in invalid:
+            errors.append(FieldError(f"fields.{item.id}", invalid[item.id]))
+        elif item.id in values:
+            if not fits(item, values[item.id], form.font.id):
+                errors.append(FieldError(f"fields.{item.id}", "Too long for its box"))
+        elif item.required:
             errors.append(FieldError(f"fields.{item.id}", "Fill this in before sending"))
 
     # Prefill: each signer's and countersigner's email in their party's Email fields.

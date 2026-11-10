@@ -833,6 +833,110 @@
         "title": "DocumentSummary",
         "type": "object"
       },
+      "DrawnField": {
+        "description": "A field whose value is drawn as text or a mark: what it holds, how, and where.",
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "from_recipient": {
+            "anyOf": [
+              {
+                "enum": [
+                  "name",
+                  "email"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Recipient"
+          },
+          "holds": {
+            "enum": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name",
+              "full_name",
+              "first_name",
+              "last_name",
+              "company",
+              "title",
+              "date_of_birth",
+              "email",
+              "phone",
+              "address",
+              "city",
+              "state",
+              "postal_code",
+              "country",
+              "url",
+              "tax_id",
+              "bank_account",
+              "date",
+              "day",
+              "month",
+              "year",
+              "number",
+              "currency",
+              "amount_in_words",
+              "percent",
+              "text",
+              "checkbox",
+              "choice",
+              "note",
+              "other"
+            ],
+            "title": "Holds",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "holds",
+          "format",
+          "party_id",
+          "from_recipient",
+          "places"
+        ],
+        "title": "DrawnField",
+        "type": "object"
+      },
       "DuplicateView": {
         "description": "The same bytes already in the department (§2.3): the screen asks before going on.",
         "properties": {
@@ -874,6 +978,34 @@
           "email"
         ],
         "title": "EmailResponse",
+        "type": "object"
+      },
+      "EnvelopeDocument": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/DrawnField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "fit": {
+            "$ref": "#/components/schemas/FitRule"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageSize"
+            },
+            "title": "Pages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pages",
+          "fields",
+          "fit"
+        ],
+        "title": "EnvelopeDocument",
         "type": "object"
       },
       "EnvelopePage": {
@@ -7846,6 +7978,84 @@
           }
         },
         "summary": "Withdraw a send: every link stops working (repeat-safe)",
+        "tags": [
+          "envelopes"
+        ]
+      }
+    },
+    "/api/v1/envelopes/{envelope_id}/document": {
+      "get": {
+        "operationId": "get_envelope_document_api_v1_envelopes__envelope_id__document_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "envelope_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Envelope Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The envelope's document as drawn: its pages and where each value goes",
         "tags": [
           "envelopes"
         ]

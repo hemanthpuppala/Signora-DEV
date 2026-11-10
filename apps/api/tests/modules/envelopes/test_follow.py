@@ -254,3 +254,37 @@ def test_people_without_send_access_cannot_follow_up(
             ).status_code
             == 403
         )
+
+
+def test_an_envelope_shows_its_document_after_the_document_is_archived(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    make_client: Callable[..., TestClient],
+    add_member: Callable[..., Account],
+) -> None:
+    doc, envelope = sent_envelope(owner, run, detect, company)
+    path = f"{ENVELOPES}/{envelope['id']}/document"
+    before = owner.get(path)
+    assert before.status_code == 200, before.text
+    drawn = {f["id"]: f for f in before.json()["fields"]}
+    # What is typed or comes from the signer is drawn; a signature is not a typed value.
+    assert drawn[doc.field("Effective date")["id"]]["places"][0]["rect"] == [300, 40, 400, 60]
+    assert drawn[doc.field("Client printed name")["id"]]["from_recipient"] == "name"
+    assert doc.field("Firm signature")["id"] not in drawn
+    assert before.json()["pages"] and before.json()["fit"]["min_size"] > 0
+
+    documents = "/api/v1/documents"
+    archived = owner.post(f"{documents}/{doc.document_id}/archive", headers=csrf_headers(owner))
+    assert archived.json()["archived_at"] is not None
+    # Sending it again is refused; the send already out is unaffected.
+    form = owner.get(f"{documents}/{doc.document_id}/versions/{doc.version_id}/send-form")
+    assert (form.status_code, form.json()["code"]) == (409, "document-archived")
+    assert owner.get(path).json() == before.json()
+
+    viewer = add_member(company, role="read")  # may not see sends: nor their documents
+    with make_client() as theirs:
+        log_in(theirs, viewer.email)
+        assert theirs.get(path).status_code == 403
+    assert owner.get(f"{ENVELOPES}/{uuid.uuid4()}/document").status_code == 404

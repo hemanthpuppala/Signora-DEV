@@ -85,13 +85,15 @@ def _measure_text_sizes(args: argparse.Namespace) -> int:
     engine = create_db_engine(settings.db, pool_size=1)
     try:
         with Database(engine).unit_of_work() as uow:
-            count = measure_unmeasured(
+            done = measure_unmeasured(
                 uow.session, blob_store_from_settings(settings.blob_store), args.workspace
             )
     finally:
         engine.dispose()
-    sys.stdout.write(f"measured {count} approved versions\n")
-    return 0
+    sys.stdout.write(f"measured {done.measured} approved versions\n")
+    for version_id in done.failed:
+        sys.stdout.write(f"could not measure version {version_id} (see the log)\n")
+    return 1 if done.failed else 0
 
 
 def _openapi(args: argparse.Namespace) -> int:

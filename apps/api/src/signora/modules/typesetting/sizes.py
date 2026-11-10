@@ -3,7 +3,9 @@ its version is approved. Pure: bytes in, sizes out.
 
 A place takes the median size of the words on its row (their vertical centres within the place's
 height, widened a little); with none on its row, the page's median. Rounded to half a point, so a
-document's one body size reads as one size.
+document's one body size reads as one size. Only text someone can read counts: words smaller than
+the smallest size a value is drawn at (a scan's hidden text layer, a hairline of fine print) are
+not the agreement's text, and would have values drawn unreadably small.
 """
 
 from __future__ import annotations
@@ -17,7 +19,12 @@ from statistics import median
 
 import pymupdf
 
+from signora.modules.typesetting.fit import MIN_SIZE
+from signora.modules.typesetting.mupdf import MUPDF_LOCK
+
 ROW_SLACK = 2.0  # points: a word whose centre is this close above or below the box is on its row
+# The words and their sizes only: a page's images are never decoded for it.
+_TEXT_ONLY = pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_PRESERVE_IMAGES
 
 
 @dataclass(frozen=True)
@@ -40,16 +47,16 @@ def text_sizes(pdf: bytes, places: Sequence[Measured]) -> dict[uuid.UUID, float]
     for place in places:
         by_page[place.page].append(place)
     sizes: dict[uuid.UUID, float] = {}
-    with pymupdf.open(stream=pdf, filetype="pdf") as document:
+    with MUPDF_LOCK, pymupdf.open(stream=pdf, filetype="pdf") as document:
         for number, wanted in by_page.items():
             if not 1 <= number <= document.page_count:
                 continue
             page = document.load_page(number - 1)
             words: list[tuple[float, float]] = []  # (centre y as displayed, size)
-            for block in page.get_text("dict")["blocks"]:
+            for block in page.get_text("dict", flags=_TEXT_ONLY)["blocks"]:
                 for line in block.get("lines", ()):
                     for span in line["spans"]:
-                        if not span["text"].strip() or span["size"] <= 0:
+                        if not span["text"].strip() or span["size"] < MIN_SIZE:
                             continue
                         shown = pymupdf.Rect(span["bbox"]) * page.rotation_matrix
                         words.append(((shown.y0 + shown.y1) / 2, float(span["size"])))

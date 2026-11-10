@@ -91,9 +91,11 @@ describe("envelopes", () => {
   const fetchMock = vi.fn<typeof fetch>();
   const calls: { method: string; path: string; query: string; body: unknown; key: string | null }[] = [];
   let envelope: Record<string, unknown>;
+  let documentFails: boolean; // the envelope's document cannot be had
 
   beforeEach(() => {
     calls.length = 0;
+    documentFails = false;
     envelope = structuredClone(ENVELOPE);
     Element.prototype.scrollTo = vi.fn() as unknown as Element["scrollTo"];
     vi.stubGlobal("fetch", fetchMock);
@@ -110,7 +112,14 @@ describe("envelopes", () => {
         return reply(200, { envelopes: [summary("env-1", "Mutual NDA · Maya Chen")], next_cursor: "next" });
       }
       if (route === "GET /api/v1/envelopes/env-1") return reply(200, envelope);
-      if (route.endsWith("/send-form")) return reply(404, { type: "x", title: "x", status: 404, code: "not-found" });
+      if (route.endsWith("/env-1/document")) {
+        if (documentFails) return reply(500, { type: "x", title: "x", status: 500, code: "internal" });
+        return reply(200, {
+          pages: [{ width: 612, height: 792 }],
+          fields: [],
+          fit: { min_size: 6, fallback_ratio: 0.72, fallback_cap: 11, baseline_ratio: 0.18, baseline_min: 1.5, align: "center" },
+        });
+      }
       if (route.endsWith("/link")) return reply(200, { url: "https://signora.example/s/abc" });
       if (route.endsWith("/resend")) return reply(200, { recipient_id: "r-ben" });
       if (route.endsWith("/recipients/r-maya/remind")) return reply(200, { reminded: 1 });
@@ -187,11 +196,14 @@ describe("envelopes", () => {
   });
 
   it("says when the document can't be shown, and offers to ask again, instead of a blank pane", async () => {
+    documentFails = true;
     wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
     expect(await screen.findByText("The document can't be shown")).toBeTruthy();
-    const before = calls.filter((c) => c.path.endsWith("/send-form")).length;
+    // Its own read, never the send form's: that one refuses an archived document.
+    expect(calls.some((c) => c.path.endsWith("/send-form"))).toBe(false);
+    documentFails = false;
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-    await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/send-form")).length).toBeGreaterThan(before));
+    await waitFor(() => expect(screen.queryByText("The document can't be shown")).toBeNull());
   });
 
   it("cancels only after confirming", async () => {
