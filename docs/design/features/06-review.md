@@ -90,10 +90,14 @@ This is optimistic concurrency, and the editor keeps it too: unsaved edits belon
 and are never dropped unasked. When the fields move on under them (someone else saved; the page refetched), the edits
 stay, the same notice as a refused save is shown at once, Save sends nothing the server would refuse, and Reload, the
 person's choice, takes the newer fields. With nothing unsaved the newer fields are simply shown. While a save is on
-its way no edit is taken: the server settles what it stores (§3), so an edit made meanwhile has nothing to stand on.
+its way the editor is busy: the pages and the fields take no input and say so (`aria-busy`, `inert`), Undo and Discard
+are off, and the draft does not change, because the server settles what it stores (§3) and an edit made meanwhile
+would have nothing to stand on.
 
-Everything that changes a document takes its locks in one order: the document's row, a version's row, the audit
-chain. A Save or an Approve therefore takes the document's row lock first.
+A document, its versions and their fields have one lock: the document's row, taken first by whatever writes any of
+them (`lifecycle.hold_document`; a person's change through `lock_document`, which also checks access), with the audit
+chain's lock taken last. One lock first means no two writers can each hold what the other waits for, whatever order
+they take the rows in after it. A Save, an Approve and the detection job's last step all begin with it.
 
 ### 1.7 Unsaved changes
 
@@ -624,8 +628,8 @@ test that fails on the code as it was, or over HTTP against the test database.
 | 15.1 | Save refused a checkbox group as detection stores it (one choice whose places keep the kind `checkbox`): a version nobody had edited could not be saved | One rule for what a place may hold, `review.values.may_hold`: its kind, and a checkbox that stands for an option holds its choice. The editor's type list follows it | `test_detected_sets.py`, `editor.test.ts` |
 | 15.2 | Save took 200 characters of an option's words; detection keeps 400 | One length for both, `review.values.OPTION_MAX` (and `LABEL_MAX`); a checkbox group's label is cut like every other label | `test_detected_sets.py` |
 | 15.3 | A condition on a dropdown's option was refused on Save: a dropdown is one place, so its options were kept nowhere in review and existed only in detection's reading of the PDF | The options are kept with the place (`field_placements.options`, migration `0018a`, which fills the places already stored from their version's reading, approved versions included). Detection hands them over; the fields view sends them; Save checks a condition against them (`editing.options_of`) and writes them back as stored, never from the request; the editor offers them (`editor.optionsOf`) | `test_detected_sets.py` (saved, an unknown option still refused, the migration's fill), `editor.test.ts` |
-| 15.4 | Unsaved edits were dropped, unsaid, when the fields moved on or one's own save came back | Optimistic concurrency kept in the editor (§1.6) | `review.test.tsx` (two tests) |
-| 15.5 | An approval took the document's row lock last, after the version's and the audit chain's: a deadlock beside a rename, an upload or a new search for fields | One order of locks (§1.6); `version_for_review(lock=True)` takes the document's first | `test_approve.py` (a waiting approval holds no audit lock) |
+| 15.4 | Unsaved edits were dropped, unsaid, when the fields moved on or one's own save came back | Optimistic concurrency kept in the editor, which is busy while a save is on its way (§1.6) | `review.test.tsx` (two tests) |
+| 15.5 | An approval took the document's row lock last, after the version's and the audit chain's, and the detection job's last step took it after writing the fields: either could deadlock with another change of the same document | One lock taken first by every writer (§1.6): `lifecycle.hold_document`, in `version_for_review(lock=True)` and in detection's store step | `test_approve.py` (a waiting approval and a waiting detection job hold nothing yet) |
 | 15.6 | A size starting with a digit under 8 could not be typed: each keystroke was clamped and written back | A size box shows what is typed while it has the focus | `review.test.tsx` |
 | 15.7 | "Make separate field" on a value a party gives once was folded back on Save with no word | The rule stays (§3); the fields view names the shared values and the field's form says it will join the first, and what keeps it apart | `editor.test.ts` |
 | 15.8 | A refused save's errors were read against the draft as edited since, so they moved onto other fields | Read against the draft that was sent | `review.test.tsx` |

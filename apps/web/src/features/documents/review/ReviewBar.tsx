@@ -51,10 +51,12 @@ export function ReviewActionBar({
   const actions =
     !canEdit ? null : editing && changes > 0 ? (
       <>
-        <TextButton disabled={!review.canUndo} onClick={review.undo}>
+        <TextButton disabled={!review.canUndo || review.saving} onClick={review.undo}>
           Undo
         </TextButton>
-        <TextButton onClick={review.discard}>Discard</TextButton>
+        <TextButton disabled={review.saving} onClick={review.discard}>
+          Discard
+        </TextButton>
         <Button compact loading={review.saving} loadingLabel="Saving…" onClick={review.save}>
           {approved ? `Save as version ${nextNumber}` : "Save"}
         </Button>

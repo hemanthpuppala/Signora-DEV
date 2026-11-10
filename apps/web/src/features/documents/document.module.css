@@ -10,6 +10,11 @@
   align-items: start;
 }
 
+/* A save is on its way (ReviewLayout): the pages and the fields take no input until it answers. */
+.layout[aria-busy="true"] {
+  cursor: progress;
+}
+
 @media (min-width: 960px) {
   .layout {
     grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);

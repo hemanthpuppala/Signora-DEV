@@ -65,8 +65,9 @@ type Held = { versionId: string; revision: number; status: string; history: Hist
  * Optimistic concurrency (§1.6), kept on this side too. Unsaved edits belong to the revision they
  * were made on and are never dropped unasked: when the fields are saved elsewhere meanwhile, the
  * edits stay, the person is told, and Reload (their choice) takes the newer fields. With nothing
- * unsaved, the newer fields are simply shown. While a save is on its way nothing more is taken:
- * the server may settle what it stores, so an edit made meanwhile has nothing sound to stand on.
+ * unsaved, the newer fields are simply shown. While a save is on its way the editor is busy and
+ * the draft does not change: the server settles what it stores, so an edit made meanwhile would
+ * have nothing sound to stand on.
  */
 export function useReview({
   documentId,
@@ -148,10 +149,12 @@ export function useReview({
   });
 
   const saving = saveInPlace.isPending || revise.isPending;
-  const edit: Edit = (change: (draft: Draft) => Draft, merge?: string) => {
-    if (saving) return; // nothing more is taken while a save is on its way
-    setState(hold(apply(history, change, merge)));
+  // While a save is on its way the draft does not change: the screen is busy and takes no input
+  // (ReviewLayout), and nothing else (a key, Undo) may move the history under the request either.
+  const change = (next: History) => {
+    if (!saving) setState(hold(next));
   };
+  const edit: Edit = (step: (draft: Draft) => Draft, merge?: string) => change(apply(history, step, merge));
   const save = () => {
     if (savedElsewhere) return; // the server would refuse it: the notice already says why
     const body = toFieldSet(history.present, held?.revision ?? view.revision);
@@ -175,8 +178,8 @@ export function useReview({
     canUndo: history.past.length > 0,
     canRedo: history.future.length > 0,
     edit,
-    undo: () => setState(hold(undo(history))),
-    redo: () => setState(hold(redo(history))),
+    undo: () => change(undo(history)),
+    redo: () => change(redo(history)),
     discard,
     save,
     saving,

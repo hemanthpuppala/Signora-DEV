@@ -285,13 +285,19 @@ describe("field review", () => {
     const sentAs = required().checked;
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    await user.click(required()); // while the request is in flight
-    expect(required().checked).toBe(sentAs); // not taken: it would have been lost on the reload
+    // While the request is in flight the editor says it is busy and takes no input.
+    const editor = required().closest("[aria-busy]");
+    expect(editor?.getAttribute("aria-busy")).toBe("true");
+    expect(editor?.hasAttribute("inert")).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Undo" }).disabled).toBe(true);
+    await user.click(required()); // a test DOM does not honour inert: the draft still does not move
+    expect(required().checked).toBe(sentAs);
 
     state.fields["v-1"] = fieldsView({ revision: 1 });
     finish(new Response(JSON.stringify({ revision: 1 }), { status: 200, headers: { "content-type": "application/json" } }));
     await waitFor(() => expect(screen.queryByText(/unsaved change/)).toBeNull());
     expect(screen.queryByText("Reloading shows their changes; yours will be lost.")).toBeNull();
+    expect(required().closest("[aria-busy]")).toBeNull(); // open for input again
   });
 
   it("takes a size as it is typed, digit by digit", async () => {

@@ -353,8 +353,12 @@ export function ReviewLayout({
           canEdit={canEdit}
         />
       ) : null}
+      {/* While a save is on its way the pages and the fields take no input and say they are
+          busy: the request carries the draft as it stood, and the bar above shows "Saving…". */}
       <div
         className={`${documentStyles.layout}${loaded ? ` ${documentStyles.underBar}` : ""}`}
+        aria-busy={review.saving || undefined}
+        inert={review.saving}
       >
         <div className={documentStyles.main}>
           {top}
