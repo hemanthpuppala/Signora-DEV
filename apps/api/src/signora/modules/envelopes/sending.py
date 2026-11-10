@@ -60,6 +60,21 @@ class SettingsIn(_In):
     notify_emails: list[str] = Field(default_factory=list, max_length=5)
 
 
+DEFAULT_ZONE = "UTC"
+
+
+def _is_zone(name: str) -> bool:
+    """A place's zone ("America/Los_Angeles") or UTC. The tz database's other files ("localtime",
+    the server's own zone; "Factory", no zone at all) are not a sender's."""
+    if name != DEFAULT_ZONE and "/" not in name:
+        return False
+    try:
+        ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return False
+    return True
+
+
 class SendRequest(_In):
     version_id: uuid.UUID
     title: str | None = Field(default=None, min_length=1, max_length=120)
@@ -71,17 +86,14 @@ class SendRequest(_In):
     # One person on two parties (the same email twice) is allowed once the sender confirms it.
     confirm_same_person: bool = False
     # The sender's time zone (the browser's IANA name): its emails give dates as the sender sees
-    # them in the app.
-    time_zone: str = Field(default="UTC", min_length=1, max_length=64)
+    # them in the app. It only words a date, and the sender never typed it, so a name this server
+    # does not know (a browser's "Etc/Unknown") takes UTC rather than refusing the send.
+    time_zone: str = Field(default=DEFAULT_ZONE, max_length=64)
 
     @field_validator("time_zone")
     @classmethod
     def _known_zone(cls, value: str) -> str:
-        try:
-            ZoneInfo(value)
-        except (ZoneInfoNotFoundError, ValueError):
-            raise ValueError("Not a time zone") from None
-        return value
+        return value if _is_zone(value) else DEFAULT_ZONE
 
 
 @dataclass(frozen=True)

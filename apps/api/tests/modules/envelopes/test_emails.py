@@ -60,3 +60,20 @@ def test_a_date_is_given_in_the_senders_zone_with_its_time() -> None:
         expires_at=expires,
     )
     assert "It expires on Nov 23, 2026 at 8:05 PM PST." in letter.body.text
+
+
+def test_a_zone_without_letters_is_given_by_its_distance_from_utc() -> None:
+    """The tz database names Sao Paulo's time "-03" and India's "IST": a reader in another zone
+    is told "UTC-3", never a bare "-03"."""
+
+    def expiry(zone: str) -> str:
+        expires = datetime(2026, 11, 24, 4, 5, tzinfo=UTC).astimezone(ZoneInfo(zone))
+        text = sign_reminder(
+            company="Hale & Ward LLP", signer="Maya Chen", document="Mutual NDA", url=URL, expires_at=expires
+        ).body.text
+        return text.split("It expires on ", 1)[1].split(".", 1)[0]
+
+    assert expiry("America/Sao_Paulo") == "Nov 24, 2026 at 1:05 AM UTC-3"
+    assert expiry("Asia/Dubai") == "Nov 24, 2026 at 8:05 AM UTC+4"
+    assert expiry("Asia/Kathmandu") == "Nov 24, 2026 at 9:50 AM UTC+5:45"
+    assert expiry("Asia/Kolkata") == "Nov 24, 2026 at 9:35 AM IST"

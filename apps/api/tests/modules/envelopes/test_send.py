@@ -333,9 +333,6 @@ def test_the_emails_give_dates_in_the_senders_time_zone(
     committing_db: Database,
 ) -> None:
     doc = sendable(owner, run, detect)
-    unknown = send(owner, doc, {**request_for(owner, doc, company), "time_zone": "Mars/Olympus"})
-    assert unknown.status_code == 422
-
     sent = send(
         owner, doc, {**request_for(owner, doc, company), "time_zone": "America/Los_Angeles"}
     )
@@ -358,3 +355,23 @@ def test_the_emails_give_dates_in_the_senders_time_zone(
     expires = datetime.fromisoformat(envelope["expires_at"]).astimezone(ZoneInfo(zone))
     assert f"It expires on {expires:%b} {expires.day}, {expires.year} at " in body
     assert body.split("It expires on", 1)[1].split(".", 1)[0].endswith(("PST", "PDT"))
+
+
+def test_a_time_zone_the_server_does_not_know_sends_in_utc(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    """The zone only words a date and the sender never typed it: a browser's "Etc/Unknown", or
+    the tz database's "localtime" (the server's own zone), is no reason to refuse a send."""
+    doc = sendable(owner, run, detect)
+    for name in ("Etc/Unknown", "localtime"):
+        sent = send(owner, doc, {**request_for(owner, doc, company), "time_zone": name})
+        assert sent.status_code == 201, sent.text
+        with committing_db.unit_of_work() as uow:
+            zone = uow.session.execute(
+                text("SELECT time_zone FROM envelopes WHERE id = :e"), {"e": sent.json()["id"]}
+            ).scalar_one()
+        assert zone == "UTC"

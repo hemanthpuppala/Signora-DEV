@@ -7,7 +7,7 @@ it expires, and that a reply reaches the sender.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from signora.modules.notifications import EmailAction, RenderedEmail, render_layout
 
@@ -22,7 +22,18 @@ def _day(moment: datetime) -> str:
     """A moment as its reader takes it, in the zone it carries (the sender's): "Nov 23, 2026 at
     8:05 PM PST". With the time and the zone, a date near midnight cannot be read as the next."""
     hour = moment.strftime("%I").lstrip("0")
-    return f"{moment:%b} {moment.day}, {moment.year} at {hour}:{moment:%M %p} {moment:%Z}"
+    return f"{moment:%b} {moment.day}, {moment.year} at {hour}:{moment:%M %p} {_zone(moment)}"
+
+
+def _zone(moment: datetime) -> str:
+    """The zone's letters ("PST"), or where it has none (Sao Paulo, Dubai: the tz database gives
+    "-03", "+04") its distance from UTC: "UTC-3", "UTC+5:30"."""
+    name = moment.tzname() or "UTC"
+    if name.isalpha():
+        return name
+    minutes = round((moment.utcoffset() or timedelta()).total_seconds() / 60)
+    hours, rest = divmod(abs(minutes), 60)
+    return f"UTC{'-' if minutes < 0 else '+'}{hours}" + (f":{rest:02d}" if rest else "")
 
 
 def _first(name: str) -> str:
