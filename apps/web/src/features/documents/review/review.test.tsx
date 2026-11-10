@@ -71,7 +71,8 @@ const fieldsView = (overrides: Record<string, unknown> = {}) => ({
   pending: [],
   flags: { no_fields: false, addressed_to_ai: false, xfa: false, already_signed: false, repaired: false },
   revision: 0,
-  allowed: { text: TEXTUAL, blank: [...TEXTUAL, "checkbox", "choice"], signature: ["signature", "initials"], checkbox: ["checkbox"], radio: ["choice"], combobox: ["choice"], listbox: ["choice"] },
+shared: ["signature", "initials", "date_signed", "party_name"],
+    allowed: { text: TEXTUAL, blank: [...TEXTUAL, "checkbox", "choice"], signature: ["signature", "initials"], checkbox: ["checkbox"], radio: ["choice"], combobox: ["choice"], listbox: ["choice"] },
   warnings: [{ code: "needs_a_look", message: "1 field needs a look; approving accepts them as found", count: 1 }],
   roles: [{ id: "party-client", slug: "client", label: "Client", kind: "signer", kind_label: null, position: 1, field_count: 1 }],
   fields: [

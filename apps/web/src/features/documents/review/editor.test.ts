@@ -17,6 +17,7 @@ import {
   nudge,
   onEveryPage,
   redo,
+  joinsOnSave,
   mayHold,
   removeParty,
   setOptionText,
@@ -158,6 +159,23 @@ describe("the review editor", () => {
     expect(mayHold(allowed, { kind: "checkbox", option_value: null }, "checkbox")).toBe(true);
     expect(mayHold(allowed, { kind: "text", option_value: null }, "date")).toBe(true);
     expect(mayHold(allowed, { kind: "radio", option_value: "Gold" }, "choice")).toBe(false); // not in this map
+  });
+
+  it("says which field a split shared value joins again when saved", () => {
+    // A party gives its signature once: the server folds a second signature field of the same
+    // party into the first on Save. "Make separate field" made one, which then vanished unsaid.
+    const SHARED = ["signature", "initials", "date_signed", "party_name"];
+    const start = fromView(VIEW);
+    const signature = updateField(start, "card", { holds: "signature" }); // two places, the client's
+    const split = splitPlace(signature, "card-2");
+    const made = split.draft.fields.find((f) => f.id === split.fieldId)!;
+    expect(joinsOnSave(split.draft, made, SHARED)?.id).toBe("card");
+    expect(joinsOnSave(split.draft, split.draft.fields[1]!, SHARED)).toBeNull(); // the first stays
+    // Given to someone else, or made another type, it stays apart.
+    const other = updateField(split.draft, made.id, { filled_by: "role", party_id: "guarantor" });
+    expect(joinsOnSave(other, other.fields.find((f) => f.id === made.id)!, SHARED)).toBeNull();
+    const retyped = updateField(split.draft, made.id, { holds: "text" });
+    expect(joinsOnSave(retyped, retyped.fields.find((f) => f.id === made.id)!, SHARED)).toBeNull();
   });
 
   it("deleting a choice drops the conditions on it", () => {

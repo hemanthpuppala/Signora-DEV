@@ -12,6 +12,7 @@ import type { Selection } from "../FieldBoxes";
 import {
   addParty,
   CONDITIONS,
+  joinsOnSave,
   mayHold,
   OPTION_MAX,
   onEveryPage,
@@ -118,6 +119,7 @@ export function FieldForm({
   );
   const fillers = [...fillerOptions(draft.parties), { value: NEW_PARTY, label: "Someone else…" }];
   const conditions = conditionOptions(field, draft);
+  const joined = joinsOnSave(draft, field, editing.shared);
   const conditionValue = field.depends_on ? `${field.depends_on.field_id}|${field.depends_on.option}` : "";
   const privateByType = PRIVATE.has(field.holds);
 
@@ -137,6 +139,11 @@ export function FieldForm({
   return (
     <div className={styles.form}>
       {field.needs_review ? <Notice tone="warning">{`Needs a look: ${field.needs_review}. Any change clears this.`}</Notice> : null}
+      {joined ? (
+        // Said before Save does it: a separate field of a value its party gives once would
+        // otherwise be gone after the save, with no word of why.
+        <Notice>{`${whoFills(field, draft.parties)} gives one ${HOLDS[field.holds].toLowerCase()}. When saved, this becomes another place of “${joined.label}”. To keep it apart, change who fills it or its type.`}</Notice>
+      ) : null}
       <TextField
         label="Label"
         required

@@ -197,6 +197,7 @@ export type PanelEditing = {
   review: Review;
   pages: readonly PageSize[];
   allowed: VersionFields["allowed"];
+  shared: VersionFields["shared"];
   onAddPlace: (fieldId: string) => void;
   onDeleteField: (fieldId: string) => void;
   canDraw: boolean;

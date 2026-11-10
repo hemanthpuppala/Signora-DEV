@@ -1853,6 +1853,16 @@ export interface components {
             revision: number;
             /** Roles */
             roles: components["schemas"]["signora__modules__review__views__RoleView"][];
+            /**
+             * Shared
+             * @default [
+             *       "signature",
+             *       "initials",
+             *       "date_signed",
+             *       "party_name"
+             *     ]
+             */
+            shared: ("signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other")[];
             /** Stage */
             stage: ("read" | "ai" | "derive" | "store" | "done") | null;
             /** Status */

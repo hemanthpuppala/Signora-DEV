@@ -314,6 +314,17 @@ export function deletePlace(draft: Draft, placeId: string): Draft {
   }));
 }
 
+/**
+ * The field this one joins when saved, if any (the server's editing.settle): a party gives a
+ * shared value (a signature, initials, a signing date, a name) once, however many places ask for
+ * it, so a second field of one for the same party becomes more places of the first. O(F).
+ */
+export function joinsOnSave(draft: Draft, field: DraftField, shared: readonly string[]): DraftField | null {
+  if (field.party_id === null || !shared.includes(field.holds)) return null;
+  const first = draft.fields.find((other) => other.party_id === field.party_id && other.holds === field.holds);
+  return first && first.id !== field.id ? first : null;
+}
+
 /** "Make separate field": a place becomes a field of its own with the same attributes (§5). */
 export function splitPlace(draft: Draft, placeId: string): { draft: Draft; fieldId: string | null } {
   const found = findPlace(draft, placeId);
