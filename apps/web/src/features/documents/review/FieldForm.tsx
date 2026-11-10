@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Button, Checkbox, InfoTip, Notice, Select, SmallText, TextField } from "@/shared/ui";
+import { Button, Checkbox, IconButton, InfoTip, Notice, Select, SmallText, TextField, type IconName } from "@/shared/ui";
 
 import { FORMAT_EXAMPLES, whoFills } from "../fields";
 import { PLACES_HELP } from "./help";
@@ -15,14 +15,14 @@ import {
   onEveryPage,
   PRIVATE,
   setOptionText,
-  setRect,
   splitPlace,
   updateField,
   deletePlace,
+  nudge,
+  resize,
   type Draft,
   type DraftField,
   type Holds,
-  type Rect,
 } from "./editor";
 import { filler, fillerOptions, typeOptions } from "./AddField";
 import { NewParty } from "./PartyList";
@@ -62,6 +62,17 @@ function conditionOptions(field: DraftField, draft: Draft) {
  * size are numbers, so a box can be placed without a mouse. Every change is one undo step; typing
  * in one box is one.
  */
+const STEP = 2; // points a click moves a place
+// The place's own controls, besides dragging it: four ways to move, smaller and larger.
+const ADJUST: readonly { icon: IconName; label: string; move: readonly [number, number]; scale?: number }[] = [
+  { icon: "left", label: "Move left", move: [-STEP, 0] },
+  { icon: "up", label: "Move up", move: [0, -STEP] },
+  { icon: "down", label: "Move down", move: [0, STEP] },
+  { icon: "right", label: "Move right", move: [STEP, 0] },
+  { icon: "minus", label: "Smaller", move: [0, 0], scale: 0.9 },
+  { icon: "plus", label: "Larger", move: [0, 0], scale: 1.1 },
+];
+
 export function FieldForm({
   field,
   draft,
@@ -96,16 +107,6 @@ export function FieldForm({
   const setFiller = (value: string) => {
     if (value === NEW_PARTY) setNewParty(true);
     else change(filler(value));
-  };
-  const setNumber = (index: 0 | 1 | 2 | 3, value: string) => {
-    if (!current) return;
-    const number = Number(value);
-    if (!Number.isFinite(number)) return;
-    const [x0, y0, x1, y1] = current.rect;
-    const size: Rect = [x0, y0, x1 - x0, y1 - y0];
-    size[index] = number;
-    const rect: Rect = [size[0], size[1], size[0] + size[2], size[1] + size[3]];
-    edit((draft) => setRect(draft, current.id, rect, editing.pages, false), `rect:${current.id}`);
   };
 
   return (
@@ -238,26 +239,23 @@ export function FieldForm({
           </div>
         ) : null}
         {current ? (
-          <details className={styles.more}>
-            <summary>{`Position and size · page ${current.page}`}</summary>
-            <div className={styles.numbers}>
-              {(["Left", "Top", "Width", "Height"] as const).map((name, index) => {
-                const [x0, y0, x1, y1] = current.rect;
-                const values = [x0, y0, x1 - x0, y1 - y0];
-                return (
-                  <TextField
-                    key={name}
-                    label={name}
-                    type="number"
-                    step="1"
-                    value={String(Math.round((values[index] ?? 0) * 100) / 100)}
-                    onChange={(event) => setNumber(index as 0 | 1 | 2 | 3, event.target.value)}
-                  />
-                );
-              })}
-            </div>
-            <SmallText>In points from the page&apos;s top left. Dragging the box on the document does the same.</SmallText>
-          </details>
+          // Dragging the box moves and sizes it; this row does the same without a drag.
+          <div className={styles.adjust} role="group" aria-label="Move or resize this place">
+            {ADJUST.map(({ icon, label, move, scale }) => (
+              <IconButton
+                key={icon}
+                icon={icon}
+                label={label}
+                onClick={() =>
+                  edit(
+                    (draft) =>
+                      scale ? resize(draft, current.id, scale, editing.pages) : nudge(draft, current.id, move[0], move[1], editing.pages),
+                    `rect:${current.id}`,
+                  )
+                }
+              />
+            ))}
+          </div>
         ) : null}
       </section>
       <div className={styles.formEnd}>

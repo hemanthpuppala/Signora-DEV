@@ -175,6 +175,9 @@ describe("field review", () => {
     await userEvent.click(within(list).getByRole("button", { name: label }));
   };
   const bar = () => screen.getByRole("region", { name: "Review" });
+  // The chosen box on the page: where a place is, read from how it is drawn.
+  const chosenBox = () =>
+    [...document.querySelectorAll<HTMLElement>('[data-layer="fields"] > button')].find((b) => /chosen/.test(b.className)) as HTMLElement;
   // The version on screen and its state, in the title's line (V2 · Needs approval).
   const shownVersion = () => screen.getByRole("heading", { level: 1 }).parentElement as HTMLElement;
 
@@ -368,16 +371,30 @@ describe("field review", () => {
     const form = await screen.findByRole("region", { name: "Details of Signature" });
     expect(within(form).getByRole("button", { name: "Add a place" })).toBeTruthy(); // clear actions, with icons
     expect(within(form).getByRole("button", { name: "On every page" })).toBeTruthy();
-    expect(within(form).getByText("Position and size · page 1")).toBeTruthy(); // folded away
+    // Its place moves and resizes without a drag too: a quiet row of named icons, no numbers.
+    const adjust = within(form).getByRole("group", { name: "Move or resize this place" });
+    expect(within(adjust).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Move left",
+      "Move up",
+      "Move down",
+      "Move right",
+      "Smaller",
+      "Larger",
+    ]);
     await user.click(within(form).getByRole("button", { name: "About places" }));
     expect(within(form).getByRole("note").textContent).toContain("Add a place: click on the document to show this field there too.");
     await user.keyboard("{Escape}");
-    expect((within(form).getByLabelText("Width") as HTMLInputElement).value).toBe("180"); // the default size
-    const left = Number((within(form).getByLabelText("Left") as HTMLInputElement).value);
+    const box = () => chosenBox();
+    const scale = parseFloat(box().style.width) / 180; // the default size, in points
+    const left = parseFloat(box().style.left) / scale;
     (document.activeElement as HTMLElement | null)?.blur();
     await user.keyboard("{Shift>}{ArrowRight}{/Shift}{ArrowRight}");
-    expect(Number((within(form).getByLabelText("Left") as HTMLInputElement).value)).toBe(left + 11);
+    expect(parseFloat(box().style.left) / scale).toBeCloseTo(left + 11);
     expect(screen.getByText("2 unsaved changes")).toBeTruthy(); // the new field, then one nudge step
+    await user.click(within(adjust).getByRole("button", { name: "Move right" }));
+    expect(parseFloat(box().style.left) / scale).toBeCloseTo(left + 13);
+    await user.click(within(adjust).getByRole("button", { name: "Larger" }));
+    expect(parseFloat(box().style.width) / scale).toBeCloseTo(198);
 
     await user.keyboard("{Delete}");
     const ask = screen.getByRole("dialog", { name: "Delete Signature?" });
@@ -391,11 +408,11 @@ describe("field review", () => {
     const user = userEvent.setup();
     await chooseField("Company");
     const form = await screen.findByRole("region", { name: "Details of Company" });
-    const left = (within(form).getByLabelText("Left") as HTMLInputElement).value;
+    const left = chosenBox().style.left;
     within(form).getByRole("combobox", { name: "Type" }).focus();
     await user.keyboard("{ArrowDown}{ArrowDown}{Enter}"); // opens the list, moves down one, picks it
 
-    expect((within(form).getByLabelText("Left") as HTMLInputElement).value).toBe(left);
+    expect(chosenBox().style.left).toBe(left);
     expect(screen.getByText("1 unsaved change")).toBeTruthy(); // the type, not a nudge
     await user.keyboard("{Backspace}");
     expect(screen.queryByRole("dialog")).toBeNull(); // the place was not removed
