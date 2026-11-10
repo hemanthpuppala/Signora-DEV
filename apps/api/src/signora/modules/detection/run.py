@@ -36,6 +36,7 @@ from signora.modules.documents import (
     apply_name_and_description,
     fail_detection,
     finish_detection,
+    hold_document,
     version_for_detection,
 )
 from signora.modules.review import (
@@ -360,6 +361,7 @@ def _store(
     name = result.document.name if result.document else None
     description = result.document.description if result.document else None
     with context.complete() as uow:
+        hold_document(uow.session, version.document_id)  # first, as every change of a document
         _save(uow.session, _SAVE_DONE, version.id, run_id)
         write_fields(uow.session, version, result)
         if result.document is not None:
