@@ -28,8 +28,10 @@ export function ThingsToCheck({
   return (
     <>
       <ul className={styles.rows} aria-label="Things to check">
-        {warnings.map((warning, index) => (
-          <li key={`${warning.code}-${warning.field_id ?? warning.party_id ?? index}`} className={styles.line}>
+        {warnings.map((warning) => (
+          // One field can have several warnings of one kind (a box over two others): the message
+          // names the pair and the page, so it tells them apart.
+          <li key={`${warning.code}:${warning.field_id ?? warning.party_id ?? ""}:${warning.message}`} className={styles.line}>
             <span className={styles.name}>{warning.message}</span>
             {warning.field_id ? (
               <TextButton onClick={() => onShow(warning.field_id ?? "")}>Show me</TextButton>
