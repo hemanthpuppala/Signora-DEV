@@ -419,7 +419,7 @@ describe("Select, searchable", () => {
         searchable
         options={[
           { value: "date", label: "Date", hint: "Dates" },
-          { value: "year", label: "Year of a date", hint: "Dates" },
+          { value: "year", label: "Year", hint: "Dates" },
           { value: "tax_id", label: "Tax number", hint: "Private" },
         ]}
         value="date"
