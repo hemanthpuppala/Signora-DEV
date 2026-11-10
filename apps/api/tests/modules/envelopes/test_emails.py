@@ -69,7 +69,11 @@ def test_a_zone_without_letters_is_given_by_its_distance_from_utc() -> None:
     def expiry(zone: str) -> str:
         expires = datetime(2026, 11, 24, 4, 5, tzinfo=UTC).astimezone(ZoneInfo(zone))
         text = sign_reminder(
-            company="Hale & Ward LLP", signer="Maya Chen", document="Mutual NDA", url=URL, expires_at=expires
+            company="Hale & Ward LLP",
+            signer="Maya Chen",
+            document="Mutual NDA",
+            url=URL,
+            expires_at=expires,
         ).body.text
         return text.split("It expires on ", 1)[1].split(".", 1)[0]
 
