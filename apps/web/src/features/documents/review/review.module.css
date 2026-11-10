@@ -166,9 +166,20 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  position: relative;
   margin-right: 6px;
-  padding-left: 14px;
-  border-left: 1px solid var(--sep);
+  padding-left: 15px;
+}
+
+/* The hairline stands beside the icons only, as tall as they are drawn; the name above is clear of it. */
+.tool::before {
+  position: absolute;
+  bottom: 6px; /* the icons' line is 30px; its glyphs the middle 18px */
+  left: 0;
+  width: 1px;
+  height: 18px;
+  background: var(--sep);
+  content: "";
 }
 
 .tool:last-child {
