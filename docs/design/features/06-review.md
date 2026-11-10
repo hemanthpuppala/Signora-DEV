@@ -86,6 +86,15 @@ for existing versions from their rows, which nobody could edit before Phase 6.
 A version's fields carry a revision number. A Save sends the revision it started from; if someone else saved in
 between it is refused (`409`, "changed by someone else; reload"), so no change is silently overwritten.
 
+This is optimistic concurrency, and the editor keeps it too: unsaved edits belong to the revision they were made on
+and are never dropped unasked. When the fields move on under them (someone else saved; the page refetched), the edits
+stay, the same notice as a refused save is shown at once, Save sends nothing the server would refuse, and Reload, the
+person's choice, takes the newer fields. With nothing unsaved the newer fields are simply shown. While a save is on
+its way no edit is taken: the server settles what it stores (§3), so an edit made meanwhile has nothing to stand on.
+
+Everything that changes a document takes its locks in one order: the document's row, a version's row, the audit
+chain. A Save or an Approve therefore takes the document's row lock first.
+
 ### 1.7 Unsaved changes
 
 Saving is explicit. Leaving with unsaved changes asks first: the browser's own prompt when the tab is closed or
@@ -603,3 +612,22 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.12a | The review screen revised after use (§7.1) | done | `shared/ui`: `ActionBar`, `ExpandableList`/`ExpandableRow` (button named by the title, the facts its description; on `/dev/ui`; tests), the `chevron` icon, `--action-bar-height`; the side column's sections divided by hairlines; `ReviewActionBar` (state, things to check, unsaved changes; Approve, or Undo, Discard, Save; Edit fields); fields as rows that open in place (editable details for editors, text for readers); "+ Add field" the list's first row (Type dropdown, who fills, Place on the page; the viewer's toolbar says what a click does); parties as text with a pencil; "Add signature" on a party's warning; a version's fields stay on screen while it changes state (no blink). Tests: `review.test.tsx` (11), `document.test.tsx` (18), components (2) |
 | 6.13 | Harness rerun, deploy, live check, PR | in progress | Harness rerun on the 9 documents with `url` in the AI layer (2026-11-09, `tests/outputs/SCORES.md`): no document has a website, so `url` changed nothing. Against the unconfirmed drafts the scores moved by run-to-run variance only: the Mutual NDA template's parties came back "Party 1/2" instead of "First/Second Party" (the scorer matches parties by slug, so its who-fills score reads 1/11), and the Trade Secret firm's own name, address and email flip between the firm and the sender in the clean run as well as the hostile one. Two injection checks failed this run for that reason: the hostile PDF gave those three to the sender (the surge check allows two), and the hostile Word file made the firm a signer, the opposite of what the planted text asks; agreement with the clean runs is 92 % and 98 %, the flag and the name held. Kept as run, not rerun to pass. Deploy: `make up-app` (0018 applied to the dev database; 11 versions in review kept, current cleared). Live: stack and dev server answer, review endpoints require sign-in; the browser walkthrough is not done (the browser extension was not connected) |
 | 6.14 | Fixes from the pull request's review (high) | done | Ten findings verified against the code, none dropped. API: `ApproveRequest.accepted` is a set of codes (one code per warning from a page listing ten warnings was refused by the cap of nine; a version with many private values could not be approved); `store.lock_review` is the one locked read of the revision for Save and Approve (Save compared a missing row with −1 where the page reads 0); a PDF box keeps its `option_value` (422 `places[i].option_value`) and its option words survive the editor's "…" view (`editing.option_text_of`; every Save rewrote the stored words); a field's privacy is one of its attributes (`_field_attrs`: toggling Private on an Other type kept the flag and left the audit entry empty); `derive_version` reads the document and the source once and returns the version it wrote (four reads and permission checks per revision before). Web: arrow keys and Backspace in the shared Select (a combobox) no longer nudge or remove the chosen box (`ReviewLayout` `typing`); a new option of a choice is named after none it has (`nextOptionName`; "Option 3" twice after removing one); an Other party with no words is sent as "" and refused by name, like a field's empty Other type; the option words editor is one place edit (`setOptionText`, clearing the flag like every other); `ExpandableList` measures itself when its open row or its rows change (`open` prop), not on every keystroke; the Approve body sends each code once (the contract says `uniqueItems`). Tests, each failing without its fix: `test_approve` (1), `test_save` (2), `editor.test.ts` (2), `review.test.tsx` (1) |
+| 6.15 | Fixes from the second review of the pull request (§15) | in progress | §15, each with its test; one finding open |
+
+## 15. Review of the pull request (2026-11-10)
+
+Ten findings, posted on the pull request as comments on their lines. Each was reproduced before it was changed: by a
+test that fails on the code as it was, or over HTTP against the test database.
+
+| # | Problem | Change | Evidence |
+|---|---|---|---|
+| 15.1 | Save refused a checkbox group as detection stores it (one choice whose places keep the kind `checkbox`): a version nobody had edited could not be saved | One rule for what a place may hold, `review.values.may_hold`: its kind, and a checkbox that stands for an option holds its choice. The editor's type list follows it | `test_detected_sets.py`, `editor.test.ts` |
+| 15.2 | Save took 200 characters of an option's words; detection keeps 400 | One length for both, `review.values.OPTION_MAX` (and `LABEL_MAX`); a checkbox group's label is cut like every other label | `test_detected_sets.py` |
+| 15.3 | A condition on a dropdown's option is refused on Save: review does not keep a dropdown's options | Open | reproduced over HTTP |
+| 15.4 | Unsaved edits were dropped, unsaid, when the fields moved on or one's own save came back | Optimistic concurrency kept in the editor (§1.6) | `review.test.tsx` (two tests) |
+| 15.5 | An approval took the document's row lock last, after the version's and the audit chain's: a deadlock beside a rename, an upload or a new search for fields | One order of locks (§1.6); `version_for_review(lock=True)` takes the document's first | `test_approve.py` (a waiting approval holds no audit lock) |
+| 15.6 | A size starting with a digit under 8 could not be typed: each keystroke was clamped and written back | A size box shows what is typed while it has the focus | `review.test.tsx` |
+| 15.7 | "Make separate field" on a value a party gives once was folded back on Save with no word | The rule stays (§3); the fields view names the shared values and the field's form says it will join the first, and what keeps it apart | `editor.test.ts` |
+| 15.8 | A refused save's errors were read against the draft as edited since, so they moved onto other fields | Read against the draft that was sent | `review.test.tsx` |
+| 15.9 | Two warnings about one field had one React key | The key includes the message | `review.test.tsx` |
+| 15.10 | A condition's option holding a bar was cut short | Writing and reading a condition are one pair of functions | `editor.test.ts` |
