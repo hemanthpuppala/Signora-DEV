@@ -131,7 +131,7 @@ export function Gallery() {
           label="Project sections"
           items={[
             { href: "/dev/ui", label: "Envelopes", active: true },
-            { href: "/dev/ui#documents", label: "Documents · 3" },
+            { href: "/dev/ui#documents", label: "Templates · 3" },
           ]}
         />
         <TablePanel label="Example table">
@@ -195,7 +195,7 @@ export function Gallery() {
         {step !== null ? (
           <StepDialog
             title="New envelope"
-            steps={["Document", "Details", "Review"]}
+            steps={["Template", "Details", "Review"]}
             current={step}
             onStep={setStep}
             onClose={() => setStep(null)}

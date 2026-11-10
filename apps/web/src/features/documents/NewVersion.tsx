@@ -47,7 +47,7 @@ export function useNewVersion(departmentId: string, documentId: string) {
           const where = upload.duplicate;
           setState({ step: "idle" });
           setProblem(
-            `This file is already here as ${where.document_name}${where.archived ? " (archived)" : ""}, version ${where.version_number}. It can only be added as a separate document.`,
+            `This file is already here as ${where.document_name}${where.archived ? " (archived)" : ""}, version ${where.version_number}. It can only be added as a separate template.`,
           );
           return;
         }

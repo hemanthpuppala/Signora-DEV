@@ -92,7 +92,7 @@ export function DocumentPage({
 
   if (document.isError) {
     const missing = document.error instanceof ApiError && document.error.status === 404;
-    return <Notice tone="warning">{missing ? "This document doesn't exist." : formError(document.error)}</Notice>;
+    return <Notice tone="warning">{missing ? "This template doesn't exist." : formError(document.error)}</Notice>;
   }
   const data = document.data;
   if (!data) return null;
@@ -124,10 +124,10 @@ export function DocumentPage({
     <>
       {/* The way back and the document's actions share one line, so the title block is shorter. */}
       <HeadRow
-        back={{ href: back, label: "Documents" }}
+        back={{ href: back, label: "Templates" }}
         backActions={
           canEdit ? (
-            <div className={styles.headActions} role="group" aria-label="Document actions">
+            <div className={styles.headActions} role="group" aria-label="Template actions">
               {onSend && data.current_version ? (
                 <HeadAction icon="send" label="Send for signature" variant="primary" onClick={onSend} />
               ) : null}
@@ -152,7 +152,7 @@ export function DocumentPage({
               {!editing ? <HeadAction icon="edit" label="Edit" onClick={() => setEditing(true)} /> : null}
               <HeadAction
                 icon="archive"
-                label="Archive document"
+                label="Archive template"
                 variant="destructive"
                 onClick={() => setConfirmArchive(true)}
               />
@@ -184,7 +184,7 @@ export function DocumentPage({
       {editing ? <About document={data} onDone={() => setEditing(false)} /> : null}
       {confirmArchive && canEdit ? (
         <Dialog
-          title="Archive this document?"
+          title="Archive this template?"
           onClose={() => setConfirmArchive(false)}
           actions={
             <>
@@ -210,7 +210,7 @@ export function DocumentPage({
             ) : undefined
           }
         >
-          {archive.error ? formError(archive.error) : "This document can't get new versions or be sent."}
+          {archive.error ? formError(archive.error) : "This template can't get new versions or be sent."}
         </Notice>
       ) : null}
       {shown ? (
@@ -264,7 +264,7 @@ function About({ document, onDone }: { document: DocumentDetail; onDone: () => v
           required
           maxLength={120}
           value={name}
-          error={nameTaken ? "Another document in this department already has this name" : errors.name}
+          error={nameTaken ? "Another template in this department already has this name" : errors.name}
           onChange={(event) => setName(event.target.value)}
         />
         <TextArea

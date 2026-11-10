@@ -124,7 +124,7 @@ describe("the send", () => {
     const { onSent } = open();
     const user = userEvent.setup();
     const steps = screen.getByRole("list", { name: "Steps" });
-    expect(within(steps).getByText("Document").closest("li")?.getAttribute("aria-current")).toBe("step");
+    expect(within(steps).getByText("Template").closest("li")?.getAttribute("aria-current")).toBe("step");
 
     // 1. Only an approved document can be chosen.
     expect((screen.getByRole("button", { name: "Draft letter" }) as HTMLButtonElement).disabled).toBe(true);

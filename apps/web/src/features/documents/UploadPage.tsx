@@ -215,7 +215,7 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
           // A new key: the next try is a different request (another name).
           update(row.key, {
             phase: "ready",
-            nameError: "Another document in this department already has this name",
+            nameError: "Another template in this department already has this name",
             idempotencyKey: crypto.randomUUID(),
           });
           return;
@@ -242,8 +242,8 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
   const question = row?.phase === "question" ? row : null;
   const data = department;
   const head = (
-    <HeadRow back={{ href: `/departments/${departmentId}/documents`, label: "Documents" }}>
-      <Heading1>Upload a document</Heading1>
+    <HeadRow back={{ href: `/departments/${departmentId}/documents`, label: "Templates" }}>
+      <Heading1>Upload a template</Heading1>
     </HeadRow>
   );
   if (!canUpload) {
@@ -252,8 +252,8 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
         {head}
         <Notice>
           {data.status === "archived"
-            ? "This department is archived. Restore it to add documents."
-            : "Only people who can edit this department add documents."}
+            ? "This department is archived. Restore it to add templates."
+            : "Only people who can edit this department add templates."}
         </Notice>
       </>
     );
@@ -293,7 +293,7 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
         >
           {`${question.file.name} is already in ${data.name} as ${question.upload.duplicate.document_name}${
             question.upload.duplicate.archived ? " (archived)" : ""
-          }, version ${question.upload.duplicate.version_number}. Upload it anyway as a separate document?`}
+          }, version ${question.upload.duplicate.version_number}. Upload it anyway as a separate template?`}
         </Dialog>
       ) : null}
     </>
@@ -359,7 +359,7 @@ function UploadRow({
             />
             <div className={styles.actions}>
               <Button type="submit" loading={row.phase === "creating"} loadingLabel="Adding…">
-                Add document
+                Add template
               </Button>
               <TextButton onClick={onRemove}>Remove</TextButton>
             </div>

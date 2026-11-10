@@ -202,10 +202,10 @@ describe("document page", () => {
 
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     // the way back is the eyebrow itself ("‹ Documents"), so everyone has it
-    expect(screen.getByRole("link", { name: "Back to Documents" }).getAttribute("href")).toBe("/departments/d-1/documents");
+    expect(screen.getByRole("link", { name: "Back to Templates" }).getAttribute("href")).toBe("/departments/d-1/documents");
     expect(screen.queryByRole("button", { name: "Make current" })).toBeNull();
     expect(screen.queryByRole("button", { name: "New version" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Archive document" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Archive template" })).toBeNull();
     expect(screen.queryByRole("checkbox", { name: "Require email code" })).toBeNull(); // a send's setting (Phase 7)
     expect(screen.getAllByRole("link", { name: "Download original" })).toHaveLength(2);
   });
@@ -229,11 +229,11 @@ describe("document page", () => {
     open();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Archive document" }));
+    await user.click(await screen.findByRole("button", { name: "Archive template" }));
     expect(posts("/archive")).toHaveLength(0);
-    await user.click(within(await screen.findByRole("dialog", { name: "Archive this document?" })).getByRole("button", { name: "Confirm archive" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Archive this template?" })).getByRole("button", { name: "Confirm archive" }));
 
-    expect(await screen.findByText("This document can't get new versions or be sent.")).toBeTruthy();
+    expect(await screen.findByText("This template can't get new versions or be sent.")).toBeTruthy();
   });
 
   it("uploads a new version as soon as it is picked, then takes the AI's instructions before adding it", async () => {
@@ -288,7 +288,7 @@ describe("document page", () => {
     await user.upload(await screen.findByLabelText("New version file"), new File(["%PDF-1.7"], "Copy.pdf"));
     FakeUpload.sent[0]?.answer(201, { id: "up-4", filename: "Copy.pdf", kind: "pdf", bytes: 8, suggested_name: "Copy", expires_at: "2026-11-08T10:00:00Z", duplicate: { document_id: "doc-1", document_name: "Engagement letter", version_number: 1, archived: false } });
 
-    expect(await screen.findByText("This file is already here as Engagement letter, version 1. It can only be added as a separate document.")).toBeTruthy();
+    expect(await screen.findByText("This file is already here as Engagement letter, version 1. It can only be added as a separate template.")).toBeTruthy();
     expect(posts("/versions")).toHaveLength(0);
   });
 

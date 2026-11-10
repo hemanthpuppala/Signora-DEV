@@ -444,7 +444,7 @@ describe("field review", () => {
     const user = userEvent.setup();
     await chooseField("Company");
     await user.click(screen.getByLabelText("Required"));
-    await user.click(screen.getByRole("link", { name: /Documents/ }));
+    await user.click(screen.getByRole("link", { name: /Templates/ }));
 
     const dialog = screen.getByRole("dialog", { name: "Discard 1 unsaved change?" });
     expect(push).not.toHaveBeenCalled();

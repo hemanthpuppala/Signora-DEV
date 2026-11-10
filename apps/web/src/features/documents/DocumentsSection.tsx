@@ -51,11 +51,11 @@ export function DocumentsSection({ departmentId, canEdit }: { departmentId: stri
         }}
       />
     ) : (
-      <SmallText>No documents yet.</SmallText>
+      <SmallText>No templates yet.</SmallText>
     );
   }
   return (
-    <DocumentGrid label="Documents list">
+    <DocumentGrid label="Templates">
       {list.map((document) => {
         const latest = document.latest_version;
         const status = VERSION_STATUS[latest.status];
