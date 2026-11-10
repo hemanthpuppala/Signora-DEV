@@ -101,9 +101,12 @@
   pointer-events: none;
 }
 
+/* Letter by letter, as the PDF draws a value: no kerning or ligatures, so it is as wide here. */
 .value {
   fill: var(--paper-ink);
   white-space: pre;
+  font-kerning: none;
+  font-variant-ligatures: none;
 }
 
 /* A name the signer gives when signing: shown as what is to come, not as a value. */

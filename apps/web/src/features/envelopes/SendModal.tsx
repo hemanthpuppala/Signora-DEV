@@ -26,8 +26,8 @@ import {
 
 import { useSendForm, type Envelope, type FormField, type SendForm, type SendRequest } from "./api";
 import styles from "./envelopes.module.css";
-import { FieldInput } from "./FieldInput";
-import { fitsEverywhere, written } from "./typeset";
+import { FieldInput, refused } from "./FieldInput";
+import { fitsEverywhere, kept, useFontReady, written } from "./typeset";
 import { ValuesOverlay } from "./ValuesOverlay";
 
 const STEPS = ["Document", "Details", "Signers", "Countersigners", "Review"] as const;
@@ -100,8 +100,11 @@ export function SendModal({
   const [settings, setSettings] = useState<SendRequest["settings"] | null>(null);
   const [title, setTitle] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [left, setLeft] = useState<ReadonlySet<string>>(new Set()); // boxes typed in and left
 
   const data = form.data;
+  // Asked for as soon as the form is in, so the Details step measures in it, not in a stand-in.
+  const fontReady = useFontReady(data?.font);
   const touched = Object.keys(values).length > 0 || Object.keys(signers).length > 0 || copies.length > 0;
 
   const send = useIdempotentAction<SendRequest, Envelope>(
@@ -149,12 +152,19 @@ export function SendModal({
   const effectiveTitle =
     title ?? (data ? (firstSigner?.name ? `${data.document_name} · ${firstSigner.name}` : data.document_name) : "");
 
-  /** A typed value wider than its box even at the smallest size (the server refuses it too). */
+  /**
+   * A typed value wider than its box even at the smallest size (the server refuses it too). Judged
+   * only in the envelope's own font, as the server keeps and writes the value; until the font is
+   * in, nothing is called too long (Send still checks).
+   */
   const tooLong = (f: FormField): boolean => {
     const value = values[f.id]?.trim();
-    if (!data || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f, values)) return false;
-    return !fitsEverywhere(written(f.holds, value, f.format), f.places, data.font, data.fit);
+    if (!data || !fontReady || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f, values)) return false;
+    return !fitsEverywhere(written(f.holds, kept(f.holds, value), f.format), f.places, data.font, data.fit);
   };
+
+  /** A day or a year the server would refuse, in its words. */
+  const unkept = (f: FormField): string | undefined => (asked(f, values) ? refused(f.holds, values[f.id]?.trim() ?? "") : undefined);
 
   /** Who signs as a party, as chosen so far: a signer typed in, or the countersigning colleague. */
   const personOf = (partyId: string): Person | undefined => {
@@ -173,7 +183,9 @@ export function SendModal({
     if (!data) return step === DOCUMENT ? !documentId : true;
     if (step === DOCUMENT) return !documentId;
     if (step === DETAILS)
-      return data.fields.some((f) => (f.required && asked(f, values) && !values[f.id]?.trim()) || tooLong(f));
+      return data.fields.some(
+        (f) => (f.required && asked(f, values) && !values[f.id]?.trim()) || tooLong(f) || unkept(f) !== undefined,
+      );
     if (step === SIGNERS)
       return (
         data.signers.some((s) => !signers[s.party_id]?.name.trim() || !signers[s.party_id]?.email.trim()) ||
@@ -343,7 +355,11 @@ export function SendModal({
                           field={f}
                           markRequired={mixed}
                           value={values[f.id] ?? ""}
-                          error={fieldError(f.id) ?? (tooLong(f) ? "Too long for its box" : undefined)}
+                          error={
+                            fieldError(f.id) ??
+                            (tooLong(f) ? "Too long for its box" : left.has(f.id) ? unkept(f) : undefined)
+                          }
+                          onBlur={() => setLeft((current) => (current.has(f.id) ? current : new Set(current).add(f.id)))}
                           onChange={(value) => setValues((current) => ({ ...current, [f.id]: value }))}
                         />
                       ))}
@@ -483,7 +499,10 @@ export function SendModal({
                         : [{ places: f.places, holds: f.holds, value: person.name, atSigning: true }];
                     }
                     const value = values[f.id]?.trim();
-                    return asked(f, values) && value ? [{ places: f.places, holds: f.holds, value, format: f.format }] : [];
+                    // As the server keeps it, so the preview is what the signed PDF prints.
+                    return asked(f, values) && value
+                      ? [{ places: f.places, holds: f.holds, value: kept(f.holds, value), format: f.format }]
+                      : [];
                   })}
                 />
               )}

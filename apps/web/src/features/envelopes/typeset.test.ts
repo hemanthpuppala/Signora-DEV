@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import vectors from "../../../../../packages/contracts/vectors/date-formats.json";
 
-import { written } from "./typeset";
+import { fitsEverywhere, kept, written } from "./typeset";
 
 const DATE_TYPES = new Set(["date", "date_signed", "date_of_birth", "day", "month", "year"]);
 
@@ -12,5 +12,37 @@ describe("a value written as its field says", () => {
   const cases = vectors.cases.filter((c) => c.format !== null || !DATE_TYPES.has(c.holds));
   it.each(cases)("$holds in $format: $value is $written", ({ holds, value, format, written: expected }) => {
     expect(written(holds, value, format)).toBe(expected);
+  });
+});
+
+describe("a typed value as the server keeps it", () => {
+  it("reads a two-digit year in today's century, and leaves everything else as typed", () => {
+    const century = Math.floor(new Date().getUTCFullYear() / 100) * 100;
+    expect(kept("year", "26")).toBe(String(century + 26));
+    expect(kept("year", "2031")).toBe("2031");
+    expect(kept("day", "26")).toBe("26");
+    expect(kept("text", "26")).toBe("26");
+  });
+});
+
+describe("a value's width", () => {
+  it("is the sum of its characters' widths, as the server sums them: kerning never narrows it", () => {
+    // A browser that kerns "AV": the pair measures narrower than its two letters.
+    const measured: string[] = [];
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      font: "",
+      measureText: (text: string) => {
+        measured.push(text);
+        return { width: text === "AV" ? 120 : text.length * 70 };
+      },
+    } as unknown as CanvasRenderingContext2D);
+    const face = { family: "Kerned Test", url: "/font" };
+    const rule = { min_size: 6, fallback_ratio: 0.72, fallback_cap: 11, baseline_ratio: 0.18, baseline_min: 1.5, align: "center" as const };
+    // "AV" is 1.4 pt wide per point: at the 6 pt floor it needs 8.4 pt, so an 8 pt box is too narrow
+    // (kerned, it would have measured 7.2 pt and passed).
+    expect(fitsEverywhere("AV", [{ rect: [0, 0, 8, 12], text_size: 10 }], face, rule)).toBe(false);
+    expect(fitsEverywhere("AV", [{ rect: [0, 0, 9, 12], text_size: 10 }], face, rule)).toBe(true);
+    expect(measured).toEqual(["A", "V"]); // each character once, however often it is asked
+    canvas.mockRestore();
   });
 });

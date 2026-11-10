@@ -232,19 +232,30 @@ describe("the send", () => {
     const measure = vi
       .spyOn(HTMLCanvasElement.prototype, "getContext")
       .mockReturnValue({ font: "", measureText: (t: string) => ({ width: t.length * 50 }) } as unknown as CanvasRenderingContext2D);
+    // The envelope's font arrives (the test DOM has no FontFace): widths are judged only in it.
+    vi.stubGlobal(
+      "FontFace",
+      class {
+        load() {
+          return Promise.resolve(this);
+        }
+      },
+    );
+    Object.defineProperty(document, "fonts", { value: { add: () => {} }, configurable: true });
     open({ initialDocumentId: "doc-1" });
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Effective date"), "2026-12-01");
     // The company box is 100 pt wide: at 10 pt down to 6 pt, 33 characters fit, not 40.
     await user.type(screen.getByLabelText("Client company"), "x".repeat(40));
 
-    expect(screen.getByText("Too long for its box")).toBeTruthy();
+    expect(await screen.findByText("Too long for its box")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
     await user.clear(screen.getByLabelText("Client company"));
     await user.type(screen.getByLabelText("Client company"), "Chen Studio");
     expect(screen.queryByText("Too long for its box")).toBeNull();
     expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(false);
     measure.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it("says a document needs approval instead of an empty step", async () => {

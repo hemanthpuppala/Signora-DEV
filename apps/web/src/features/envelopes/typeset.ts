@@ -76,6 +76,16 @@ export function written(holds: string, value: string, format: string | null): st
   }
 }
 
+/**
+ * A typed value as the server keeps it (review.formats.check_value), where that changes what is
+ * drawn: a year typed in two digits is kept whole, in today's century. Everything else is drawn as
+ * typed.
+ */
+export function kept(holds: string, value: string): string {
+  if (holds !== "year" || !/^\d{2}$/.test(value)) return value;
+  return String(Math.floor(new Date().getUTCFullYear() / 100) * 100 + Number(value));
+}
+
 // The font is loaded once per page view (FontFace: governed by font-src, no stylesheet needed).
 const loaded = new Set<string>(); // asked for
 const readyFamilies = new Set<string>(); // in document.fonts
@@ -88,31 +98,53 @@ function loadFont(face: Typeface): void {
     (ready) => {
       document.fonts.add(ready);
       readyFamilies.add(face.family);
+      advances.delete(face.family); // widths measured before it arrived were another font's
       listeners.forEach((notify) => notify());
     },
     () => loaded.delete(face.family), // not loaded: the next overlay tries again
   );
 }
-export function useFontReady(face: Typeface): boolean {
+/**
+ * Asks for the font and says once it is in: until then nothing measured or drawn is in it, so a
+ * width is not to be judged. No font yet (the form still loading): not ready.
+ */
+export function useFontReady(face: Typeface | null | undefined): boolean {
+  const family = face?.family;
   return useSyncExternalStore(
     (notify) => {
       listeners.add(notify);
-      loadFont(face);
+      if (face) loadFont(face);
       return () => listeners.delete(notify);
     },
-    () => readyFamilies.has(face.family),
+    () => family !== undefined && readyFamilies.has(family),
     () => false,
   );
 }
 
 let canvas: HTMLCanvasElement | null = null;
-/** A text's width at 1 pt in the font (the browser's measure of the same file the PDF embeds). */
+const advances = new Map<string, Map<string, number>>(); // per family: a character's width at 1 pt
+/**
+ * A text's width at 1 pt in the font: the sum of its characters' own widths, as the server sums
+ * them (typesetting.fit) and the PDF draws them. Measured a character at a time, so the browser's
+ * kerning and ligatures, which the PDF does not have, never narrow it. O(len(text)).
+ */
 function widthPerPoint(text: string, family: string): number {
   canvas ??= document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (!context) return 0;
   context.font = `100px "${family}"`;
-  return context.measureText(text).width / 100;
+  let known = advances.get(family);
+  if (!known) advances.set(family, (known = new Map()));
+  let width = 0;
+  for (const character of text) {
+    let advance = known.get(character);
+    if (advance === undefined) {
+      advance = context.measureText(character).width / 100;
+      known.set(character, advance);
+    }
+    width += advance;
+  }
+  return width;
 }
 
 /** The server's rule (typesetting.fit), with its numbers: the size and baseline of a value in a box. */

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { FormField } from "./api";
-import { accepted, FieldInput } from "./FieldInput";
+import { accepted, FieldInput, refused } from "./FieldInput";
 
 const field = (holds: FormField["holds"], label: string, format: string | null = null): FormField => ({
   id: `f-${holds}`,
@@ -63,5 +63,18 @@ describe("what each type may be typed with", () => {
     expect(year.getAttribute("autocomplete")).toBe("off");
     await userEvent.type(year, "x");
     expect(onChange).toHaveBeenLastCalledWith("");
+  });
+});
+
+describe("a day or a year the server would refuse", () => {
+  it("is named in the server's words; what can be kept is not", () => {
+    expect(refused("day", "0")).toBe("Enter a day from 1 to 31");
+    expect(refused("day", "31")).toBeUndefined();
+    expect(refused("year", "202")).toBe("Enter a year, such as 2026");
+    expect(refused("year", "2")).toBe("Enter a year, such as 2026");
+    expect(refused("year", "26")).toBeUndefined();
+    expect(refused("year", "2026")).toBeUndefined();
+    expect(refused("year", "")).toBeUndefined(); // empty is "Required"'s to say
+    expect(refused("text", "0")).toBeUndefined();
   });
 });

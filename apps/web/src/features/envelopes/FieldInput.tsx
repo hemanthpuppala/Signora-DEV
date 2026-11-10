@@ -50,6 +50,7 @@ export function FieldInput({
   onChange,
   error,
   markRequired = false,
+  onBlur,
 }: {
   field: FormField;
   /** Say "Required" under this field: when its group's note does not already say so. */
@@ -57,6 +58,8 @@ export function FieldInput({
   value: string;
   onChange: (value: string) => void;
   error?: string | undefined;
+  /** The person left the box: what it holds can be judged now, not while they type. */
+  onBlur?: () => void;
 }) {
   const label = field.holds === "other" && field.holds_label ? `${field.label} (${field.holds_label})` : field.label;
   const hint = markRequired && field.required ? { hint: "Required" } : {};
@@ -118,6 +121,7 @@ export function FieldInput({
           : { maxLength: 2000 })}
       value={value}
       error={error}
+      onBlur={onBlur}
       onChange={(event) => {
         const next = accepted(field.holds, event.target.value);
         if (next !== null) onChange(next);
@@ -145,4 +149,15 @@ export function accepted(holds: FormField["holds"], raw: string): string | null 
   const text = strip ? raw.replace(strip, "") : raw;
   if (holds === "day" && text !== "" && (Number(text) > 31 || /^0{2}/.test(text))) return null;
   return text;
+}
+
+/**
+ * Why a day or a year cannot be kept as typed, in the server's own words (review.formats), so it
+ * is said at the box and not on Send; nothing when it can be, or for any other type.
+ */
+export function refused(holds: FormField["holds"], text: string): string | undefined {
+  if (text === "") return undefined;
+  if (holds === "day" && !(Number(text) >= 1 && Number(text) <= 31)) return "Enter a day from 1 to 31";
+  if (holds === "year" && !/^(\d{2}|\d{4})$/.test(text)) return "Enter a year, such as 2026";
+  return undefined;
 }
