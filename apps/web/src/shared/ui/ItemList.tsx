@@ -37,7 +37,11 @@ export function ItemList({
     if (!list || visible === undefined) return undefined;
     const measure = () => {
       const next = list.children[visible] as HTMLElement | undefined;
-      setHeight(next ? next.offsetTop - list.offsetTop + PEEK : undefined);
+      // From the boxes on screen, not offsetTop: that counts from the nearest positioned ancestor,
+      // which the list and its rows need not share. Scrolled lists count back what they scrolled.
+      setHeight(
+        next ? next.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop + PEEK : undefined,
+      );
     };
     measure();
     if (typeof ResizeObserver === "undefined") return undefined;
