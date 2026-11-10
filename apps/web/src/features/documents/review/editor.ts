@@ -265,11 +265,24 @@ function mapPlace(draft: Draft, placeId: string, change: (place: DraftPlace) => 
  */
 export function setRect(draft: Draft, placeId: string, rect: Rect, pages: readonly PageSize[], keepSize = true): Draft {
   const found = findPlace(draft, placeId);
-  const page = found && pages[found.place.page - 1];
-  if (!found || !page) return draft;
-  const next = clampRect(rect, page, keepSize);
-  if (next.every((value, index) => value === found.place.rect[index])) return draft;
-  return mapPlace(draft, placeId, (place) => ({ ...place, rect: next }));
+  return found ? put(draft, found.place, found.place.page, rect, pages, keepSize) : draft;
+}
+
+/**
+ * A place dragged to a spot on a page, its own or another (§5.1): kept on that page, its size
+ * kept. ``rect`` is in that page's points.
+ */
+export function movePlace(draft: Draft, placeId: string, page: number, rect: Rect, pages: readonly PageSize[]): Draft {
+  const found = findPlace(draft, placeId);
+  return found ? put(draft, found.place, page, rect, pages, true) : draft;
+}
+
+function put(draft: Draft, place: DraftPlace, page: number, rect: Rect, pages: readonly PageSize[], keepSize: boolean): Draft {
+  const size = pages[page - 1];
+  if (!size) return draft;
+  const next = clampRect(rect, size, keepSize);
+  if (page === place.page && next.every((value, index) => value === place.rect[index])) return draft;
+  return mapPlace(draft, place.id, (old) => ({ ...old, page, rect: next }));
 }
 
 /** Nudge a place by whole points (arrow keys: 1, with Shift 10). */

@@ -182,7 +182,8 @@ export type PanelEditing = {
   formats: VersionFields["formats"];
   onAddPlace: (fieldId: string) => void;
   onDeleteField: (fieldId: string) => void;
-  canDraw: boolean;
+  /** A finger, not a mouse: the words say "tap". */
+  touch: boolean;
   /** Placing a new field or place (§5, §7.1): what the next press on a page makes. */
   tool: Tool | null;
   startPlacing: (tool: Tool) => void;

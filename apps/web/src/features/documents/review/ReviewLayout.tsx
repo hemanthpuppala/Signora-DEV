@@ -28,6 +28,7 @@ import {
   deleteField,
   deletePlace,
   findPlace,
+  movePlace,
   newField,
   nextOptionName,
   nudge,
@@ -62,19 +63,24 @@ const LOADING: VersionFields = {
   formats: {},
 } as unknown as VersionFields;
 
-/** Drawing, moving and resizing need a fine pointer and room (§5); the forms work everywhere. */
-function useCanDraw(): boolean {
-  const [can, setCan] = useState(true);
+/** Whether a media query holds, kept current; ``otherwise`` until it is known (and where there is
+ * no matchMedia). */
+function useMedia(media: string, otherwise: boolean): boolean {
+  const [matches, setMatches] = useState(otherwise);
   useEffect(() => {
-    const query = window.matchMedia?.("(pointer: coarse), (max-width: 720px)");
+    const query = window.matchMedia?.(media);
     if (!query) return undefined;
-    const update = () => setCan(!query.matches);
+    const update = () => setMatches(query.matches);
     update();
     query.addEventListener?.("change", update);
     return () => query.removeEventListener?.("change", update);
-  }, []);
-  return can;
+  }, [media]);
+  return matches;
 }
+/** The panel sits beside the document from this width (ViewerLayout); under it, below the document. */
+const BESIDE = "(min-width: 960px)";
+/** A finger is the main pointer: the words say "tap". */
+const TOUCH = "(pointer: coarse)";
 
 /** Where keys belong to a control, not the page: text boxes, the shared Select (a combobox and
  * its list, whose arrows pick an option), and dialogs. */
@@ -105,6 +111,12 @@ type Pending = {
  * Unsaved edits are guarded: leaving the page, opening another version, going back to the current
  * one. Keys while editing: Ctrl+Z and Ctrl+Shift+Z undo and redo; with a box chosen the arrows
  * nudge it (Shift: 10 points) and Delete removes it; Escape puts a tool away.
+ *
+ * On a narrow screen the panel is under the document (§5.1). A box chosen on the page keeps the
+ * person there, to move it; its name is pinned over the pages with "Details", which goes to its
+ * form. Placing brings the pages into view. "Edit fields" is in the panel's first title line, by
+ * what it edits, where it takes no line of its own; the bar over the document is kept for what
+ * must stay in reach while working on it (Save, Undo, Approve).
  */
 export function ReviewLayout({
   document,
@@ -130,10 +142,12 @@ export function ReviewLayout({
     onRevised: onOpen,
   });
   const { draft, editing } = review;
-  const canDraw = useCanDraw();
+  const beside = useMedia(BESIDE, true);
+  const touch = useMedia(TOUCH, false);
   const [picked, setPicked] = useState<{
     selection: Selection;
     token: number;
+    on: "page" | "list"; // where it was chosen
   } | null>(null);
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [tool, setTool] = useState<Tool | null>(null);
@@ -141,13 +155,15 @@ export function ReviewLayout({
   const leave = useLeaveGuard(review.changes);
 
   const select = useCallback(
-    (selection: Selection) =>
+    (selection: Selection, on: "page" | "list" = "list") =>
       setPicked((previous) => ({
         selection,
         token: (previous?.token ?? 0) + 1,
+        on,
       })),
     [],
   );
+  const selectOnPage = useCallback((selection: Selection) => select(selection, "page"), [select]);
   const selection = picked?.selection ?? null;
   const chosenPlace =
     selection?.kind === "field"
@@ -260,16 +276,7 @@ export function ReviewLayout({
       filled_by: made.filled_by,
     };
     review.edit((d) => addField(d, field));
-    select({ kind: "field", id: field.id, place: 0 });
-  };
-  const startPlacing = (next: Tool) => {
-    const first = version.pages[0];
-    if (canDraw || !first || next.kind !== "field") return setTool(next);
-    placeField(
-      next,
-      1,
-      boxAt(next.holds, first.width / 2, first.height / 2, first),
-    ); // a phone: page 1
+    select({ kind: "field", id: field.id, place: 0 }, "page");
   };
 
   const onDraw = (
@@ -300,7 +307,7 @@ export function ReviewLayout({
           option_text: choice ? option : null,
         }),
       );
-      select({ kind: "field", id: field.id, place: field.places.length });
+      select({ kind: "field", id: field.id, place: field.places.length }, "page");
     }
     setTool(null);
   };
@@ -311,14 +318,14 @@ export function ReviewLayout({
         pages: version.pages,
         allowed: view.allowed,
         formats: view.formats,
-        canDraw,
+        touch,
         onAddPlace: (fieldId) => {
           const field = draft.fields.find((f) => f.id === fieldId);
           if (field) setTool({ kind: "place", fieldId, label: field.label });
         },
         onDeleteField: askDeleteField,
         tool,
-        startPlacing,
+        startPlacing: setTool,
         cancelPlacing: () => setTool(null),
       }
     : null;
@@ -342,6 +349,26 @@ export function ReviewLayout({
       token: picked.token,
     };
   })();
+  // Under the document, a box chosen on the page keeps the person there: its name, and the way to
+  // its form.
+  const chosenField = selection?.kind === "field" ? draft.fields.find((f) => f.id === selection.id) : undefined;
+  const stay = !beside && editing !== null && picked?.on === "page";
+  const notice = tool
+    ? { message: placingMessage(tool, touch), reveal: true, action: { label: "Cancel", onClick: () => setTool(null) } }
+    : stay && chosenField
+      ? {
+          message: chosenField.label || HOLDS[chosenField.holds],
+          action: {
+            label: "Details",
+            onClick: () => {
+              const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+              window.document
+                .getElementById(`field-${chosenField.id}`)
+                ?.scrollIntoView?.({ block: "start", behavior: still ? "auto" : "smooth" });
+            },
+          },
+        }
+      : null;
   const nextNumber = Math.max(...document.versions.map((v) => v.number)) + 1;
   const current = document.current_version;
 
@@ -355,6 +382,7 @@ export function ReviewLayout({
             nextNumber={nextNumber}
             warnings={view.warnings}
             canEdit={canEdit}
+            editInPanel={!beside}
           />
         ) : null}
         <ViewerPane>
@@ -371,11 +399,7 @@ export function ReviewLayout({
             pages={version.pages}
             label={`${document.name}, version ${version.number}`}
             focus={focus}
-            notice={
-              tool
-                ? { message: placingMessage(tool), action: { label: "Cancel", onClick: () => setTool(null) } }
-                : null
-            }
+            notice={notice}
             {...(loaded
               ? {
                   renderOverlay: ({ page, scale }: PdfOverlayArgs) => (
@@ -386,22 +410,16 @@ export function ReviewLayout({
                       pending={view.pending}
                       parties={draft.parties}
                       selected={selection}
-                      onSelect={select}
+                      onSelect={selectOnPage}
                       editing={
-                        editing && canDraw
+                        editing
                           ? {
                               drawing: tool !== null,
                               onDraw,
-                              onRect: (placeId, rect, keepSize) =>
-                                review.edit((d) =>
-                                  setRect(
-                                    d,
-                                    placeId,
-                                    rect,
-                                    version.pages,
-                                    keepSize,
-                                  ),
-                                ),
+                              onMove: (placeId, page, rect) =>
+                                review.edit((d) => movePlace(d, placeId, page, rect, version.pages)),
+                              onResize: (placeId, rect) =>
+                                review.edit((d) => setRect(d, placeId, rect, version.pages, false)),
                             }
                           : null
                       }
@@ -430,6 +448,8 @@ export function ReviewLayout({
               filter={filter}
               onFilter={setFilter}
               editing={panelEditing}
+              follow={!stay}
+              onEdit={!beside && canEdit && review.approved && !editing ? review.startEditing : undefined}
             />
           ) : null}
             <Section title="Versions" info={VERSIONS_HELP} collapsible>

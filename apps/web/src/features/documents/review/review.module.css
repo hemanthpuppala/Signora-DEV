@@ -148,19 +148,57 @@
   color: var(--t60);
 }
 
-.toolRow {
+/* Under a field's place chips: what can be done with its places, in small named groups of quiet
+   icons (Add, Move, Size, and the chosen place's own). Side by side where the form is wide enough,
+   wrapping where it is not (a phone, a narrow panel); never a line for each action. */
+.placeTools {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px 0;
+  /* A hairline before each group, and the one before the first group of every line cut away:
+     the row starts that far to the left and is clipped just short of it. Only the left is
+     clipped, so focus rings and hover edges show on the other sides. */
+  margin-left: -15px;
+  clip-path: inset(-8px -8px -8px 7px);
 }
 
-/* A place's own move and resize: a quiet row of icons under its chips. */
-.adjust {
+.tool {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  margin-right: 6px;
+  padding-left: 15px;
+}
+
+/* The hairline stands beside the icons only, as tall as they are drawn; the name above is clear of it. */
+.tool::before {
+  position: absolute;
+  bottom: 6px; /* the icons' line is 30px; its glyphs the middle 18px */
+  left: 0;
+  width: 1px;
+  height: 18px;
+  background: var(--sep);
+  content: "";
+}
+
+.tool:last-child {
+  margin-right: 0;
+}
+
+.toolName {
+  font: 500 9px/1.4 var(--sans);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--t55);
+}
+
+.toolIcons {
+  display: flex;
   align-items: center;
   gap: 2px;
-  margin-left: -7px; /* the buttons' padding: their icons line up with the text above */
+  margin-left: -7px; /* the buttons' own inset: their icons line up with the name above */
 }
 
 .formEnd {

@@ -14,6 +14,7 @@ import {
   moveParty,
   newField,
   nextOptionName,
+  movePlace,
   nudge,
   onEveryPage,
   redo,
@@ -285,5 +286,28 @@ describe("making a place larger or smaller", () => {
     history = apply(history, (d) => resize(d, placeId, 1.1, PAGES), `resize:${placeId}`);
     expect(unsaved(history)).toBe(2);
     expect(undo(history).present.fields[0]?.places[0]?.rect).toEqual([106, 100, 206, 120]); // the moves stay
+  });
+});
+
+describe("moving a place to another page", () => {
+  const PAIR = [
+    { width: 595, height: 842 },
+    { width: 400, height: 300 },
+  ];
+  const field = newField("text", "Note", null, { page: 1, rect: [100, 700, 280, 722], option_value: null, option_text: null });
+  const placeId = field.places[0]?.id ?? "";
+  const draft: Draft = { parties: [], fields: [{ ...field, needs_review: "new" }] };
+
+  it("puts it on that page, its size kept, inside that page", () => {
+    const place = movePlace(draft, placeId, 2, [300, 290, 480, 312], PAIR).fields[0]?.places[0];
+    expect(place?.page).toBe(2);
+    expect(place?.rect).toEqual([220, 278, 400, 300]); // a smaller page: pulled in from its edges
+    expect(place?.kind).toBe("blank");
+  });
+
+  it("is an edit of the field, and none when it lands where it was or on no page", () => {
+    expect(movePlace(draft, placeId, 2, [10, 10, 190, 32], PAIR).fields[0]?.needs_review).toBeNull();
+    expect(movePlace(draft, placeId, 1, [100, 700, 280, 722], PAIR)).toBe(draft);
+    expect(movePlace(draft, placeId, 3, [10, 10, 190, 32], PAIR)).toBe(draft);
   });
 });

@@ -72,7 +72,20 @@
 
 .movable {
   cursor: move;
+  user-select: none;
+  -webkit-touch-callout: none; /* a held finger moves the box; it asks for no menu */
+}
+
+/* A finger's drag scrolls the page, except on the chosen box and its handles: those it moves. */
+.movable.chosen,
+.handle {
   touch-action: none;
+}
+
+/* While dragged, over every page: a box on its way to the next page is not hidden under it. */
+.box.dragged {
+  z-index: 5;
+  animation: none;
 }
 
 .handle {
@@ -106,6 +119,69 @@
   right: -5px;
   bottom: -5px;
   cursor: nwse-resize;
+}
+
+/* Under a finger (§5.1): the chosen box takes a touch around itself, so a checkbox is as easy to
+   hold as a signature, and each corner's handle is larger with a target reaching away from the box
+   (WCAG 2.5.8), leaving the box itself for moving. */
+@media (pointer: coarse) {
+  .movable.chosen::before {
+    position: absolute;
+    inset: -12px;
+    content: "";
+  }
+
+  .handle {
+    width: 14px;
+    height: 14px;
+  }
+
+  .handle::before {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    content: "";
+  }
+
+  .nw {
+    top: -8px;
+    left: -8px;
+  }
+
+  .nw::before {
+    right: 0;
+    bottom: 0;
+  }
+
+  .ne {
+    top: -8px;
+    right: -8px;
+  }
+
+  .ne::before {
+    bottom: 0;
+    left: 0;
+  }
+
+  .sw {
+    bottom: -8px;
+    left: -8px;
+  }
+
+  .sw::before {
+    top: 0;
+    right: 0;
+  }
+
+  .se {
+    right: -8px;
+    bottom: -8px;
+  }
+
+  .se::before {
+    top: 0;
+    left: 0;
+  }
 }
 
 .sketch {

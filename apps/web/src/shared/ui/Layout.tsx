@@ -106,7 +106,9 @@ export function DetailsPane({ children }: { children: ReactNode }) {
 }
 
 /**
- * A titled block of a console page (prototype .section); ``info`` adds a "?" that explains it.
+ * A titled block of a console page (prototype .section); ``info`` adds a "?" that explains it,
+ * and ``action`` puts the block's own action (an icon button) at the end of its title line, so it
+ * takes no line of its own.
  * ``collapsible``: its title line opens and closes it in place (a native ``<details>``, so it
  * works by keyboard and is announced as expanded or collapsed), with ``count`` beside the title
  * and a chevron at the end; open to begin with unless ``defaultOpen`` is false. A screen that must
@@ -116,6 +118,7 @@ export function DetailsPane({ children }: { children: ReactNode }) {
 export function Section({
   title,
   info,
+  action,
   count,
   collapsible = false,
   defaultOpen = true,
@@ -125,6 +128,7 @@ export function Section({
 }: {
   title: string;
   info?: ReactNode;
+  action?: ReactNode;
   count?: number | undefined;
   collapsible?: boolean;
   defaultOpen?: boolean;
@@ -142,12 +146,18 @@ export function Section({
           <InfoTip label={title}>{info}</InfoTip>
         </span>
       ) : null}
+      {action ? (
+        // Pressing it acts; it never opens or closes the section.
+        <span className={styles.actionSlotEnd} onClick={(event) => event.preventDefault()}>
+          {action}
+        </span>
+      ) : null}
     </>
   );
   if (!collapsible) {
     return (
       <section className={styles.section} aria-label={title}>
-        {info || count !== undefined ? <div className={styles.sectionTitle}>{heading}</div> : <Eyebrow>{title}</Eyebrow>}
+        {info || action || count !== undefined ? <div className={styles.sectionTitle}>{heading}</div> : <Eyebrow>{title}</Eyebrow>}
         {children}
       </section>
     );

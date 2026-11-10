@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Chip, ChipGroup, ExpandableList, ExpandableRow, Notice, SearchField, Section, SmallText } from "@/shared/ui";
+import { Chip, ChipGroup, ExpandableList, ExpandableRow, HeadAction, Notice, SearchField, Section, SmallText } from "@/shared/ui";
 
 import { HOLDS, toneOf, whoFills, type PartyRef, type VersionFields } from "./fields";
 import type { Selection } from "./FieldBoxes";
@@ -64,6 +64,8 @@ export function FieldsPanel({
   filter,
   onFilter,
   editing,
+  follow = true,
+  onEdit,
 }: {
   view: VersionFields;
   draft: Draft;
@@ -73,6 +75,12 @@ export function FieldsPanel({
   filter: Filter;
   onFilter: (filter: Filter) => void;
   editing: PanelEditing | null;
+  /** Bring the chosen field's row into view. Off when the list is under the document and the field
+   * was chosen on the page (a phone): the person stays with the box they touched. */
+  follow?: boolean;
+  /** Start editing an approved version's fields, from here: where the panel is under the document
+   * (a narrow screen) the action is in the panel's first title line, by what it edits. */
+  onEdit?: (() => void) | undefined;
 }) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -90,7 +98,8 @@ export function FieldsPanel({
   }
   useEffect(() => {
     const list = rowId ? document.getElementById(rowId)?.parentElement : null;
-    if (list) bringIntoView(list);
+    if (list && follow) bringIntoView(list);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new choice scrolls, not a change of ``follow``
   }, [rowId]);
 
   const rows = useMemo<Row[]>(() => {
@@ -177,7 +186,12 @@ export function FieldsPanel({
           />
         </Section>
       ) : null}
-      <Section title="Who signs" info={WHO_SIGNS_HELP} collapsible>
+      <Section
+        title="Who signs"
+        info={WHO_SIGNS_HELP}
+        action={onEdit ? <HeadAction icon="edit" label="Edit fields" onClick={onEdit} /> : undefined}
+        collapsible
+      >
         <PartyList parties={draft.parties} fields={draft.fields} sender={sender} edit={editing ? editing.review.edit : null} />
       </Section>
       <Section title={`Fields · ${draft.fields.length}`} info={FIELDS_HELP} collapsible open={fieldsOpen} onOpenChange={setFieldsOpen}>
@@ -186,9 +200,6 @@ export function FieldsPanel({
         ) : null}
         {view.found_again_failed ? (
           <Notice tone="warning">{`${view.found_again_failed}. These are the fields found before.`}</Notice>
-        ) : null}
-        {editing && !editing.canDraw ? (
-          <SmallText>Moving boxes on the document needs a larger screen; the arrows in a field move its box.</SmallText>
         ) : null}
         {draft.fields.length > 0 ? (
           <>
@@ -229,12 +240,11 @@ export function FieldsPanel({
               }}
             >
               {tool?.kind === "field" ? (
-                <PlacingRow onCancel={editing.cancelPlacing} />
+                <PlacingRow touch={editing.touch} onCancel={editing.cancelPlacing} />
               ) : (
                 <AddField
                   parties={draft.parties}
                   partyId={filteredParty}
-                  canDraw={editing.canDraw}
                   onPlace={(next) => {
                     setAdding(false);
                     editing.startPlacing(next);

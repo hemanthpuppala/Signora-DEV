@@ -371,16 +371,16 @@ describe("field review", () => {
     const form = await screen.findByRole("region", { name: "Details of Signature" });
     expect(within(form).getByRole("button", { name: "Add a place" })).toBeTruthy(); // clear actions, with icons
     expect(within(form).getByRole("button", { name: "On every page" })).toBeTruthy();
-    // Its place moves and resizes without a drag too: a quiet row of named icons, no numbers.
-    const adjust = within(form).getByRole("group", { name: "Move or resize this place" });
-    expect(within(adjust).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
-      "Move left",
-      "Move up",
-      "Move down",
-      "Move right",
-      "Smaller",
-      "Larger",
-    ]);
+    // Its place moves and resizes without a drag too: named groups of named icons, no numbers.
+    const named = (group: string) =>
+      within(within(form).getByRole("group", { name: group }))
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label"));
+    expect(named("Add places")).toEqual(["Add a place", "On every page"]);
+    expect(named("Move this place")).toEqual(["Move left", "Move up", "Move down", "Move right"]);
+    expect(named("Resize this place")).toEqual(["Smaller", "Larger"]);
+    expect(within(form).queryByRole("group", { name: "Place 1" })).toBeNull(); // one place: nothing to split or remove
+    const adjust = form;
     await user.click(within(form).getByRole("button", { name: "About places" }));
     expect(within(form).getByRole("note").textContent).toContain("Add a place: click on the document to show this field there too.");
     await user.keyboard("{Escape}");
@@ -485,5 +485,132 @@ describe("field review", () => {
     expect(screen.queryByRole("button", { name: "Add field" })).toBeNull();
     expect(screen.queryByRole("button", { name: "+ Add party" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit Client" })).toBeNull();
+  });
+
+  describe("with a finger, and on a narrow screen (§5.1)", () => {
+    const boxOf = (page: number) => document.querySelector(`[data-page="${page}"] [data-layer="fields"] > button`) as HTMLElement;
+    const layerOf = (page: number) => document.querySelector(`[data-page="${page}"] [data-layer="fields"]`) as HTMLElement;
+    const at = (x: number, y: number, pointerType = "mouse") => ({ button: 0, pointerId: 1, clientX: x, clientY: y, pointerType });
+    /** Two A4 pages on screen at scale 1, a 16px gap between them. */
+    const laidOut = () => {
+      for (const [page, top] of [[1, 0], [2, 858]] as const) {
+        layerOf(page).getBoundingClientRect = () => new DOMRect(0, top, 595, 842);
+      }
+    };
+    /** A screen where a query holds only if it is one of these. */
+    const screenIs = (...holding: string[]) =>
+      vi.stubGlobal("matchMedia", (media: string) => ({
+        media,
+        matches: holding.includes(media),
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+
+    it("a tap places a field at its size, and the words say tap", async () => {
+      screenIs("(min-width: 960px)", "(pointer: coarse)");
+      inReview();
+      open();
+      const user = userEvent.setup();
+      await screen.findByRole("list", { name: "Fields" });
+      await user.click(screen.getByRole("button", { name: "Add field" }));
+      const row = screen.getByRole("region", { name: "New field" });
+      await user.click(within(row).getByRole("button", { name: "Place on the page" })); // the same on every screen
+      expect(screen.getByRole("status")).toHaveTextContent("Tap where the signature goes");
+      expect(within(row).getByText("Tap the document to place it.")).toBeTruthy();
+
+      laidOut();
+      // A finger is never still: its wobble draws nothing, the box has its type's size.
+      fireEvent.pointerDown(layerOf(1), at(300, 400, "touch"));
+      fireEvent.pointerMove(layerOf(1), at(306, 405, "touch"));
+      fireEvent.pointerUp(layerOf(1), at(306, 405, "touch"));
+      await screen.findByRole("region", { name: "Details of Signature" });
+      const placed = [...layerOf(1).querySelectorAll<HTMLElement>("button")].find((b) => /chosen/.test(b.className));
+      expect([placed?.style.left, placed?.style.top, placed?.style.width, placed?.style.height]).toEqual(["210px", "382px", "180px", "36px"]);
+    });
+
+    it("a finger moves the chosen box only: a tap chooses, the next drag moves", async () => {
+      inReview();
+      open();
+      await screen.findByRole("list", { name: "Fields" });
+      laidOut();
+      const drag = (from: [number, number], to: [number, number]) => {
+        fireEvent.pointerDown(boxOf(1), at(...from, "touch"));
+        fireEvent.pointerMove(boxOf(1), at(...to, "touch"));
+        fireEvent.pointerUp(boxOf(1), at(...to, "touch"));
+      };
+      drag([150, 110], [190, 150]); // not chosen: this drag is the page's, to scroll
+      expect(boxOf(1).style.left).toBe("100px");
+
+      fireEvent.click(boxOf(1));
+      await screen.findByRole("region", { name: "Details of Company" });
+      drag([150, 110], [154, 113]); // a tap that wandered: no move
+      expect(boxOf(1).style.left).toBe("100px");
+      drag([150, 110], [190, 150]);
+      expect([boxOf(1).style.left, boxOf(1).style.top]).toEqual(["140px", "140px"]);
+      expect(screen.getByText("1 unsaved change")).toBeTruthy();
+    });
+
+    it("a box dragged past its page lands on the next one", async () => {
+      inReview();
+      answers["PUT /api/v1/documents/doc-1/versions/v-1/fields"] = () => reply(200, { revision: 1 });
+      open();
+      const user = userEvent.setup();
+      await screen.findByRole("list", { name: "Fields" });
+      laidOut();
+      fireEvent.pointerDown(boxOf(1), at(150, 110));
+      fireEvent.pointerMove(boxOf(1), at(170, 1010)); // over page 2, which starts at 858
+      expect(boxOf(1).className).toMatch(/dragged/); // drawn over the next page while on its way
+      fireEvent.pointerUp(boxOf(1), at(170, 1010));
+
+      expect(layerOf(1).querySelector("button")).toBeNull();
+      const moved = [...layerOf(2).querySelectorAll<HTMLElement>("button")].find((b) => b.title === "Company");
+      expect([moved?.style.left, moved?.style.top]).toEqual(["120px", "142px"]); // where it was let go, in page 2's points
+      await user.click(within(bar()).getByRole("button", { name: "Save" }));
+      const body = sentTo("PUT /api/v1/documents/doc-1/versions/v-1/fields")[0]?.body as {
+        fields: { label: string; places: { page: number; rect: number[]; kind: string }[] }[];
+      };
+      expect(body.fields.find((f) => f.label === "Company")?.places).toMatchObject([{ page: 2, rect: [120, 142, 280, 162], kind: "text" }]);
+    });
+
+    it("under the document, a box chosen on the page keeps the person there, with the way to its form", async () => {
+      screenIs("(pointer: coarse)"); // narrow: the panel is under the document
+      const scrolled = vi.fn();
+      Element.prototype.scrollIntoView = scrolled as unknown as Element["scrollIntoView"];
+      inReview();
+      open();
+      await screen.findByRole("list", { name: "Fields" });
+
+      fireEvent.click(boxOf(1));
+      await screen.findByRole("region", { name: "Details of Company" });
+      expect(scrolled).not.toHaveBeenCalled(); // the list under the document does not pull the page away
+      const pinned = screen.getByRole("status");
+      expect(pinned).toHaveTextContent("Company");
+      await userEvent.click(within(pinned).getByRole("button", { name: "Details" }));
+      expect(scrolled.mock.contexts.at(-1)).toBe(document.getElementById("field-f-company")); // its row, on request
+
+      scrolled.mockClear();
+      await chooseField("Client signature"); // chosen in the list: the list shows it, nothing is pinned
+      expect(scrolled).toHaveBeenCalled();
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    it("under the document, Edit fields is in the panel's title line, not on a line of its own above", async () => {
+      screenIs("(pointer: coarse)");
+      state = {
+        document: documentWith([version(1, { status: "approved", approved: APPROVAL, is_current: true })], {
+          current_version: { id: "v-1", number: 1 },
+        }),
+        fields: { "v-1": fieldsView({ status: "approved", warnings: [] }) },
+      };
+      open();
+      const user = userEvent.setup();
+      const who = await screen.findByRole("region", { name: "Who signs" });
+      expect(screen.queryByRole("region", { name: "Review" })).toBeNull(); // no bar for one button
+      await user.click(within(who).getByRole("button", { name: "Edit fields" }));
+      expect(within(who).getByText("Client")).toBeTruthy(); // pressing it never closes the section
+      expect(await screen.findByRole("button", { name: "Add field" })).toBeTruthy(); // editing
+      expect(within(who).queryByRole("button", { name: "Edit fields" })).toBeNull();
+      expect(within(bar()).getByRole("button", { name: "Stop editing" })).toBeTruthy(); // what stays in reach
+    });
   });
 });
