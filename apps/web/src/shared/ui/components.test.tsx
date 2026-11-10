@@ -409,3 +409,33 @@ describe("Disclosure", () => {
     expect(group.open).toBe(false);
   });
 });
+
+describe("Select, searchable", () => {
+  it("finds an option by its name or the word beside it, and chooses it with Enter", async () => {
+    const onChange = vi.fn();
+    render(
+      <Select
+        label="Type"
+        searchable
+        options={[
+          { value: "date", label: "Date", hint: "Dates" },
+          { value: "year", label: "Year of a date", hint: "Dates" },
+          { value: "tax_id", label: "Tax number", hint: "Private" },
+        ]}
+        value="date"
+        onChange={onChange}
+      />,
+    );
+    await userEvent.click(screen.getByRole("combobox", { name: "Type" }));
+    const search = screen.getByRole("combobox", { name: "Search Type" });
+    expect(document.activeElement).toBe(search);
+    await userEvent.type(search, "priv");
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Tax numberPrivate"]);
+    await userEvent.clear(search);
+    await userEvent.type(search, "year{Enter}");
+    expect(onChange).toHaveBeenCalledWith("year");
+    await userEvent.click(screen.getByRole("combobox", { name: "Type" }));
+    await userEvent.type(screen.getByRole("combobox", { name: "Search Type" }), "zzz");
+    expect(screen.getByText("No match")).toBeTruthy();
+  });
+});

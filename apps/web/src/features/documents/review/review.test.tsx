@@ -352,7 +352,7 @@ describe("field review", () => {
     await screen.findByRole("list", { name: "Fields" });
     await user.click(screen.getByRole("button", { name: "Add field" })); // the list's first row
     const row = screen.getByRole("region", { name: "New field" });
-    expect(within(row).getByRole("combobox", { name: "Type" }).textContent).toContain("Signature · Signing"); // one dropdown
+    expect(within(row).getByRole("combobox", { name: "Type" }).textContent).toBe("Signature"); // one dropdown; its group beside each option
     await user.click(within(row).getByRole("button", { name: "Place on the page" }));
     // Pinned over the pages, where the click goes; the row points there.
     expect(screen.getByRole("status")).toHaveTextContent("Click where the signature goes, or drag to draw it");
