@@ -122,6 +122,7 @@ export function mountPhoneSigning(root: HTMLElement, scope: Scope, reduced: bool
       return;
     }
     const restore = setBusy(openButton, "Checking");
+    if (!restore) return;
     await wait(700);
     lock.classList.add("is-unlocked");
     await wait(420);
@@ -198,6 +199,7 @@ export function mountPhoneSigning(root: HTMLElement, scope: Scope, reduced: bool
   scope.on(q(root, "#pad-clear"), "click", clearPad);
   scope.on(signButton, "click", async () => {
     const restore = setBusy(signButton, "Signing");
+    if (!restore) return;
     await wait(700);
     restore();
     const time = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });

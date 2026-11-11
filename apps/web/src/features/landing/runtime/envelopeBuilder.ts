@@ -242,6 +242,7 @@ export function mountEnvelopeBuilder(
   // ── 04 Send ──
   scope.on(sendButton, "click", async () => {
     const restore = setBusy(sendButton, "Sending");
+    if (!restore) return;
     await wait(1000);
     restore();
     if (!file || !client) return;

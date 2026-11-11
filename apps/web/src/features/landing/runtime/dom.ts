@@ -30,8 +30,13 @@ export function sizeCanvas(canvas: HTMLCanvasElement): Surface {
   return { ctx, w, h };
 }
 
-/** Shows a spinner and `label` on a button while its action runs; the returned call restores it. */
-export function setBusy(button: HTMLButtonElement, label: string): () => void {
+/**
+ * Shows a spinner and `label` on a button while its action runs; the returned call restores it.
+ * Returns `null` when the button is already busy: the action is running and must not start again
+ * (the busy style stops the pointer, but not Enter or Space).
+ */
+export function setBusy(button: HTMLButtonElement, label: string): (() => void) | null {
+  if (button.classList.contains("is-busy")) return null;
   const original = Array.from(button.childNodes);
   const spinner = document.createElement("span");
   spinner.className = "spin";
