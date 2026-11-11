@@ -2,6 +2,8 @@
 
 **Source of truth for UI and UX:** [`prototype.html`](prototype.html), a clickable prototype of all 28 screens. Open it in a browser and use **All screens** (bottom right) to navigate. The Next.js app in `apps/web` must port these tokens, components and flows; when the app and the prototype disagree, the prototype wins unless this file records a deliberate deviation.
 
+The public landing page (screen 01) is the exception: it has its own approved prototype, tokens and motion in [`landing/prototype.html`](landing/prototype.html), built as described in [`docs/design/features/landing.md`](../design/features/landing.md). Everything below is about the console, the sign-in pages and the signer pages.
+
 ## Principles
 - **Pure black and white.** Dark only (`color-scheme: dark`). The only color in the product is the status dot.
 - **Quiet typography.** Cormorant Garamond Light for headings and numbers; system sans at weight 300 for text; tracked uppercase micro-labels for structure.
