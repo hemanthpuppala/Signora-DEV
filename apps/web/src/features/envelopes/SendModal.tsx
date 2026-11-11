@@ -29,7 +29,7 @@ import { useSendForm, type Envelope, type FormField, type SendForm, type SendReq
 import { askedFields } from "./conditions";
 import styles from "./envelopes.module.css";
 import { FieldInput, refused } from "./FieldInput";
-import { fitsEverywhere, kept, useFontReady, written, writtenIn } from "./typeset";
+import { fitsEverywhere, kept, namePart, useFontReady, written, writtenIn } from "./typeset";
 import { ValuesOverlay } from "./ValuesOverlay";
 
 const STEPS = ["Template", "Details", "Signers", "Countersigners", "Review"] as const;
@@ -517,7 +517,13 @@ export function SendModal({
                     placeholder="Choose a colleague"
                     onChange={(value) => setCountersigners((current) => ({ ...current, [party.party_id]: value }))}
                   />
-                  {person ? <SmallText>{`${person.name} is emailed once every signer has signed.`}</SmallText> : null}
+                  {person ? (
+                    <SmallText>
+                      {data.signers.length > 0
+                        ? `${person.name} is emailed once every signer has signed.`
+                        : `${person.name} is emailed as soon as it is sent.`}
+                    </SmallText>
+                  ) : null}
                   {errors[`parties.${party.party_id}`] ?? errors[`countersigners[${index}].user_id`] ? (
                     <p className={styles.error} role="alert">
                       {errors[`parties.${party.party_id}`] ?? errors[`countersigners[${index}].user_id`]}
@@ -550,7 +556,7 @@ export function SendModal({
                       // The email is theirs from the send; the name is the one they sign as, later.
                       return f.from_recipient === "email"
                         ? [{ places: f.places, holds: f.holds, value: person.email }]
-                        : [{ places: f.places, holds: f.holds, value: person.name, atSigning: true }];
+                        : [{ places: f.places, holds: f.holds, value: namePart(f.holds, person.name), atSigning: true }];
                     }
                     const value = values[f.id]?.trim();
                     // As the server keeps it, so the preview is what the signed PDF prints.

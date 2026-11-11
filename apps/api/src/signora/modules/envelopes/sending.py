@@ -190,10 +190,11 @@ def fits(item: FormField, value: str, font_id: str) -> bool:
 
 
 def split_name(name: str) -> tuple[str, str]:
-    """First and last name at the last space ("Maya van Dijk" → "Maya van", "Dijk"), as DocuSign
-    fills its First and Last Name fields; a single word is a first name."""
+    """First and last name at the last space ("Maya van Dijk" → "Maya van", "Dijk"); a single
+    word is a first name. The preview keeps the same rule (the web's ``typeset.namePart``; both
+    run packages/contracts/vectors/names.json)."""
     first, _, last = name.strip().rpartition(" ")
-    return (first, last) if first else (last, "")
+    return (first.rstrip(), last) if first else (last, "")
 
 
 def plan_send(

@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import vectors from "../../../../../packages/contracts/vectors/date-formats.json";
+import names from "../../../../../packages/contracts/vectors/names.json";
 import numbers from "../../../../../packages/contracts/vectors/numbers.json";
 
-import { fitsEverywhere, kept, MEASURED_AT, number, written, writtenIn } from "./typeset";
+import { fitsEverywhere, kept, MEASURED_AT, namePart, number, written, writtenIn } from "./typeset";
 
 const DATE_TYPES = new Set(["date", "date_signed", "date_of_birth", "day", "month", "year"]);
 
@@ -69,5 +70,14 @@ describe("where a value is written as text", () => {
     expect(writtenIn("checkbox", [option(null)])).toEqual([]);
     expect(writtenIn("choice", [option("Gold"), option("Silver")])).toEqual([]); // ticks
     expect(writtenIn("choice", [option(null)])).toEqual([option(null)]); // a dropdown
+  });
+});
+
+describe("the part of a name each name field holds (the server runs the same examples)", () => {
+  // The preview drew the whole name in a First name box and again in a Last name box.
+  it.each(names.cases)("$name", ({ name, first, last }) => {
+    expect(namePart("first_name", name)).toBe(first);
+    expect(namePart("last_name", name)).toBe(last);
+    expect(namePart("full_name", name)).toBe(name.trim());
   });
 });

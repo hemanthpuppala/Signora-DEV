@@ -1,0 +1,10 @@
+{
+  "about": "How a person's name fills a First name and a Last name field: cut at the last space, a single word being a first name. Hand-written; run by the API's tests (envelopes.sending.split_name) and the web's (typeset.namePart), so the preview shows in each box what will be written there.",
+  "cases": [
+    { "name": "Maya Chen", "first": "Maya", "last": "Chen" },
+    { "name": "Maya van Dijk", "first": "Maya van", "last": "Dijk" },
+    { "name": "Cher", "first": "Cher", "last": "" },
+    { "name": "  Rosa   Hale  ", "first": "Rosa", "last": "Hale" },
+    { "name": "", "first": "", "last": "" }
+  ]
+}

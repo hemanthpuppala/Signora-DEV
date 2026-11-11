@@ -77,6 +77,19 @@ export function written(holds: string, value: string, format: string | null): st
   }
 }
 
+/**
+ * The part of a person's name a name field holds (the server's envelopes.sending.split_name; the
+ * two run the same examples, packages/contracts/vectors/names.json): the whole name in a full
+ * name, else cut at the last space, a single word being a first name.
+ */
+export function namePart(holds: string, name: string): string {
+  const whole = name.trim();
+  if (holds !== "first_name" && holds !== "last_name") return whole;
+  const at = whole.lastIndexOf(" ");
+  const [first, last] = at < 0 ? [whole, ""] : [whole.slice(0, at).trimEnd(), whole.slice(at + 1)];
+  return holds === "first_name" ? first : last;
+}
+
 export const NUMBER_MAX_DIGITS = 28;
 const NUMBERS = new Set(["number", "currency", "percent"]);
 // A sign, digits (commas between them are grouping), a decimal point: the digits 0-9 only.

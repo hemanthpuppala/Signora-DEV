@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -251,10 +253,15 @@ def test_a_year_written_in_two_digits_is_of_the_printed_century() -> None:
     ]
 
 
-def test_split_name() -> None:
-    assert split_name("Maya Chen") == ("Maya", "Chen")
-    assert split_name("Maya van Dijk") == ("Maya van", "Dijk")
-    assert split_name("Cher") == ("Cher", "")
+NAMES = json.loads(
+    (Path(__file__).parents[5] / "packages/contracts/vectors/names.json").read_text()
+)["cases"]
+
+
+@pytest.mark.parametrize("case", NAMES, ids=lambda c: repr(c["name"]))
+def test_a_name_is_split_at_its_last_space(case: dict[str, str]) -> None:
+    """The examples the preview runs too (typeset.namePart)."""
+    assert split_name(case["name"]) == (case["first"], case["last"])
 
 
 def test_a_value_is_measured_as_its_field_writes_it() -> None:

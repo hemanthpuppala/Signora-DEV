@@ -48,6 +48,7 @@ import {
 } from "./api";
 import { day } from "./EnvelopesList";
 import styles from "./envelopes.module.css";
+import { namePart } from "./typeset";
 import { ValuesOverlay, type Shown } from "./ValuesOverlay";
 
 const OPEN = new Set<Envelope["status"]>(["sent", "opened", "viewed", "signed"]);
@@ -89,7 +90,7 @@ function shown(envelope: Envelope, drawn: EnvelopeDocument): Shown[] {
     ...drawn.fields.flatMap((f) => {
       const recipient = envelope.recipients.find((r) => r.party_id === f.party_id);
       return f.from_recipient === "name" && recipient && !given.has(f.id)
-        ? [{ places: f.places, holds: f.holds, value: recipient.name, atSigning: true }]
+        ? [{ places: f.places, holds: f.holds, value: namePart(f.holds, recipient.name), atSigning: true }]
         : [];
     }),
   ];
