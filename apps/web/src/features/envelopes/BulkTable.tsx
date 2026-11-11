@@ -1,69 +1,64 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { cx } from "@/shared/lib/cx";
 import { Checkbox, TextButton } from "@/shared/ui";
 
 import styles from "./bulk.module.css";
-import { hasError, type SheetColumn, type SheetProblem, type SheetRow } from "./bulkApi";
+import { hasError, TICKED, type SheetColumn, type SheetProblem, type SheetRow } from "./bulkApi";
 
 /** How many rows are added to the page at a time as the person scrolls (NFR-2). */
 const PAGE = 50;
 
 const INPUT_TYPE: Partial<Record<SheetColumn["kind"], string>> = { date: "date", email: "email" };
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** A choice's cell as the option it names: its value, given as the value or as its words. */
-function chosen(column: SheetColumn, text: string): string {
-  const plain = text.trim().toLowerCase();
-  const option = (column.options ?? []).find(
-    (o) => o.value.toLowerCase() === plain || o.text.trim().toLowerCase() === plain,
-  );
-  return option ? option.value : text;
-}
+type EditCell = (rowNo: number, key: string, value: string, done: boolean) => void;
 
-const TICKED = new Set(["yes", "true", "x", "1", "y"]);
-
+/**
+ * One cell: the kind of input its column takes, with its problem under it. A cell holds what the
+ * server read (a choice as its option's value, a tick as "yes"), so nothing is interpreted here.
+ * A choice or a tick is done as soon as it is picked; typed text is done when the cell is left.
+ */
 function Cell({
   column,
-  row,
+  rowNo,
+  value,
   problem,
   disabled,
-  onChange,
+  onEdit,
   onLeave,
 }: {
   column: SheetColumn;
-  row: SheetRow;
+  rowNo: number;
+  value: string;
   problem: SheetProblem | undefined;
   disabled: boolean;
-  onChange: (value: string) => void;
+  onEdit: EditCell;
   onLeave: () => void;
 }) {
-  const value = row.cells[column.key] ?? "";
-  const id = `bulk-${row.row_no}-${column.key}`;
+  const id = `bulk-${rowNo}-${column.key}`;
   const messageId = problem ? `${id}-problem` : undefined;
   const error = problem !== undefined && problem.level !== "warning";
   const shared = {
     id,
     disabled,
-    "aria-label": `${column.header}, row ${row.row_no}`,
+    "aria-label": `${column.header}, row ${rowNo}`,
     "aria-invalid": error || undefined,
     "aria-describedby": messageId,
     "data-problem": error ? "" : undefined,
-    onBlur: onLeave,
   };
   const className = cx(styles.input, problem?.level === "warning" && styles.warned);
+  const options = column.options ?? [];
   return (
     <div className={styles.cell}>
       {column.kind === "checkbox" ? (
         <span className={styles.tick}>
           <Checkbox
             {...shared}
-            checked={TICKED.has(value.trim().toLowerCase())}
-            onChange={(event) => {
-              onChange(event.target.checked ? "yes" : "");
-              onLeave();
-            }}
+            checked={value === TICKED}
+            onChange={(event) => onEdit(rowNo, column.key, event.target.checked ? TICKED : "", true)}
           >
             {""}
           </Checkbox>
@@ -72,17 +67,13 @@ function Cell({
         <select
           {...shared}
           className={className}
-          value={chosen(column, value)}
-          onChange={(event) => {
-            onChange(event.target.value);
-          }}
+          value={value}
+          onChange={(event) => onEdit(rowNo, column.key, event.target.value, true)}
         >
           <option value="">—</option>
           {/* What the file gave, when it is none of the options, so it is seen and replaced. */}
-          {value && !(column.options ?? []).some((o) => o.value === chosen(column, value)) ? (
-            <option value={value}>{value}</option>
-          ) : null}
-          {(column.options ?? []).map((option) => (
+          {value && !options.some((option) => option.value === value) ? <option value={value}>{value}</option> : null}
+          {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.text}
             </option>
@@ -92,10 +83,12 @@ function Cell({
         <input
           {...shared}
           className={className}
-          type={/^\d{4}-\d{2}-\d{2}$/.test(value) || !value ? (INPUT_TYPE[column.kind] ?? "text") : "text"}
+          // A date the file wrote some other way stays as typed text until it is corrected.
+          type={!value || ISO_DATE.test(value) ? (INPUT_TYPE[column.kind] ?? "text") : "text"}
           inputMode={column.kind === "number" ? "decimal" : undefined}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => onEdit(rowNo, column.key, event.target.value, false)}
+          onBlur={onLeave}
         />
       )}
       {problem ? (
@@ -107,12 +100,62 @@ function Cell({
   );
 }
 
+/** One row. Memoised: typing in one row draws that row again, not the page of them. */
+const RowView = memo(function RowView({
+  row,
+  columns,
+  out,
+  onEdit,
+  onLeave,
+  onLeaveOut,
+}: {
+  row: SheetRow;
+  columns: readonly SheetColumn[];
+  out: boolean;
+  onEdit: EditCell;
+  onLeave: () => void;
+  onLeaveOut: (rowNo: number, out: boolean) => void;
+}) {
+  const problems = useMemo(() => new Map((row.problems ?? []).map((problem) => [problem.key, problem])), [row.problems]);
+  return (
+    <tr className={cx(out && styles.out)}>
+      <th scope="row" className={styles.rowHead}>
+        <span className={styles.rowNo}>{`Row ${row.row_no}`}</span>
+        <button
+          type="button"
+          className={styles.rowAction}
+          aria-label={out ? `Put row ${row.row_no} back` : `Leave out row ${row.row_no}`}
+          onClick={() => onLeaveOut(row.row_no, !out)}
+        >
+          {out ? "Put back" : "Leave out"}
+        </button>
+      </th>
+      {columns.map((column) => (
+        <td key={column.key}>
+          <Cell
+            column={column}
+            rowNo={row.row_no}
+            value={row.cells[column.key] ?? ""}
+            problem={out ? undefined : problems.get(column.key)}
+            disabled={out}
+            onEdit={onEdit}
+            onLeave={onLeave}
+          />
+        </td>
+      ))}
+    </tr>
+  );
+});
+
 /**
  * A bulk send's rows as a table to correct in place (Bulk send §9): one row per envelope, a column
  * per thing the template asks. A cell with a problem is marked and says what is wrong under it;
- * correcting it and leaving the cell has the row checked again. The row's number and "Leave out"
- * stay in place while the table scrolls sideways, the header while it scrolls down. Rows are
- * added to the page as the person scrolls.
+ * correcting it has the rows checked again. A required list column with empty cells (who
+ * countersigns, when the file did not say) can be filled for every empty row at once from its
+ * heading. The row's number and "Leave out" stay in place while the table scrolls sideways, the
+ * header while it scrolls down. Rows are added to the page as the person scrolls.
+ *
+ * The callbacks must keep their identity between renders (the rows are memoised on them).
  */
 export function BulkTable({
   columns,
@@ -122,16 +165,20 @@ export function BulkTable({
   onEdit,
   onLeaveCell,
   onLeaveOut,
+  onFillEmpty,
 }: {
   columns: readonly SheetColumn[];
   rows: readonly SheetRow[];
   /** The numbers of the rows that will not be sent. */
   leftOut: ReadonlySet<number>;
   checking: boolean;
-  onEdit: (rowNo: number, key: string, value: string) => void;
-  /** A cell was left after an edit: time to check the rows again. */
+  /** A cell changed; ``done`` when the change is complete (a choice or a tick, not a keystroke). */
+  onEdit: EditCell;
+  /** A typed cell was left: time to check the rows again. */
   onLeaveCell: () => void;
   onLeaveOut: (rowNo: number, out: boolean) => void;
+  /** Give every row whose cell in this column is empty the same value. */
+  onFillEmpty: (key: string, value: string) => void;
 }) {
   const [onlyProblems, setOnlyProblems] = useState(true);
   const [shown, setShown] = useState(PAGE);
@@ -139,17 +186,22 @@ export function BulkTable({
   const sentinel = useRef<HTMLTableRowElement>(null);
 
   const included = useMemo(() => rows.filter((row) => !leftOut.has(row.row_no)), [rows, leftOut]);
-  const withErrors = useMemo(() => included.filter(hasError), [included]);
+  const withErrors = useMemo(() => included.filter(hasError).length, [included]);
   const withWarnings = useMemo(
-    () => included.filter((row) => !hasError(row) && (row.problems ?? []).length > 0),
+    () => included.filter((row) => !hasError(row) && (row.problems ?? []).length > 0).length,
     [included],
   );
-  // The rows to work through stay listed while they are worked on: a row that has just been
-  // corrected does not jump out from under the person; it leaves when the list is next opened.
-  const [listed, setListed] = useState<ReadonlySet<number>>(
-    () => new Set(rows.filter((row) => (row.problems ?? []).length > 0).map((row) => row.row_no)),
+  // Under "Only rows with problems": every row that has one now, and every row that had one
+  // since the list was opened. A row just corrected stays where it is while the person works;
+  // a row that gains a problem later (the server refused the batch) joins the list at once.
+  const [stay, setStay] = useState<ReadonlySet<number>>(new Set());
+  const troubled = useMemo(() => rows.filter((row) => (row.problems ?? []).length > 0).map((row) => row.row_no), [rows]);
+  const listed = useMemo(() => new Set([...stay, ...troubled]), [stay, troubled]);
+  if (troubled.some((rowNo) => !stay.has(rowNo))) setStay(listed); // remembered as they appear
+  const visible = useMemo(
+    () => (onlyProblems ? rows.filter((row) => listed.has(row.row_no)) : rows),
+    [onlyProblems, rows, listed],
   );
-  const visible = onlyProblems ? rows.filter((row) => listed.has(row.row_no)) : rows;
   const page = visible.slice(0, shown);
 
   useEffect(() => {
@@ -165,6 +217,16 @@ export function BulkTable({
     return () => observer.disconnect();
   }, [visible.length, shown]);
 
+  // Which required list columns still have an empty cell in a row that will be sent.
+  const fillable = useMemo(() => {
+    const keys = new Set<string>();
+    for (const column of columns) {
+      if (column.kind !== "choice" || !column.required) continue;
+      if (included.some((row) => !row.cells[column.key])) keys.add(column.key);
+    }
+    return keys;
+  }, [columns, included]);
+
   const nextProblem = () => {
     const cells = Array.from(scroller.current?.querySelectorAll<HTMLElement>("[data-problem]") ?? []);
     if (cells.length === 0) return;
@@ -176,12 +238,10 @@ export function BulkTable({
     <div className={styles.stack}>
       <div className={styles.toolbar}>
         <span className={styles.count} role="status">
-          {withErrors.length === 0
+          {withErrors === 0
             ? `All ${included.length} ${included.length === 1 ? "row is" : "rows are"} ready to send`
-            : `${withErrors.length} of ${included.length} ${included.length === 1 ? "row" : "rows"} ${withErrors.length === 1 ? "needs" : "need"} fixing`}
-          {withWarnings.length > 0
-            ? ` · ${withWarnings.length} to look at`
-            : ""}
+            : `${withErrors} of ${included.length} ${included.length === 1 ? "row" : "rows"} ${withErrors === 1 ? "needs" : "need"} fixing`}
+          {withWarnings > 0 ? ` · ${withWarnings} to look at` : ""}
           {leftOut.size > 0 ? ` · ${leftOut.size} left out` : ""}
           {checking ? " · checking…" : ""}
         </span>
@@ -191,12 +251,12 @@ export function BulkTable({
             onChange={(event) => {
               setOnlyProblems(event.target.checked);
               setShown(PAGE);
-              setListed(new Set(rows.filter((row) => (row.problems ?? []).length > 0).map((row) => row.row_no)));
+              setStay(new Set(troubled)); // opened afresh: the rows corrected since leave the list
             }}
           >
             Only rows with problems
           </Checkbox>
-          <TextButton onClick={nextProblem} disabled={withErrors.length === 0}>
+          <TextButton onClick={nextProblem} disabled={withErrors === 0}>
             Next problem
           </TextButton>
         </span>
@@ -209,44 +269,41 @@ export function BulkTable({
                 Row
               </th>
               {columns.map((column) => (
-                <th key={column.key} scope="col" className={cx(column.required && styles.required)}>
-                  {column.header}
+                <th key={column.key} scope="col">
+                  <span className={cx(column.required && styles.required)}>{column.header}</span>
+                  {fillable.has(column.key) ? (
+                    <select
+                      className={styles.fill}
+                      aria-label={`${column.header}: set for every empty row`}
+                      value=""
+                      onChange={(event) => {
+                        if (event.target.value) onFillEmpty(column.key, event.target.value);
+                      }}
+                    >
+                      <option value="">Set for empty rows…</option>
+                      {(column.options ?? []).map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.text}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {page.map((row) => {
-              const out = leftOut.has(row.row_no);
-              const problems = new Map((row.problems ?? []).map((problem) => [problem.key, problem]));
-              return (
-                <tr key={row.row_no} className={cx(out && styles.out)}>
-                  <th scope="row" className={styles.rowHead}>
-                    <span className={styles.rowNo}>{`Row ${row.row_no}`}</span>
-                    <button
-                      type="button"
-                      className={styles.rowAction}
-                      aria-label={out ? `Put row ${row.row_no} back` : `Leave out row ${row.row_no}`}
-                      onClick={() => onLeaveOut(row.row_no, !out)}
-                    >
-                      {out ? "Put back" : "Leave out"}
-                    </button>
-                  </th>
-                  {columns.map((column) => (
-                    <td key={column.key}>
-                      <Cell
-                        column={column}
-                        row={row}
-                        problem={out ? undefined : problems.get(column.key)}
-                        disabled={out}
-                        onChange={(value) => onEdit(row.row_no, column.key, value)}
-                        onLeave={onLeaveCell}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
+            {page.map((row) => (
+              <RowView
+                key={row.row_no}
+                row={row}
+                columns={columns}
+                out={leftOut.has(row.row_no)}
+                onEdit={onEdit}
+                onLeave={onLeaveCell}
+                onLeaveOut={onLeaveOut}
+              />
+            ))}
             {page.length < visible.length ? (
               <tr ref={sentinel}>
                 <td colSpan={columns.length + 1} className={styles.more}>

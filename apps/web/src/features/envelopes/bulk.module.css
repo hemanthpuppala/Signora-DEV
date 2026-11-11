@@ -109,6 +109,22 @@
   white-space: nowrap;
 }
 
+/* In a required list column's heading: one choice for every row that left the cell empty. */
+.fill {
+  display: block;
+  margin-top: 6px;
+  max-width: 220px;
+  padding: 4px 6px;
+  border: 1px solid var(--r25);
+  border-radius: 0;
+  background: var(--surface);
+  font: 400 12px/1.4 var(--sans);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  color-scheme: dark;
+}
+
 .required::after {
   content: " *";
   color: var(--t55);

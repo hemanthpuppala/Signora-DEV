@@ -73,5 +73,8 @@ export function useBatches(departmentId: string) {
   });
 }
 
+/** How a ticked box is written in a cell the server gives back (envelopes.bulk_sheet.TICKED). */
+export const TICKED = "yes";
+
 /** Whether a row has anything that stops it from being sent. */
 export const hasError = (row: SheetRow) => (row.problems ?? []).some((problem) => problem.level !== "warning");
