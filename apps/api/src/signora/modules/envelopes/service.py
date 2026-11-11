@@ -7,12 +7,13 @@ import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.config import get_settings
 from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import FieldError, NotFound, ValidationFailed
@@ -24,6 +25,7 @@ from signora.modules.envelopes import emails, store
 from signora.modules.envelopes.document import EnvelopeDocument, build_document
 from signora.modules.envelopes.errors import (
     EnvelopeClosed,
+    NotCompleted,
     NotTheirTurn,
     RecipientSigned,
     SamePerson,
@@ -35,6 +37,7 @@ from signora.modules.envelopes.store import read_envelope, record_email, write_s
 from signora.modules.envelopes.views import EnvelopePage, EnvelopeSummary, EnvelopeView
 from signora.modules.identity_access import Actor, Permission, normalize_email
 from signora.modules.notifications import send_email
+from signora.modules.rendering import combine
 from signora.modules.review import read_set
 
 
@@ -119,10 +122,15 @@ def _from(session: Session, actor: Actor, sent_by: uuid.UUID | None = None) -> _
     return _From(row.company, row.name, row.email)
 
 
-def _link(recipient_id: uuid.UUID, link_version: int) -> str:
+def _link(recipient_id: uuid.UUID, link_version: int, kind: str) -> str:
+    """A signer's link carries their token (ADR-E1); a countersigner signs in Signora, signed in
+    (Phase 8 §7), so theirs is their countersign page."""
     settings = get_settings().app
+    base = str(settings.public_base_url).rstrip("/")
+    if kind == "countersigner":
+        return f"{base}/countersign/{recipient_id}"
     key = link_key(settings.secret_key.get_secret_value())
-    return signing_url(str(settings.public_base_url), make_token(key, recipient_id, link_version))
+    return signing_url(base, make_token(key, recipient_id, link_version))
 
 
 def _audit(uow: UnitOfWork, actor: Actor, action: str, envelope_id: uuid.UUID, **data: Any) -> None:
@@ -143,6 +151,7 @@ def _email_sign_request(
     workspace_id: uuid.UUID,
     recipient_id: uuid.UUID,
     link_version: int,
+    kind: str,
     person: Person,
     document: str,
     expires_at: datetime,
@@ -152,7 +161,7 @@ def _email_sign_request(
         sender=sender.sender,
         signer=person.name,
         document=document,
-        url=_link(recipient_id, link_version),
+        url=_link(recipient_id, link_version, kind),
         expires_at=expires_at,
     )
     email_id = send_email(
@@ -207,6 +216,7 @@ def send(
             workspace_id=actor.workspace_id,
             recipient_id=recipient_id,
             link_version=1,
+            kind=plan.first,
             person=person,
             document=form.document_name,
             expires_at=written.expires_at.astimezone(ZoneInfo(request.time_zone)),
@@ -356,7 +366,7 @@ def remind(
             company=sender.company,
             signer=recipient.name,
             document=envelope.document_name,
-            url=_link(recipient.id, recipient.link_version),
+            url=_link(recipient.id, recipient.link_version, recipient.kind),
             expires_at=envelope.expires_local,
         )
         email_id = send_email(
@@ -397,7 +407,7 @@ def resend(
         sender=sender.sender,
         signer=recipient.name,
         document=envelope.document_name,
-        url=_link(recipient.id, recipient.link_version),
+        url=_link(recipient.id, recipient.link_version, recipient.kind),
         expires_at=envelope.expires_local,
     )
     email_id = send_email(
@@ -490,6 +500,7 @@ def change_recipient(
             workspace_id=actor.workspace_id,
             recipient_id=recipient_id,
             link_version=link_version,
+            kind=recipient.kind,
             person=Person(new_name, new_email),
             document=envelope.document_name,
             expires_at=envelope.expires_local,
@@ -573,7 +584,7 @@ def signing_link(
     if recipient.status not in LIVE:
         raise RecipientSigned if recipient.status == "signed" else NotTheirTurn
     _audit(uow, actor, "envelope.link_copied", envelope.id, recipient_id=str(recipient_id))
-    return _link(recipient.id, recipient.link_version)
+    return _link(recipient.id, recipient.link_version, recipient.kind)
 
 
 # --- the list (§6) --------------------------------------------------------------------------------
@@ -613,3 +624,43 @@ def list_envelopes(
     page = found[: store.PAGE]
     more = len(found) > store.PAGE
     return EnvelopePage(envelopes=page, next_cursor=_cursor(page[-1]) if more and page else None)
+
+
+# --- the completed copy (Phase 8 §12.3) -----------------------------------------------------------
+
+DownloadPart = Literal["document", "certificate", "combined"]
+
+
+def completed_copy(
+    session: Session, store: BlobStore, actor: Actor, envelope_id: uuid.UUID, part: DownloadPart
+) -> tuple[bytes, str]:
+    """A completed envelope's signed document, its certificate, or both in one file, with the
+    file's name; for whoever may see the envelope."""
+    get_envelope(session, actor, envelope_id)
+    return read_completed(session, store, envelope_id, part)
+
+
+def read_completed(
+    session: Session, store: BlobStore, envelope_id: uuid.UUID, part: DownloadPart
+) -> tuple[bytes, str]:
+    """The completed files and their name, for a caller that has already checked who may read them
+    (the envelope page, a countersigner's own page)."""
+    row = session.execute(
+        text(
+            "SELECT workspace_id, title, signed_blob, certificate_blob FROM envelopes "
+            "WHERE id = :e AND status = 'completed'"
+        ),
+        {"e": envelope_id},
+    ).one_or_none()
+    if row is None:
+        raise NotCompleted
+
+    def read(token: str) -> bytes:
+        with store.open(BlobRef.from_token(row.workspace_id, token)) as source:
+            return source.read()
+
+    if part == "document":
+        return read(row.signed_blob), f"{row.title}.pdf"
+    if part == "certificate":
+        return read(row.certificate_blob), f"{row.title} - certificate of completion.pdf"
+    return combine(read(row.signed_blob), read(row.certificate_blob)), f"{row.title} - signed.pdf"

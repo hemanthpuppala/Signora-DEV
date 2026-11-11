@@ -26,11 +26,11 @@ import {
 } from "@/shared/ui";
 
 import { useSendForm, type Envelope, type FormField, type SendForm, type SendRequest } from "./api";
-import { askedFields } from "./conditions";
+import { askedFields } from "@/shared/document/conditions";
 import styles from "./envelopes.module.css";
-import { FieldInput, refused } from "./FieldInput";
-import { fitsEverywhere, kept, namePart, useFontReady, written, writtenIn } from "./typeset";
-import { ValuesOverlay } from "./ValuesOverlay";
+import { FieldInput, refused } from "@/shared/document/FieldInput";
+import { fitsEverywhere, kept, namePart, useFontReady, written, writtenIn } from "@/shared/document/typeset";
+import { ValuesOverlay } from "@/shared/document/ValuesOverlay";
 
 const STEPS = ["Template", "Details", "Signers", "Countersigners", "Review"] as const;
 const DOCUMENT = 0;
@@ -49,6 +49,22 @@ export type SendableDocument = {
 };
 type Person = { name: string; email: string };
 type Copy = Person & { key: string };
+
+/**
+ * A send started from an earlier one (Phase 8 §8.1.4, Send again): the same version, people,
+ * values and settings, every one of them correctable, and why the earlier one ended.
+ */
+export type SendDraft = {
+  documentId: string;
+  versionId: string;
+  title: string;
+  values: Record<string, string>; // the sender's own, by field
+  signers: Record<string, Person>; // by party
+  countersigners: Record<string, string>; // by party: the colleague's email
+  copies: Person[];
+  settings: SendRequest["settings"];
+  note: string; // shown at the top: why the earlier send ended
+};
 
 /** The settings typed as numbers, each within the range the server takes (envelopes.sending.SettingsIn). */
 export const LIMITS = {
@@ -89,11 +105,14 @@ function stepOf(path: string, form: SendForm): number {
 export function SendModal({
   documents,
   initialDocumentId,
+  initial,
   editHref,
   onClose,
   onSent,
   onSendInBulk,
 }: {
+  /** Start from an earlier send (Send again): opens at the details, everything filled in. */
+  initial?: SendDraft | undefined;
   /** Where a template is edited: offered when nobody signs it, so it cannot be sent as it is. */
   editHref: (documentId: string) => string;
   documents: readonly SendableDocument[];
@@ -103,21 +122,22 @@ export function SendModal({
   /** Opens the bulk send instead (where the department's page offers both). */
   onSendInBulk?: (() => void) | undefined;
 }) {
-  const [step, setStep] = useState(initialDocumentId ? DETAILS : DOCUMENT);
-  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId ?? null);
+  const startAt = initial?.documentId ?? initialDocumentId;
+  const [step, setStep] = useState(startAt ? DETAILS : DOCUMENT);
+  const [documentId, setDocumentId] = useState<string | null>(startAt ?? null);
   const document = documents.find((d) => d.id === documentId);
-  const versionId = document?.current_version?.id ?? null;
+  const versionId = initial?.versionId ?? document?.current_version?.id ?? null;
   const form = useSendForm(documentId, versionId);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [signers, setSigners] = useState<Record<string, Person>>({});
-  const [copies, setCopies] = useState<Copy[]>([]);
+  const [values, setValues] = useState<Record<string, string>>(initial?.values ?? {});
+  const [signers, setSigners] = useState<Record<string, Person>>(initial?.signers ?? {});
+  const [copies, setCopies] = useState<Copy[]>(() => (initial?.copies ?? []).map((copy, i) => ({ ...copy, key: `again-${i}` })));
   const [countersigners, setCountersigners] = useState<Record<string, string>>({});
-  const [settings, setSettings] = useState<SendRequest["settings"] | null>(null);
+  const [settings, setSettings] = useState<SendRequest["settings"] | null>(initial?.settings ?? null);
   // A numeric setting as it stands in its box: kept as text, so an empty or half-typed box is
   // never sent as a number it does not say.
   const [typed, setTyped] = useState<Partial<Record<Limited, string>>>({});
   const [more, setMore] = useState(false); // the settings' details, opened by the person
-  const [title, setTitle] = useState<string | null>(null);
+  const [title, setTitle] = useState<string | null>(initial?.title ?? null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [left, setLeft] = useState<ReadonlySet<string>>(new Set()); // boxes typed in and left
 
@@ -202,7 +222,10 @@ export function SendModal({
     return colleague ? { name: colleague.name, email: colleague.email } : undefined;
   };
 
-  const countersignerOf = (partyId: string, fallback: string | null | undefined) => countersigners[partyId] ?? fallback ?? "";
+  // Sent again: each countersigner as before, found among today's colleagues by email.
+  const again = (partyId: string) => colleagues.find((c) => c.email === initial?.countersigners[partyId])?.user_id;
+  const countersignerOf = (partyId: string, fallback: string | null | undefined) =>
+    countersigners[partyId] ?? again(partyId) ?? fallback ?? "";
 
   // What blocks Next on each step (the server checks everything again on Send).
   // No party at all: nobody would be asked to sign, so it is edited first (the server refuses it).
@@ -302,7 +325,7 @@ export function SendModal({
       current={step}
       onStep={(target) => setStep(target)}
       onClose={close}
-      back={step > (initialDocumentId ? DETAILS : DOCUMENT) ? <TextButton onClick={() => setStep(step - 1)}>Back</TextButton> : null}
+      back={step > (startAt ? DETAILS : DOCUMENT) ? <TextButton onClick={() => setStep(step - 1)}>Back</TextButton> : null}
       actions={
         step < REVIEW ? (
           <Button compact disabled={missing} onClick={next}>
@@ -404,6 +427,8 @@ export function SendModal({
           Add who signs and where, then send.
         </Notice>
       ) : null}
+
+      {initial?.note ? <Notice title="Sending again">{initial.note}</Notice> : null}
 
       {step === DETAILS && data ? (
         <div className={styles.steps}>

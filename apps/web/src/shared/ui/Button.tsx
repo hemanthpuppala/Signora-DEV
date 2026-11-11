@@ -72,24 +72,33 @@ export function LinkButton({
   href,
   variant = "primary",
   arrow = false,
+  download = false,
   children,
 }: {
   href: string;
   variant?: ButtonVariant;
   arrow?: boolean;
+  /** A file to save (an API's download): a plain link the browser fetches, not a page change. */
+  download?: boolean;
   children: ReactNode;
 }) {
-  return (
-    <Link
-      href={href}
-      className={cx(
-        styles.button,
-        variant === "quiet" && styles.quiet,
-        variant === "destructive" && styles.destructive,
-      )}
-    >
+  const className = cx(styles.button, variant === "quiet" && styles.quiet, variant === "destructive" && styles.destructive);
+  const inside = (
+    <>
       {children}
       {arrow ? <span aria-hidden="true">→</span> : null}
+    </>
+  );
+  if (download) {
+    return (
+      <a href={href} className={className} download>
+        {inside}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      {inside}
     </Link>
   );
 }

@@ -247,6 +247,7 @@ protected_modules = [
     "signora.modules.envelopes.bulk_routes",
     "signora.modules.envelopes.form",
     "signora.modules.envelopes.models",
+    "signora.modules.envelopes.recipients",
     "signora.modules.envelopes.routes",
     "signora.modules.envelopes.service",
 ]
@@ -262,6 +263,67 @@ source_modules = [
     "signora.modules.departments",
 ]
 forbidden_modules = ["signora.modules.envelopes"]
+
+[[tool.importlinter.contracts]]
+name = "Public interface only: signing internals are imported only by signing and composition roots"
+type = "protected"
+protected_modules = [
+    "signora.modules.signing.certify",
+    "signora.modules.signing.codes",
+    "signora.modules.signing.completion",
+    "signora.modules.signing.consent",
+    "signora.modules.signing.decline",
+    "signora.modules.signing.document",
+    "signora.modules.signing.drawing",
+    "signora.modules.signing.drafts",
+    "signora.modules.signing.emails",
+    "signora.modules.signing.errors",
+    "signora.modules.signing.inbox",
+    "signora.modules.signing.jobs",
+    "signora.modules.signing.limits",
+    "signora.modules.signing.models",
+    "signora.modules.signing.routes",
+    "signora.modules.signing.service",
+    "signora.modules.signing.sessions",
+    "signora.modules.signing.signatures",
+    "signora.modules.signing.submit",
+    "signora.modules.signing.trail",
+    "signora.modules.signing.turns",
+    "signora.modules.signing.views",
+]
+allowed_importers = ["signora.modules.signing", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Public interface only: rendering internals are imported only by rendering"
+type = "protected"
+protected_modules = ["signora.modules.rendering.certificate", "signora.modules.rendering.draw"]
+allowed_importers = ["signora.modules.rendering"]
+
+[[tool.importlinter.contracts]]
+name = "Rendering only draws: it never reads what it is told to draw (Phase 8 §16)"
+type = "forbidden"
+source_modules = ["signora.modules.rendering"]
+forbidden_modules = [
+    "signora.modules.signing",
+    "signora.modules.envelopes",
+    "signora.modules.documents",
+    "signora.modules.review",
+    "sqlalchemy",
+    "fastapi",
+]
+
+[[tool.importlinter.contracts]]
+name = "Signing drives envelopes: nothing it builds on imports signing (Phase 8 §16)"
+type = "forbidden"
+source_modules = [
+    "signora.modules.envelopes",
+    "signora.modules.documents",
+    "signora.modules.review",
+    "signora.modules.detection",
+    "signora.modules.departments",
+    "signora.modules.typesetting",
+]
+forbidden_modules = ["signora.modules.signing"]
 
 [[tool.importlinter.contracts]]
 name = "Documents never depend on detection (detection drives documents through documents.lifecycle)"
@@ -319,5 +381,7 @@ source_modules = [
     "signora.modules.review.formats",
     # Signing links: made and read from a key, never stored.
     "signora.modules.envelopes.links",
+    # A signer's masked email and next step.
+    "signora.modules.signing.domain",
 ]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]

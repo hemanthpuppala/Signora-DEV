@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 
 from fastapi.testclient import TestClient
@@ -9,7 +10,8 @@ from fastapi.testclient import TestClient
 from tests.modules.documents.conftest import csrf_headers, log_in
 from tests.modules.envelopes.conftest import make_countersigner, sendable
 from tests.modules.identity_access.conftest import Account
-from tests.modules.review.test_save import DOCUMENTS, _in_review
+from tests.modules.review.test_approve import _approve
+from tests.modules.review.test_save import DOCUMENTS, _body, _drawn, _in_review, _save, _view
 
 
 def test_only_an_approved_version_can_be_sent(
@@ -134,3 +136,34 @@ def test_the_form_carries_who_may_countersign_for_anyone_who_may_send(
     assert str(company.user_id) in people and str(granted.user_id) in people
     assert str(gone.user_id) not in people  # active members only
     assert [c["name"] for c in form.json()["colleagues"]] == sorted(n for n, _ in people.values())
+
+
+def test_a_party_with_nowhere_to_sign_is_not_asked_and_its_fields_are_the_senders(
+    owner: TestClient, run: Callable[..., None], detect: Callable[..., None]
+) -> None:
+    """A template whose second party is only named in it (its name, no signature line): nobody is
+    asked to sign as it, and its name is filled in when sending, required as the template says."""
+    document_id, version_id = _in_review(owner, run, detect)
+    body = _body(_view(owner, document_id, version_id))
+    named = {
+        "id": str(uuid.uuid4()),
+        "label": "Disclosing Party",
+        "kind": "countersigner",
+        "kind_label": None,
+    }
+    body["parties"].append(named)
+    body["fields"].append(
+        _drawn("Disclosing Party name", named["id"], holds="party_name", rect=[60, 720, 240, 740])
+    )
+    assert _save(owner, document_id, version_id, body).status_code == 200
+    view = _view(owner, document_id, version_id)
+    assert "Disclosing Party has no place to sign" in " ".join(
+        w["message"] for w in view["warnings"]
+    )
+    assert _approve(owner, document_id, version_id).status_code == 204
+
+    form = owner.get(f"{DOCUMENTS}/{document_id}/versions/{version_id}/send-form").json()
+
+    assert [p["label"] for p in form["countersigners"]] == []  # nobody signs as it
+    name = next(f for f in form["fields"] if f["label"] == "Disclosing Party name")
+    assert (name["party_id"], name["required"]) == (None, True)  # filled in when sending

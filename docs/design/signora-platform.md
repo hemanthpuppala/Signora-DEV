@@ -535,8 +535,7 @@ checks, NER pre-pass, PAdES cryptographic PDF signatures (stretch), mobile apps,
 | 5 | `phase-5/detection` | Field detection | `detection`: layout, deterministic detector, AI detector, merge, metric; private eval | 12 detecting | core |
 | 6 | `phase-6/review` | Field review & approval | roles/fields/placements, approve, review metrics | 13 review canvas | core |
 | 7 | `phase-7/envelopes` | Envelopes & sending | `envelopes`: send form generation, recipients, role mapping, state machine; `notifications`: outbox + Gmail SMTP | 14 new envelope, 07 envelopes list, 16 envelope detail | core |
-| 8 | `phase-8/signing` | Signing | `signing`: link exchange, OTP, consent, submit validation, decline | 21–27 signer flow | core |
-| 9 | `phase-9/completion` | Countersign & completion | `rendering`: stamp, flatten, certificate; countersign flow; completed copies | 17 countersign, 18 completed | core |
+| 8 | `phase-8/signing` | Signing and completion (the planned Phases 8 and 9, joined so the path from the first email to the completed copy is whole; LLD `features/08-signing.md`) | `signing`: link exchange, email code, consent, submit, decline, countersign, completion job; `rendering`: signed PDF, certificate | 21–27 signer flow, 17 countersign, 18 completed | core |
 | 10 | `phase-10/lifecycle` | Reminders, expiry, notifications | scheduler: reminders (+ urgent), expiry, POC notices, email retry | badges, retry notice, 20 audit log | core |
 | 11 | `phase-11/hardening` | Hardening | security review, rate limits, headers, tenant-isolation and concurrency tests, E2E grader path on the Funnel URL | polish, accessibility, empty/error states | hardening |
 | 12+ | `phase-12/…` | Later features | bulk CSV/XLSX; Stripe Identity; extra-signer addendum; OCR / image-only PDFs; phone signer (28); landing page (01) | — | later |

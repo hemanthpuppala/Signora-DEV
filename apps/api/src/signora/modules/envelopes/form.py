@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from signora.modules.review import FieldView, RoleView
 from signora.modules.review.formats import NOT_TYPED
-from signora.modules.review.values import ManualHolds, choice_options
+from signora.modules.review.values import SIGNING_PLACES, ManualHolds, choice_options
 from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, FitRule, FontView, font_view
 
 # A party's fields that come from the person signing as it, as DocuSign's Full Name, First Name,
@@ -146,6 +146,46 @@ def from_recipient(field: FieldView) -> FromRecipient | None:
     return None
 
 
+def signing_parties(fields: Sequence[FieldView]) -> set[uuid.UUID]:
+    """The parties that sign: those with a signature or initials place. A party with nowhere to sign
+    is never asked to sign (Phase 8): its fields are the sender's to fill. O(F)."""
+    return {f.party_id for f in fields if f.holds in SIGNING_PLACES and f.party_id is not None}
+
+
+def form_fields_of(fields: Sequence[FieldView]) -> list[FormField]:
+    """Each field as sending and signing read it: what it holds, whose it is, its options, its
+    condition and its places. O(F), with an index by key for conditions. A condition on a field
+    outside ``fields`` is dropped (it cannot be met). A field of a party with nowhere to sign is the
+    sender's: filled in before sending, required as the template says."""
+    id_of_key = {field.key: field.id for field in fields}
+    signing = signing_parties(fields)
+
+    def theirs(field: FieldView) -> bool:
+        return field.filled_by == "role" and field.party_id in signing
+
+    return [
+        FormField(
+            id=field.id,
+            label=field.label,
+            holds=field.holds,
+            holds_label=field.holds_label,
+            format=field.format,
+            party_id=field.party_id if theirs(field) else None,
+            required=not theirs(field) and field.filled_by != "none" and field.required,
+            from_recipient=from_recipient(field) if theirs(field) else None,
+            sensitive=field.sensitive,
+            options=options_of(field) if field.holds == "choice" else [],
+            places=places_of(field),
+            depends_on=Condition(
+                field_id=id_of_key[field.depends_on.key], option=field.depends_on.option
+            )
+            if field.depends_on and field.depends_on.key in id_of_key
+            else None,
+        )
+        for field in fields
+    ]
+
+
 def build_form(
     *,
     document_id: uuid.UUID,
@@ -160,9 +200,8 @@ def build_form(
     settings: FormSettings,
 ) -> SendForm:
     """O(R + F): one pass over the parties and one over the fields, with an index by key."""
-    id_of_key = {field.key: field.id for field in fields}
-    typed = [field for field in fields if field.holds not in NOT_TYPED]
-    ordered = sorted(parties, key=lambda party: party.position)
+    signing = signing_parties(fields)
+    ordered = [p for p in sorted(parties, key=lambda party: party.position) if p.id in signing]
 
     signers = [
         FormSigner(
@@ -184,27 +223,7 @@ def build_form(
         )
         for index, party in enumerate(firm)
     ]
-    form_fields = [
-        FormField(
-            id=field.id,
-            label=field.label,
-            holds=field.holds,
-            holds_label=field.holds_label,
-            format=field.format,
-            party_id=field.party_id if field.filled_by == "role" else None,
-            required=field.filled_by == "sender" and field.required,
-            from_recipient=from_recipient(field),
-            sensitive=field.sensitive,
-            options=options_of(field) if field.holds == "choice" else [],
-            places=places_of(field),
-            depends_on=Condition(
-                field_id=id_of_key[field.depends_on.key], option=field.depends_on.option
-            )
-            if field.depends_on and field.depends_on.key in id_of_key
-            else None,
-        )
-        for field in typed
-    ]
+    form_fields = [item for item in form_fields_of(fields) if item.holds not in NOT_TYPED]
     return SendForm(
         document_id=document_id,
         document_name=document_name,

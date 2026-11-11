@@ -5,11 +5,13 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import Database
+from signora.kernel.http import attachment
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.envelopes import service
 from signora.modules.envelopes.document import EnvelopeDocument
@@ -217,3 +219,25 @@ def list_envelopes(
         return service.list_envelopes(
             uow.session, actor, department_id, status=status, cursor=cursor
         )
+
+
+@router.get(
+    "/envelopes/{envelope_id}/download",
+    summary="A completed envelope's signed document, its certificate, or both in one file",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}}, 409: {"description": "Not completed"}},
+)
+def download(
+    envelope_id: uuid.UUID,
+    request: Request,
+    actor: Member,
+    part: service.DownloadPart = "combined",
+) -> Response:
+    store: BlobStore = request.app.state.blob_store
+    with _db(request).unit_of_work() as uow:
+        pdf, name = service.completed_copy(uow.session, store, actor, envelope_id, part)
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": attachment(name), "Cache-Control": "no-store"},
+    )

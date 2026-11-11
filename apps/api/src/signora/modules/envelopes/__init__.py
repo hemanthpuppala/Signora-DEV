@@ -4,7 +4,71 @@ Public interface — other modules import only from here.
 """
 
 from signora.modules.envelopes.bulk_routes import router as bulk_router
+from signora.modules.envelopes.emails import moment_in_words
+from signora.modules.envelopes.form import (
+    Condition,
+    FormField,
+    Option,
+    PageSize,
+    Place,
+    form_fields_of,
+)
+from signora.modules.envelopes.recipients import (
+    Contacts,
+    Declined,
+    GivenValue,
+    Person,
+    SignerRecipient,
+    envelope_contacts,
+    envelope_values,
+    every_signer_signed,
+    lock_envelope,
+    people,
+    recipient_for_signing,
+    record_declined,
+    record_opened,
+    record_signed,
+    record_viewed,
+    unsigned,
+    write_values,
+)
 from signora.modules.envelopes.routes import router
+from signora.modules.envelopes.sending import asked, fits, name_part, written_in
+from signora.modules.envelopes.service import DownloadPart, read_completed
 from signora.modules.envelopes.store import count_sends
 
-__all__ = ["bulk_router", "count_sends", "router"]
+__all__ = [
+    "Condition",
+    "Contacts",
+    "Declined",
+    "DownloadPart",
+    "FormField",
+    "GivenValue",
+    "Option",
+    "PageSize",
+    "Person",
+    "Place",
+    "SignerRecipient",
+    "asked",
+    "bulk_router",
+    "count_sends",
+    "envelope_contacts",
+    "envelope_values",
+    "every_signer_signed",
+    "fits",
+    "form_fields_of",
+    "lock_envelope",
+    "moment_in_words",
+    "name_part",
+    "people",
+    "read_completed",
+    "recipient_for_signing",
+    "record_declined",
+    "record_opened",
+    "record_signed",
+    "record_viewed",
+    "router",
+    "unsigned",
+    "write_values",
+    "written_in",
+]

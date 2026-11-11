@@ -1,0 +1,33 @@
+/* A pad to draw a signature on: paper-coloured, as the signature will sit on the page. */
+.pad {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 2;
+  background: var(--paper);
+  touch-action: none; /* a finger draws; it does not scroll the page */
+  cursor: crosshair;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.line {
+  position: absolute;
+  right: 8%;
+  bottom: 22%;
+  left: 8%;
+  border-bottom: 1px solid var(--paper-faint);
+  pointer-events: none;
+}
+
+.hint {
+  position: absolute;
+  bottom: 6%;
+  left: 8%;
+  font: 400 11px/1 var(--sans);
+  color: var(--paper-quiet);
+  pointer-events: none;
+}

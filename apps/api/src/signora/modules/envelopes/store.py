@@ -50,11 +50,14 @@ def write_send(
         text(
             "INSERT INTO envelopes (workspace_id, department_id, document_id, version_id, title, "
             "require_email_code, reminder_interval_hours, max_reminders, expires_at, "
-            "notify_emails, sent_by, font, time_zone) VALUES (:w, :dep, :doc, :v, :title, :code, "
-            ":every, :max, now() + make_interval(days => :days), :notify, :by, :font, :zone) "
-            "RETURNING id, expires_at"
+            "notify_emails, sent_by, font, time_zone, status) VALUES (:w, :dep, :doc, :v, "
+            ":title, :code, :every, :max, now() + make_interval(days => :days), :notify, :by, "
+            ":font, :zone, :status) RETURNING id, expires_at"
         ),
         {
+            # ``signed`` is "every signer has signed", the countersigners' turn: with no signer
+            # that holds from the start, and their turn begins at once.
+            "status": "sent" if plan.first == "signer" else "signed",
             "w": workspace_id,
             "dep": department_id,
             "doc": document_id,
@@ -167,7 +170,7 @@ def read_envelope(
         text(
             "SELECT e.id, e.title, e.status, e.department_id, e.document_id, d.name AS "
             "document_name, e.version_id, v.version_no, e.sent_by, u.name AS sent_by_name, "
-            "e.sent_at, e.expires_at, e.cancelled_at, e.require_email_code, "
+            "e.sent_at, e.expires_at, e.cancelled_at, e.completed_at, e.require_email_code, "
             "e.reminder_interval_hours, e.max_reminders, e.notify_emails, e.font FROM envelopes e "
             "JOIN documents d ON d.id = e.document_id "
             "JOIN document_versions v ON v.id = e.version_id JOIN users u ON u.id = e.sent_by "
@@ -190,12 +193,15 @@ def read_envelope(
             opened_at=row.opened_at,
             viewed_at=row.viewed_at,
             signed_at=row.signed_at,
+            declined_at=row.declined_at,
+            decline_reason=row.decline_reason,
             delivery=Delivery(status=row.delivery, error=row.last_error) if row.delivery else None,
         )
         for row in session.execute(
             text(
                 "SELECT r.id, r.kind, r.party_id, p.label AS party_label, r.name, r.email, "
-                "r.status, r.sent_at, r.opened_at, r.viewed_at, r.signed_at, m.status AS "
+                "r.status, r.sent_at, r.opened_at, r.viewed_at, r.signed_at, r.declined_at, "
+                "r.decline_reason, m.status AS "
                 "delivery, m.last_error FROM envelope_recipients r "
                 "LEFT JOIN version_roles p ON p.id = r.party_id "
                 "LEFT JOIN email_messages m ON m.id = r.last_email_id "
@@ -238,6 +244,7 @@ def read_envelope(
         sent_at=envelope.sent_at,
         expires_at=envelope.expires_at,
         cancelled_at=envelope.cancelled_at,
+        completed_at=envelope.completed_at,
         require_email_code=envelope.require_email_code,
         reminder_interval_hours=envelope.reminder_interval_hours,
         max_reminders=envelope.max_reminders,

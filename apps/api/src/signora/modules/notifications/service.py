@@ -8,18 +8,22 @@ the outcome; a final message keeps no body (it held sign-in links).
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import timedelta
 from functools import cache
+from typing import Any
 
 from sqlalchemy import text as sql
 from sqlalchemy.orm import Session
 
+from signora.kernel.blobstore import BlobRef, BlobStore, blob_store_from_settings
 from signora.kernel.config import get_settings
 from signora.kernel.db import UnitOfWork
 from signora.kernel.jobs import JobContext, JobKind, JobRegistry, RecurringJob, enqueue
 from signora.kernel.logging import get_logger
 from signora.modules.notifications.transports import (
+    Attachment,
     OutgoingEmail,
     PermanentEmailError,
     TransientEmailError,
@@ -52,6 +56,15 @@ def _default_daily_limit() -> int:
     return get_settings().email.daily_limit
 
 
+@dataclass(frozen=True)
+class AttachedFile:
+    """A file an email carries: a stored object of the email's workspace."""
+
+    blob: BlobRef
+    filename: str
+    content_type: str = "application/pdf"
+
+
 def send_email(
     uow: UnitOfWork,
     *,
@@ -63,8 +76,10 @@ def send_email(
     workspace_id: uuid.UUID | None = None,
     dedupe_key: str | None = None,
     reply_to: str | None = None,
+    attachments: Sequence[AttachedFile] = (),
 ) -> uuid.UUID | None:
-    """Queue one email. Returns its id, or ``None`` when ``dedupe_key`` was already used."""
+    """Queue one email. Returns its id, or ``None`` when ``dedupe_key`` was already used. Its
+    files are kept as blob references in its workspace, read when it is delivered (Phase 8)."""
     row = uow.session.execute(
         sql(
             """
@@ -90,6 +105,23 @@ def send_email(
     if row is None:
         return None
     message_id: uuid.UUID = row.id
+    if attachments:
+        uow.session.execute(
+            sql(
+                """
+                INSERT INTO email_attachments (email_id, position, blob_key, filename, content_type)
+                SELECT :id, n, key, name, kind
+                FROM unnest(CAST(:keys AS text[]), CAST(:names AS text[]), CAST(:kinds AS text[]))
+                     WITH ORDINALITY AS t(key, name, kind, n)
+                """
+            ),
+            {
+                "id": message_id,
+                "keys": [item.blob.token for item in attachments],
+                "names": [item.filename for item in attachments],
+                "kinds": [item.content_type for item in attachments],
+            },
+        )
     enqueue(uow.session, DELIVER, {"message_id": str(message_id)}, dedupe_key=f"email:{message_id}")
     log.info("email.queued", message_id=str(message_id), category=category)
     return message_id
@@ -160,9 +192,27 @@ def _record_attempt(session: Session, message_id: str, error: str) -> None:
     )
 
 
+def _default_store() -> BlobStore:
+    return blob_store_from_settings(get_settings().blob_store)
+
+
+def _attached(
+    store: BlobStore, workspace_id: uuid.UUID | None, files: Sequence[Any]
+) -> tuple[Attachment, ...]:
+    """An email's files, read from the store as it is sent (never kept in the email itself)."""
+    if not files or workspace_id is None:
+        return ()
+    out = []
+    for item in files:
+        with store.open(BlobRef.from_token(workspace_id, item.blob_key)) as source:
+            out.append(Attachment(item.filename, item.content_type, source.read()))
+    return tuple(out)
+
+
 def make_deliver(
     transport_factory: TransportFactory = _default_transport,
     daily_limit: DailyLimit = _default_daily_limit,
+    blob_store: Callable[[], BlobStore] = _default_store,
 ) -> Callable[[JobContext], None]:
     """The delivery handler; tests pass a fake transport."""
 
@@ -172,11 +222,18 @@ def make_deliver(
         with context.unit_of_work() as uow:
             message = uow.session.execute(
                 sql(
-                    "SELECT to_address, subject, text_body, html_body, category, status, reply_to "
-                    "FROM email_messages WHERE id = :id"
+                    "SELECT to_address, subject, text_body, html_body, category, status, reply_to, "
+                    "workspace_id FROM email_messages WHERE id = :id"
                 ),
                 {"id": message_id},
             ).one_or_none()
+            files = uow.session.execute(
+                sql(
+                    "SELECT blob_key, filename, content_type FROM email_attachments "
+                    "WHERE email_id = :id ORDER BY position"
+                ),
+                {"id": message_id},
+            ).all()
             sent_today = uow.session.execute(
                 sql(
                     "SELECT count(*) FROM email_messages "
@@ -205,6 +262,7 @@ def make_deliver(
                     html=message.html_body,
                     message_id=message_id,
                     reply_to=message.reply_to,
+                    attachments=_attached(blob_store(), message.workspace_id, files),
                 )
             )
         except PermanentEmailError as error:

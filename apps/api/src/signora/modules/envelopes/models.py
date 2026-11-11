@@ -1,4 +1,4 @@
-"""Tables of the envelopes module (Phase 7 LLD §9). Must match migration 0019."""
+"""Tables of the envelopes module (Phase 7 LLD §9). Must match migrations 0019 to 0025."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     PrimaryKeyConstraint,
     Table,
     Text,
@@ -46,6 +47,10 @@ envelopes = Table(
     Column("completed_at", DateTime(timezone=True)),
     Column("cancelled_at", DateTime(timezone=True)),
     Column("cancelled_by", UUID(as_uuid=True)),
+    Column("signed_blob", Text),
+    Column("signed_sha256", LargeBinary),
+    Column("certificate_blob", Text),
+    Column("certificate_sha256", LargeBinary),
     CheckConstraint(
         "status IN ('sent', 'opened', 'viewed', 'signed', 'completed', 'declined', 'expired', "
         "'cancelled')",
@@ -63,6 +68,17 @@ envelopes = Table(
     ),
     CheckConstraint(
         "(status = 'completed') = (completed_at IS NOT NULL)", name="completed_is_recorded"
+    ),
+    # The completed document and its certificate (Phase 8 §12): set together, once (a trigger).
+    CheckConstraint(
+        "(status = 'completed') = (signed_blob IS NOT NULL AND signed_sha256 IS NOT NULL "
+        "AND certificate_blob IS NOT NULL AND certificate_sha256 IS NOT NULL)",
+        name="completed_has_files",
+    ),
+    CheckConstraint(
+        "(signed_sha256 IS NULL OR octet_length(signed_sha256) = 32) AND "
+        "(certificate_sha256 IS NULL OR octet_length(certificate_sha256) = 32)",
+        name="file_hashes_length",
     ),
     UniqueConstraint("id", "workspace_id"),
     UniqueConstraint("id", "version_id"),
@@ -108,6 +124,8 @@ envelope_recipients = Table(
     Column("opened_at", DateTime(timezone=True)),
     Column("viewed_at", DateTime(timezone=True)),
     Column("signed_at", DateTime(timezone=True)),
+    Column("declined_at", DateTime(timezone=True)),
+    Column("decline_reason", Text),
     CheckConstraint("kind IN ('signer', 'countersigner', 'copy')", name="kind_known"),
     CheckConstraint(
         "kind = 'signer' AND stage = 1 OR kind = 'countersigner' AND stage = 2 "
@@ -125,6 +143,17 @@ envelope_recipients = Table(
     CheckConstraint("char_length(name) BETWEEN 1 AND 120", name="name_length"),
     CheckConstraint("link_version >= 1", name="link_positive"),
     CheckConstraint("position >= 1", name="position_positive"),
+    # A decline (Phase 8 §8.3): who, when, why; final.
+    CheckConstraint(
+        "(status = 'declined') = (declined_at IS NOT NULL AND decline_reason IS NOT NULL)",
+        name="declined_is_recorded",
+    ),
+    CheckConstraint(
+        "decline_reason IS NULL OR char_length(btrim(decline_reason)) BETWEEN 1 AND 500",
+        name="decline_reason_length",
+    ),
+    UniqueConstraint("id", "workspace_id"),
+    UniqueConstraint("id", "workspace_id", "version_id"),
     UniqueConstraint("envelope_id", "party_id"),
     UniqueConstraint("envelope_id", "stage", "position"),
     ForeignKeyConstraint(
@@ -137,6 +166,8 @@ envelope_recipients = Table(
     ForeignKeyConstraint(["user_id", "workspace_id"], ["users.id", "users.workspace_id"]),
     ForeignKeyConstraint(["last_email_id"], ["email_messages.id"]),
     Index(None, "envelope_id"),
+    # A countersigner's inbox (Phase 8 §7.2): their waiting envelopes, one index range.
+    Index(None, "user_id", "status", postgresql_where=text("kind = 'countersigner'")),
 )
 
 # Values given before signing (§2): the sender's own (never change, a trigger); a signer's name and

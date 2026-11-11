@@ -1,6 +1,6 @@
 /** Design-system components (single source of styling; backbone LLD §8.6). */
 export { ActionBar } from "./ActionBar";
-export { AppShell, TopBar, type AppShellProps, type NavItem } from "./AppShell";
+export { AppShell, TopBar, type AppShellProps, type NavItem, type TopBarProps } from "./AppShell";
 export { SignatureLogo } from "./SignatureLogo";
 export { AuthPanel, type AuthPanelProps } from "./AuthPanel";
 export {
@@ -12,6 +12,7 @@ export {
   HeadAction,
 } from "./Button";
 export { Checkbox, Radio } from "./Choice";
+export { CodeField, type CodeFieldProps } from "./CodeField";
 export { Chip, ChipGroup } from "./Chip";
 export {
   ActionCell,
@@ -27,7 +28,10 @@ export {
   type Status,
   type TabItem,
 } from "./Display";
+export { Calendar, DatePicker, dateInWords, type DatePickerProps } from "./DatePicker";
 export { Dialog } from "./Dialog";
+export { GuidePointer } from "./GuidePointer";
+export { Menu, type MenuItem } from "./Menu";
 export { StepDialog } from "./StepDialog";
 export { Dropzone } from "./Dropzone";
 export { ExpandableList, ExpandableRow } from "./Expandable";
@@ -59,6 +63,7 @@ export { RowActions } from "./RowActions";
 export { PasswordField, type PasswordFieldProps } from "./PasswordField";
 export { PdfViewer, type PdfOverlayArgs, type PdfViewerProps } from "./pdf/PdfViewer";
 export { Select, type SelectOption } from "./Select";
+export { PAD_HEIGHT, PAD_WIDTH, SignaturePad, type Stroke } from "./SignaturePad";
 export { ToastProvider, useToast } from "./Toast";
 export {
   BodyText,

@@ -1,6 +1,6 @@
 "use client";
 
-import styles from "./envelopes.module.css";
+import styles from "./document.module.css";
 import { typeset, useFontReady, written, writtenIn, type FitRule, type Typeface } from "./typeset";
 
 export type Shown = {

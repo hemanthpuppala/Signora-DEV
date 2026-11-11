@@ -16,7 +16,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
-  padding: 0 4px 10px;
+  padding: 0 4px;
   border-bottom: 1px solid var(--sep);
 }
 
@@ -133,7 +133,7 @@
   flex-direction: column;
   align-items: center;
   gap: 16px; /* PAGE_GAP in view.ts */
-  padding: 16px;
+  padding: 8px 16px 16px;
   width: max-content;
   min-width: 100%;
   box-sizing: border-box;

@@ -4,7 +4,10 @@ import { SESSION_COOKIE } from "@/shared/lib/routes";
 
 // "/" is the public landing page; everything below is the signed-in console.
 const CONSOLE_PATHS = new Set(["/people", "/settings"]);
-const isConsolePath = (path: string) => CONSOLE_PATHS.has(path) || path.startsWith("/departments");
+const isSigningPath = (path: string) =>
+  path.startsWith("/s/") || path.startsWith("/sign/") || path.startsWith("/countersign");
+const isConsolePath = (path: string) =>
+  CONSOLE_PATHS.has(path) || path.startsWith("/departments") || path.startsWith("/countersign");
 
 /**
  * Next.js 16 request proxy (formerly middleware): sets a per-request nonce-based Content Security
@@ -44,6 +47,11 @@ export function proxy(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", policy);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", policy);
+  if (isSigningPath(pathname)) {
+    // A signing page is for one person: never indexed, never kept in a cache (Phase 8 §13).
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    response.headers.set("Cache-Control", "no-store");
+  }
   return response;
 }
 

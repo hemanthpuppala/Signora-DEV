@@ -16,7 +16,7 @@ Usage in a module router::
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from fastapi import Request
@@ -69,6 +69,13 @@ class IdempotencyGuard:
     scope: str
     key: str
     request_hash: bytes
+    target: str  # the method and concrete path, the scope's second half
+
+    def for_caller(self, caller: str) -> IdempotencyGuard:
+        """The guard scoped to a caller the route has itself checked, for routes whose caller is
+        not a signed-in user (a signer's browser session). Called after that check and before
+        ``begin``, so a stored response is replayed only to the caller who first got it."""
+        return replace(self, scope=f"{caller}:{self.target}")
 
     def begin(self, uow: UnitOfWork) -> JSONResponse | None:
         """Reserve the key; returns the stored response to replay, or None to run the action."""
@@ -91,8 +98,10 @@ async def idempotency_guard(request: Request) -> IdempotencyGuard:
     # Scope = acting user + method + concrete path. Until accounts exist (Phase 2) the actor is
     # "anonymous"; authentication will set request.state.actor_id.
     actor = getattr(request.state, "actor_id", None) or "anonymous"
+    target = f"{request.method} {request.url.path}"
     return IdempotencyGuard(
-        scope=f"{actor}:{request.method} {request.url.path}",
+        scope=f"{actor}:{target}",
+        target=target,
         key=validate_key(key),
         request_hash=await request_fingerprint(request),
     )

@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { ComponentPropsWithRef, ReactNode } from "react";
 
 import { cx } from "@/shared/lib/cx";
 
@@ -7,7 +7,7 @@ import styles from "./choice.module.css";
 type ChoiceProps = {
   children: ReactNode;
   className?: string;
-} & Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "className" | "children">;
+} & Omit<ComponentPropsWithRef<"input">, "type" | "className" | "children">;
 
 /** Native checkbox styled as the prototype's square box; keeps native keyboard and form behaviour. */
 export function Checkbox({ children, className, ...input }: ChoiceProps) {

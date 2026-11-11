@@ -81,7 +81,7 @@ class Conflict(DomainError):
     title = "This action does not fit the current state"
 
 
-class _RetryAfter(DomainError):
+class RetryAfter(DomainError):
     def __init__(self, retry_after_seconds: int, detail: str | None = None) -> None:
         self.retry_after_seconds = retry_after_seconds
         super().__init__(detail)
@@ -109,7 +109,7 @@ class IdempotencyKeyReused(DomainError):
     title = "This Idempotency-Key was already used for a different request"
 
 
-class RequestInProgress(_RetryAfter):
+class RequestInProgress(RetryAfter):
     code = "request-in-progress"
     status = 409
     title = "A request is outstanding for this Idempotency-Key"
@@ -121,7 +121,7 @@ class PayloadTooLarge(DomainError):
     title = "The upload is too large"
 
 
-class RateLimited(_RetryAfter):
+class RateLimited(RetryAfter):
     code = "rate-limited"
     status = 429
     title = "Too many attempts; try again later"

@@ -3,11 +3,11 @@
 A batch is one uploaded spreadsheet sent: each row becomes its own envelope. The batch's tables
 stand beside ``envelopes`` and do not change it: a row points at the envelope it became.
 
-Numbered after Phase 8's 0025, which is written on another branch from the same 0024. Whichever
-of the two is merged second takes the other as its ``down_revision``.
+Numbered after Phase 8's 0025, written on a parallel branch from the same 0024; merged after it,
+so it follows 0025.
 
 Revision ID: 0026
-Revises: 0024
+Revises: 0025
 Create Date: 2026-11-11
 """
 
@@ -20,7 +20,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql as pg
 
 revision: str = "0026"
-down_revision: str | None = "0024"
+down_revision: str | None = "0025"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

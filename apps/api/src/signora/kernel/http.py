@@ -18,7 +18,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -337,3 +337,10 @@ def install_error_handlers(app: FastAPI) -> None:
             status=error.status_code,
             headers=dict(error.headers) if error.headers else None,
         )
+
+
+def attachment(name: str) -> str:
+    """A download's Content-Disposition for a file name in any script: a plain ASCII name for old
+    clients and the exact name in RFC 5987's UTF-8 form (RFC 6266)."""
+    plain = name.encode("ascii", "replace").decode().replace('"', "").replace("?", "_")
+    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"

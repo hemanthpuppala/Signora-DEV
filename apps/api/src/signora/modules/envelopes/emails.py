@@ -18,7 +18,7 @@ class Letter:
     body: RenderedEmail
 
 
-def _day(moment: datetime) -> str:
+def moment_in_words(moment: datetime) -> str:
     """A moment as its reader takes it, in the zone it carries (the sender's): "Nov 23, 2026 at
     8:05 PM PST". With the time and the zone, a date near midnight cannot be read as the next."""
     hour = moment.strftime("%I").lstrip("0")
@@ -53,7 +53,7 @@ def sign_request(
                 "It takes a few minutes."
             ],
             action=EmailAction("Review and sign", url),
-            footer=f"This link is for you only. It expires on {_day(expires_at)}. "
+            footer=f"This link is for you only. It expires on {moment_in_words(expires_at)}. "
             "Questions? Reply to this email.",
         ),
     )
@@ -69,7 +69,7 @@ def sign_reminder(
             heading=heading,
             paragraphs=[f"Hi {_first(signer)}, {company} is still waiting for you to sign."],
             action=EmailAction("Review and sign", url),
-            footer=f"This link is for you only. It expires on {_day(expires_at)}. "
+            footer=f"This link is for you only. It expires on {moment_in_words(expires_at)}. "
             "Questions? Reply to this email.",
         ),
     )

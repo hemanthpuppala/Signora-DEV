@@ -10,6 +10,7 @@ from signora.modules.documents.lifecycle import (
     StartMode,
     VersionForDetection,
     VersionForReview,
+    VersionForSigning,
     apply_name_and_description,
     approve_version,
     audit_document,
@@ -22,6 +23,7 @@ from signora.modules.documents.lifecycle import (
     start_detection,
     version_for_detection,
     version_for_review,
+    version_for_signing,
     version_status,
 )
 from signora.modules.documents.processing import DocumentVersionProcessed
@@ -33,6 +35,7 @@ __all__ = [
     "StartMode",
     "VersionForDetection",
     "VersionForReview",
+    "VersionForSigning",
     "VersionNotApproved",
     "apply_name_and_description",
     "approve_version",
@@ -48,5 +51,6 @@ __all__ = [
     "start_detection",
     "version_for_detection",
     "version_for_review",
+    "version_for_signing",
     "version_status",
 ]

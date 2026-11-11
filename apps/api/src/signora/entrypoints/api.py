@@ -41,6 +41,7 @@ from signora.modules import (
     envelopes,
     identity_access,
     review,
+    signing,
     typesetting,
 )
 
@@ -158,6 +159,8 @@ def create_app(
     app.include_router(detection.router)
     app.include_router(review.router)
     app.include_router(envelopes.router)
+    app.include_router(signing.router)
+    app.include_router(signing.inbox_router)
     app.include_router(envelopes.bulk_router)
     app.include_router(typesetting.router)
     # A removed member leaves every countersigner list and loses every department grant, in the

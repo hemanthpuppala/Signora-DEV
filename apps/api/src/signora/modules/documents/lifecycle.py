@@ -179,6 +179,36 @@ def version_for_review(
     )
 
 
+@dataclass(frozen=True)
+class VersionForSigning:
+    """A sent version as a signer's page reads it (Phase 8 §4): its working copy and page sizes.
+    Signers have no Signora account: signing has already checked who they are."""
+
+    id: uuid.UUID
+    document_name: str
+    version_no: int
+    pdf: BlobRef  # the cleaned working copy: the only file ever shown in a page (topic 5 §5.2)
+    pages: list[tuple[float, float]]
+
+
+def version_for_signing(session: Session, version_id: uuid.UUID) -> VersionForSigning:
+    row = session.execute(
+        text(
+            "SELECT v.id, v.workspace_id, v.version_no, v.pdf_sha256, v.pdf_bytes, v.pages, "
+            "d.name AS document_name FROM document_versions v "
+            "JOIN documents d ON d.id = v.document_id WHERE v.id = :id"
+        ),
+        {"id": version_id},
+    ).one()  # a sent version is approved, processed and never deleted
+    return VersionForSigning(
+        id=row.id,
+        document_name=row.document_name,
+        version_no=row.version_no,
+        pdf=BlobRef(row.workspace_id, row.pdf_sha256, row.pdf_bytes),
+        pages=_page_sizes(row.pages),
+    )
+
+
 def _page_sizes(pages: list[dict[str, Any]] | None) -> list[tuple[float, float]]:
     return [(float(page["width"]), float(page["height"])) for page in pages or []]
 

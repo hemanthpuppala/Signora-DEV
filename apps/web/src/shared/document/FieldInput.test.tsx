@@ -2,21 +2,15 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { FormField } from "./api";
+import type { InputField } from "./types";
 import { accepted, FieldInput, refused } from "./FieldInput";
 
-const field = (holds: FormField["holds"], label: string, format: string | null = null): FormField => ({
-  id: `f-${holds}`,
+const field = (holds: InputField["holds"], label: string, format: string | null = null): InputField => ({
   label,
   holds,
   holds_label: null,
-  party_id: null,
   required: true,
-  sensitive: false,
   options: [],
-  depends_on: null,
-  places: [],
-  from_recipient: null,
   format,
 });
 

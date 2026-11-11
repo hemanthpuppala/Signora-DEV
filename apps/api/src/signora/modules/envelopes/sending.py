@@ -215,6 +215,12 @@ def split_name(name: str) -> tuple[str, str]:
     return (first.rstrip(), last) if first else (last, "")
 
 
+def name_part(holds: str, name: str) -> str:
+    """The part of a person's name a Full, First or Last name field shows (Phase 7b)."""
+    first, last = split_name(name)
+    return {"full_name": name.strip(), "first_name": first, "last_name": last}[holds]
+
+
 def plan_send(
     form: SendForm,
     request: SendRequest,

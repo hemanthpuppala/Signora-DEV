@@ -17,3 +17,4 @@ from signora.modules.envelopes import models as _envelopes_models  # noqa: F401
 from signora.modules.identity_access import models as _identity_access_models  # noqa: F401
 from signora.modules.notifications import models as _notifications_models  # noqa: F401
 from signora.modules.review import models as _review_models  # noqa: F401
+from signora.modules.signing import models as _signing_models  # noqa: F401

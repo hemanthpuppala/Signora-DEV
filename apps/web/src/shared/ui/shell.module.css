@@ -51,11 +51,22 @@
   --signature-paper: var(--bg);
 }
 
+/* "SIGNORA | Company": the company after a hairline (its logo, later, in the same place). */
 .workspace {
+  padding-left: 26px;
+  border-left: 1px solid var(--r25);
   font: 400 11px/1.4 var(--sans);
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--t55);
+}
+
+/* What a page puts on the right of the bar in place of a navigation. */
+.aside {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
 }
 
 .nav {
@@ -144,4 +155,20 @@
   letter-spacing: 0.25em;
   text-transform: uppercase;
   max-width: calc(100% - 32px);
+}
+
+/* Something waits there for the person: a dot before the number, in the "sent" blue. */
+.navCount {
+  color: var(--ink);
+}
+
+.navCount::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 2px 1px 6px;
+  border-radius: 50%;
+  background: var(--st-sent);
+  vertical-align: middle;
 }

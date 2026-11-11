@@ -6,6 +6,7 @@ A transport sends one message and either returns the provider's message id or ra
 
 from __future__ import annotations
 
+import base64
 import smtplib
 import ssl
 from dataclasses import dataclass
@@ -35,6 +36,13 @@ class PermanentEmailError(EmailError):
 
 
 @dataclass(frozen=True)
+class Attachment:
+    filename: str
+    content_type: str  # "application/pdf"
+    data: bytes
+
+
+@dataclass(frozen=True)
 class OutgoingEmail:
     to: str
     subject: str
@@ -42,6 +50,7 @@ class OutgoingEmail:
     html: str
     message_id: str  # our id, used as the SMTP Message-ID and SendGrid custom argument
     reply_to: str | None = None  # where a reply goes (a send's sender, Phase 7)
+    attachments: tuple[Attachment, ...] = ()  # files it carries (Phase 8: the completed copy)
 
 
 class Transport(Protocol):
@@ -83,6 +92,21 @@ class SendGridTransport:
                 {"type": "text/html", "value": email.html},
             ],
             "custom_args": {"signora_message_id": email.message_id},
+            **(
+                {
+                    "attachments": [
+                        {
+                            "content": base64.b64encode(item.data).decode(),
+                            "type": item.content_type,
+                            "filename": item.filename,
+                            "disposition": "attachment",
+                        }
+                        for item in email.attachments
+                    ]
+                }
+                if email.attachments
+                else {}
+            ),
             **({"reply_to": {"email": email.reply_to}} if email.reply_to else {}),
             "tracking_settings": {
                 "click_tracking": {"enable": False, "enable_text": False},
@@ -140,6 +164,11 @@ class SmtpTransport:
             message["Reply-To"] = email.reply_to
         message.set_content(email.text)
         message.add_alternative(email.html, subtype="html")
+        for item in email.attachments:
+            maintype, _, subtype = item.content_type.partition("/")
+            message.add_attachment(
+                item.data, maintype=maintype, subtype=subtype, filename=item.filename
+            )
         return message
 
     def send(self, email: OutgoingEmail) -> str:
