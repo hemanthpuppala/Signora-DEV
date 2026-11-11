@@ -119,3 +119,21 @@ def test_a_closed_envelope_takes_no_submit(
     closed = _submit(browser, signer)
 
     assert (closed.status_code, closed.json()["code"]) == (404, "link-closed")
+
+
+def test_a_stored_answer_is_replayed_only_to_the_caller_who_first_got_it(
+    sent: Sent, browser: TestClient, make_client: Callable[..., TestClient]
+) -> None:
+    """The submit's key is checked after who is asking: someone holding no session for the signer
+    gets the refusal any request of theirs gets, never the signer's stored answer."""
+    signer = _ready(browser, sent)
+    _fill(browser, signer)
+    key = idempotency_key()
+    assert _submit(browser, signer, key).status_code == 200
+
+    with make_client() as outsider:
+        replayed = _submit(outsider, signer, key)
+        declined = outsider.post(f"{SIGN}/{signer}/decline", json={"reason": "No"}, headers=key)
+
+    assert (replayed.status_code, declined.status_code) == (401, 401)
+    assert _submit(browser, signer, key).status_code == 200  # the signer's own retry still replays

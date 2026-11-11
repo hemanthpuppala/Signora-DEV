@@ -122,35 +122,38 @@ class Signer:
         return f"session:{self.digest.hex()}"
 
 
-def signer(uow: UnitOfWork, cookie: str | None, recipient_id: uuid.UUID) -> Signer:
-    """Check again, on every signer request, that this browser holds the person's grant for their
-    current link and that their envelope is still open (§1.1.10)."""
-    digest = hash_cookie(cookie)
+def identify(uow: UnitOfWork, request: Request, recipient_id: uuid.UUID) -> Signer:
+    """Who is asking for this person, whatever their envelope's state. A signer: this browser holds
+    a live session with the person's grant for their current link (§1.1.10). A countersigner:
+    signed in to Signora as the designated user, with the console's CSRF check (§7.1.2, §7.1.7);
+    their sign-in is the proof of who they are, so no email code. A stored answer to a submit or a
+    decline is replayed after this check alone: the request it answers may have closed the
+    envelope since."""
+    recipient = recipient_for_signing(uow.session, recipient_id)
+    if recipient is not None and recipient.kind == "countersigner":
+        actor = current_actor(request)  # 401 when signed out; 403 without the CSRF token
+        if actor.user_id != recipient.user_id:
+            raise LinkClosed
+        return Signer(recipient, verified=True, digest=b"")
+    digest = hash_cookie(request.cookies.get(COOKIE))
     if digest is None or not sessions.live_session(uow.session, digest, idle=_idle()):
         raise SessionEnded
     grant = sessions.read_grant(uow.session, digest, recipient_id)
     if grant is None:
         raise SessionEnded
-    recipient = recipient_for_signing(uow.session, recipient_id)
-    if (
-        recipient is None
-        or recipient.link_version != grant.link_version
-        or not recipient.envelope_open
-    ):
+    if recipient is None or recipient.link_version != grant.link_version:
         raise LinkClosed
     return Signer(recipient, grant.verified_at is not None, digest)
 
 
-def acting(uow: UnitOfWork, request: Request, recipient_id: uuid.UUID) -> Signer:
-    """Who a signing request acts for. A signer: through this browser's signing session (§1). A
-    countersigner: signed in to Signora as the designated user, with the console's CSRF check
-    (§7.1.2, §7.1.7); their sign-in is the proof of who they are, so no email code."""
-    recipient = recipient_for_signing(uow.session, recipient_id)
-    if recipient is None or recipient.kind != "countersigner":
-        return signer(uow, request.cookies.get(COOKIE), recipient_id)
-    actor = current_actor(request)  # 401 when signed out; 403 without the CSRF token
-    if actor.user_id != recipient.user_id:
-        raise LinkClosed
+def may_act(who: Signer) -> Signer:
+    """The person's envelope is open to them now (§1.1.10): a signer's until it closes; a
+    countersigner's from their turn, and once they have signed, after completion too."""
+    recipient = who.recipient
+    if recipient.kind != "countersigner":
+        if not recipient.envelope_open:
+            raise LinkClosed
+        return who
     # A completed envelope stays open to the colleague who countersigned it, to read and download
     # (§9.1); nothing in it can change, as they have signed.
     completed = recipient.envelope_status == "completed" and recipient.status == "signed"
@@ -158,7 +161,13 @@ def acting(uow: UnitOfWork, request: Request, recipient_id: uuid.UUID) -> Signer
         raise LinkClosed
     if recipient.envelope_status != "signed" and recipient.status != "signed":
         raise NotTheirTurn
-    return Signer(recipient, verified=True, digest=b"")
+    return who
+
+
+def acting(uow: UnitOfWork, request: Request, recipient_id: uuid.UUID) -> Signer:
+    """Who a signing request acts for, checked on every request: who is asking, and that the
+    envelope is open to them now."""
+    return may_act(identify(uow, request, recipient_id))
 
 
 def state(uow: UnitOfWork, who: Signer) -> SignerState:

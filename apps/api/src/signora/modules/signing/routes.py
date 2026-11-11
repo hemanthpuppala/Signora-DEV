@@ -317,9 +317,11 @@ def sign_and_submit(
     guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
 ) -> JSONResponse:
     with _db(request).unit_of_work() as uow:
+        caller = service.identify(uow, request, recipient_id)
+        guard = guard.for_caller(caller.caller)  # a stored answer only for the one who got it
         if (replay := guard.begin(uow)) is not None:
             return replay
-        who = service.acting(uow, request, recipient_id)
+        who = service.may_act(caller)
         limits.by_caller(request, "act", who.caller, recipient_id)
         service.require_ready(uow, who)
         done = submit.submit(uow, who)
@@ -352,9 +354,11 @@ def decline_to_sign(
     if not reason:
         raise ValidationFailed([FieldError("reason", "Tell them why")])
     with _db(request).unit_of_work() as uow:
+        caller = service.identify(uow, request, recipient_id)
+        guard = guard.for_caller(caller.caller)  # a stored answer only for the one who got it
         if (replay := guard.begin(uow)) is not None:
             return replay
-        who = service.acting(uow, request, recipient_id)
+        who = service.may_act(caller)
         limits.by_caller(request, "act", who.caller, recipient_id)
         if who.recipient.require_email_code and not who.verified:
             raise VerifyFirst
