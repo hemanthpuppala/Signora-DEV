@@ -285,6 +285,58 @@ describe("the send", () => {
     expect(screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled).toBe(true);
   });
 
+  it("drops the server's word about a field once the field is changed", async () => {
+    // The errors of a refused send stayed on their fields, and on the review step, until another
+    // send: a value put right still said what had been wrong with it.
+    answer = () =>
+      reply(422, {
+        type: "x",
+        title: "Some fields are invalid",
+        status: 422,
+        code: "validation-failed",
+        errors: [{ field: "fields.f-date", message: "Enter a date" }],
+      });
+    open({ initialDocumentId: "doc-1" });
+    const user = userEvent.setup();
+    await toReview(user);
+    await user.click(screen.getByRole("button", { name: "Send envelope" }));
+    await user.click(await screen.findByRole("button", { name: "Go to Details" }));
+    expect(screen.getByText("Enter a date")).toBeTruthy();
+
+    const date = screen.getByLabelText("Effective date");
+    await user.clear(date);
+    await user.type(date, "2026-12-02");
+    expect(screen.queryByText("Enter a date")).toBeNull();
+    await next();
+    await next();
+    await next();
+    expect(screen.queryByText("Some details need a change")).toBeNull(); // nothing left to change
+  });
+
+  it("says what is wrong with a department's notify address beside the addresses", async () => {
+    // It had no field to show on: the notice offered "Go to Review" from the review itself and
+    // said each was marked on its field, and nothing was.
+    fetchMock.mockImplementation(async (input) => {
+      const request = input as Request;
+      const path = new URL(request.url).pathname;
+      if (path.endsWith("/send-form")) return reply(200, { ...FORM, settings: { ...FORM.settings, notify_emails: ["desk@firm"] } });
+      return reply(422, {
+        type: "x",
+        title: "Some fields are invalid",
+        status: 422,
+        code: "validation-failed",
+        errors: [{ field: "settings.notify_emails[0]", message: "Enter a valid email address" }],
+      });
+    });
+    open({ initialDocumentId: "doc-1" });
+    const user = userEvent.setup();
+    await toReview(user);
+    await user.click(screen.getByRole("button", { name: "Send envelope" }));
+
+    const said = await screen.findByText("desk@firm: Enter a valid email address. Change it in the department's settings.");
+    expect(said.closest("details")?.open).toBe(true);
+  });
+
   it("asks before sending one person as two parties", async () => {
     answer = () =>
       sent.length === 1

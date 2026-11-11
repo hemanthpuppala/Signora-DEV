@@ -265,10 +265,21 @@ export function SendModal({
   }, [sent, onSent]);
   const failure = send.state.status === "error" ? send.state.error : null;
   const samePerson = failure instanceof ApiError && failure.code === "same-person" ? (failure.detail ?? "") : null;
+  // The server's word about an item stands until that item is changed: from then on it is judged
+  // by the checks made here again, and by the server at the next send. Kept per answer.
+  const [changedSince, setChangedSince] = useState<{ answer: unknown; paths: ReadonlySet<string> }>({ answer: null, paths: new Set() });
+  const changed = (...paths: string[]) =>
+    setChangedSince((current) => ({ answer: failure, paths: new Set([...(current.answer === failure ? current.paths : []), ...paths]) }));
   const errors: Record<string, string> =
     failure instanceof ApiError && failure.problem.errors
-      ? Object.fromEntries(failure.problem.errors.map((e) => [e.field, e.message]))
+      ? Object.fromEntries(
+          failure.problem.errors
+            .filter((e) => !(changedSince.answer === failure && changedSince.paths.has(e.field)))
+            .map((e) => [e.field, e.message]),
+        )
       : {};
+  // The department's "also notify" addresses are not changed here: what is wrong with one is said beside them.
+  const notifyErrors = Object.entries(errors).filter(([path]) => path.startsWith("settings.notify_emails["));
   const errorSteps = data ? [...new Set(Object.keys(errors).map((path) => stepOf(path, data)))].sort() : [];
 
   const close = () => (touched && !sent ? setConfirmLeave(true) : onClose());
@@ -411,7 +422,10 @@ export function SendModal({
                             (tooLong(f) ? "Too long for its box" : left.has(f.id) ? unkept(f) : undefined)
                           }
                           onBlur={() => setLeft((current) => (current.has(f.id) ? current : new Set(current).add(f.id)))}
-                          onChange={(value) => setValues((current) => ({ ...current, [f.id]: value }))}
+                          onChange={(value) => {
+                            setValues((current) => ({ ...current, [f.id]: value }));
+                            changed(`fields.${f.id}`);
+                          }}
                         />
                       ))}
                   </Block>
@@ -432,8 +446,10 @@ export function SendModal({
             ) : null}
             {data.signers.map((signer, index) => {
               const person = signers[signer.party_id] ?? { name: "", email: "" };
-              const set = (patch: Partial<Person>) =>
+              const set = (patch: Partial<Person>) => {
                 setSigners((current) => ({ ...current, [signer.party_id]: { ...person, ...patch } }));
+                changed(`parties.${signer.party_id}`, ...Object.keys(patch).map((part) => `signers[${index}].${part}`));
+              };
               return (
                 <div key={signer.party_id} className={styles.person}>
                   <p className={styles.personLabel}>{`Signer ${index + 1} · ${signer.kind_label ?? signer.label}`}</p>
@@ -469,9 +485,10 @@ export function SendModal({
                   maxLength={120}
                   value={copy.name}
                   error={errors[`copies[${index}].name`]}
-                  onChange={(event) =>
-                    setCopies((current) => current.map((c) => (c.key === copy.key ? { ...c, name: event.target.value } : c)))
-                  }
+                  onChange={(event) => {
+                    setCopies((current) => current.map((c) => (c.key === copy.key ? { ...c, name: event.target.value } : c)));
+                    changed(`copies[${index}].name`);
+                  }}
                 />
                 <TextField
                   label="Email"
@@ -479,11 +496,18 @@ export function SendModal({
                   maxLength={254}
                   value={copy.email}
                   error={errors[`copies[${index}].email`]}
-                  onChange={(event) =>
-                    setCopies((current) => current.map((c) => (c.key === copy.key ? { ...c, email: event.target.value } : c)))
-                  }
+                  onChange={(event) => {
+                    setCopies((current) => current.map((c) => (c.key === copy.key ? { ...c, email: event.target.value } : c)));
+                    changed(`copies[${index}].email`);
+                  }}
                 />
-                <TextButton onClick={() => setCopies((current) => current.filter((c) => c.key !== copy.key))}>
+                <TextButton
+                  onClick={() => {
+                    setCopies((current) => current.filter((c) => c.key !== copy.key));
+                    // The rows after it move up: what was said of a row by its number no longer holds.
+                    changed(...copies.flatMap((_, i) => [`copies[${i}].name`, `copies[${i}].email`]));
+                  }}
+                >
                   Remove
                 </TextButton>
               </div>
@@ -515,7 +539,10 @@ export function SendModal({
                     options={colleagues.map((c) => ({ value: c.user_id, label: `${c.name} · ${c.email}` }))}
                     value={chosen || null}
                     placeholder="Choose a colleague"
-                    onChange={(value) => setCountersigners((current) => ({ ...current, [party.party_id]: value }))}
+                    onChange={(value) => {
+                      setCountersigners((current) => ({ ...current, [party.party_id]: value }));
+                      changed(`parties.${party.party_id}`, `countersigners[${index}].user_id`);
+                    }}
                   />
                   {person ? (
                     <SmallText>
@@ -625,7 +652,7 @@ export function SendModal({
               </Checkbox>
               <details
                 className={styles.more}
-                open={more || LIMITED.some((setting) => settingError(setting) !== undefined)}
+                open={more || notifyErrors.length > 0 || LIMITED.some((setting) => settingError(setting) !== undefined)}
                 onToggle={(event) => setMore(event.currentTarget.open)}
               >
                 <summary>{`Reminds every ${settingText("reminder_interval_hours")} hours, up to ${settingText("max_reminders")} · expires in ${settingText("expiry_days")} days`}</summary>
@@ -642,6 +669,7 @@ export function SendModal({
                       onChange={(event) => {
                         const text = event.target.value.replace(/[^0-9]/g, "");
                         setTyped((current) => ({ ...current, [setting]: text }));
+                        changed(`settings.${setting}`);
                         if (outOfRange(setting, text) === undefined) setSettings({ ...effectiveSettings, [setting]: Number(text) });
                       }}
                     />
@@ -649,6 +677,11 @@ export function SendModal({
                 </div>
                 {effectiveSettings.notify_emails?.length ? (
                   <SmallText>{`Also notified when it is signed: ${effectiveSettings.notify_emails.join(", ")}`}</SmallText>
+                ) : null}
+                {notifyErrors.length > 0 ? (
+                  <p className={styles.error} role="alert">
+                    {`${notifyErrors.map(([path, message]) => `${effectiveSettings.notify_emails?.[Number(/\[(\d+)\]/.exec(path)?.[1])] ?? "An address"}: ${message}`).join(". ")}. Change it in the department's settings.`}
+                  </p>
                 ) : null}
               </details>
             </Section>
