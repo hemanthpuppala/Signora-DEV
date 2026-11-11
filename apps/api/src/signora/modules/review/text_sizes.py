@@ -19,9 +19,11 @@ from signora.modules.typesetting import Measured, text_sizes
 
 log = get_logger("signora.review.text_sizes")
 
-# Places a value is written in: a PDF's text box or a blank line, of a field holding text.
+# Places a value is written in: a PDF's text box or a blank line, of a field holding text; and a
+# dropdown's or a list's box, where the chosen option's words go (envelopes.sending.written_in).
 _WRITTEN = (
-    "p.kind IN ('text', 'blank') AND f.holds NOT IN ('checkbox', 'choice', 'signature', 'initials')"
+    "(p.kind IN ('combobox', 'listbox') OR (p.kind IN ('text', 'blank') "
+    "AND f.holds NOT IN ('checkbox', 'choice', 'signature', 'initials')))"
 )
 
 

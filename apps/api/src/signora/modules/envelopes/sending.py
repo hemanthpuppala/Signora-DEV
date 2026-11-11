@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from signora.kernel.errors import FieldError, ValidationFailed
-from signora.modules.envelopes.form import Colleague, Condition, FormField, SendForm
+from signora.modules.envelopes.form import Colleague, Condition, FormField, Place, SendForm
 from signora.modules.review.formats import (
     InvalidValueError,
     check_value,
@@ -158,19 +158,25 @@ def prefill(
     }
 
 
-MARKS = frozenset({"checkbox", "choice"})  # drawn as a tick, never as text
+def written_in(item: FormField) -> list[Place]:
+    """The places a field's value is written in as text. A checkbox is a tick. A choice is a tick
+    at the place that stands for the chosen option, and the option's words in a place that stands
+    for none: a dropdown's or a list's box. Every other value is written in each of its places."""
+    if item.holds == "checkbox":
+        return []
+    if item.holds == "choice":
+        return [place for place in item.places if place.option_value is None]
+    return item.places
 
 
 def fits(item: FormField, value: str, font_id: str) -> bool:
-    """Whether a value can be drawn in every place of its field (Phase 7b), written as its field
+    """Whether a value can be drawn in every place it is written in (Phase 7b), as its field
     writes it (7c): at the agreement's text size, or smaller down to the smallest readable size.
-    Marks are ticks, always fitting."""
-    if item.holds in MARKS:
-        return True
+    A tick always fits."""
     text = written(item.holds, value, item.format)
     return all(
         fitted_size(text, place.rect, place_size(place.text_size, place.rect), font_id) is not None
-        for place in item.places
+        for place in written_in(item)
     )
 
 

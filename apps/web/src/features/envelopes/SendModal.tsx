@@ -28,7 +28,7 @@ import { useSendForm, type Envelope, type FormField, type SendForm, type SendReq
 import { askedFields } from "./conditions";
 import styles from "./envelopes.module.css";
 import { FieldInput, refused } from "./FieldInput";
-import { fitsEverywhere, kept, useFontReady, written } from "./typeset";
+import { fitsEverywhere, kept, useFontReady, written, writtenIn } from "./typeset";
 import { ValuesOverlay } from "./ValuesOverlay";
 
 const STEPS = ["Template", "Details", "Signers", "Countersigners", "Review"] as const;
@@ -178,8 +178,8 @@ export function SendModal({
    */
   const tooLong = (f: FormField): boolean => {
     const value = values[f.id]?.trim();
-    if (!data || !fontReady || !value || f.holds === "checkbox" || f.holds === "choice" || !asked(f)) return false;
-    return !fitsEverywhere(written(f.holds, kept(f.holds, value), f.format), f.places, data.font, data.fit);
+    if (!data || !fontReady || !value || !asked(f)) return false;
+    return !fitsEverywhere(written(f.holds, kept(f.holds, value), f.format), writtenIn(f.holds, f.places), data.font, data.fit);
   };
 
   /** A day or a year the server would refuse, in its words. */

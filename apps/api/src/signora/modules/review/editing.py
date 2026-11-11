@@ -22,7 +22,13 @@ from signora.modules.review.fieldset import (
 )
 from signora.modules.review.formats import FORMATS, format_for
 from signora.modules.review.keys import name_words, slug, unique
-from signora.modules.review.values import PARTY_VALUES, SENSITIVE, SHARED, may_hold
+from signora.modules.review.values import (
+    PARTY_VALUES,
+    SENSITIVE,
+    SHARED,
+    choice_options,
+    may_hold,
+)
 from signora.modules.review.views import option_words
 
 EDGE_TOLERANCE = 0.5  # points: a box may touch its page's edge
@@ -149,12 +155,17 @@ def options_of(target: FieldIn, stored: Stored) -> set[str]:
     """What a condition on a choice may name: the option each of its places stands for (a radio
     group, grouped checkboxes, a choice made by hand), and the options a dropdown or a list
     offers, which are the PDF's and kept with its place."""
-    options = {p.option_value for p in target.places if p.option_value}
-    for place in target.places:
-        before = stored.places.get(place.id)
-        if before is not None and before.options:
-            options.update(before.options)
-    return options
+    stored_options = (
+        before.options if (before := stored.places.get(p.id)) is not None else None
+        for p in target.places
+    )
+    return {
+        value
+        for value, _ in choice_options(
+            (p.option_value, p.option_text, own)
+            for p, own in zip(target.places, stored_options, strict=True)
+        )
+    }
 
 
 def _check_dependency(

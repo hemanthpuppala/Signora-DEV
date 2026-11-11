@@ -8,6 +8,7 @@ too. The API's enums and the interface's labels come from these lists. Pure: no 
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from typing import Literal, get_args
 
 AiHolds = Literal[
@@ -83,6 +84,24 @@ def may_hold(kind: str, holds: str, *, is_option: bool) -> bool:
     checkboxes that are one question into one choice, each box standing for an option
     (``is_option``: the place has an option value), so such a box holds that choice."""
     return holds in MANUAL_ALLOWED[kind] or (kind == "checkbox" and holds == "choice" and is_option)
+
+
+def choice_options(
+    places: Iterable[tuple[str | None, str | None, Sequence[str] | None]],
+) -> list[tuple[str, str]]:
+    """The options a choice offers, each once and in order, as (its value, its words). ``places``
+    gives each place's option value, option words and own options. A place that stands for an
+    option (a radio button, a grouped checkbox, an option made by hand) gives that one; a
+    dropdown or a list is one place that stands for none and gives the options the PDF lists for
+    it. The one reading of a choice: a condition is checked against it (a Save), and a choice is
+    filled in from it (a send)."""
+    seen: dict[str, str] = {}
+    for value, words, own in places:
+        if value:
+            seen.setdefault(value, words or value)
+        for option in own or ():
+            seen.setdefault(option, option)
+    return list(seen.items())
 
 
 # Lengths, one definition for what detection keeps and what a Save accepts: text detection stored

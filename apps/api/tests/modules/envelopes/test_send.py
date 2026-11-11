@@ -16,7 +16,7 @@ from sqlalchemy import text
 from signora.kernel.config import get_settings
 from signora.kernel.db import Database
 from signora.modules.envelopes.links import link_key, read_token
-from tests.modules.documents.conftest import csrf_headers, log_in, new_document
+from tests.modules.documents.conftest import create_department, csrf_headers, log_in, new_document
 from tests.modules.envelopes.conftest import Sendable, make_countersigner, sendable
 from tests.modules.identity_access.conftest import Account, idempotency_key
 from tests.modules.review.test_approve import _approve
@@ -375,3 +375,51 @@ def test_a_time_zone_the_server_does_not_know_sends_in_utc(
                 text("SELECT time_zone FROM envelopes WHERE id = :e"), {"e": sent.json()["id"]}
             ).scalar_one()
         assert zone == "UTC"
+
+
+def test_a_dropdown_is_filled_in_from_its_own_options(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+) -> None:
+    """A PDF's dropdown is one place carrying its options (kept with it since the Phase 6 review).
+    The send form built a choice's options from each place's own option only, so a dropdown
+    reached it with none: nothing could be chosen, and a template with a required one could never
+    be sent."""
+    department = create_department(owner)
+    document = new_document(owner, department["id"], forms.all_types()).json()
+    document_id, version_id = document["id"], document["versions"][0]["id"]
+    run(version_id)
+    detect(version_id, FakeAssigner())
+    assert _approve(owner, document_id, version_id).status_code == 204
+    view = _view(owner, document_id, version_id)
+    doc = Sendable(document_id, version_id, department["id"], view)
+    dropdown = next(
+        f for f in view["fields"] if any(p["kind"] == "combobox" for p in f["placements"])
+    )
+
+    form = owner.get(f"{DOCUMENTS}/{document_id}/versions/{version_id}/send-form").json()
+    asked = next(f for f in form["fields"] if f["id"] == dropdown["id"])
+    assert [o["value"] for o in asked["options"]] == ["California", "New York", "Texas"]
+
+    def body(state: str) -> dict[str, Any]:
+        values = [v for v in required_values(owner, doc) if v["field_id"] != dropdown["id"]]
+        return {
+            "version_id": version_id,
+            "signers": [
+                {"party_id": p["party_id"], "name": "Maya Chen", "email": "maya@example.com"}
+                for p in form["signers"]
+            ],
+            "values": [*values, {"field_id": dropdown["id"], "value": state}],
+            "settings": {"reminder_interval_hours": 24, "max_reminders": 3, "expiry_days": 30},
+        }
+
+    refused = send(owner, doc, body("Ohio"))
+    assert refused.status_code == 422
+    assert [(e["field"], e["message"]) for e in refused.json()["errors"]] == [
+        (f"fields.{dropdown['id']}", "Choose one of the options")
+    ]
+    sent = send(owner, doc, body("Texas"))
+    assert sent.status_code == 201, sent.text
+    assert {v["field_id"]: v["value"] for v in sent.json()["values"]}[dropdown["id"]] == "Texas"

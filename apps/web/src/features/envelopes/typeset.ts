@@ -206,6 +206,18 @@ export function typeset(text: string, rect: readonly number[], textSize: number 
   };
 }
 
+/**
+ * The places a field's value is written in as text (the server's envelopes.sending.written_in).
+ * A checkbox is a tick. A choice is a tick at the place that stands for the chosen option, and
+ * the option's words in a place that stands for none: a dropdown's or a list's box. Every other
+ * value is written in each of its places.
+ */
+export function writtenIn<P extends { option_value: string | null }>(holds: string, places: readonly P[]): readonly P[] {
+  if (holds === "checkbox") return [];
+  if (holds === "choice") return places.filter((place) => place.option_value === null);
+  return places;
+}
+
 /** Whether a value can be drawn in every place of its field (the server checks the same on Send). */
 export function fitsEverywhere(
   text: string,

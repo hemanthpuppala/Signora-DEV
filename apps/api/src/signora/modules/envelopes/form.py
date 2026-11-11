@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from signora.modules.review import FieldView, RoleView
 from signora.modules.review.formats import NOT_TYPED
-from signora.modules.review.values import ManualHolds
+from signora.modules.review.values import ManualHolds, choice_options
 from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, FitRule, FontView, font_view
 
 # A party's fields that come from the person signing as it, as DocuSign's Full Name, First Name,
@@ -109,14 +109,14 @@ class SendForm(BaseModel):
 
 
 def options_of(field: FieldView) -> list[Option]:
-    """A choice's options, once each, in the order of their places."""
-    seen: dict[str, Option] = {}
-    for place in field.placements:
-        if place.option_value and place.option_value not in seen:
-            seen[place.option_value] = Option(
-                value=place.option_value, text=place.option_text or place.option_value
-            )
-    return list(seen.values())
+    """A choice's options, once each and in order (review's one reading of a choice): the option
+    each place stands for, and a dropdown's or a list's own."""
+    return [
+        Option(value=value, text=words)
+        for value, words in choice_options(
+            (place.option_value, place.option_text, place.options) for place in field.placements
+        )
+    ]
 
 
 def places_of(field: FieldView) -> list[Place]:

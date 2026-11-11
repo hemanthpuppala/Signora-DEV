@@ -1,7 +1,7 @@
 "use client";
 
 import styles from "./envelopes.module.css";
-import { typeset, useFontReady, written, type FitRule, type Typeface } from "./typeset";
+import { typeset, useFontReady, written, writtenIn, type FitRule, type Typeface } from "./typeset";
 
 export type Shown = {
   /** Where: PDF points on the page as displayed; the agreement's text size beside it, if measured. */
@@ -17,7 +17,8 @@ export type Shown = {
 /**
  * Values drawn on one page as the signed PDF will draw them (the send's review step, the envelope
  * page): in the envelope's font, on the box's line, at the agreement's text size, smaller only when
- * the box is too narrow; a tick for a ticked checkbox or the chosen option; a signer's name to come
+ * the box is too narrow; a tick for a ticked checkbox or the chosen option, and the chosen option's
+ * words in a dropdown's box; a signer's name to come
  * in a quieter ink. Coordinates are PDF points; ``scale`` only paints them. Visual only: the same
  * values are listed in words beside it.
  */
@@ -37,13 +38,14 @@ export function ValuesOverlay({
   const ready = useFontReady(font);
   return (
     <svg className={styles.values} aria-hidden="true" data-font-ready={ready || undefined}>
-      {shown.flatMap((item, i) =>
-        item.places
+      {shown.flatMap((item, i) => {
+        const asText = writtenIn(item.holds, item.places);
+        return item.places
           .filter((place) => place.page === page)
           .map((place, j) => {
             const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = place.rect;
-            const mark = item.holds === "checkbox" || item.holds === "choice";
-            if (mark) {
+            // A tick, unless the value is written here: a dropdown's box shows the chosen option.
+            if (!asText.includes(place)) {
               const ticked = item.holds === "checkbox" ? item.value === "true" : place.option_value === item.value;
               if (!ticked) return null;
               const height = y1 - y0;
@@ -75,8 +77,8 @@ export function ValuesOverlay({
                 {text}
               </text>
             );
-          }),
-      )}
+          });
+      })}
     </svg>
   );
 }

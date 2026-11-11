@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import vectors from "../../../../../packages/contracts/vectors/date-formats.json";
 import numbers from "../../../../../packages/contracts/vectors/numbers.json";
 
-import { fitsEverywhere, kept, MEASURED_AT, number, written } from "./typeset";
+import { fitsEverywhere, kept, MEASURED_AT, number, written, writtenIn } from "./typeset";
 
 const DATE_TYPES = new Set(["date", "date_signed", "date_of_birth", "day", "month", "year"]);
 
@@ -57,5 +57,17 @@ describe("a typed number is kept as the server keeps it (the server runs the sam
   it.each(numbers.refused)("$holds $typed is refused: $message", ({ holds, typed, message }) => {
     expect(number(holds, typed)).toEqual({ refused: message });
     expect(kept(holds, typed)).toBe(typed); // drawn as typed; the box says why
+  });
+});
+
+describe("where a value is written as text", () => {
+  // The server's envelopes.sending.written_in. A dropdown is one place that stands for no option:
+  // the chosen option's words go in its box. It was treated as a tick, so nothing was drawn.
+  const option = (value: string | null) => ({ option_value: value });
+  it("is every place of a typed value, none of a checkbox, and only a dropdown's box of a choice", () => {
+    expect(writtenIn("text", [option(null), option(null)])).toHaveLength(2);
+    expect(writtenIn("checkbox", [option(null)])).toEqual([]);
+    expect(writtenIn("choice", [option("Gold"), option("Silver")])).toEqual([]); // ticks
+    expect(writtenIn("choice", [option(null)])).toEqual([option(null)]); // a dropdown
   });
 });
