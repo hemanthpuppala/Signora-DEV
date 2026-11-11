@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Request, Response, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import Database
-from signora.modules.signing import drafts, service, signatures
+from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
+from signora.modules.signing import drafts, service, signatures, submit
 from signora.modules.signing.document import SignerDocument
 from signora.modules.signing.sessions import COOKIE
 from signora.modules.signing.views import CodeSentView, Opened, SignerState
@@ -285,3 +286,27 @@ def apply_all(recipient_id: uuid.UUID, kind: signatures.Kind, request: Request) 
         who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
         service.require_ready(uow, who, to_change=True)
         return Placed(placed=drafts.apply_all(uow, who, kind))
+
+
+@router.post(
+    "/{recipient_id}/submit",
+    summary="Sign and submit: every value checked again, then written once (Idempotency-Key)",
+    response_model=submit.Submitted,
+    responses={
+        **_DOCUMENT,
+        409: {"description": "Declined, or not this person's turn"},
+        422: {"description": "Each field that needs attention, by its id"},
+    },
+)
+def sign_and_submit(
+    recipient_id: uuid.UUID,
+    request: Request,
+    guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
+) -> JSONResponse:
+    with _db(request).unit_of_work() as uow:
+        if (replay := guard.begin(uow)) is not None:
+            return replay
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        service.require_ready(uow, who)
+        done = submit.submit(uow, who)
+        return guard.finish(uow, status.HTTP_200_OK, done.model_dump(mode="json"))

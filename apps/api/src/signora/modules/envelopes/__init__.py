@@ -16,9 +16,14 @@ from signora.modules.envelopes.recipients import (
     GivenValue,
     SignerRecipient,
     envelope_values,
+    every_signer_signed,
+    lock_envelope,
     recipient_for_signing,
     record_opened,
+    record_signed,
     record_viewed,
+    unsigned,
+    write_values,
 )
 from signora.modules.envelopes.routes import router
 from signora.modules.envelopes.sending import asked, fits, name_part
@@ -35,12 +40,17 @@ __all__ = [
     "asked",
     "count_sends",
     "envelope_values",
+    "every_signer_signed",
     "fits",
     "form_fields_of",
+    "lock_envelope",
     "moment_in_words",
     "name_part",
     "recipient_for_signing",
     "record_opened",
+    "record_signed",
     "record_viewed",
     "router",
+    "unsigned",
+    "write_values",
 ]

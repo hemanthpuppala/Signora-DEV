@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { fieldErrors, formError } from "@/shared/api/errors";
+import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
 import { askedFields } from "@/shared/document/conditions";
 import { FieldInput } from "@/shared/document/FieldInput";
 import { typeset, useFontReady } from "@/shared/document/typeset";
@@ -23,6 +24,8 @@ import {
   pdfUrl,
   saveDraft,
   signatureKey,
+  signerKey,
+  submitSigning,
   useSignature,
   useSignerDocument,
   type Adopted,
@@ -98,6 +101,25 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
   const queryClient = useQueryClient();
   const signature = useSignature(id);
   const marks = useMemo(() => marksOf(signature.data?.adopted ?? []), [signature.data]);
+  // Sign and submit: one key per press, kept until a definite answer (backbone §3.6).
+  const submit = useIdempotentAction<null, unknown>(`sign-submit:${id}`, (_, key) => submitSigning(id, key), {
+    persistInput: false,
+  });
+  const submitted = submit.state.status === "success";
+  useEffect(() => {
+    if (submitted) void queryClient.invalidateQueries({ queryKey: signerKey(id) }); // to the done screen
+  }, [submitted, queryClient, id]);
+  // The server's word on each field goes to its box, and the guide to the first of them: once per
+  // refusal, noticed while rendering (React's pattern for state that follows a new value).
+  const refusal = submit.state.error;
+  const [seenRefusal, setSeenRefusal] = useState<unknown>(null);
+  if (refusal && refusal !== seenRefusal) {
+    setSeenRefusal(refusal);
+    const named = fieldErrors(refusal);
+    setErrors((was) => ({ ...was, ...named }));
+    const first = doc.fields.find((field) => named[field.id]);
+    if (first) guideTo(first);
+  }
   // Adopting a signature or initials: then sign one place, every place, or none (a change).
   const [adopting, setAdopting] = useState<{ kind: Adopted["kind"]; then: SignerField | "all" | null } | null>(null);
   const timers = useRef(new Map<string, number>());
@@ -302,8 +324,11 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
         <Checkbox ref={confirmRef} checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)}>
           I&apos;ve reviewed this document and this is my signature
         </Checkbox>
-        <Button disabled={missing !== null}>Sign and submit</Button>
+        <Button disabled={missing !== null || submit.isPending} onClick={() => submit.run(null)}>
+          {submit.isPending ? "Signing…" : "Sign and submit"}
+        </Button>
         {missing ? <p className={styles.missing}>{missing}</p> : null}
+        {refusal && !Object.keys(fieldErrors(refusal)).length ? <p className={styles.missing} role="alert">{formError(refusal)}</p> : null}
       </section>
 
       {pointerOn && target ? <GuidePointer target={target} label={pointerOn} /> : null}

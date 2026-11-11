@@ -87,3 +87,8 @@ class FieldNotAsked(Conflict):
 class AdoptFirst(Conflict):
     code = "adopt-first"
     title = "Adopt your signature first"
+
+
+class NotTheirTurn(Conflict):
+    code = "not-their-turn"
+    title = "It isn't your turn yet. We'll email you when the signers have finished"

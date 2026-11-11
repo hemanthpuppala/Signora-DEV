@@ -5,6 +5,7 @@ same rules as the send and the submit, and seen by nobody else.
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy import text
 
@@ -23,9 +24,18 @@ Values = dict[uuid.UUID, str]
 SIGNED = "signed"  # a signature or initials place's value once tapped
 
 
-def _merged(uow: UnitOfWork, who: Signer) -> tuple[list[FormField], Values, set[uuid.UUID]]:
-    """The version's fields, every value the envelope holds with this person's drafts over it,
-    and which of their fields are locked."""
+@dataclass(frozen=True)
+class Merged:
+    """The version's fields and every value the envelope holds with this person's drafts over it:
+    which of their fields are locked (given before signing, or their own name) and required."""
+
+    items: list[FormField]
+    values: Values
+    locked: set[uuid.UUID]
+    required: set[uuid.UUID]
+
+
+def merged_values(uow: UnitOfWork, who: Signer) -> Merged:
     recipient = who.recipient
     parties, fields = read_set(uow.session, recipient.version_id)
     values = envelope_values(uow.session, recipient.envelope_id)
@@ -34,10 +44,11 @@ def _merged(uow: UnitOfWork, who: Signer) -> tuple[list[FormField], Values, set[
         viewer=recipient, pages=[], parties=parties, fields=fields, values=values, drafts=drafts
     )
     merged = {given.field_id: given.value for given in values}
-    locked = {field.id for field in view.fields if field.mine and field.locked}
-    merged.update({field.id: field.value for field in view.fields if field.locked and field.value})
+    mine = [field for field in view.fields if field.mine]
+    locked = {field.id for field in mine if field.locked}
+    merged.update({field.id: field.value for field in mine if field.locked and field.value})
     merged.update({field_id: value for field_id, value in drafts.items() if field_id not in locked})
-    return form_fields_of(fields), merged, locked
+    return Merged(form_fields_of(fields), merged, locked, {f.id for f in mine if f.required})
 
 
 def _drop_unasked(uow: UnitOfWork, who: Signer, items: list[FormField], merged: Values) -> None:
@@ -68,8 +79,9 @@ def _mine(
 def save_draft(uow: UnitOfWork, who: Signer, field_id: uuid.UUID, raw: str) -> str:
     """Check a value by the one rule (``check_value``) and the fit check, then keep it. Returns
     the value as stored. O(F + P + V)."""
-    items, merged, locked = _merged(uow, who)
-    item = _mine(who, items, field_id, locked)
+    m = merged_values(uow, who)
+    items, merged = m.items, m.values
+    item = _mine(who, items, field_id, m.locked)
     if item.holds in SIGNS:
         return _tap(uow, who, item, raw, items, merged)
     try:
@@ -131,7 +143,8 @@ def apply_all(uow: UnitOfWork, who: Signer, kind: str) -> int:
     places it signed."""
     if kind not in signatures.adopted(uow, who.recipient.id):
         raise AdoptFirst
-    items, merged, _ = _merged(uow, who)
+    m = merged_values(uow, who)
+    items, merged = m.items, m.values
     now_asked = asked(items, merged)
     places = [
         item.id
@@ -144,8 +157,9 @@ def apply_all(uow: UnitOfWork, who: Signer, kind: str) -> int:
 
 
 def clear_draft(uow: UnitOfWork, who: Signer, field_id: uuid.UUID) -> None:
-    items, merged, locked = _merged(uow, who)
-    _mine(who, items, field_id, locked)
+    m = merged_values(uow, who)
+    items, merged = m.items, m.values
+    _mine(who, items, field_id, m.locked)
     uow.session.execute(
         text("DELETE FROM signing_drafts WHERE recipient_id = :r AND field_id = :f"),
         {"r": who.recipient.id, "f": field_id},

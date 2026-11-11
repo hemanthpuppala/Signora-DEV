@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from signora.kernel.db import UnitOfWork
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.envelopes import SignerRecipient
 
 
-def audit(uow: UnitOfWork, recipient: SignerRecipient, action: str) -> None:
+def audit(uow: UnitOfWork, recipient: SignerRecipient, action: str, **data: Any) -> None:
     record(
         uow,
         chain=AuditChain.envelope(recipient.workspace_id, recipient.envelope_id),
         actor=AuditActor("recipient", recipient.id, recipient.email),
         action=action,
         subject=Subject("envelope", recipient.envelope_id),
+        data=data,
     )

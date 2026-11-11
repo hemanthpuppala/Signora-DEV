@@ -1178,6 +1178,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign/{recipient_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign and submit: every value checked again, then written once (Idempotency-Key) */
+        post: operations["sign_and_submit_api_v1_sign__recipient_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sign/{recipient_id}/verify": {
         parameters: {
             query?: never;
@@ -2783,6 +2800,19 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "unavailable";
+        };
+        /** Submitted */
+        Submitted: {
+            /**
+             * Next
+             * @default done
+             */
+            next: string;
+            /**
+             * Signed At
+             * Format: date-time
+             */
+            signed_at: string;
         };
         /** TimelineEntry */
         TimelineEntry: {
@@ -7554,6 +7584,83 @@ export interface operations {
                 content?: never;
             };
             /** @description Why it is not a signature */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    sign_and_submit_api_v1_sign__recipient_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Submitted"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Declined, or not this person's turn */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Each field that needs attention, by its id */
             422: {
                 headers: {
                     [name: string]: unknown;

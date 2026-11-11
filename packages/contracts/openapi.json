@@ -4277,6 +4277,25 @@
         "title": "StatusResponse",
         "type": "object"
       },
+      "Submitted": {
+        "properties": {
+          "next": {
+            "default": "done",
+            "title": "Next",
+            "type": "string"
+          },
+          "signed_at": {
+            "format": "date-time",
+            "title": "Signed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "signed_at"
+        ],
+        "title": "Submitted",
+        "type": "object"
+      },
       "TimelineEntry": {
         "properties": {
           "action": {
@@ -11655,6 +11674,84 @@
           }
         },
         "summary": "Adopt (or change) this person's signature or initials for this envelope",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/submit": {
+      "post": {
+        "operationId": "sign_and_submit_api_v1_sign__recipient_id__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submitted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "403": {
+            "description": "The code or consent comes first"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "409": {
+            "description": "Declined, or not this person's turn"
+          },
+          "422": {
+            "description": "Each field that needs attention, by its id"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Sign and submit: every value checked again, then written once (Idempotency-Key)",
         "tags": [
           "signing"
         ]

@@ -273,6 +273,7 @@ protected_modules = [
     "signora.modules.signing.service",
     "signora.modules.signing.sessions",
     "signora.modules.signing.signatures",
+    "signora.modules.signing.submit",
     "signora.modules.signing.trail",
     "signora.modules.signing.views",
 ]

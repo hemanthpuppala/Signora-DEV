@@ -87,6 +87,10 @@ describe("the signer's screen", () => {
         return reply(200, ADOPTED);
       }
       if (path.includes("/drafts/")) return reply(200, { value: ((await request.json()) as { value: string }).value });
+      if (path.endsWith("/submit")) {
+        expect(request.headers.get("Idempotency-Key")).toBeTruthy();
+        return reply(200, { signed_at: "2026-11-11T09:14:22Z", next: "done" });
+      }
       return reply(204, null);
     });
   });
@@ -138,7 +142,11 @@ describe("the signer's screen", () => {
     expect(screen.getByRole("button", { name: "Complete" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Complete" }));
     await user.click(screen.getByLabelText("I've reviewed this document and this is my signature"));
-    expect((screen.getByRole("button", { name: "Sign and submit" }) as HTMLButtonElement).disabled).toBe(false);
+    const submit = screen.getByRole("button", { name: "Sign and submit" }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+    await user.click(submit);
+
+    await vi.waitFor(() => expect(requests).toContain(`POST /api/v1/sign/${RECIPIENT}/submit`));
   });
 });
 

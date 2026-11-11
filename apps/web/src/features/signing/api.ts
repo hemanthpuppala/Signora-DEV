@@ -124,3 +124,11 @@ export const applyToAll = (recipientId: string, kind: Adopted["kind"]) =>
       params: { path: { recipient_id: recipientId, kind } },
     }),
   );
+
+export const submitSigning = (recipientId: string, key: string) =>
+  unwrap(
+    api.POST("/api/v1/sign/{recipient_id}/submit", {
+      params: { path: { recipient_id: recipientId } },
+      headers: { "Idempotency-Key": key },
+    }),
+  );

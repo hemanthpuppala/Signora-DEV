@@ -135,3 +135,83 @@ def envelope_values(session: Session, envelope_id: uuid.UUID) -> list[GivenValue
         {"e": envelope_id},
     )
     return [GivenValue(**row._mapping) for row in rows]
+
+
+def lock_envelope(session: Session, envelope_id: uuid.UUID) -> None:
+    """The envelope's row lock (Phase 8 §6.2): every submit, decline and cancel of one envelope
+    takes it first, so they apply one at a time and exactly one submit is the last."""
+    session.execute(text("SELECT 1 FROM envelopes WHERE id = :e FOR UPDATE"), {"e": envelope_id})
+
+
+def write_values(
+    session: Session, recipient: SignerRecipient, values: list[tuple[uuid.UUID, str]]
+) -> None:
+    """What a person gave, as the envelope's values (Phase 8 §6.3.1). A field that already holds
+    a value given before signing (a prefilled email) keeps it."""
+    if not values:
+        return
+    session.execute(
+        text(
+            """
+            INSERT INTO envelope_values (envelope_id, workspace_id, version_id, field_id, value,
+                                         given_by, recipient_id)
+            SELECT :e, :w, :v, field_id, value, 'recipient', :r
+            FROM unnest(CAST(:fields AS uuid[]), CAST(:values AS text[])) AS t(field_id, value)
+            ON CONFLICT (envelope_id, field_id) DO NOTHING
+            """
+        ),
+        {
+            "e": recipient.envelope_id,
+            "w": recipient.workspace_id,
+            "v": recipient.version_id,
+            "r": recipient.id,
+            "fields": [field_id for field_id, _ in values],
+            "values": [value for _, value in values],
+        },
+    )
+
+
+def record_signed(session: Session, recipient: SignerRecipient) -> datetime | None:
+    """The person has signed: once (a guarded update). The time it was recorded, or ``None`` when
+    they had already signed or declined."""
+    signed: datetime | None = session.execute(
+        text(
+            "UPDATE envelope_recipients SET status = 'signed', signed_at = now() "
+            "WHERE id = :r AND status NOT IN ('signed', 'declined') RETURNING signed_at"
+        ),
+        {"r": recipient.id},
+    ).scalar_one_or_none()
+    return signed
+
+
+def unsigned(session: Session, envelope_id: uuid.UUID, kind: str) -> int:
+    """How many of the envelope's people of a kind have still to sign (by the envelope's index)."""
+    count: int = session.execute(
+        text(
+            "SELECT count(*) FROM envelope_recipients "
+            "WHERE envelope_id = :e AND kind = :k AND status <> 'signed'"
+        ),
+        {"e": envelope_id, "k": kind},
+    ).scalar_one()
+    return count
+
+
+def every_signer_signed(session: Session, envelope_id: uuid.UUID) -> list[uuid.UUID]:
+    """Every signer has signed (Phase 8 §6.3.5): the envelope is ``signed`` and its countersigners
+    move from ``waiting`` to ``sent``. Returns those countersigners, to be emailed."""
+    session.execute(
+        text(
+            "UPDATE envelopes SET status = 'signed' WHERE id = :e AND status IN "
+            "('sent', 'opened', 'viewed')"
+        ),
+        {"e": envelope_id},
+    )
+    rows = session.execute(
+        text(
+            "UPDATE envelope_recipients SET status = 'sent', sent_at = now() "
+            "WHERE envelope_id = :e AND kind = 'countersigner' AND status = 'waiting' "
+            "RETURNING id"
+        ),
+        {"e": envelope_id},
+    )
+    return [row.id for row in rows]
