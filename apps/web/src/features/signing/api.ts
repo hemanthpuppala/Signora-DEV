@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { components } from "@signora/contracts";
 
@@ -142,13 +142,17 @@ export const declineSigning = (recipientId: string, reason: string, key: string)
     }),
   );
 
-export type Waiting = NonNullable<ReturnType<typeof useWaiting>["data"]>["items"][number];
+export type InboxState = "waiting" | "done";
+export type Waiting = NonNullable<ReturnType<typeof useWaiting>["data"]>["pages"][number]["items"][number];
 
-/** The signed-in user's envelopes waiting for their countersignature (Phase 8 §7.2). */
-export function useWaiting() {
-  return useQuery({
-    queryKey: ["me", "countersign"],
-    queryFn: () => unwrap(api.GET("/api/v1/me/countersign")),
+/** My countersigning (Phase 8 §7.2): what waits for me, or what I countersigned; pages of 50. */
+export function useWaiting(state: InboxState) {
+  return useInfiniteQuery({
+    queryKey: ["me", "countersign", state],
+    queryFn: ({ pageParam }) =>
+      unwrap(api.GET("/api/v1/me/countersign", { params: { query: { state, ...(pageParam ? { cursor: pageParam } : {}) } } })),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.next_cursor,
     refetchOnWindowFocus: true,
   });
 }

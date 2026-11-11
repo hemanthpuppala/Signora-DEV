@@ -110,6 +110,11 @@ def test_a_countersigner_signs_signed_in_sees_every_value_and_keeps_their_signat
 
     assert done.status_code == 200, done.text
     assert owner.get(f"{ME}/count").json() == {"count": 0}
+    assert owner.get(ME).json()["items"] == []  # no longer waiting
+    (countersigned,) = owner.get(ME, params={"state": "done"}).json()[
+        "items"
+    ]  # but in their record
+    assert countersigned["recipient_id"] == firm and countersigned["countersigned_at"]
     with committing_db.unit_of_work() as uow:
         kept = uow.session.execute(
             text("SELECT kind FROM saved_signatures WHERE user_id = :u"), {"u": company.user_id}

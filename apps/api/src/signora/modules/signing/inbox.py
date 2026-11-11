@@ -1,12 +1,16 @@
-"""To countersign (Phase 8 LLD §7.2): a Signora user's own envelopes waiting for their
-countersignature, across their departments, and how many for the navigation's dot."""
+"""To countersign (Phase 8 LLD §7.2): a Signora user's own countersigning, across their departments.
+
+Two lists: what waits for them, soonest expiry first (the urgent first), and what they have
+countersigned, latest first. Each is one index range on the countersigner's recipients
+(``(user_id, status) WHERE kind = 'countersigner'``) with a keyset cursor: O(k) for a page of k.
+"""
 
 from __future__ import annotations
 
 import base64
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
@@ -19,17 +23,27 @@ from signora.modules.identity_access import Actor, current_actor
 router = APIRouter(prefix="/api/v1/me", tags=["signing"])
 Member = Annotated[Actor, Depends(current_actor)]
 PAGE = 50
+State = Literal["waiting", "done"]
 
-# Waiting for this user: their turn (every signer signed, the envelope open, before expiry), and
-# not yet signed or declined by them. One index range (§7.2).
-_WAITING = """
+_FROM = """
     FROM envelope_recipients r
     JOIN envelopes e ON e.id = r.envelope_id
     JOIN documents d ON d.id = e.document_id
     JOIN departments dep ON dep.id = e.department_id
-    WHERE r.kind = 'countersigner' AND r.user_id = :u AND r.status IN ('sent', 'opened', 'viewed')
-      AND e.status = 'signed' AND e.expires_at > now()
+    WHERE r.kind = 'countersigner' AND r.user_id = :u
 """
+# Waiting: their turn (every signer signed, the envelope open, before expiry), not yet signed.
+_WAITING = (
+    _FROM + " AND r.status IN ('sent', 'opened', 'viewed') AND e.status = 'signed' "
+    "AND e.expires_at > now()"
+)
+_DONE = _FROM + " AND r.status = 'signed'"
+
+# (order, cursor's comparison, the row's key) for each list.
+_ORDER: dict[State, tuple[str, str, str]] = {
+    "waiting": ("e.expires_at ASC, r.id ASC", "(e.expires_at, r.id) > (:at, :id)", "expires_at"),
+    "done": ("r.signed_at DESC, r.id DESC", "(r.signed_at, r.id) < (:at, :id)", "countersigned_at"),
+}
 
 
 class Waiting(BaseModel):
@@ -40,8 +54,10 @@ class Waiting(BaseModel):
     department_id: uuid.UUID
     department_name: str
     signers: list[str]
-    signed_at: datetime | None  # when the last signer signed
+    signed_at: datetime | None  # when the last signer signed: since when it waits for them
     expires_at: datetime
+    countersigned_at: datetime | None  # theirs, in the countersigned list
+    completed: bool  # the signed copy is made
 
 
 class WaitingPage(BaseModel):
@@ -68,27 +84,35 @@ def _cursor(raw: str | None) -> tuple[datetime, uuid.UUID] | None:
         raise ValidationFailed([FieldError("cursor", "Not a page of this list")]) from None
 
 
-@router.get("/countersign", summary="Envelopes waiting for my countersignature, newest turn first")
+@router.get(
+    "/countersign",
+    summary="My countersigning: what waits for me (soonest expiry first), or what I countersigned",
+)
 def waiting(
-    request: Request, actor: Member, cursor: Annotated[str | None, Query(max_length=200)] = None
+    request: Request,
+    actor: Member,
+    state: State = "waiting",
+    cursor: Annotated[str | None, Query(max_length=200)] = None,
 ) -> WaitingPage:
     after = _cursor(cursor)
+    order, beyond, key = _ORDER[state]
+    where = _WAITING if state == "waiting" else _DONE
     with _db(request).unit_of_work() as uow:
         rows = uow.session.execute(
             text(
                 f"""
                 SELECT r.id AS recipient_id, e.id AS envelope_id, e.title, d.name AS document_name,
                        e.department_id, dep.name AS department_name, e.expires_at,
-                       r.sent_at AS turn_at,
+                       r.signed_at AS countersigned_at, e.status = 'completed' AS completed,
                        (SELECT array_agg(s.name ORDER BY s.position) FROM envelope_recipients s
                         WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signers,
                        (SELECT max(s.signed_at) FROM envelope_recipients s
                         WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signed_at
-                {_WAITING}
-                  AND (CAST(:at AS timestamptz) IS NULL OR (r.sent_at, r.id) < (:at, :id))
-                ORDER BY r.sent_at DESC, r.id DESC
+                {where}
+                  AND (CAST(:at AS timestamptz) IS NULL OR {beyond})
+                ORDER BY {order}
                 LIMIT :limit
-                """  # noqa: S608 - the WHERE clause is a constant of this module
+                """  # noqa: S608 - every interpolated part is a constant of this module
             ),
             {
                 "u": actor.user_id,
@@ -112,11 +136,13 @@ def waiting(
                 signers=list(row.signers or []),
                 signed_at=row.signed_at,
                 expires_at=row.expires_at,
+                countersigned_at=row.countersigned_at,
+                completed=row.completed,
             )
             for row in shown
         ],
         next_cursor=base64.urlsafe_b64encode(
-            f"{last.turn_at.isoformat()}|{last.recipient_id}".encode()
+            f"{getattr(last, key).isoformat()}|{last.recipient_id}".encode()
         ).decode()
         if last
         else None,

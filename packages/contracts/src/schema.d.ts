@@ -928,7 +928,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Envelopes waiting for my countersignature, newest turn first */
+        /** My countersigning: what waits for me (soonest expiry first), or what I countersigned */
         get: operations["waiting_api_v1_me_countersign_get"];
         put?: never;
         post?: never;
@@ -3318,6 +3318,10 @@ export interface components {
         };
         /** Waiting */
         Waiting: {
+            /** Completed */
+            completed: boolean;
+            /** Countersigned At */
+            countersigned_at: string | null;
             /**
              * Department Id
              * Format: uuid
@@ -6715,6 +6719,7 @@ export interface operations {
     waiting_api_v1_me_countersign_get: {
         parameters: {
             query?: {
+                state?: "waiting" | "done";
                 cursor?: string | null;
             };
             header?: never;

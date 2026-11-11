@@ -5267,6 +5267,22 @@
       },
       "Waiting": {
         "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "countersigned_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Countersigned At"
+          },
           "department_id": {
             "format": "uuid",
             "title": "Department Id",
@@ -5328,7 +5344,9 @@
           "department_name",
           "signers",
           "signed_at",
-          "expires_at"
+          "expires_at",
+          "countersigned_at",
+          "completed"
         ],
         "title": "Waiting",
         "type": "object"
@@ -10522,6 +10540,20 @@
         "parameters": [
           {
             "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "waiting",
+              "enum": [
+                "waiting",
+                "done"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "cursor",
             "required": false,
             "schema": {
@@ -10595,7 +10627,7 @@
             "description": "Server error (problem details)"
           }
         },
-        "summary": "Envelopes waiting for my countersignature, newest turn first",
+        "summary": "My countersigning: what waits for me (soonest expiry first), or what I countersigned",
         "tags": [
           "signing"
         ]
