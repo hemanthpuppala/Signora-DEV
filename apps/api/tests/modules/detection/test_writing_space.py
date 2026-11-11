@@ -420,3 +420,16 @@ def test_an_anchor_that_is_only_its_blank_is_a_problem_not_an_error(anchor: str)
         result = derive(reading, answer, document, problems=problems, repaired=True)
     assert any("extra field 'Name'" in problem for problem in problems)
     assert any("'Name' dropped" in note for note in result.notes)
+
+
+def test_a_signature_line_under_single_spaced_text_never_grows_over_it() -> None:
+    """Review #4: the row above overlapped the line's box by about 2 pt, more than the 0.5 pt
+    allowed, so it was not an obstacle and the box grew over the sentence above it."""
+    data = _flat(
+        [
+            (72, 290, "In witness whereof the parties have signed this agreement."),
+            (72, 303, "Signature: " + LINE),
+        ]
+    )
+    ((before, after),) = _derive(data, ["signature"]).items()
+    assert after == before  # no room above: it keeps its size, never covers the sentence

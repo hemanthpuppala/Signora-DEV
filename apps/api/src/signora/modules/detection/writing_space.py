@@ -102,7 +102,9 @@ class PageSpace:
         x0, y0, x1, y1 = box
         top = max(y1 - SIGN_HEIGHT, 0.0)
         for other, _ in self._taken.near(top, y0):
-            above = other[3] <= y0 + 0.5
+            # Above when its middle is above the box's top, however much it overlaps it (single
+            # spaced text reaches into a line's box): the box never grows past it.
+            above = center(other)[1] < y0
             if other != box and above and min(other[2], x1) - max(other[0], x0) > 0:
                 top = max(top, other[3] + CLEARANCE)
         return (x0, min(top, y0), x1, y1)
