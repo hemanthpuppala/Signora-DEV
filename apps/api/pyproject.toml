@@ -264,6 +264,7 @@ name = "Public interface only: signing internals are imported only by signing an
 type = "protected"
 protected_modules = [
     "signora.modules.signing.codes",
+    "signora.modules.signing.consent",
     "signora.modules.signing.errors",
     "signora.modules.signing.models",
     "signora.modules.signing.routes",

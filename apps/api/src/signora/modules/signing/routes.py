@@ -110,3 +110,27 @@ def verify(
         opened = service.verify(uow, who, body.code)
     _no_store(response)
     return opened
+
+
+class ConsentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    disclosure_version: str = Field(min_length=1, max_length=40)
+
+
+@router.post(
+    "/{recipient_id}/consent",
+    summary="Agree to use electronic records and signatures (once per person)",
+    responses={
+        403: {"description": "The email code comes first"},
+        409: {"description": "The disclosure changed: read it again"},
+    },
+)
+def consent(
+    recipient_id: uuid.UUID, body: ConsentRequest, request: Request, response: Response
+) -> Opened:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        opened = service.give_consent(uow, who, body.disclosure_version)
+    _no_store(response)
+    return opened

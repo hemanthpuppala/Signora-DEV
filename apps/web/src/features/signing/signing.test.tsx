@@ -22,6 +22,26 @@ function reply(status: number, body: unknown) {
   );
 }
 
+const SIGNER = {
+  recipient_id: RECIPIENT,
+  name: "Maya Chen",
+  email_masked: "m•••@example.com",
+  title: "Mutual NDA · Maya Chen",
+  company: "Hale & Ward LLP",
+  sender_name: "Rosa Hale",
+  sender_email: "rosa@haleward.example",
+  next: "verify",
+  signed_at: null,
+  disclosure: {
+    version: "esign-disclosure-v1",
+    agreement: "I agree to use electronic records and signatures.",
+    paragraphs: [
+      { title: "What this covers", text: "Hale & Ward LLP wants to give you this agreement." },
+      { title: "A paper copy", text: "You may ask for a paper copy at any time by writing to rosa@haleward.example." },
+    ],
+  },
+};
+
 const problem = (status: number, code: string, title: string) => ({
   type: `/problems/${code}`,
   title,
@@ -76,6 +96,30 @@ describe("the signer's page", () => {
     fetchMock.mockReset();
   });
 
+  it("asks for consent with the disclosure, and goes on once the box is ticked", async () => {
+    let consented = false;
+    fetchMock.mockImplementation(async (input) => {
+      const request = input as Request;
+      if (request.method === "POST") {
+        expect(await request.json()).toEqual({ disclosure_version: "esign-disclosure-v1" });
+        consented = true;
+        return reply(200, { recipient_id: RECIPIENT, next: "sign" });
+      }
+      return reply(200, { ...SIGNER, next: consented ? "sign" : "consent" });
+    });
+    show(<SignerPage recipientId={RECIPIENT} />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Before you read.")).toBeTruthy();
+    expect(screen.getByText(/ask for a paper copy at any time/)).toBeTruthy();
+    const proceed = screen.getByRole("button", { name: "Continue" });
+    expect((proceed as HTMLButtonElement).disabled).toBe(true);
+    await user.click(screen.getByLabelText("I agree to use electronic records and signatures."));
+    await user.click(proceed);
+
+    expect(await screen.findByText("Review and sign.")).toBeTruthy();
+  });
+
   it("names the sender and the step", async () => {
     fetchMock.mockImplementation(() =>
       reply(200, {
@@ -86,13 +130,14 @@ describe("the signer's page", () => {
         company: "Hale & Ward LLP",
         sender_name: "Rosa Hale",
         sender_email: "rosa@haleward.example",
-        next: "consent",
+        next: "sign",
         signed_at: null,
+        disclosure: SIGNER.disclosure,
       }),
     );
     show(<SignerPage recipientId={RECIPIENT} />);
 
-    expect(await screen.findByText("Before you read.")).toBeTruthy();
+    expect(await screen.findByText("Review and sign.")).toBeTruthy();
     expect(screen.getByText("Rosa Hale sent you this to review and sign.")).toBeTruthy();
   });
 
@@ -114,17 +159,7 @@ describe("the email code", () => {
     fetchMock.mockReset();
   });
 
-  const state = (next: string) => ({
-    recipient_id: RECIPIENT,
-    name: "Maya Chen",
-    email_masked: "m•••@example.com",
-    title: "Mutual NDA · Maya Chen",
-    company: "Hale & Ward LLP",
-    sender_name: "Rosa Hale",
-    sender_email: "rosa@haleward.example",
-    next,
-    signed_at: null,
-  });
+  const state = (next: string) => ({ ...SIGNER, next });
 
   it("sends a code as the step opens and goes on once the six digits are right", async () => {
     let verified = false;

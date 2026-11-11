@@ -215,6 +215,22 @@
         "title": "Condition",
         "type": "object"
       },
+      "ConsentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "disclosure_version": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Disclosure Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "disclosure_version"
+        ],
+        "title": "ConsentRequest",
+        "type": "object"
+      },
       "CopyIn": {
         "additionalProperties": false,
         "properties": {
@@ -643,6 +659,51 @@
           "email"
         ],
         "title": "DirectoryEntryView",
+        "type": "object"
+      },
+      "Disclosure": {
+        "description": "The consumer disclosure for electronic records, as this person reads it (§3).",
+        "properties": {
+          "agreement": {
+            "title": "Agreement",
+            "type": "string"
+          },
+          "paragraphs": {
+            "items": {
+              "$ref": "#/components/schemas/DisclosureParagraph"
+            },
+            "title": "Paragraphs",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "agreement",
+          "paragraphs"
+        ],
+        "title": "Disclosure",
+        "type": "object"
+      },
+      "DisclosureParagraph": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "text"
+        ],
+        "title": "DisclosureParagraph",
         "type": "object"
       },
       "DisplayRole": {
@@ -3607,6 +3668,9 @@
             "title": "Company",
             "type": "string"
           },
+          "disclosure": {
+            "$ref": "#/components/schemas/Disclosure"
+          },
           "email_masked": {
             "title": "Email Masked",
             "type": "string"
@@ -3664,7 +3728,8 @@
           "sender_name",
           "sender_email",
           "next",
-          "signed_at"
+          "signed_at",
+          "disclosure"
         ],
         "title": "SignerState",
         "type": "object"
@@ -10306,6 +10371,100 @@
           }
         },
         "summary": "Email this person a code, or keep the live one",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/consent": {
+      "post": {
+        "operationId": "consent_api_v1_sign__recipient_id__consent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Opened"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "The email code comes first"
+          },
+          "409": {
+            "description": "The disclosure changed: read it again"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Agree to use electronic records and signatures (once per person)",
         "tags": [
           "signing"
         ]

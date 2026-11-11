@@ -15,6 +15,19 @@ class Opened(BaseModel):
     next: Step
 
 
+class DisclosureParagraph(BaseModel):
+    title: str
+    text: str
+
+
+class Disclosure(BaseModel):
+    """The consumer disclosure for electronic records, as this person reads it (§3)."""
+
+    version: str
+    agreement: str  # the checkbox's words
+    paragraphs: list[DisclosureParagraph]
+
+
 class SignerState(BaseModel):
     recipient_id: uuid.UUID
     name: str
@@ -25,6 +38,7 @@ class SignerState(BaseModel):
     sender_email: str
     next: Step
     signed_at: datetime | None
+    disclosure: Disclosure
 
 
 class CodeSentView(BaseModel):

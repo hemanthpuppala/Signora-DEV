@@ -119,12 +119,14 @@ signing_consents = Table(
     Column("workspace_id", UUID(as_uuid=True), nullable=False),
     Column("disclosure_version", Text, nullable=False),
     Column("consented_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-    Column("ip", INET, nullable=False),
-    Column("user_agent", Text, nullable=False),
+    Column("ip", INET),  # unknown when no valid address reached us
+    Column("user_agent", Text),
     CheckConstraint(
         "char_length(disclosure_version) BETWEEN 1 AND 40", name="disclosure_version_length"
     ),
-    CheckConstraint("char_length(user_agent) <= 512", name="user_agent_length"),
+    CheckConstraint(
+        "user_agent IS NULL OR char_length(user_agent) <= 512", name="user_agent_length"
+    ),
     PrimaryKeyConstraint("recipient_id"),
     _recipient("signing_consents"),
 )

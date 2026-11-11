@@ -13,11 +13,17 @@ from signora.kernel.db import UnitOfWork
 from signora.modules.envelopes import SignerRecipient, recipient_for_signing, record_opened
 from signora.modules.envelopes.links import link_key, read_token
 from signora.modules.identity_access import hash_token
-from signora.modules.signing import codes, sessions
+from signora.modules.signing import codes, consent, sessions
 from signora.modules.signing.domain import mask_email, next_step
-from signora.modules.signing.errors import CodeNotRequired, LinkClosed, SessionEnded
+from signora.modules.signing.errors import (
+    CodeNotRequired,
+    DisclosureChanged,
+    LinkClosed,
+    SessionEnded,
+    VerifyFirst,
+)
 from signora.modules.signing.trail import audit
-from signora.modules.signing.views import Opened, SignerState
+from signora.modules.signing.views import Disclosure, DisclosureParagraph, Opened, SignerState
 
 
 def _idle() -> timedelta:
@@ -28,15 +34,6 @@ def _key() -> bytes:
     return link_key(get_settings().app.secret_key.get_secret_value())
 
 
-def _consented(uow: UnitOfWork, recipient_id: uuid.UUID) -> bool:
-    return bool(
-        uow.session.execute(
-            text("SELECT EXISTS (SELECT 1 FROM signing_consents WHERE recipient_id = :r)"),
-            {"r": recipient_id},
-        ).scalar_one()
-    )
-
-
 def _step(uow: UnitOfWork, recipient: SignerRecipient, verified: bool) -> Opened:
     return Opened(
         recipient_id=recipient.id,
@@ -44,7 +41,7 @@ def _step(uow: UnitOfWork, recipient: SignerRecipient, verified: bool) -> Opened
             signed=recipient.status == "signed",
             needs_code=recipient.require_email_code,
             verified=verified,
-            consented=_consented(uow, recipient.id),
+            consented=consent.has_consented(uow, recipient.id),
         ),
     )
 
@@ -127,6 +124,14 @@ def state(uow: UnitOfWork, who: Signer) -> SignerState:
         sender_email=recipient.sender_email,
         next=_step(uow, recipient, who.verified).next,
         signed_at=recipient.signed_at,
+        disclosure=Disclosure(
+            version=consent.VERSION,
+            agreement=consent.AGREEMENT,
+            paragraphs=[
+                DisclosureParagraph(title=p.title, text=p.text)
+                for p in consent.disclosure(recipient.company, recipient.sender_email)
+            ],
+        ),
     )
 
 
@@ -156,3 +161,15 @@ def verify(uow: UnitOfWork, who: Signer, code: str) -> Opened:
     )
     audit(uow, recipient, "signing.verified")
     return _step(uow, recipient, verified=True)
+
+
+def give_consent(uow: UnitOfWork, who: Signer, version: str) -> Opened:
+    """Consent to electronic records, once per person (§3). Repeat-safe."""
+    recipient = who.recipient
+    if recipient.require_email_code and not who.verified:
+        raise VerifyFirst
+    if version != consent.VERSION:
+        raise DisclosureChanged
+    if consent.record_consent(uow, recipient):
+        audit(uow, recipient, "signing.consented")
+    return _step(uow, recipient, who.verified)

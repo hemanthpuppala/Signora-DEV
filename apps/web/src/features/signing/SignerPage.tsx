@@ -3,6 +3,7 @@
 import { AuthPanel, BodyText } from "@/shared/ui";
 
 import { useSigner, type SignerState } from "./api";
+import { ConsentStep } from "./ConsentStep";
 import { SignerProblem } from "./SignerNotices";
 import { VerifyStep } from "./VerifyStep";
 
@@ -26,6 +27,7 @@ export function SignerPage({ recipientId }: { recipientId: string }) {
   }
   const state = signer.data;
   if (state.next === "verify") return <VerifyStep state={state} />;
+  if (state.next === "consent") return <ConsentStep state={state} />;
   return (
     <AuthPanel eyebrow={`${state.company} · ${state.title}`} heading={HEADINGS[state.next]}>
       <BodyText>

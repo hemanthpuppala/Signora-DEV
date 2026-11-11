@@ -41,3 +41,11 @@ export const verifyCode = (recipientId: string, code: string) =>
       body: { code },
     }),
   );
+
+export const giveConsent = (recipientId: string, version: string) =>
+  unwrap(
+    api.POST("/api/v1/sign/{recipient_id}/consent", {
+      params: { path: { recipient_id: recipientId } },
+      body: { disclosure_version: version },
+    }),
+  );

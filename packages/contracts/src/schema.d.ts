@@ -1041,6 +1041,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign/{recipient_id}/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Agree to use electronic records and signatures (once per person) */
+        post: operations["consent_api_v1_sign__recipient_id__consent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sign/{recipient_id}/verify": {
         parameters: {
             query?: never;
@@ -1174,6 +1191,11 @@ export interface components {
             field_id: string;
             /** Option */
             option: string;
+        };
+        /** ConsentRequest */
+        ConsentRequest: {
+            /** Disclosure Version */
+            disclosure_version: string;
         };
         /** CopyIn */
         CopyIn: {
@@ -1376,6 +1398,25 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /**
+         * Disclosure
+         * @description The consumer disclosure for electronic records, as this person reads it (§3).
+         */
+        Disclosure: {
+            /** Agreement */
+            agreement: string;
+            /** Paragraphs */
+            paragraphs: components["schemas"]["DisclosureParagraph"][];
+            /** Version */
+            version: string;
+        };
+        /** DisclosureParagraph */
+        DisclosureParagraph: {
+            /** Text */
+            text: string;
+            /** Title */
+            title: string;
         };
         /**
          * DisplayRole
@@ -2427,6 +2468,7 @@ export interface components {
         SignerState: {
             /** Company */
             company: string;
+            disclosure: components["schemas"]["Disclosure"];
             /** Email Masked */
             email_masked: string;
             /** Name */
@@ -6598,6 +6640,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    consent_api_v1_sign__recipient_id__consent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Opened"];
+                };
+            };
+            /** @description The email code comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The disclosure changed: read it again */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
             };
             /** @description Client error (problem details) */
             "4XX": {

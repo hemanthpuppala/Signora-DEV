@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from signora.kernel.errors import Conflict, DomainError, NotFound, RetryAfter, Unauthenticated
+from signora.kernel.errors import (
+    Conflict,
+    DomainError,
+    NotFound,
+    PermissionDenied,
+    RetryAfter,
+    Unauthenticated,
+)
 
 
 class LinkClosed(NotFound):
@@ -40,3 +47,13 @@ class CodeEnded(DomainError):
 class CodeNotRequired(Conflict):
     code = "code-not-required"
     title = "This envelope does not ask for an email code"
+
+
+class VerifyFirst(PermissionDenied):
+    code = "verify-first"
+    title = "Enter the code from your email first"
+
+
+class DisclosureChanged(Conflict):
+    code = "disclosure-changed"
+    title = "The terms for electronic records changed. Read them again to continue"

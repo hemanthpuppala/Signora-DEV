@@ -207,14 +207,15 @@ def upgrade() -> None:
         sa.Column("workspace_id", UUID, nullable=False),
         sa.Column("disclosure_version", sa.Text(), nullable=False),
         sa.Column("consented_at", TS, server_default=sa.func.now(), nullable=False),
-        sa.Column("ip", pg.INET(), nullable=False),
-        sa.Column("user_agent", sa.Text(), nullable=False),
+        sa.Column("ip", pg.INET(), nullable=True),  # unknown when no valid address reached us
+        sa.Column("user_agent", sa.Text(), nullable=True),
         sa.CheckConstraint(
             "char_length(disclosure_version) BETWEEN 1 AND 40",
             name=op.f("ck_signing_consents_disclosure_version_length"),
         ),
         sa.CheckConstraint(
-            "char_length(user_agent) <= 512", name=op.f("ck_signing_consents_user_agent_length")
+            "user_agent IS NULL OR char_length(user_agent) <= 512",
+            name=op.f("ck_signing_consents_user_agent_length"),
         ),
         sa.PrimaryKeyConstraint("recipient_id", name=op.f("pk_signing_consents")),
         _recipient("signing_consents"),
