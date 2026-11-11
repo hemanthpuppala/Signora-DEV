@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
 from signora.modules.detection.schema import ALLOWED
+from signora.modules.detection.writing_space import GROWS, PageSpace
 from signora.modules.review.formats import format_for
 from signora.modules.review.keys import name_words, unique
 from signora.modules.review.values import LABEL_MAX, OWN, PARTY_VALUES, SENSITIVE, SHARED
@@ -387,6 +388,8 @@ def derive(
             format=extra.get("format"),
         )
 
+    _room_to_sign(items, reading, document)
+
     # Checkbox groups: one choice, its options the checkboxes (§4.3). Each group is its own
     # choice, by number: two groups may well share a label ("Yes or no" asked twice).
     for number, group in enumerate(answer["checkbox_groups"]):
@@ -447,6 +450,39 @@ def derive(
         ),
         notes=notes,
     )
+
+
+def _room_to_sign(items: dict[str, _Item], reading: Reading, document: pymupdf.Document) -> None:
+    """A signature or initials on a blank line takes the writing space above the line (findings
+    F2); a form field's box stays as its author drew it. The space is measured against the
+    original places of every field, so one grown box never limits another. O(P + W) for the
+    pages that hold such a line: P places, W words."""
+    signing = [
+        (item, index)
+        for item in items.values()
+        if item.holds in GROWS
+        for index, place in enumerate(item.placements)
+        if place.kind == "blank"
+    ]
+    if not signing:
+        return
+    places: dict[int, list[Box]] = {}
+    for found in reading.fields:
+        for placement in found.placements:
+            places.setdefault(placement.page, []).append(placement.rect)
+    for item in items.values():
+        if not item.ids:  # an extra field: its place is not in the reading
+            for place in item.placements:
+                places.setdefault(place.page, []).append(place.rect)
+    spaces: dict[int, PageSpace] = {}
+    for item, index in signing:
+        place = item.placements[index]
+        if place.page not in spaces:
+            page = document.load_page(place.page - 1)
+            spaces[place.page] = PageSpace(page, places.get(place.page, []))
+        item.placements[index] = place.model_copy(
+            update={"rect": spaces[place.page].room_above(place.rect)}
+        )
 
 
 def _owner(item: _Item) -> tuple[str, str | None]:

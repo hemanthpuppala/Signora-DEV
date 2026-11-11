@@ -151,16 +151,34 @@ says it holds `signature` or `initials`. `SignatureMark` scales a mark to its bo
 at 0.7 × height (≈ 9 pt, smaller than the 11 pt body text) and a drawn one is squeezed into a 13 pt strip, though the
 page leaves 30–40 pt of free space above each signature line.
 
-**Proposed fix:** in `derive`, where `holds` is first known: for a `blank` placement holding `signature` or
-`initials`, grow the box upward into the free space above the line, up to the nearest text or another field, capped
-at about 36 pt, keeping the line as its bottom edge so the mark sits on the line. Fillable signature boxes are left
-as their author drew them.
+**Fix (built):** `detection/writing_space.py`, applied in `derive` where `holds` is first known. A `blank` place
+holding `signature` or `initials` grows upward into the free space above its line, keeping the line as its bottom
+edge so the mark sits on it, as a pen signature does:
 
-**Test cases:**
-- Unit: a signature line with 40 pt free above becomes 36 pt tall, bottom unchanged; with a heading 20 pt above it
-  stops below the heading; a `full_name` blank on the same layout keeps its height; a form-field signature box is
-  unchanged.
-- Corpus: D1, D2 signature boxes ≥ 24 pt tall, bottom edge equal to the read stage's.
+- **Height**: up to 36 pt (`SIGN_HEIGHT`). Automatic field detection in e-signature tools places a signature field on
+  the line it finds, and default signature fields are drawn about 28–50 pt tall; 36 pt sits in that range and is about
+  three lines of 11 pt text.
+- **Never over anything**: it stops 2 pt (`CLEARANCE`) below the nearest visible word or other field above it that
+  overlaps it horizontally. Words made only of spaces, zero-width characters or soft hyphens draw nothing and do not
+  stop it. Space is measured against every field's original place, so one grown box never limits another.
+- **A form field's box is never changed**, whatever its height: signing fills that form field, and its author drew
+  it (it is `signature`, `text` or another kind, not `blank`).
+- **Only on a page whose text reads upright as shown.** "Above the line" follows the text, not the page: on a page
+  whose text is shown sideways (`/Rotate` turning upright text), the box is kept as read rather than guessed.
+- **Cost**: per page holding such a line, one pass over its words and places into a `RowIndex`, then each line looks
+  only at the rows above it: O(W + P) per page, O(k) per line.
+
+**Tests (`tests/modules/detection/test_writing_space.py`, 7):** a line with free space above grows to 36 pt and keeps
+its bottom; a heading above stops it 2 pt below; a signature line above stops it at that line; initials grow and a
+printed name keeps its size; a form field's short signature box is unchanged; a page whose text is shown sideways keeps
+the box; spaces and invisible characters leave the space free. The four growth tests fail without the change.
+
+**On the real documents** (re-derived from their saved answers, no new AI call): D1's two signatures 12.3 → 25.0 pt
+(stopped below "DISCLOSING PARTY" and "RECEIVING PARTY"), D2's two 13.4 → 36.0 pt; bottoms unchanged, every other
+field identical.
+
+**Not changed:** the boxes a person draws or resizes in review keep their size; a version detected before this change
+keeps its boxes until its fields are found again (Find fields again, §1.3, while not approved).
 
 ### F3 — Labels above signature and name lines are out of reach (medium)
 
@@ -324,7 +342,7 @@ merged only when F9's marks are met (task 13).
 | 3 | F5: left labels end at the neighbouring field; caption above wins | todo | — |
 | 4 | F3: label above for lone lines reaches the heading | todo | — |
 | 5 | F1: drawn lines and thin bars as blanks | todo | — |
-| 6 | F2: signature and initials boxes grow into the space above the line | todo | — |
+| 6 | F2: signature and initials boxes grow into the space above the line | done | `detection/writing_space.py`; 7 tests in `test_writing_space.py` (4 fail without it); D1 and D2 re-derived (F2 above) |
 | 7 | F4: field issues reach `needs_review` | todo | — |
 | 8 | F6: `name_dropped` shown | todo | — |
 | 9 | F7: addressed-to-AI search covers every untrusted string | todo | — |
