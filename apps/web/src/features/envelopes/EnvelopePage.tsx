@@ -161,6 +161,7 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
   const drawn = useEnvelopeDocument(envelopeId);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [shownLink, setShownLink] = useState<{ name: string; url: string } | null>(null); // the clipboard refused it
 
   const refresh = (updated?: Envelope) => {
     if (updated) queryClient.setQueryData(envelopeKey(envelopeId), updated);
@@ -210,19 +211,34 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
       refresh(updated);
     },
   });
+  /**
+   * Copy a person's signing link. The link is asked for once (the server records that it was
+   * given) and written to the clipboard inside the click: as a promise where the browser takes
+   * one, since a browser may refuse a write that only begins after the request has answered. If
+   * the clipboard cannot be written at all, the link is shown to be copied by hand: it is never
+   * asked for again, and never lost.
+   */
   const copy = async (recipient: Recipient) => {
+    let url: string | null = null;
+    const link = unwrap(
+      api.GET("/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/link", {
+        params: { path: { ...path, recipient_id: recipient.id } },
+      }),
+    ).then((answer) => (url = answer.url));
     try {
-      const link = await unwrap(
-        api.GET("/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/link", {
-          params: { path: { ...path, recipient_id: recipient.id } },
-        }),
-      );
-      await navigator.clipboard.writeText(link.url);
+      if (typeof ClipboardItem !== "undefined" && typeof navigator.clipboard?.write === "function") {
+        const text = link.then((value) => new Blob([value], { type: "text/plain" }));
+        await navigator.clipboard.write([new ClipboardItem({ "text/plain": text })]);
+      } else {
+        await navigator.clipboard.writeText(await link);
+      }
       toast.show(`${recipient.name}'s link copied`);
-      refresh();
     } catch (error) {
-      toast.show(error instanceof ApiError ? formError(error) ?? "Couldn't copy the link" : "Couldn't copy the link");
+      if (error instanceof ApiError) toast.show(formError(error) ?? "Couldn't get the link");
+      else if (url !== null) setShownLink({ name: recipient.name, url });
+      else toast.show("Couldn't get the link");
     }
+    if (url !== null) refresh(); // the timeline has the link's entry
   };
 
   if (envelope.isError) {
@@ -405,6 +421,20 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
         </DetailsPane>
       </ViewerLayout>
 
+      {shownLink ? (
+        <Dialog
+          title={`${shownLink.name}'s signing link`}
+          onClose={() => setShownLink(null)}
+          actions={<Button onClick={() => setShownLink(null)}>Done</Button>}
+        >
+          <TextField
+            label="Your browser didn't allow copying. Select the link and copy it."
+            readOnly
+            value={shownLink.url}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+        </Dialog>
+      ) : null}
       {confirmCancel ? (
         <Dialog
           title="Cancel this envelope?"

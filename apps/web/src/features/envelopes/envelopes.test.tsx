@@ -237,6 +237,21 @@ describe("envelopes", () => {
     await waitFor(() => expect(sentTo("/recipients/r-maya").at(-1)?.body).toEqual({ email: "rosa@firm.example", confirm_same_person: true }));
   });
 
+  it("shows the link to copy by hand when the clipboard refuses it, asking for it once", async () => {
+    // The clipboard was written after the request, which a browser may refuse; the timeline then
+    // said the link was copied when it was not, and each retry added another entry.
+    wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new DOMException("not allowed", "NotAllowedError"));
+    const rows = within(await screen.findByRole("list", { name: "Signers" })).getAllByRole("listitem");
+    await user.click(within(rows[0] as HTMLElement).getByRole("button", { name: "Copy link" }));
+
+    const shown = await screen.findByRole("dialog", { name: "Maya Chen's signing link" });
+    expect(within(shown).getByRole<HTMLInputElement>("textbox").value).toBe("https://signora.example/s/abc");
+    expect(screen.queryByText("Maya Chen's link copied")).toBeNull();
+    expect(calls.filter((call) => call.path.endsWith("/link"))).toHaveLength(1); // not asked for again
+  });
+
   it("says when the document can't be shown, and offers to ask again, instead of a blank pane", async () => {
     documentFails = true;
     wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
