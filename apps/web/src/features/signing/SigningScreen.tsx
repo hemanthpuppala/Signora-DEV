@@ -35,6 +35,7 @@ import {
 } from "./api";
 import { allValues, firstPlace, guided, guideStep, ownValue, pointerLabel, remaining, SIGNING_DATE, SIGNS } from "./guide";
 import styles from "./signing.module.css";
+import { DeclineDialog, Declined } from "./Decline";
 import { SignatureDialog } from "./SignatureDialog";
 import { SignerProblem } from "./SignerNotices";
 
@@ -97,6 +98,8 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
   const [target, setTarget] = useState<Element | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [later, setLater] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [declined, setDeclined] = useState(false);
   const [atConfirm, setAtConfirm] = useState(false); // the guide points at the Submit block's box
   const queryClient = useQueryClient();
   const signature = useSignature(id);
@@ -250,6 +253,7 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
         ? "Tick the box to confirm"
         : null;
 
+  if (declined) return <Declined company={state.company} />;
   if (later) {
     return (
       <main className={styles.later}>
@@ -282,6 +286,7 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
         )}
         {marks.signature ? <TextButton onClick={() => setAdopting({ kind: "signature", then: null })}>Change signature</TextButton> : null}
         <TextButton onClick={() => setLater(true)}>Finish later</TextButton>
+        <TextButton onClick={() => setDeclining(true)}>Decline</TextButton>
       </header>
 
       <PdfViewer
@@ -332,6 +337,10 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
       </section>
 
       {pointerOn && target ? <GuidePointer target={target} label={pointerOn} /> : null}
+
+      {declining ? (
+        <DeclineDialog recipientId={id} company={state.company} onDeclined={() => setDeclined(true)} onClose={() => setDeclining(false)} />
+      ) : null}
 
       {adopting ? (
         <SignatureDialog

@@ -40,6 +40,8 @@ class RecipientView(BaseModel):
     opened_at: datetime | None
     viewed_at: datetime | None
     signed_at: datetime | None
+    declined_at: datetime | None  # a decline is final (Phase 8 §8)
+    decline_reason: str | None
     delivery: Delivery | None
 
 

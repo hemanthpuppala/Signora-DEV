@@ -11,9 +11,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import Database
+from signora.kernel.errors import FieldError, ValidationFailed
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
-from signora.modules.signing import drafts, service, signatures, submit
+from signora.modules.signing import decline, drafts, service, signatures, submit
 from signora.modules.signing.document import SignerDocument
+from signora.modules.signing.errors import VerifyFirst
 from signora.modules.signing.sessions import COOKIE
 from signora.modules.signing.views import CodeSentView, Opened, SignerState
 from signora.modules.typesetting import FontView
@@ -310,3 +312,38 @@ def sign_and_submit(
         service.require_ready(uow, who)
         done = submit.submit(uow, who)
         return guard.finish(uow, status.HTTP_200_OK, done.model_dump(mode="json"))
+
+
+class DeclineRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class DeclinedView(BaseModel):
+    declined: bool = True
+
+
+@router.post(
+    "/{recipient_id}/decline",
+    response_model=DeclinedView,
+    summary="Decline to sign, with a reason: final, for everyone (Idempotency-Key)",
+    responses={**_DOCUMENT, 409: {"description": "Already signed, or not this person's turn"}},
+)
+def decline_to_sign(
+    recipient_id: uuid.UUID,
+    body: DeclineRequest,
+    request: Request,
+    guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
+) -> JSONResponse:
+    reason = body.reason.strip()
+    if not reason:
+        raise ValidationFailed([FieldError("reason", "Tell them why")])
+    with _db(request).unit_of_work() as uow:
+        if (replay := guard.begin(uow)) is not None:
+            return replay
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        if who.recipient.require_email_code and not who.verified:
+            raise VerifyFirst
+        decline.decline(uow, who, reason)
+        return guard.finish(uow, status.HTTP_200_OK, DeclinedView().model_dump(mode="json"))

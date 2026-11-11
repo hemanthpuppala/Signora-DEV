@@ -132,3 +132,12 @@ export const submitSigning = (recipientId: string, key: string) =>
       headers: { "Idempotency-Key": key },
     }),
   );
+
+export const declineSigning = (recipientId: string, reason: string, key: string) =>
+  unwrap(
+    api.POST("/api/v1/sign/{recipient_id}/decline", {
+      params: { path: { recipient_id: recipientId } },
+      body: { reason },
+      headers: { "Idempotency-Key": key },
+    }),
+  );

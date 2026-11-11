@@ -199,3 +199,40 @@ describe("signing a place", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("declining", () => {
+  it("asks first, asks why, and then says nothing more is needed", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        const request = input as Request;
+        const path = new URL(request.url).pathname;
+        if (path.endsWith("/document")) return reply(200, DOCUMENT);
+        if (path.endsWith("/signature")) return reply(200, { adopted: [], fonts: [] });
+        if (path.endsWith("/decline")) {
+          sent.push(await request.json());
+          return reply(200, { declined: true });
+        }
+        return reply(204, null);
+      }),
+    );
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SigningScreen state={STATE} />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Decline" }));
+    expect(screen.getByText("Declining stops this request for everyone. Hale & Ward LLP will see your reason.")).toBeTruthy();
+    const confirm = screen.getByRole("button", { name: "Decline to sign" }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true); // a reason first
+    await user.type(screen.getByLabelText("Reason"), "The fee is wrong");
+    await user.click(confirm);
+
+    expect(await screen.findByText("You declined to sign.")).toBeTruthy();
+    expect(sent).toEqual([{ reason: "The fee is wrong" }]);
+    vi.unstubAllGlobals();
+  });
+});

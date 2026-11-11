@@ -265,8 +265,10 @@ type = "protected"
 protected_modules = [
     "signora.modules.signing.codes",
     "signora.modules.signing.consent",
+    "signora.modules.signing.decline",
     "signora.modules.signing.document",
     "signora.modules.signing.drafts",
+    "signora.modules.signing.emails",
     "signora.modules.signing.errors",
     "signora.modules.signing.models",
     "signora.modules.signing.routes",

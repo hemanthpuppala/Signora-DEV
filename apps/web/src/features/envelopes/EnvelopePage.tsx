@@ -47,6 +47,7 @@ import {
   type EnvelopeDocument,
 } from "./api";
 import { day } from "./EnvelopesList";
+import type { SendDraft } from "./SendModal";
 import styles from "./envelopes.module.css";
 import { namePart } from "@/shared/document/typeset";
 import { ValuesOverlay, type Shown } from "@/shared/document/ValuesOverlay";
@@ -153,7 +154,43 @@ function times(recipient: Recipient, envelope: Envelope): string {
  * email, an email that was not delivered with its reason, the document as sent with its values, and
  * what happened.
  */
-export function EnvelopePage({ departmentId, envelopeId }: { departmentId: string; envelopeId: string }) {
+/** A send again of a declined envelope (Phase 8 §8.1.4): the same, every part correctable. */
+export function draftFrom(envelope: Envelope): SendDraft {
+  const declined = envelope.recipients.find((r) => r.status === "declined");
+  const days = Math.max(1, Math.round((Date.parse(envelope.expires_at) - Date.parse(envelope.sent_at)) / 86_400_000));
+  return {
+    documentId: envelope.document_id,
+    versionId: envelope.version_id,
+    title: envelope.title,
+    values: Object.fromEntries(envelope.values.filter((v) => v.given_by === "sender").map((v) => [v.field_id, v.value])),
+    signers: Object.fromEntries(
+      envelope.recipients.filter((r) => r.kind === "signer" && r.party_id).map((r) => [r.party_id as string, { name: r.name, email: r.email }]),
+    ),
+    countersigners: Object.fromEntries(
+      envelope.recipients.filter((r) => r.kind === "countersigner" && r.party_id).map((r) => [r.party_id as string, r.email]),
+    ),
+    copies: envelope.recipients.filter((r) => r.kind === "copy").map((r) => ({ name: r.name, email: r.email })),
+    settings: {
+      require_email_code: envelope.require_email_code,
+      reminder_interval_hours: envelope.reminder_interval_hours,
+      max_reminders: envelope.max_reminders,
+      expiry_days: days,
+      notify_emails: envelope.notify_emails,
+    },
+    note: declined?.decline_reason ? `${declined.name} declined: “${declined.decline_reason}”` : "The earlier send ended.",
+  };
+}
+
+export function EnvelopePage({
+  departmentId,
+  envelopeId,
+  onSendAgain,
+}: {
+  departmentId: string;
+  envelopeId: string;
+  /** Offered on a declined envelope: the route opens the send with this draft. */
+  onSendAgain?: (draft: SendDraft) => void;
+}) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const envelope = useEnvelope(envelopeId);
@@ -263,6 +300,20 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
         </MetaLine>
       </HeadRow>
       {remind.error ? <Notice tone="warning">{formError(remind.error)}</Notice> : null}
+      {data.status === "declined"
+        ? (() => {
+            const who = data.recipients.find((r) => r.status === "declined");
+            return (
+              <Notice
+                tone="warning"
+                title={who ? `${who.name} declined${who.declined_at ? ` ${day(who.declined_at)}` : ""}` : "Declined"}
+                action={onSendAgain ? <Button compact onClick={() => onSendAgain(draftFrom(data))}>Send again</Button> : undefined}
+              >
+                {who?.decline_reason ? `“${who.decline_reason}”` : "This request is closed for everyone on it."}
+              </Notice>
+            );
+          })()
+        : null}
       {failed.length > 0 ? (
         <Notice tone="warning" title={failed.length === 1 ? "An email was not delivered" : "Emails were not delivered"}>
           {failed.map((r) => `${r.name} (${r.email}): ${r.delivery?.error ?? "not delivered"}`).join(" · ")}

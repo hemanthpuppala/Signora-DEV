@@ -13,12 +13,14 @@ from signora.modules.envelopes.form import (
     form_fields_of,
 )
 from signora.modules.envelopes.recipients import (
+    Declined,
     GivenValue,
     SignerRecipient,
     envelope_values,
     every_signer_signed,
     lock_envelope,
     recipient_for_signing,
+    record_declined,
     record_opened,
     record_signed,
     record_viewed,
@@ -31,6 +33,7 @@ from signora.modules.envelopes.store import count_sends
 
 __all__ = [
     "Condition",
+    "Declined",
     "FormField",
     "GivenValue",
     "Option",
@@ -47,6 +50,7 @@ __all__ = [
     "moment_in_words",
     "name_part",
     "recipient_for_signing",
+    "record_declined",
     "record_opened",
     "record_signed",
     "record_viewed",

@@ -1092,6 +1092,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign/{recipient_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline to sign, with a reason: final, for everyone (Idempotency-Key) */
+        post: operations["decline_to_sign_api_v1_sign__recipient_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sign/{recipient_id}/document": {
         parameters: {
             query?: never;
@@ -1450,6 +1467,19 @@ export interface components {
              * Format: uuid
              */
             upload_id: string;
+        };
+        /** DeclineRequest */
+        DeclineRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** DeclinedView */
+        DeclinedView: {
+            /**
+             * Declined
+             * @default true
+             */
+            declined: boolean;
         };
         /**
          * Delivery
@@ -2442,6 +2472,10 @@ export interface components {
         };
         /** RecipientView */
         RecipientView: {
+            /** Decline Reason */
+            decline_reason: string | null;
+            /** Declined At */
+            declined_at: string | null;
             delivery: components["schemas"]["Delivery"] | null;
             /** Email */
             email: string;
@@ -7121,6 +7155,90 @@ export interface operations {
                 content?: never;
             };
             /** @description The disclosure changed: read it again */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    decline_to_sign_api_v1_sign__recipient_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclinedView"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already signed, or not this person's turn */
             409: {
                 headers: {
                     [name: string]: unknown;

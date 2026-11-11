@@ -190,12 +190,15 @@ def read_envelope(
             opened_at=row.opened_at,
             viewed_at=row.viewed_at,
             signed_at=row.signed_at,
+            declined_at=row.declined_at,
+            decline_reason=row.decline_reason,
             delivery=Delivery(status=row.delivery, error=row.last_error) if row.delivery else None,
         )
         for row in session.execute(
             text(
                 "SELECT r.id, r.kind, r.party_id, p.label AS party_label, r.name, r.email, "
-                "r.status, r.sent_at, r.opened_at, r.viewed_at, r.signed_at, m.status AS "
+                "r.status, r.sent_at, r.opened_at, r.viewed_at, r.signed_at, r.declined_at, "
+                "r.decline_reason, m.status AS "
                 "delivery, m.last_error FROM envelope_recipients r "
                 "LEFT JOIN version_roles p ON p.id = r.party_id "
                 "LEFT JOIN email_messages m ON m.id = r.last_email_id "

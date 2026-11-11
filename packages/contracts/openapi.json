@@ -461,6 +461,33 @@
         "title": "CreateDocument",
         "type": "object"
       },
+      "DeclineRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DeclineRequest",
+        "type": "object"
+      },
+      "DeclinedView": {
+        "properties": {
+          "declined": {
+            "default": true,
+            "title": "Declined",
+            "type": "boolean"
+          }
+        },
+        "title": "DeclinedView",
+        "type": "object"
+      },
       "Delivery": {
         "description": "Their last email: queued, sent, or failed (with why).",
         "properties": {
@@ -3149,6 +3176,29 @@
       },
       "RecipientView": {
         "properties": {
+          "decline_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decline Reason"
+          },
+          "declined_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declined At"
+          },
           "delivery": {
             "anyOf": [
               {
@@ -3277,6 +3327,8 @@
           "opened_at",
           "viewed_at",
           "signed_at",
+          "declined_at",
+          "decline_reason",
           "delivery"
         ],
         "title": "RecipientView",
@@ -11133,6 +11185,106 @@
           }
         },
         "summary": "Agree to use electronic records and signatures (once per person)",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/decline": {
+      "post": {
+        "operationId": "decline_to_sign_api_v1_sign__recipient_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclinedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "403": {
+            "description": "The code or consent comes first"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "409": {
+            "description": "Already signed, or not this person's turn"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Decline to sign, with a reason: final, for everyone (Idempotency-Key)",
         "tags": [
           "signing"
         ]

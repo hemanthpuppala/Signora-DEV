@@ -215,3 +215,57 @@ def every_signer_signed(session: Session, envelope_id: uuid.UUID) -> list[uuid.U
         {"e": envelope_id},
     )
     return [row.id for row in rows]
+
+
+@dataclass(frozen=True)
+class Person:
+    name: str
+    email: str
+
+
+@dataclass(frozen=True)
+class Declined:
+    """Who is told of a decline (Phase 8 §8.2): the sender and the Also notify list with the
+    reason; every other person already emailed without it."""
+
+    department_id: uuid.UUID
+    sender: Person
+    notify: list[str]
+    others: list[Person]
+
+
+def record_declined(session: Session, recipient: SignerRecipient, reason: str) -> Declined | None:
+    """The person declines, and with them the envelope (final). ``None`` when they had already
+    signed or declined (a guarded update): a repeat changes nothing."""
+    done = session.execute(
+        text(
+            "UPDATE envelope_recipients SET status = 'declined', declined_at = now(), "
+            "decline_reason = :why WHERE id = :r AND status NOT IN ('signed', 'declined') "
+            "RETURNING id"
+        ),
+        {"r": recipient.id, "why": reason},
+    ).one_or_none()
+    if done is None:
+        return None
+    envelope = session.execute(
+        text(
+            "UPDATE envelopes e SET status = 'declined' FROM users u "
+            "WHERE e.id = :e AND u.id = e.sent_by "
+            "RETURNING e.department_id, e.notify_emails, u.name, u.email"
+        ),
+        {"e": recipient.envelope_id},
+    ).one()
+    others = session.execute(
+        text(
+            "SELECT name, email FROM envelope_recipients WHERE envelope_id = :e AND id <> :r "
+            "AND kind IN ('signer', 'countersigner') AND status <> 'waiting' "
+            "ORDER BY stage, position"
+        ),
+        {"e": recipient.envelope_id, "r": recipient.id},
+    )
+    return Declined(
+        department_id=envelope.department_id,
+        sender=Person(envelope.name, envelope.email),
+        notify=list(envelope.notify_emails),
+        others=[Person(row.name, row.email) for row in others],
+    )
