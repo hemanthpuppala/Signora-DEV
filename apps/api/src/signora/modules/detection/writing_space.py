@@ -64,7 +64,8 @@ class PageSpace:
         words = [displayed(page, word[:4]) for word in page.get_text("words") if visible(word[4])]
         fields = list(places)
         self._taken: RowIndex[None] = RowIndex((box, None) for box in [*words, *fields])
-        self._fields: RowIndex[None] = RowIndex((box, None) for box in fields)
+        self._fields: RowIndex[None] = RowIndex((box, None) for box in fields)  # the PDF's
+        self._extras: RowIndex[None] = RowIndex(())  # places given to extra fields since
         self._upright = _reads_upright(page)
         # The text's right edge: a box after a label runs to it at most, never into the margin.
         # The furthest word, or the left margin mirrored when the page's text is short (a form of
@@ -76,15 +77,23 @@ class PageSpace:
     def take(self, box: Box) -> None:
         """A place now given to a field: nothing placed later may overlap it."""
         self._taken.add(box, None)
-        self._fields.add(box, None)
+        self._extras.add(box, None)
 
     def field_after(self, label: Box) -> bool:
-        """Whether a field already sits right after a label on its row (where its blank would
-        begin): the blank is that field, not a new one."""
+        """Whether one of the page's fields sits right after a label on its row (where its
+        blank would begin): the blank is that field, not a new one."""
+        return self._right_after(label, self._fields)
+
+    def extra_after(self, label: Box) -> bool:
+        """Whether an extra field already placed sits right after a label: the same blank."""
+        return self._right_after(label, self._extras)
+
+    @staticmethod
+    def _right_after(label: Box, boxes: RowIndex[None]) -> bool:
         start = label[2] + LABEL_GAP
         return any(
             same_row(other, label) and other[2] > start and other[0] <= start + MIN_WIDTH
-            for other, _ in self._fields.near(label[1], label[3])
+            for other, _ in boxes.near(label[1], label[3])
         )
 
     def find(self, words: str) -> list[Box]:
@@ -187,14 +196,21 @@ class DocumentSpace:
         return next((room for hit in hits if (room := space.room_after(hit))), None)
 
     def field_after(self, number: int, words: str, near: Sequence[Box]) -> bool:
-        """Whether a field already sits after the party's printing of the words (the one
-        ``locate_after`` would choose; with no ``near``, any printing)."""
+        """Whether one of the page's fields sits after the party's printing of the words (the
+        one ``locate_after`` would choose; with no ``near``, any printing)."""
+        return any(page.field_after(hit) for page, hit in self._chosen(number, words, near))
+
+    def extra_after(self, number: int, words: str, near: Sequence[Box]) -> bool:
+        """Whether an extra field already placed sits after that printing: the same blank."""
+        return any(page.extra_after(hit) for page, hit in self._chosen(number, words, near))
+
+    def _chosen(self, number: int, words: str, near: Sequence[Box]) -> list[tuple[PageSpace, Box]]:
         space = self.page(number)
         if space is None:
-            return False
+            return []
         hits = space.find(words)
         chosen = [self._nearest(hits, near)] if near else hits
-        return any(hit is not None and space.field_after(hit) for hit in chosen)
+        return [(space, hit) for hit in chosen if hit is not None]
 
     @staticmethod
     def _nearest(hits: Sequence[Box], near: Sequence[Box]) -> Box | None:

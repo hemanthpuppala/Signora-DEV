@@ -433,3 +433,27 @@ def test_a_signature_line_under_single_spaced_text_never_grows_over_it() -> None
     )
     ((before, after),) = _derive(data, ["signature"]).items()
     assert after == before  # no room above: it keeps its size, never covers the sentence
+
+
+def test_a_second_extra_field_on_the_same_blank_is_a_problem_named_as_such() -> None:
+    """Review #7: the check passed it, then derive dropped it blaming a form field that does not
+    exist. Listing the same blank twice is the AI's to fix: the repair round says so."""
+    data = _flat([(72, 100, PARAGRAPH), (72, 300, "Name:")])
+    reading = read_document(data)
+    extra = {"page": 1, "anchor_text": "Name:", "holds": "full_name", "format": None}
+    answer: dict[str, Any] = {
+        "roles": [{"slug": "party_1", "kind": "signer"}],
+        "fields": [],
+        "checkbox_groups": [],
+        "extra_fields": [
+            {**extra, "filled_by": "party_1", "label": "First", "must_fill": True},
+            {**extra, "filled_by": "party_1", "label": "Second", "must_fill": True},
+        ],
+        "document": None,
+    }
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        problems = check(answer, reading, document)
+        result = derive(reading, answer, document, problems=problems, repaired=True)
+    assert problems == ["extra field 'Second': the same blank as another extra field: list it once"]
+    assert [field.label for field in result.fields] == ["First"]
+    assert any("'Second' dropped: the same blank as another" in note for note in result.notes)

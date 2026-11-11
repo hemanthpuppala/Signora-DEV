@@ -231,6 +231,8 @@ def _extra_problem(space: DocumentSpace, extra: dict[str, Any], near: list[Box])
     if space.locate_after(number, words, near) is None:
         if space.field_after(number, words, near):
             return None  # a form field is that blank already: nothing for the AI to fix
+        if space.extra_after(number, words, near):
+            return "the same blank as another extra field: list it once"
         return (
             f"there is no free space after {words!r} on page {number} where the other fields of "
             f"{extra['filled_by']} are: give the words printed right before the blank, and check "
@@ -315,6 +317,8 @@ def check(answer: dict[str, Any], reading: Reading, document: pymupdf.Document) 
         near = _party_places(answer, reading, extra["filled_by"], extra["page"])
         if (problem := _extra_problem(space, extra, near)) is not None:
             problems.append(f"extra field {extra['label']!r}: {problem}")
+        else:  # placed as derive will, so a second field on the same blank is seen
+            space.place_after(extra["page"], _label_words(extra), near)
     meta = answer["document"]
     if meta:
         if not 1 <= len(meta["name"].strip()) <= NAME_MAX:
