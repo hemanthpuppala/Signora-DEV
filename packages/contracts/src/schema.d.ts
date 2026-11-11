@@ -1648,6 +1648,11 @@ export interface components {
              */
             already_signed: boolean;
             /**
+             * Name Dropped
+             * @default false
+             */
+            name_dropped: boolean;
+            /**
              * No Fields
              * @default false
              */

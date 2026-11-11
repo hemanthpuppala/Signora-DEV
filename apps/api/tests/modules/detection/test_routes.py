@@ -98,6 +98,7 @@ def test_a_ready_versions_fields_with_their_roles_places_and_dependencies(
     assert term["depends_on"] == {"key": choice["key"], "option": "True"}
     assert all(f["placements"] for f in view["fields"])
     assert view["pending"] == [] and view["flags"]["no_fields"] is False
+    assert view["flags"]["name_dropped"] is False  # F6: reported with the version's flags
     # Phase 6: ids for editing, the revision a Save starts from, and the warnings before Approve.
     party = {r["slug"]: r["id"] for r in view["roles"]}
     signed = [f for f in view["fields"] if f["holds"] == "signature"]

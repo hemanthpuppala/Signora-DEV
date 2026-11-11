@@ -348,6 +348,37 @@ to), not only the layout.
   Either the file gains the model, effort and schema (it should, to rebuild a run) or the README is corrected.
 - `.env` sets `AI_REASONING_EFFORT=medium`; ADR-DET4 chose `low`. Decide which is the default and record it.
 
+### F6, F7, F8, F9 and the party label — Built
+
+- **F6 (built)**: `name_dropped` is reported with the version's flags (`GET …/fields`, the contract regenerated) and in
+  the `document.fields_detected` audit entry. No notice on the screen: nobody can act on it (the document keeps the
+  name it was uploaded with, and can be renamed at any time), and the screens show only what a person can act on.
+- **F7 (built)**: text addressed to an AI is looked for in everything the document says, as the AI receives it: its
+  page text and what its fields carry (names, tooltips, values, options, option words), **whitespace collapsed**.
+  Testing found that the page text alone could slip past: the layout spaces words into columns, and the pattern
+  expected single spaces ("Ignore   previous   instructions" did not match). The uploader's instructions are not
+  searched: they are a signed-in member's, and the notice says the *document* addresses an AI. The hostile copies stay
+  flagged; no clean document is.
+- **The party label** ("Ul Lafayette"): a label is now how the document prints the party, the most common printing
+  that starts with a capital and is not all capitals (a heading) nor inside a sentence ("the disclosing party"):
+  "UL Lafayette", "Disclosing Party"; the slug's words capitalised only without one. Every other party's label on the
+  corpus is unchanged.
+- **F8 (built)**: the design's default effort is `low` in the code (`AI_REASONING_EFFORT`, `kernel/config.py`); a
+  local `.env` with `medium` (as the tests of this round used) is a local choice and stays. `05-detection.md` §3.2,
+  §3.3 and §3.6 corrected: no `<write_name_and_description>`, `document` always asked, and the system prompt is no
+  longer copied into the design (it had drifted: Phase 7c's date step); §3.6 points at `prompt.SYSTEM_PROMPT`.
+  `03-request.json` now holds the model, effort and answer schema, as the tests README says, so a run can be rebuilt.
+- **F9 (built, read stage)**: `tests/detection/flatten.py` makes a fillable PDF's flat twin;
+  `tests/detection/read_counts.py --check` is the read stage's pass mark on the local corpus against the committed
+  `tests/expected/read-counts.json` (counts only: fields from, asked, drawn, named; 18 documents, D1–D7, the twins
+  and the other NDAs). The read stage is deterministic, so any difference is a change of behaviour. The trap pages
+  are unit tests (`test_drawn_lines.py`, `test_labels.py`), run with the API's tests. The AI half stays measured by
+  `score.py` on runs, with the drafted expected answers for the owner to confirm.
+
+**Tests:** `test_flags_and_labels.py` (9: the flag in page text, a tooltip and a field's value; none on a clean
+document; five party labels); the route and audit tests assert `name_dropped`. Web type check and 318 web tests pass
+on the regenerated contract.
+
 ### F10 — An extra field is placed on its anchor words, not on the blank (high)
 
 **Seen in:** D7 run: `party_1.full_name` at `[72.0, 665.9, 110.7, 679.1]` and `party_1.title` at
@@ -469,15 +500,15 @@ merged only when F9's marks are met (task 13).
 | # | Task | Status | Evidence of completion |
 |---|---|---|---|
 | 1 | Record findings and test cases | done | this document |
-| 2 | F9: flattening tool, generated trap documents, D1–D7 and twins in the corpus, drafted expected answers, pass marks in `score.py` | todo | — |
+| 2 | F9: flattening tool, generated trap documents, D1–D7 and twins in the corpus, drafted expected answers, pass marks in `score.py` | done | `flatten.py`, `read_counts.py --check`, `tests/expected/read-counts.json` (18 documents) |
 | 3 | F5: left labels end at the neighbouring field; caption above wins | done | `page_text.left`, `_previous_edge`, `_first_on_row`, captions; `test_labels.py`; real documents diffed (F3–F5 above) |
 | 4 | F3: label above for lone lines reaches the heading | done | `PageText.above` with `FAR_ABOVE`; `test_labels.py` (F3–F5 above) |
 | 5 | F1: drawn lines and thin bars as blanks | done | `detection/drawn_lines.py`; 13 tests in `test_drawn_lines.py` (9 fail before it); every real document recounted; D7 through the real pipeline (F1 above) |
 | 6 | F2: signature and initials boxes grow into the space above the line | done | `detection/writing_space.py`; 7 tests in `test_writing_space.py` (4 fail without it); D1 and D2 re-derived (F2 above) |
 | 7 | F4: field issues reach `needs_review` | done | `derive`: nothing names it, its box; `test_labels.py` (F3–F5 above) |
-| 8 | F6: `name_dropped` shown | todo | — |
-| 9 | F7: addressed-to-AI search covers every untrusted string | todo | — |
-| 10 | F8: design doc §3.2–3.3, tests README, effort default | todo | — |
+| 8 | F6: `name_dropped` shown | done | `routes.Flags.name_dropped`, audit, contract; route and audit tests |
+| 9 | F7: addressed-to-AI search covers every untrusted string | done | `derive._document_text`; `test_flags_and_labels.py` |
+| 10 | F8: design doc §3.2–3.3, tests README, effort default | done | `05-detection.md` §3.2, §3.3, §3.6; `run_pipeline` request file; effort default `low` in code |
 | 11 | F10: extra fields placed in the space after their anchor | done | `schema.ExtraField.anchor_text` contract; `writing_space.PageSpace.room_after`, `DocumentSpace.place_after`; 5 tests in `test_writing_space.py`, `test_derive` updated; D7 rerun (F10 above) |
 | 12 | F11: the AI marks repeated fields that are one value; merged by key | todo | — |
 | 13 | Re-run the corpus (D1–D7, twins, traps), meet F9's pass marks, update `tests/outputs/SCORES.md` | todo | — |

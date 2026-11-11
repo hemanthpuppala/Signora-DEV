@@ -67,6 +67,7 @@ class Flags(BaseModel):
     xfa: bool = False
     already_signed: bool = False
     repaired: bool = False
+    name_dropped: bool = False  # the AI's name or description was refused (F6); the upload's kept
 
 
 class VersionFields(BaseModel):

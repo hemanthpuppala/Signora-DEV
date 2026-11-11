@@ -11,6 +11,7 @@ win over the AI's (§4.2). One pass with hash maps: O(F) for F fields.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Collection
 from typing import Any, Literal
 
@@ -125,9 +126,35 @@ class Result(_Model):
     notes: list[str]
 
 
-def role_label(slug: str) -> str:
-    """party_1 → 'Party 1', disclosing_party → 'Disclosing Party'."""
-    return " ".join(part.capitalize() for part in slug.split("_"))
+def role_label(slug: str, text: str = "") -> str:
+    """A party's label as the document prints it: the most common printing of the slug's words
+    that starts with a capital and is not all capitals ("UL Lafayette", "Disclosing Party"), so
+    a heading in capitals or the words inside a sentence do not decide it. Without one, the
+    slug's words capitalised: party_1 → 'Party 1'. O(T) for T characters of text."""
+    words = slug.split("_")
+    pattern = re.compile(
+        r"(?<![\w])" + r"[\s\-]+".join(re.escape(word) for word in words) + r"(?![\w])",
+        re.IGNORECASE,
+    )
+    printed = Counter(
+        " ".join(found.group(0).split())
+        for found in pattern.finditer(text)
+        if found.group(0)[0].isupper() and not found.group(0).isupper()
+    )
+    if printed:
+        return printed.most_common(1)[0][0]
+    return " ".join(part.capitalize() for part in words)
+
+
+def _document_text(reading: Reading) -> str:
+    """Everything the document says, as the AI receives it: its page text and what its fields
+    carry (names, tooltips, values, options, option words), whitespace collapsed (the layout
+    spaces words into columns). The uploader's instructions are not the document's."""
+    parts = [reading.layout]
+    for found in reading.fields:
+        parts += [found.pdf_field or "", found.tooltip or "", found.value or "", *found.options]
+        parts += [placement.option_text or "" for placement in found.placements]
+    return " ".join(" ".join(parts).split())
 
 
 def _unsafe(text: str | None) -> bool:
@@ -452,7 +479,7 @@ def derive(
             first_seen.setdefault(field.role, position)
     order = sorted(first_seen, key=lambda slug: (listed[slug] != "signer", first_seen[slug]))
     roles = [
-        RoleOut(slug=slug, kind=listed[slug], label=role_label(slug), position=n)
+        RoleOut(slug=slug, kind=listed[slug], label=role_label(slug, reading.layout), position=n)
         for n, slug in enumerate(order, start=1)
     ]
     dropped = set(listed) - set(first_seen)
@@ -483,7 +510,7 @@ def derive(
         document=document_out,
         flags=Flags(
             no_fields=not fields,
-            addressed_to_ai=bool(ADDRESSED_TO_AI.search(reading.layout)),
+            addressed_to_ai=bool(ADDRESSED_TO_AI.search(_document_text(reading))),
             repaired=repaired,
             xfa=reading.xfa,
             already_signed=reading.already_signed,
