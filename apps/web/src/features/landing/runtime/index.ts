@@ -15,12 +15,23 @@ import { mountTemplatesFolder } from "./templatesFolder";
 export function mountLanding(root: HTMLElement): () => void {
   const scope = new Scope();
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  mountPageChrome(root, scope, reduced);
-  mountHeroFlux(root, scope, reduced);
-  mountTemplatesFolder(root, scope, reduced);
-  mountExtractionClip(root, scope, reduced);
-  const phone = mountPhoneSigning(root, scope, reduced);
-  mountEnvelopeBuilder(root, scope, reduced, phone, createToast(root, scope));
-  mountFirmLanes(root, scope, reduced);
+  // The page is complete without its demos, so one that fails to start is reported and left
+  // still; it does not take the page, or the other demos, down with it.
+  const start = (name: string, mount: () => void) => {
+    try {
+      mount();
+    } catch (error) {
+      console.error(`Landing page: ${name} did not start`, error);
+    }
+  };
+  start("the header and page motion", () => mountPageChrome(root, scope, reduced));
+  start("the hero", () => mountHeroFlux(root, scope, reduced));
+  start("the templates folder", () => mountTemplatesFolder(root, scope, reduced));
+  start("the extraction clip", () => mountExtractionClip(root, scope, reduced));
+  start("the builder and the phone", () => {
+    const phone = mountPhoneSigning(root, scope, reduced);
+    mountEnvelopeBuilder(root, scope, reduced, phone, createToast(root, scope));
+  });
+  start("the record lanes", () => mountFirmLanes(root, scope, reduced));
   return () => scope.dispose();
 }

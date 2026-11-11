@@ -87,7 +87,18 @@ function compile(canvas: HTMLCanvasElement): Program | null {
   };
 }
 
-/** Where WebGL is unavailable: the same ruled lines, drawn once and still. */
+/**
+ * Whether this browser can run the shader, tried on a throwaway canvas. The hero's own canvas must
+ * stay untouched until this is known: a canvas that has given out a WebGL context can never give
+ * a 2D one, which the still fallback needs.
+ */
+function canRunShader(): boolean {
+  const probe = compile(document.createElement("canvas"));
+  probe?.gl.getExtension("WEBGL_lose_context")?.loseContext();
+  return probe !== null;
+}
+
+/** Where the shader cannot run: the same ruled lines, drawn once and still. */
 function drawStill(canvas: HTMLCanvasElement): void {
   const { ctx, w, h } = sizeCanvas(canvas);
   ctx.fillStyle = "#0b0b0b";
@@ -109,10 +120,13 @@ function drawStill(canvas: HTMLCanvasElement): void {
 export function mountHeroFlux(root: HTMLElement, scope: Scope, reduced: boolean): void {
   const canvas = q<HTMLCanvasElement>(root, "#hero-canvas");
   const stage = canvas.parentElement ?? canvas;
-  const program = compile(canvas);
+  const program = canRunShader() ? compile(canvas) : null;
   if (!program) {
-    drawStill(canvas);
-    scope.onResize(() => drawStill(canvas));
+    // No context has been taken from the canvas unless the shader ran on the probe, so 2D is free.
+    if (canvas.getContext("2d")) {
+      drawStill(canvas);
+      scope.onResize(() => drawStill(canvas));
+    }
     return;
   }
   const { gl } = program;
