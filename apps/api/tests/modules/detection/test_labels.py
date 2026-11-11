@@ -183,3 +183,18 @@ def test_a_lone_line_under_another_field_takes_no_label_from_past_it() -> None:
     no label rather than a misleading one; the AI reads it in its sentence."""
     data = _page(_text(72, 300, f"{U}, 20{U}"), _text(72, 314, f"{U}, City of"))
     assert _labels(data)[2] is None
+
+
+def test_two_blanks_drawn_under_spaces_on_one_line_each_take_their_label() -> None:
+    """Review #3: no word sits on a line drawn under spaces, so "Name: … Date: …" stayed one
+    piece of text spanning the first blank, and both blanks lost their labels."""
+    line = "Name:" + " " * 30 + "Date:" + " " * 25
+
+    def width(text: str) -> float:
+        return float(pymupdf.get_text_length(text, fontsize=11))
+
+    def underlines(page: pymupdf.Page) -> None:
+        page.draw_line((72 + width("Name: "), 302), (72 + width("Name:" + " " * 29), 302))
+        page.draw_line((72 + width("Name:" + " " * 30 + "Date: "), 302), (72 + width(line), 302))
+
+    assert _labels(_page(_text(72, 300, line), underlines)) == ["Name:", "Date:"]

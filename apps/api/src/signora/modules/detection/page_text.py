@@ -125,7 +125,9 @@ class PageText:
         words: list[Line],
         close: Callable[[], None],
     ) -> None:
-        """One word: inside a field's box (its own appearance), or page text on the line."""
+        """One word: inside a field's box (its own appearance), or page text on the line. A field
+        between the line's last word and this one also ends the line there: a blank drawn under
+        spaces has no word on it ("Name:␣␣␣ Date:␣␣␣" is two labels, not one)."""
         holders = [index for _, index in covered.holding(center(word.box))]
         if holders:
             close()
@@ -133,8 +135,17 @@ class PageText:
                 if index >= 0:
                     self._inside.setdefault(index, []).append(word)
             return
+        if segment and self._field_between(segment[-1].box, word.box):
+            close()
         segment.append(word)
         words.append(word)
+
+    def _field_between(self, before: Box, after: Box) -> bool:
+        """Whether a field on their row lies between two words of a line."""
+        return any(
+            same_row(box, after) and box[0] >= before[2] - 1 and box[2] <= after[0] + 1
+            for box, _ in self._marked.near(after[1], after[3])
+        )
 
     def left(self, box: Box) -> str | None:
         """Every line of the label cell to the left: lines that end left of the field and whose
