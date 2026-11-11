@@ -167,3 +167,15 @@ def test_a_labelled_line_across_the_text_is_a_blank_an_unlabelled_one_a_separato
     labelled = _page(_text(72, 300, "Address:"), _line(_end("Address:") + 4, right, 302))
     assert len(_drawn(labelled)) == 1
     assert _drawn(_page(_line(72, right, 302))) == []
+
+
+def test_two_lines_of_a_row_at_slightly_different_heights_stay_two() -> None:
+    """Review #2: the right column's line, 0.5 pt higher, came first in the join and swallowed the
+    left column's line, so one party's signature line was lost."""
+    data = _page(
+        _text(72, 300, "Signature:"),
+        _text(320, 300, "Signature:"),
+        _bar(130, 280, 300.0),
+        lambda page: page.draw_line((380, 300.5), (530, 300.5), width=0.5),
+    )
+    assert len(_drawn(data)) == 2

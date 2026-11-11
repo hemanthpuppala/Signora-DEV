@@ -38,6 +38,7 @@ from signora.modules.detection.writing_space import visible
 THICKNESS_MAX = 2.0  # points: a drawn line or bar no thicker than this
 LENGTH_MIN = 20.0  # points: shorter is a dash or a glyph's stroke, not room to write
 JOIN_GAP = 1.5  # points: pieces of one line closer than this are drawn as one line
+ROW_HEIGHT = 0.6  # points: pieces this close in height are on one row
 TEXT_ABOVE = 12.0  # points above a line where what is written on it sits
 FULL_WIDTH = 0.8  # a line wider than this share of the text's width is a separator
 MARGIN = 0.1  # the top and bottom share of a page: header and footer
@@ -73,13 +74,27 @@ def _lines(page: pymupdf.Page) -> tuple[list[Line], list[Upright]]:
                 pieces.add((round(rect.x0, 1), round(rect.x1, 1), round(rect.y1, 1)))
             elif rect.width <= THICKNESS_MAX and rect.height >= THICKNESS_MAX * 2:
                 down.add((round((rect.x0 + rect.x1) / 2, 1), rect.y0, rect.y1))
-    joined: list[Line] = []
-    for x0, x1, y in sorted(pieces, key=lambda line: (line[2], line[0])):
-        last = joined[-1] if joined else None
-        if last and abs(last[2] - y) <= 0.6 and x0 - last[1] <= JOIN_GAP:
-            joined[-1] = (last[0], max(last[1], x1), last[2])
+    # Rows first (pieces within 0.6 pt of height), then left to right within a row: only pieces
+    # that touch side by side are one line, never two lines of a row that are apart.
+    rows: list[list[Line]] = []
+    for piece in sorted(pieces, key=lambda line: line[2]):
+        if rows and piece[2] - rows[-1][0][2] <= ROW_HEIGHT:
+            rows[-1].append(piece)
         else:
-            joined.append((x0, x1, y))
+            rows.append([piece])
+    joined: list[Line] = []
+    for row in rows:
+        y = row[0][2]
+        current: Line | None = None
+        for x0, x1, _ in sorted(row):
+            if current is not None and x0 - current[1] <= JOIN_GAP:
+                current = (current[0], max(current[1], x1), y)
+            else:
+                if current is not None:
+                    joined.append(current)
+                current = (x0, x1, y)
+        if current is not None:
+            joined.append(current)
     return [line for line in joined if line[1] - line[0] >= LENGTH_MIN], list(down)
 
 
