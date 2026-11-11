@@ -28,7 +28,9 @@ import {
 type Revised = { version_id: string; number: number; revision: number };
 export type SaveProblem = { message: string; items: { fieldId: string | null; message: string }[]; stale: boolean };
 
-/** "fields[3].places[0].rect" → the draft's fourth field (the body lists fields in draft order). */
+/** "fields[3].places[0].rect" → the fourth field of the draft that was sent (the body lists its
+ * fields in order). Read against that draft, never the one edited since: a field deleted after the
+ * refusal would shift every later error onto the wrong field. */
 export function problemOf(error: unknown, draft: Draft): SaveProblem | null {
   if (!error) return null;
   if (error instanceof ApiError && error.code === "fields-changed") {
@@ -49,11 +51,23 @@ export function problemOf(error: unknown, draft: Draft): SaveProblem | null {
   return { message: "Connection lost. Save again when you are back online", items: [], stale: false };
 }
 
+/** The server's words for a save refused because the fields moved on (review.errors.FieldsChanged). */
+const SAVED_ELSEWHERE = "Someone else saved these fields since you opened them. Reload to see their changes";
+
+/** Unsaved edits and what they were made on: the version, and the revision and state loaded then. */
+type Held = { versionId: string; revision: number; status: string; history: History };
+
 /**
  * The review of one version (Phase 6 LLD §1.2, §1.6, §7): the editor's history over the fields as
  * last loaded, Save (in place for a version in review; the next version for an approved one) and
- * Approve. Unsaved edits belong to the version and the revision they started from: when either
- * changes, the history starts again from what was loaded.
+ * Approve.
+ *
+ * Optimistic concurrency (§1.6), kept on this side too. Unsaved edits belong to the revision they
+ * were made on and are never dropped unasked: when the fields are saved elsewhere meanwhile, the
+ * edits stay, the person is told, and Reload (their choice) takes the newer fields. With nothing
+ * unsaved, the newer fields are simply shown. While a save is on its way the editor is busy and
+ * the draft does not change: the server settles what it stores, so an edit made meanwhile would
+ * have nothing sound to stand on.
  */
 export function useReview({
   documentId,
@@ -70,18 +84,23 @@ export function useReview({
 }) {
   const queryClient = useQueryClient();
   const loaded = useMemo(() => fromView(view), [view]);
-  const base = `${version.id}:${view.revision}:${view.status}`;
-  const [state, setState] = useState<{ base: string; history: History } | null>(null);
-  const history = state?.base === base ? state.history : begin(loaded);
+  const [state, setState] = useState<Held | null>(null);
+  const mine = state?.versionId === version.id ? state : null;
+  const moved = mine !== null && (mine.revision !== view.revision || mine.status !== view.status);
+  const held = mine !== null && (!moved || unsaved(mine.history) > 0) ? mine : null;
+  const history = held ? held.history : begin(loaded);
+  const savedElsewhere = held !== null && moved; // unsaved edits on fields that have since moved on
+  const hold = (next: History): Held =>
+    held ? { ...held, history: next } : { versionId: version.id, revision: view.revision, status: view.status, history: next };
   const [editingApproved, setEditingApproved] = useState<string | null>(null);
+  // The draft as it was last sent: a refused save names its fields by their place in that body.
+  const [sent, setSent] = useState<Draft | null>(null);
 
   const approved = version.status === "approved";
   const inReview = version.status === "ready" && view.status === "ready";
   const editing = canEdit && (inReview || (approved && editingApproved === version.id));
   const changes = unsaved(history);
 
-  const edit: Edit = (change: (draft: Draft) => Draft, merge?: string) =>
-    setState({ base, history: apply(history, change, merge) });
   const reload = async () => {
     await queryClient.invalidateQueries({ queryKey: ["fields", version.id] });
     await queryClient.invalidateQueries({ queryKey: documentKey(documentId) });
@@ -93,7 +112,9 @@ export function useReview({
   const saveInPlace = useMutation({
     mutationFn: (body: FieldSet) =>
       unwrap(api.PUT("/api/v1/documents/{document_id}/versions/{version_id}/fields", { params: { path }, body })),
-    onSuccess: async () => {
+    onSuccess: async (_saved, body) => {
+      // What was sent is what is saved: shown with nothing unsaved until the stored fields load.
+      setState((current) => (current && current.revision === body.revision ? { ...current, history: begin(current.history.present) } : current));
       await reload();
       setState(null);
     },
@@ -130,8 +151,17 @@ export function useReview({
     onSuccess: reload,
   });
 
+  const saving = saveInPlace.isPending || revise.isPending;
+  // While a save is on its way the draft does not change: the screen is busy and takes no input
+  // (ReviewLayout), and nothing else (a key, Undo) may move the history under the request either.
+  const change = (next: History) => {
+    if (!saving) setState(hold(next));
+  };
+  const edit: Edit = (step: (draft: Draft) => Draft, merge?: string) => change(apply(history, step, merge));
   const save = () => {
-    const body = toFieldSet(history.present, view.revision);
+    if (savedElsewhere) return; // the server would refuse it: the notice already says why
+    const body = toFieldSet(history.present, held?.revision ?? view.revision);
+    setSent(history.present);
     if (approved) revise.run(body);
     else saveInPlace.mutate(body);
   };
@@ -151,12 +181,12 @@ export function useReview({
     canUndo: history.past.length > 0,
     canRedo: history.future.length > 0,
     edit,
-    undo: () => setState({ base, history: undo(history) }),
-    redo: () => setState({ base, history: redo(history) }),
+    undo: () => change(undo(history)),
+    redo: () => change(redo(history)),
     discard,
     save,
-    saving: saveInPlace.isPending || revise.isPending,
-    problem: problemOf(saveError, history.present),
+    saving,
+    problem: savedElsewhere ? { message: SAVED_ELSEWHERE, items: [], stale: true } : problemOf(saveError, sent ?? history.present),
     startEditing: () => setEditingApproved(version.id),
     stopEditing: () => {
       discard();
@@ -180,6 +210,7 @@ export type PanelEditing = {
   allowed: VersionFields["allowed"];
   /** How each date type may be written, the default first (the server's list). */
   formats: VersionFields["formats"];
+  shared: VersionFields["shared"];
   onAddPlace: (fieldId: string) => void;
   onDeleteField: (fieldId: string) => void;
   /** A finger, not a mouse: the words say "tap". */

@@ -116,6 +116,21 @@ class VersionForReview:
     pdf: BlobRef | None  # the working copy the page shows; none until processed
 
 
+def hold_document(session: Session, document_id: uuid.UUID) -> None:
+    """The document's row lock, held until the transaction ends.
+
+    A document, its versions and their fields change together, and the document's row is their
+    one lock: whatever writes any of them takes it first (a person's change through
+    ``documents.service.lock_document``, which also checks access; a Save, an Approve and the
+    detection job's last step through this), and the audit chain's lock last. With one lock taken
+    first by every writer, no two of them can each hold what the other waits for, whatever order
+    they take the rows in after it. Taken later (an approval took it last, to move the current
+    version; detection after writing the fields), two changes of one document could deadlock."""
+    session.execute(
+        text("SELECT id FROM documents WHERE id = :d FOR NO KEY UPDATE"), {"d": document_id}
+    )
+
+
 def version_for_review(
     session: Session,
     actor: Actor,
@@ -128,7 +143,9 @@ def version_for_review(
     """A version of a document the actor may read (or, with ``edit``, change); ``404`` for one that
     is not this document's or this company's. ``lock`` takes the version's row lock, so a Save or
     an Approve decides on a state no one else is changing. An archived document's versions are
-    read, never changed (Phase 4 §1.4)."""
+    read, never changed (Phase 4 §1.4). ``lock`` holds the document first (``hold_document``)."""
+    if lock:
+        hold_document(session, document_id)
     document = get_document(session, actor.workspace_id, document_id)
     if edit:
         require_edit(session, actor, document.department_id)

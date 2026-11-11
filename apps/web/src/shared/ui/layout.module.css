@@ -323,3 +323,9 @@
     transition: none;
   }
 }
+
+/* A pane whose content is being saved (ViewerPane, DetailsPane busy): no input until it answers. */
+.viewer[aria-busy="true"],
+.details[aria-busy="true"] {
+  cursor: progress;
+}

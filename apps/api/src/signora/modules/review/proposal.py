@@ -22,6 +22,7 @@ class ProposedPlace:
     pdf_field: str | None = None
     option_value: str | None = None
     option_text: str | None = None
+    options: tuple[str, ...] | None = None  # a dropdown's or a list's own options
 
 
 @dataclass(frozen=True)

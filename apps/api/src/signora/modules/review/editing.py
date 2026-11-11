@@ -22,7 +22,7 @@ from signora.modules.review.fieldset import (
 )
 from signora.modules.review.formats import FORMATS, format_for
 from signora.modules.review.keys import name_words, slug, unique
-from signora.modules.review.values import MANUAL_ALLOWED, PARTY_VALUES, SENSITIVE, SHARED
+from signora.modules.review.values import PARTY_VALUES, SENSITIVE, SHARED, may_hold
 from signora.modules.review.views import option_words
 
 EDGE_TOLERANCE = 0.5  # points: a box may touch its page's edge
@@ -48,6 +48,7 @@ class StoredPlace:
     pdf_field: str | None
     option_value: str | None
     option_text: str | None
+    options: tuple[str, ...] | None = None  # a dropdown's or a list's own options (the PDF's)
 
 
 @dataclass(frozen=True)
@@ -120,7 +121,7 @@ def check(
             )
         elif item.party_id is not None and item.party_id not in party_ids:
             errors.append(FieldError(f"{at}.party_id", "No such party"))
-        errors.extend(_check_dependency(at, item, fields))
+        errors.extend(_check_dependency(at, item, fields, stored))
         for j, place in enumerate(item.places):
             where = f"{at}.places[{j}]"
             new_id(f"{where}.id", place.id)
@@ -137,15 +138,27 @@ def check(
                 )
             if before is None and place.kind != "blank":
                 errors.append(FieldError(f"{where}.kind", "A new box is drawn (blank)"))
-            if item.holds not in MANUAL_ALLOWED[place.kind]:
+            if not may_hold(place.kind, item.holds, is_option=place.option_value is not None):
                 errors.append(FieldError(f"{at}.holds", f"A {place.kind} box cannot hold this"))
             errors.extend(_check_place(where, place.page, place.rect, before, pages))
     errors.extend(_check_loops(fieldset.fields))
     return errors
 
 
+def options_of(target: FieldIn, stored: Stored) -> set[str]:
+    """What a condition on a choice may name: the option each of its places stands for (a radio
+    group, grouped checkboxes, a choice made by hand), and the options a dropdown or a list
+    offers, which are the PDF's and kept with its place."""
+    options = {p.option_value for p in target.places if p.option_value}
+    for place in target.places:
+        before = stored.places.get(place.id)
+        if before is not None and before.options:
+            options.update(before.options)
+    return options
+
+
 def _check_dependency(
-    at: str, item: FieldIn, fields: Mapping[uuid.UUID, FieldIn]
+    at: str, item: FieldIn, fields: Mapping[uuid.UUID, FieldIn], stored: Stored
 ) -> list[FieldError]:
     if item.depends_on is None:
         return []
@@ -155,7 +168,7 @@ def _check_dependency(
     if target.holds == "checkbox":
         options = {"checked"}
     elif target.holds == "choice":
-        options = {p.option_value for p in target.places if p.option_value}
+        options = options_of(target, stored)
     else:
         return [FieldError(f"{at}.depends_on", "Only a choice or a checkbox can be a condition")]
     if item.depends_on.option not in options:

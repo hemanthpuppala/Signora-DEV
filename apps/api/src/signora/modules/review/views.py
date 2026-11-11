@@ -35,6 +35,8 @@ class PlacementView(BaseModel):
     kind: str
     option_value: str | None
     option_text: str | None
+    # A dropdown's or a list's own options (the PDF's): what a condition on it may name.
+    options: list[str] | None = None
     # The agreement's text size beside it, measured at approval (Phase 7b); none before that
     text_size: float | None = None
 

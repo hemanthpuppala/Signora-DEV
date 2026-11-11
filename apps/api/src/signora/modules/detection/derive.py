@@ -22,11 +22,10 @@ from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
 from signora.modules.detection.schema import ALLOWED
 from signora.modules.review.formats import format_for
 from signora.modules.review.keys import name_words, unique
-from signora.modules.review.values import OWN, PARTY_VALUES, SENSITIVE, SHARED
+from signora.modules.review.values import LABEL_MAX, OWN, PARTY_VALUES, SENSITIVE, SHARED
 
 NAME_MAX = 120
 DESCRIPTION_MAX = 300
-LABEL_MAX = 120
 TOKEN = re.compile(r"\{(f\d+)(?:=[^{}]*)?\}")
 # Links and scripts in what the AI writes (§3.5): personal data is a later feature (Presidio).
 UNSAFE_TEXT = re.compile(
@@ -69,6 +68,7 @@ class PlacementOut(_Model):
     pdf_field: str | None = None
     option_value: str | None = None  # a choice: the value this place stands for
     option_text: str | None = None
+    options: list[str] | None = None  # a dropdown's or a list's own options, in the PDF's order
 
 
 class Dependency(_Model):
@@ -268,6 +268,7 @@ def _placements(found: FoundField) -> list[PlacementOut]:
             pdf_field=p.pdf_field,
             option_value=p.value if found.kind == "radio" else None,
             option_text=p.option_text,
+            options=list(found.options) if found.kind in ("combobox", "listbox") else None,
         )
         for p in found.placements
     ]
@@ -396,7 +397,7 @@ def derive(
             notes.append(f"checkbox group {group['label']!r} not used")
             continue
         for member in members:
-            items[member].group, items[member].group_label = number, group["label"]
+            items[member].group, items[member].group_label = number, group["label"][:LABEL_MAX]
 
     fields = _keyed(items)
     # Roles in signing order: signers by where they first appear, then countersigners (§4.5).

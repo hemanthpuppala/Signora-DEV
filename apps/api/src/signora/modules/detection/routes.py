@@ -31,7 +31,13 @@ from signora.modules.review import (
     warnings_for,
 )
 from signora.modules.review.formats import FORMATS
-from signora.modules.review.values import MANUAL_ALLOWED, MANUAL_HOLDS, ManualHolds, PlaceKind
+from signora.modules.review.values import (
+    MANUAL_ALLOWED,
+    MANUAL_HOLDS,
+    SHARED,
+    ManualHolds,
+    PlaceKind,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["detection"])
 Member = Annotated[Actor, Depends(current_actor)]
@@ -84,6 +90,9 @@ class VersionFields(BaseModel):
     # Phase 7c: how each date type may be written, the default first (the rule stays the
     # server's: Save checks it).
     formats: dict[str, list[str]] = {holds: list(fs) for holds, fs in FORMATS.items()}
+    # Phase 6 §3: the values a party gives once however many places ask for them. A second field
+    # of one for the same party joins the first when saved, so the editor says so beforehand.
+    shared: list[ManualHolds] = [holds for holds in MANUAL_HOLDS if holds in SHARED]  # type: ignore[misc]
 
 
 @router.post(

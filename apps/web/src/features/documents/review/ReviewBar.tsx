@@ -47,8 +47,8 @@ export function ReviewActionBar({
   const actions =
     !canEdit ? null : editing && changes > 0 ? (
       <>
-        <HeadAction icon="undo" label="Undo" disabled={!review.canUndo} onClick={review.undo} />
-        <HeadAction icon="discard" label="Discard" onClick={review.discard} />
+        <HeadAction icon="undo" label="Undo" disabled={!review.canUndo || review.saving} onClick={review.undo} />
+        <HeadAction icon="discard" label="Discard" disabled={review.saving} onClick={review.discard} />
         <HeadAction
           icon="save"
           label={review.saving ? "Saving…" : approved ? `Save as version ${nextNumber}` : "Save"}

@@ -95,14 +95,25 @@ export function ViewerLayout({ children }: { children: ReactNode }) {
   return <div className={styles.viewerLayout}>{children}</div>;
 }
 
-/** The document side of a ``ViewerLayout``. */
-export function ViewerPane({ children }: { children: ReactNode }) {
-  return <div className={styles.viewer}>{children}</div>;
+/**
+ * The document side of a ``ViewerLayout``. ``busy``: what it shows is being saved, so it takes no
+ * input until that answers and says so (``inert``, ``aria-busy``; a progress cursor).
+ */
+export function ViewerPane({ children, busy = false }: { children: ReactNode; busy?: boolean }) {
+  return (
+    <div className={styles.viewer} aria-busy={busy || undefined} inert={busy}>
+      {children}
+    </div>
+  );
 }
 
-/** The details side of a ``ViewerLayout``. */
-export function DetailsPane({ children }: { children: ReactNode }) {
-  return <div className={styles.details}>{children}</div>;
+/** The details side of a ``ViewerLayout``; ``busy`` as ``ViewerPane``'s. */
+export function DetailsPane({ children, busy = false }: { children: ReactNode; busy?: boolean }) {
+  return (
+    <div className={styles.details} aria-busy={busy || undefined} inert={busy}>
+      {children}
+    </div>
+  );
 }
 
 /**

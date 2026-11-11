@@ -76,6 +76,7 @@ const fieldsView = (overrides: Record<string, unknown> = {}) => ({
     month: ["Month", "MM"],
     year: ["YYYY", "YY"],
   },
+  shared: ["signature", "initials", "date_signed", "party_name"],
   allowed: { text: TEXTUAL, blank: [...TEXTUAL, "checkbox", "choice"], signature: ["signature", "initials"], checkbox: ["checkbox"], radio: ["choice"], combobox: ["choice"], listbox: ["choice"] },
   warnings: [{ code: "needs_a_look", message: "1 field needs a look; approving accepts them as found", count: 1 }],
   roles: [{ id: "party-client", slug: "client", label: "Client", kind: "signer", kind_label: null, position: 1, field_count: 1 }],
@@ -158,9 +159,9 @@ describe("field review", () => {
     fetchMock.mockReset();
   });
 
-  const open = () =>
+  const open = (client = makeQueryClient()) =>
     render(
-      <QueryClientProvider client={makeQueryClient()}>
+      <QueryClientProvider client={client}>
         <ToastProvider>
           <DocumentPage departmentId="d-1" documentId="doc-1" />
         </ToastProvider>
@@ -255,6 +256,106 @@ describe("field review", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     await user.click(await screen.findByRole("button", { name: "Company: The box must stay on its page" }));
     expect(screen.getByRole("region", { name: "Details of Company" })).toBeTruthy();
+  });
+
+  it("keeps unsaved edits when the fields are saved elsewhere, says so, and reloads only when asked", async () => {
+    // Optimistic concurrency on this side too: the newer fields replaced the draft unasked, with
+    // the unsaved count back at 0 and no word of it.
+    inReview();
+    const client = makeQueryClient();
+    open(client);
+    const user = userEvent.setup();
+    await chooseField("Company");
+    await user.click(screen.getByLabelText("Required"));
+    expect(within(bar()).getByText(/1 unsaved change/)).toBeTruthy();
+
+    state.fields["v-1"] = fieldsView({ revision: 1 }); // someone else saved
+    await client.invalidateQueries({ queryKey: ["fields", "v-1"] });
+
+    expect(await screen.findByText("Reloading shows their changes; yours will be lost.")).toBeTruthy();
+    expect(within(bar()).getByText(/1 unsaved change/)).toBeTruthy(); // the edit is still here
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(sentTo("PUT /api/v1/documents/doc-1/versions/v-1/fields")).toHaveLength(0); // it would be refused
+
+    await user.click(screen.getByRole("button", { name: "Reload" }));
+    await waitFor(() => expect(screen.queryByText(/unsaved change/)).toBeNull());
+    expect(screen.queryByText("Reloading shows their changes; yours will be lost.")).toBeNull();
+  });
+
+  it("takes no edit while a save is on its way, and shows what was saved without a false alarm", async () => {
+    inReview();
+    let finish: (response: Response) => void = () => {};
+    answers["PUT /api/v1/documents/doc-1/versions/v-1/fields"] = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    open();
+    const user = userEvent.setup();
+    await chooseField("Company");
+    const required = () => screen.getByLabelText<HTMLInputElement>("Required");
+    await user.click(required());
+    const sentAs = required().checked;
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // While the request is in flight the editor says it is busy and takes no input.
+    const editor = required().closest("[aria-busy]");
+    expect(editor?.getAttribute("aria-busy")).toBe("true");
+    expect(editor?.hasAttribute("inert")).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Undo" }).disabled).toBe(true);
+    await user.click(required()); // a test DOM does not honour inert: the draft still does not move
+    expect(required().checked).toBe(sentAs);
+
+    state.fields["v-1"] = fieldsView({ revision: 1 });
+    finish(new Response(JSON.stringify({ revision: 1 }), { status: 200, headers: { "content-type": "application/json" } }));
+    await waitFor(() => expect(screen.queryByText(/unsaved change/)).toBeNull());
+    expect(screen.queryByText("Reloading shows their changes; yours will be lost.")).toBeNull();
+    expect(required().closest("[aria-busy]")).toBeNull(); // open for input again
+  });
+
+  it("keeps a refused save's errors on the fields they were about, whatever is edited next", async () => {
+    // The errors name fields by their place in the body that was sent. Read against the draft as
+    // it is now, deleting an earlier field moved each one onto the wrong field, or onto none.
+    inReview();
+    answers["PUT /api/v1/documents/doc-1/versions/v-1/fields"] = () =>
+      reply(422, {
+        type: "x",
+        title: "Validation failed",
+        status: 422,
+        code: "validation-failed",
+        errors: [{ field: "fields[1].places[0].rect", message: "The box must stay on its page" }],
+      });
+    open();
+    const user = userEvent.setup();
+    await chooseField("Company");
+    await user.click(screen.getByLabelText("Required"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("button", { name: "Company: The box must stay on its page" })).toBeTruthy();
+
+    await chooseField("Client signature"); // the field before it
+    await user.click(screen.getByRole("button", { name: "Delete field" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete field" }));
+
+    expect(screen.getByRole("button", { name: "Company: The box must stay on its page" })).toBeTruthy();
+  });
+
+  it("gives each thing to check its own row, two about one field included", async () => {
+    // A box over two others is two warnings with one field: they had one React key.
+    inReview();
+    state.fields["v-1"] = fieldsView({
+      warnings: [
+        { code: "overlapping_places", message: "Company overlaps Client signature on page 2", field_id: "f-company" },
+        { code: "overlapping_places", message: "Company overlaps Date on page 2", field_id: "f-company" },
+      ],
+    });
+    const complaints = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      open();
+      const check = await screen.findByRole("list", { name: "Things to check" });
+      expect(within(check).getAllByRole("listitem")).toHaveLength(2);
+      expect(complaints.mock.calls.filter((call) => String(call[0]).includes("same key"))).toHaveLength(0);
+    } finally {
+      complaints.mockRestore();
+    }
   });
 
   it("approves after listing the things to check, with the revision and the warnings seen", async () => {

@@ -75,6 +75,20 @@ ALLOWED: dict[str, frozenset[str]] = {
 # blank (drawn by hand, or a gap detection found) can be anything, a checkbox or one option of a
 # choice included. Detection keeps ALLOWED, so the AI never turns a blank line into a checkbox.
 MANUAL_ALLOWED: dict[str, frozenset[str]] = {**ALLOWED, "blank": frozenset(MANUAL_HOLDS)}
+
+
+def may_hold(kind: str, holds: str, *, is_option: bool) -> bool:
+    """Whether a place of this kind may belong to a field of this type: what a person may choose
+    for it (``MANUAL_ALLOWED``), and what detection makes of it. Detection groups a PDF's
+    checkboxes that are one question into one choice, each box standing for an option
+    (``is_option``: the place has an option value), so such a box holds that choice."""
+    return holds in MANUAL_ALLOWED[kind] or (kind == "checkbox" and holds == "choice" and is_option)
+
+
+# Lengths, one definition for what detection keeps and what a Save accepts: text detection stored
+# must never be refused when it is saved back unchanged.
+LABEL_MAX = 120  # a field's label
+OPTION_MAX = 400  # an option's words; also its value (a grouped checkbox is named by its words)
 # Values that belong to a party: keyed under its role (``<role>.<holds>``) when a party gives them.
 PARTY_VALUES = frozenset(
     {

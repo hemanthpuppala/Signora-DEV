@@ -536,7 +536,7 @@
             "type": "string"
           },
           "option": {
-            "maxLength": 200,
+            "maxLength": 400,
             "minLength": 1,
             "title": "Option",
             "type": "string"
@@ -2579,7 +2579,7 @@
           "option_text": {
             "anyOf": [
               {
-                "maxLength": 200,
+                "maxLength": 400,
                 "type": "string"
               },
               {
@@ -2591,7 +2591,7 @@
           "option_value": {
             "anyOf": [
               {
-                "maxLength": 200,
+                "maxLength": 400,
                 "type": "string"
               },
               {
@@ -2674,6 +2674,20 @@
               }
             ],
             "title": "Option Value"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
           },
           "page": {
             "title": "Page",
@@ -4099,6 +4113,54 @@
               "$ref": "#/components/schemas/signora__modules__review__views__RoleView"
             },
             "title": "Roles",
+            "type": "array"
+          },
+          "shared": {
+            "default": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name"
+            ],
+            "items": {
+              "enum": [
+                "signature",
+                "initials",
+                "date_signed",
+                "party_name",
+                "full_name",
+                "first_name",
+                "last_name",
+                "company",
+                "title",
+                "date_of_birth",
+                "email",
+                "phone",
+                "address",
+                "city",
+                "state",
+                "postal_code",
+                "country",
+                "url",
+                "tax_id",
+                "bank_account",
+                "date",
+                "day",
+                "month",
+                "year",
+                "number",
+                "currency",
+                "amount_in_words",
+                "percent",
+                "text",
+                "checkbox",
+                "choice",
+                "note",
+                "other"
+              ],
+              "type": "string"
+            },
+            "title": "Shared",
             "type": "array"
           },
           "stage": {

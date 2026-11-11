@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 from typing import Any
@@ -10,7 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from signora.kernel.db import Database
-from tests.modules.documents.conftest import csrf_headers, log_in
+from tests.modules.documents.conftest import create_department, csrf_headers, log_in, new_document
 from tests.modules.identity_access.conftest import Account
 from tests.modules.review.test_revisions import _revise, _version
 from tests.modules.review.test_save import (
@@ -23,6 +24,8 @@ from tests.modules.review.test_save import (
     large_set,
     with_statistics,
 )
+from tests.support import forms
+from tests.support.ai import FakeAssigner
 
 
 def _approve(api: TestClient, document_id: str, version_id: str, **override: Any) -> Any:
@@ -214,3 +217,77 @@ def test_two_thousand_fields_approve_in_under_a_second(
 
     assert approved.status_code == 204, approved.text
     assert elapsed < 1.0, f"approve took {elapsed:.2f} s"
+
+
+def _held_while_waiting_for_the_document(
+    db: Database, document_id: str, change: Callable[[], Any]
+) -> tuple[int, list[str]]:
+    """Runs ``change`` while another transaction holds the document's row, as a second change of
+    the document would. Once ``change`` waits, returns what it already holds: its audit locks
+    (how many) and the tables it has written to. Then lets it finish."""
+    doing = threading.Thread(target=change)
+    with db.unit_of_work() as other:
+        other.session.execute(
+            text("SELECT id FROM documents WHERE id = :d FOR NO KEY UPDATE"), {"d": document_id}
+        )
+        doing.start()
+        with db.unit_of_work() as watch:
+            waiting = 0
+            deadline = time.monotonic() + 10
+            while not waiting and time.monotonic() < deadline:
+                time.sleep(0.05)
+                waiting = watch.session.execute(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                        "AND wait_event_type = 'Lock'"
+                    )
+                ).scalar_one()
+            assert waiting == 1  # it waits for the document
+            advisory = watch.session.execute(
+                text(
+                    "SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid "
+                    "WHERE a.wait_event_type = 'Lock' AND l.granted AND l.locktype = 'advisory'"
+                )
+            ).scalar_one()
+            written = watch.session.execute(
+                text(
+                    "SELECT c.relname FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid "
+                    "JOIN pg_class c ON c.oid = l.relation WHERE a.wait_event_type = 'Lock' "
+                    "AND l.granted AND l.mode = 'RowExclusiveLock' AND c.relkind = 'r' "
+                    "ORDER BY c.relname"
+                )
+            ).scalars()
+            held = (advisory, list(written))
+    doing.join(timeout=30)
+    assert not doing.is_alive()
+    return held
+
+
+def test_every_change_of_a_document_takes_its_lock_first(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """A document, its versions and their fields have one lock, the document's row, taken first
+    by whatever writes any of them. An approval took it last (after the version's row and the
+    audit chain's) and the detection job's last step after writing the fields, so either could
+    deadlock with another change of the same document, each holding what the other waited for."""
+    department = create_department(owner)
+    document = new_document(owner, department["id"], forms.nda_like()).json()
+    document_id, version_id = document["id"], document["versions"][0]["id"]
+    run(version_id)
+
+    # The detection job's last step: nothing of the version written before the document is held.
+    assert _held_while_waiting_for_the_document(
+        committing_db, document_id, lambda: detect(version_id, FakeAssigner())
+    ) == (0, [])
+
+    # An approval: neither the audit chain's lock nor a row of the version.
+    answer: list[Any] = []
+    assert _held_while_waiting_for_the_document(
+        committing_db,
+        document_id,
+        lambda: answer.append(_approve(owner, document_id, version_id)),
+    ) == (0, [])
+    assert answer[0].status_code == 204

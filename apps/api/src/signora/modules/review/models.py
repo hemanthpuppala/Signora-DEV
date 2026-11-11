@@ -123,6 +123,9 @@ field_placements = Table(
     Column("pdf_field", Text),  # the form field signing fills; null for a blank
     Column("option_value", Text),  # a choice: the value this place stands for
     Column("option_text", Text),  # and its own words
+    # A dropdown or a list from the PDF: the options it offers, in its order (it is one place, so
+    # they cannot be places of their own). Null for every other kind. The PDF's, never edited.
+    Column("options", JSONB),
     CheckConstraint("page >= 1", name="page_positive"),
     CheckConstraint(
         "kind IN ('text', 'signature', 'checkbox', 'radio', 'combobox', 'listbox', 'blank')",

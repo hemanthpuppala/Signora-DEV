@@ -26,6 +26,8 @@ export type DraftPlace = {
   kind: PlaceKind; // a PDF box keeps its kind; a drawn one is "blank"
   option_value: string | null;
   option_text: string | null;
+  /** A dropdown's or a list's own options (the PDF's): read, never sent back or edited. */
+  options?: readonly string[] | null | undefined;
 };
 
 export type DraftField = {
@@ -78,6 +80,36 @@ export function defaultSize(holds: Holds): [number, number] {
   }
 }
 
+/**
+ * What a condition on a field may name, each with the words a person reads: a checkbox ticked;
+ * the option each place of a choice stands for; the options a dropdown or a list offers (the
+ * server's editing.options_of).
+ */
+export function optionsOf(field: DraftField): { option: string; words: string }[] {
+  if (field.holds === "checkbox") return [{ option: "checked", words: "ticked" }];
+  if (field.holds !== "choice") return [];
+  return field.places.flatMap((place) => [
+    ...(place.option_value ? [{ option: place.option_value, words: place.option_text ?? place.option_value }] : []),
+    ...(place.options ?? []).map((option) => ({ option, words: option })),
+  ]);
+}
+
+/** The most characters of an option's words (the server's review.values.OPTION_MAX). */
+export const OPTION_MAX = 400;
+
+/**
+ * Whether a place may belong to a field of this type (the server's review.values.may_hold): what
+ * its kind allows, and a PDF's checkbox that stands for an option (detection grouped it with
+ * others into one choice) holds that choice.
+ */
+export function mayHold(
+  allowed: Readonly<Record<string, readonly string[] | undefined>>,
+  place: Pick<DraftPlace, "kind" | "option_value">,
+  holds: string,
+): boolean {
+  return (allowed[place.kind]?.includes(holds) ?? false) || (place.kind === "checkbox" && holds === "choice" && place.option_value !== null);
+}
+
 export const newId = (): string => crypto.randomUUID();
 
 // --- from the API and back --------------------------------------------------------------------
@@ -114,6 +146,7 @@ export function fromView(view: VersionFields): Draft {
           kind: place.kind as PlaceKind,
           option_value: place.option_value,
           option_text: place.option_text,
+          options: place.options ?? null,
       })),
       })),
     ),
@@ -362,6 +395,28 @@ export function deletePlace(draft: Draft, placeId: string): Draft {
     needs_review: null,
     places: field.places.filter((place) => place.id !== placeId),
   }));
+}
+
+type Condition = NonNullable<DraftField["depends_on"]>;
+
+/** A condition as one text (a select's value): the field's id, then the option, which may hold any character. */
+export const conditionKey = (condition: Condition): string => `${condition.field_id}|${condition.option}`;
+
+/** The condition a key stands for: cut at the first bar only, since an id has none and an option may. */
+export function conditionOf(key: string): Condition | null {
+  const at = key.indexOf("|");
+  return at < 0 ? null : { field_id: key.slice(0, at), option: key.slice(at + 1) };
+}
+
+/**
+ * The field this one joins when saved, if any (the server's editing.settle): a party gives a
+ * shared value (a signature, initials, a signing date, a name) once, however many places ask for
+ * it, so a second field of one for the same party becomes more places of the first. O(F).
+ */
+export function joinsOnSave(draft: Draft, field: DraftField, shared: readonly string[]): DraftField | null {
+  if (field.party_id === null || !shared.includes(field.holds)) return null;
+  const first = draft.fields.find((other) => other.party_id === field.party_id && other.holds === field.holds);
+  return first && first.id !== field.id ? first : null;
 }
 
 /** "Make separate field": a place becomes a field of its own with the same attributes (§5). */

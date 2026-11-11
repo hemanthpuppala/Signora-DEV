@@ -4,15 +4,20 @@ import { useState, type ReactNode } from "react";
 
 import { Button, Checkbox, IconButton, InfoTip, Notice, Select, SmallText, TextField, type IconName } from "@/shared/ui";
 
-import { FORMAT_EXAMPLES, whoFills } from "../fields";
+import { HOLDS, FORMAT_EXAMPLES, whoFills } from "../fields";
 import { PLACES_HELP } from "./help";
 import { PlaceChips } from "./PlaceChips";
 import type { PanelEditing } from "./useReview";
 import type { Selection } from "../FieldBoxes";
 import {
   addParty,
-  CONDITIONS,
   sameFiller,
+  optionsOf,
+  conditionKey,
+  conditionOf,
+  joinsOnSave,
+  mayHold,
+  OPTION_MAX,
   onEveryPage,
   PRIVATE,
   setOptionText,
@@ -37,22 +42,14 @@ function fillerValue(field: DraftField): string {
   return field.filled_by === "sender" ? "sender" : "none";
 }
 
-/** Conditions on offer: the options of every other choice, and every other checkbox ticked, that
- * the same person fills (``sameFiller``). */
+/** Conditions on offer: what every other field the same person fills may be asked about
+ * (``optionsOf``, ``sameFiller``). */
 function conditionOptions(field: DraftField, draft: Draft) {
   const options = [{ value: "", label: "Always asked" }];
   for (const other of draft.fields) {
-    if (other.id === field.id || !CONDITIONS.has(other.holds) || !sameFiller(other, field)) continue;
-    if (other.holds === "checkbox") {
-      options.push({ value: `${other.id}|checked`, label: `When “${other.label}” is ticked` });
-      continue;
-    }
-    for (const place of other.places) {
-      if (!place.option_value) continue;
-      options.push({
-        value: `${other.id}|${place.option_value}`,
-        label: `When “${other.label}” is ${place.option_text ?? place.option_value}`,
-      });
+    if (other.id === field.id || !sameFiller(other, field)) continue;
+    for (const { option, words } of optionsOf(other)) {
+      options.push({ value: conditionKey({ field_id: other.id, option }), label: `When “${other.label}” is ${words}` });
     }
   }
   return options;
@@ -113,12 +110,12 @@ export function FieldForm({
   const change = (patch: Parameters<typeof updateField>[2], merge?: string) =>
     edit((draft) => updateField(draft, field.id, patch), merge);
 
-  const kinds = new Set(field.places.map((p) => p.kind));
   const formats = editing.formats[field.holds] ?? [];
-  const allowed = typeOptions((holds) => [...kinds].every((kind) => editing.allowed[kind]?.includes(holds)));
+  const allowed = typeOptions((holds) => field.places.every((place) => mayHold(editing.allowed, place, holds)));
   const fillers = [...fillerOptions(draft.parties), { value: NEW_PARTY, label: "Someone else…" }];
   const conditions = conditionOptions(field, draft);
-  const conditionValue = field.depends_on ? `${field.depends_on.field_id}|${field.depends_on.option}` : "";
+  const joined = joinsOnSave(draft, field, editing.shared);
+  const conditionValue = field.depends_on ? conditionKey(field.depends_on) : "";
   const privateByType = PRIVATE.has(field.holds);
 
   const setFiller = (value: string) => {
@@ -129,6 +126,11 @@ export function FieldForm({
   return (
     <div className={styles.form}>
       {field.needs_review ? <Notice tone="warning">{`Needs a look: ${field.needs_review}. Any change clears this.`}</Notice> : null}
+      {joined ? (
+        // Said before Save does it: a separate field of a value its party gives once would
+        // otherwise be gone after the save, with no word of why.
+        <Notice>{`${whoFills(field, draft.parties)} gives one ${HOLDS[field.holds].toLowerCase()}. When saved, this becomes another place of “${joined.label}”. To keep it apart, change who fills it or its type.`}</Notice>
+      ) : null}
       <TextField
         label="Label"
         required
@@ -182,10 +184,7 @@ export function FieldForm({
           label="Asked"
           options={conditions}
           value={conditionValue}
-          onChange={(value) => {
-            const [fieldId = "", option = ""] = value.split("|");
-            change({ depends_on: value ? { field_id: fieldId, option } : null });
-          }}
+          onChange={(value) => change({ depends_on: conditionOf(value) })}
         />
       ) : null}
       {field.holds === "choice" ? (
@@ -195,7 +194,7 @@ export function FieldForm({
             <TextField
               key={option.id}
               label={`Option ${index + 1}`}
-              maxLength={200}
+              maxLength={OPTION_MAX}
               value={option.option_text ?? option.option_value ?? ""}
               onChange={(event) => {
                 const text = event.target.value;

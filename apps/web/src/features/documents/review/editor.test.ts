@@ -19,6 +19,11 @@ import {
   onEveryPage,
   redo,
   resize,
+  conditionKey,
+  conditionOf,
+  joinsOnSave,
+  mayHold,
+  optionsOf,
   removeParty,
   sameFiller,
   setOptionText,
@@ -169,6 +174,63 @@ describe("the review editor", () => {
     // One stored before the rule (the sender's Card under the client's Plan) is not kept.
     const stored = { ...VIEW, fields: [VIEW.fields[0], { ...VIEW.fields[1], filled_by: "sender", role: null, party_id: null }] } as VersionFields;
     expect(fromView(stored).fields[1]?.depends_on).toBeNull();
+  });
+
+  it("lets a place hold what its kind allows, and a grouped checkbox its choice", () => {
+    // The server's rule (review.values.may_hold): detection groups a PDF's checkboxes into one
+    // choice, each standing for an option. The type list offered such a field only "Checkbox".
+    const allowed = { checkbox: ["checkbox"], text: ["text", "date"] };
+    expect(mayHold(allowed, { kind: "checkbox", option_value: "Individual" }, "choice")).toBe(true);
+    expect(mayHold(allowed, { kind: "checkbox", option_value: null }, "choice")).toBe(false);
+    expect(mayHold(allowed, { kind: "checkbox", option_value: null }, "checkbox")).toBe(true);
+    expect(mayHold(allowed, { kind: "text", option_value: null }, "date")).toBe(true);
+    expect(mayHold(allowed, { kind: "radio", option_value: "Gold" }, "choice")).toBe(false); // not in this map
+  });
+
+  it("says which field a split shared value joins again when saved", () => {
+    // A party gives its signature once: the server folds a second signature field of the same
+    // party into the first on Save. "Make separate field" made one, which then vanished unsaid.
+    const SHARED = ["signature", "initials", "date_signed", "party_name"];
+    const start = fromView(VIEW);
+    const signature = updateField(start, "card", { holds: "signature" }); // two places, the client's
+    const split = splitPlace(signature, "card-2");
+    const made = split.draft.fields.find((f) => f.id === split.fieldId)!;
+    expect(joinsOnSave(split.draft, made, SHARED)?.id).toBe("card");
+    expect(joinsOnSave(split.draft, split.draft.fields[1]!, SHARED)).toBeNull(); // the first stays
+    // Given to someone else, or made another type, it stays apart.
+    const other = updateField(split.draft, made.id, { filled_by: "role", party_id: "guarantor" });
+    expect(joinsOnSave(other, other.fields.find((f) => f.id === made.id)!, SHARED)).toBeNull();
+    const retyped = updateField(split.draft, made.id, { holds: "text" });
+    expect(joinsOnSave(retyped, retyped.fields.find((f) => f.id === made.id)!, SHARED)).toBeNull();
+  });
+
+  it("reads a condition back exactly as it was written, whatever its option holds", () => {
+    // A grouped checkbox's option is named by its own words: "Monthly | Quarterly" was cut at its
+    // bar, so the condition named no option and the save was refused.
+    const condition = { field_id: "0b9c1d1e-plan", option: "Monthly | Quarterly" };
+    expect(conditionOf(conditionKey(condition))).toEqual(condition);
+    expect(conditionOf(conditionKey({ field_id: "f", option: "checked" }))).toEqual({ field_id: "f", option: "checked" });
+    expect(conditionOf("")).toBeNull(); // "Always asked"
+  });
+
+  it("offers a dropdown's own options as conditions, beside a choice's places and a tick", () => {
+    // A dropdown is one place with no option of its own: its options are the PDF's, sent with
+    // the place. Without them no condition on a dropdown could be offered, or kept.
+    const start = fromView(VIEW);
+    expect(optionsOf(start.fields[0]!)).toEqual([
+      { option: "Gold", words: "Gold plan" },
+      { option: "Silver", words: "Silver plan" },
+    ]);
+    const dropdown = { ...start.fields[0]!, places: [{ ...start.fields[0]!.places[0]!, kind: "combobox" as const, option_value: null, option_text: null, options: ["Texas", "Ohio"] }] };
+    expect(optionsOf(dropdown)).toEqual([
+      { option: "Texas", words: "Texas" },
+      { option: "Ohio", words: "Ohio" },
+    ]);
+    expect(optionsOf({ ...start.fields[1]!, holds: "checkbox" })).toEqual([{ option: "checked", words: "ticked" }]);
+    expect(optionsOf(start.fields[1]!)).toEqual([]); // a text box is no condition
+    // The options are read, never sent: Save keeps the PDF's own.
+    const sent = toFieldSet({ ...start, fields: [dropdown, start.fields[1]!] }, 0).fields[0]?.places[0];
+    expect(sent && "options" in sent).toBe(false);
   });
 
   it("deleting a choice drops the conditions on it", () => {

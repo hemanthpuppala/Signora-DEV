@@ -86,6 +86,19 @@ for existing versions from their rows, which nobody could edit before Phase 6.
 A version's fields carry a revision number. A Save sends the revision it started from; if someone else saved in
 between it is refused (`409`, "changed by someone else; reload"), so no change is silently overwritten.
 
+This is optimistic concurrency, and the editor keeps it too: unsaved edits belong to the revision they were made on
+and are never dropped unasked. When the fields move on under them (someone else saved; the page refetched), the edits
+stay, the same notice as a refused save is shown at once, Save sends nothing the server would refuse, and Reload, the
+person's choice, takes the newer fields. With nothing unsaved the newer fields are simply shown. While a save is on
+its way the editor is busy: the pages and the fields take no input and say so (`aria-busy`, `inert`), Undo and Discard
+are off, and the draft does not change, because the server settles what it stores (§3) and an edit made meanwhile
+would have nothing to stand on.
+
+A document, its versions and their fields have one lock: the document's row, taken first by whatever writes any of
+them (`lifecycle.hold_document`; a person's change through `lock_document`, which also checks access), with the audit
+chain's lock taken last. One lock first means no two writers can each hold what the other waits for, whatever order
+they take the rows in after it. A Save, an Approve and the detection job's last step all begin with it.
+
 ### 1.7 Unsaved changes
 
 Saving is explicit. Leaving with unsaved changes asks first: the browser's own prompt when the tab is closed or
@@ -662,3 +675,35 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.14 | Fixes from the pull request's review (high) | done | Ten findings verified against the code, none dropped. API: `ApproveRequest.accepted` is a set of codes (one code per warning from a page listing ten warnings was refused by the cap of nine; a version with many private values could not be approved); `store.lock_review` is the one locked read of the revision for Save and Approve (Save compared a missing row with −1 where the page reads 0); a PDF box keeps its `option_value` (422 `places[i].option_value`) and its option words survive the editor's "…" view (`editing.option_text_of`; every Save rewrote the stored words); a field's privacy is one of its attributes (`_field_attrs`: toggling Private on an Other type kept the flag and left the audit entry empty); `derive_version` reads the document and the source once and returns the version it wrote (four reads and permission checks per revision before). Web: arrow keys and Backspace in the shared Select (a combobox) no longer nudge or remove the chosen box (`ReviewLayout` `typing`); a new option of a choice is named after none it has (`nextOptionName`; "Option 3" twice after removing one); an Other party with no words is sent as "" and refused by name, like a field's empty Other type; the option words editor is one place edit (`setOptionText`, clearing the flag like every other); `ExpandableList` measures itself when its open row or its rows change (`open` prop), not on every keystroke; the Approve body sends each code once (the contract says `uniqueItems`). Tests, each failing without its fix: `test_approve` (1), `test_save` (2), `editor.test.ts` (2), `review.test.tsx` (1) |
 | 6.15 | A place moves and resizes from icons, not coordinates (§5, §7.1), with the fixes from the pull request's review | done | `FieldForm.tsx` (the row of icons; moves share the arrow keys' undo step, resizes have their own; Smaller is the inverse of Larger); `editor.setRect` (a move or resize that changes nothing is no edit). Tests: `editor.test.ts`, `review.test.tsx` |
 | 6.16 | Editing on the page by finger, on narrow screens, and from page to page (§5.1) | done | `FieldBoxes.tsx` (`useBoxDrag`: the chosen box under a finger, edge scrolling, landing on another page; a tap places), `review/drag.ts` (pure: `landingPage`, `edgeSpeed`), `editor.movePlace`, `fields.module.css` (touch targets), `ReviewLayout.tsx` (no screen gate; the pinned name and "Details", and "Edit fields" in the panel, under 960 px), `PdfViewer` (`notice.reveal`; one line above the pages under 960 px). Tests: `drag.test.ts`, `editor.test.ts`, `review.test.tsx`; not yet tried on a real phone |
+| 6.17 | Fixes from the second review of the pull request (§15) | done | §15, each with its test |
+
+## 15. Review of the pull request (2026-11-10)
+
+Ten findings, posted on the pull request as comments on their lines. Each was reproduced before it was changed: by a
+test that fails on the code as it was, or over HTTP against the test database.
+
+| # | Problem | Change | Evidence |
+|---|---|---|---|
+| 15.1 | Save refused a checkbox group as detection stores it (one choice whose places keep the kind `checkbox`): a version nobody had edited could not be saved | One rule for what a place may hold, `review.values.may_hold`: its kind, and a checkbox that stands for an option holds its choice. The editor's type list follows it | `test_detected_sets.py`, `editor.test.ts` |
+| 15.2 | Save took 200 characters of an option's words; detection keeps 400 | One length for both, `review.values.OPTION_MAX` (and `LABEL_MAX`); a checkbox group's label is cut like every other label | `test_detected_sets.py` |
+| 15.3 | A condition on a dropdown's option was refused on Save: a dropdown is one place, so its options were kept nowhere in review and existed only in detection's reading of the PDF | The options are kept with the place (`field_placements.options`, migration `0018a`, which fills the places already stored from their version's reading, approved versions included). Detection hands them over; the fields view sends them; Save checks a condition against them (`editing.options_of`) and writes them back as stored, never from the request; the editor offers them (`editor.optionsOf`) | `test_detected_sets.py` (saved, an unknown option still refused, the migration's fill), `editor.test.ts` |
+| 15.4 | Unsaved edits were dropped, unsaid, when the fields moved on or one's own save came back | Optimistic concurrency kept in the editor, which is busy while a save is on its way (§1.6) | `review.test.tsx` (two tests) |
+| 15.5 | An approval took the document's row lock last, after the version's and the audit chain's, and the detection job's last step took it after writing the fields: either could deadlock with another change of the same document | One lock taken first by every writer (§1.6): `lifecycle.hold_document`, in `version_for_review(lock=True)` and in detection's store step | `test_approve.py` (a waiting approval and a waiting detection job hold nothing yet) |
+| 15.6 | A size starting with a digit under 8 could not be typed: each keystroke was clamped and written back | A size box shows what is typed while it has the focus. The size boxes then gave way to icons (6.15) | `review.test.tsx`, until the boxes went |
+| 15.7 | "Make separate field" on a value a party gives once was folded back on Save with no word | The rule stays (§3); the fields view names the shared values and the field's form says it will join the first, and what keeps it apart | `editor.test.ts` |
+| 15.8 | A refused save's errors were read against the draft as edited since, so they moved onto other fields | Read against the draft that was sent | `review.test.tsx` |
+| 15.9 | Two warnings about one field had one React key | The key includes the message | `review.test.tsx` |
+| 15.10 | A condition's option holding a bar was cut short | Writing and reading a condition are one pair of functions | `editor.test.ts` |
+
+Decision (15.3): a dropdown's options belong to its place.
+
+- **Context**: review owns a version's fields and never reads detection's tables (ADR-R1). A radio group's options are
+  its places; a dropdown or a list is one place, and its options were only in detection's reading.
+- **Decision**: one column on the place, a JSON list in the PDF's order, null for every other kind. They are facts of
+  the PDF like the field's name: the editor reads them and never sends them, and a Save writes back what is stored.
+- **Rejected**: no longer proposing conditions on dropdowns (the option list is also what a dropdown is filled in
+  from, so it is needed regardless); checking against detection's reading at Save (a version made by editing has none,
+  and it would break ADR-R1).
+- **Consequences**: a migration beside the Phase 7 chain (`0018a` after `0018`), joined to it by a merge revision when
+  the phases meet. A place stored before it whose version has no reading keeps no options until its fields are found
+  again.

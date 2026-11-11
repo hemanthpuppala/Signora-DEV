@@ -12,7 +12,6 @@ import re
 import pymupdf
 
 from signora.modules.detection.geometry import (
-    OPTION_TEXT_MAX,
     TEXT_MAX,
     Box,
     RowIndex,
@@ -22,6 +21,7 @@ from signora.modules.detection.geometry import (
 )
 from signora.modules.detection.page_text import Marked, PageText, pages
 from signora.modules.detection.reading import FieldKind, FoundField, Placement
+from signora.modules.review.values import OPTION_MAX
 
 UNDERSCORES = re.compile(r"_{3,}")
 PLACEHOLDER = re.compile(r"\[[^\[\]]{2,80}\]|\{\{[^{}]{1,80}\}\}|«[^«»]{1,80}»|<<[^<>]{1,80}>>")
@@ -169,7 +169,7 @@ def find_blanks(
             option_text = None
             if kind == "checkbox":  # its words: up to the next glyph on the row
                 region = (box[2], box[1] - 2, next_on_row[box] - 1, box[3] + 2)
-                option_text = cut(text.compose(region, skip=ref), OPTION_TEXT_MAX)
+                option_text = cut(text.compose(region, skip=ref), OPTION_MAX)
             holder = placeholder_of.get(ref)
             placement = Placement(
                 page=number,

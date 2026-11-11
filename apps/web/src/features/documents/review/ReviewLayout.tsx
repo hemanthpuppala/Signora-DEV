@@ -61,6 +61,7 @@ const LOADING: VersionFields = {
   warnings: [],
   allowed: {},
   formats: {},
+  shared: [],
 } as unknown as VersionFields;
 
 /** Whether a media query holds, kept current; ``otherwise`` until it is known (and where there is
@@ -318,6 +319,7 @@ export function ReviewLayout({
         pages: version.pages,
         allowed: view.allowed,
         formats: view.formats,
+        shared: view.shared,
         touch,
         onAddPlace: (fieldId) => {
           const field = draft.fields.find((f) => f.id === fieldId);
@@ -385,7 +387,9 @@ export function ReviewLayout({
             editInPanel={!beside}
           />
         ) : null}
-        <ViewerPane>
+        {/* While a save is on its way the pages and the fields take no input and say they are
+            busy: the request carries the draft as it stood, and the bar above shows "Saving…". */}
+        <ViewerPane busy={review.saving}>
           {top}
           {version.id !== current?.id && current ? (
             <div className={documentStyles.caption}>
@@ -429,7 +433,7 @@ export function ReviewLayout({
               : {})}
           />
         </ViewerPane>
-        <DetailsPane>
+        <DetailsPane busy={review.saving}>
           {review.problem ? (
             <SaveProblem
               review={review}

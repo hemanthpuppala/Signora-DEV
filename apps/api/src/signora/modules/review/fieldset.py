@@ -10,7 +10,14 @@ from typing import get_args
 from pydantic import BaseModel, ConfigDict, Field
 
 from signora.modules.review.checks import WarningCode
-from signora.modules.review.values import FilledBy, ManualHolds, PartyKind, PlaceKind
+from signora.modules.review.values import (
+    LABEL_MAX,
+    OPTION_MAX,
+    FilledBy,
+    ManualHolds,
+    PartyKind,
+    PlaceKind,
+)
 
 MAX_PARTIES = 20
 MAX_FIELDS = 2000
@@ -34,18 +41,18 @@ class PlaceIn(_In):
     page: int = Field(ge=1)
     rect: tuple[float, float, float, float]  # PDF points on the page as displayed
     kind: PlaceKind  # a stored place keeps the PDF's kind; a new one is "blank" (drawn)
-    option_value: str | None = Field(default=None, max_length=200)
-    option_text: str | None = Field(default=None, max_length=200)
+    option_value: str | None = Field(default=None, max_length=OPTION_MAX)
+    option_text: str | None = Field(default=None, max_length=OPTION_MAX)
 
 
 class DependencyIn(_In):
     field_id: uuid.UUID
-    option: str = Field(min_length=1, max_length=200)
+    option: str = Field(min_length=1, max_length=OPTION_MAX)
 
 
 class FieldIn(_In):
     id: uuid.UUID
-    label: str = Field(min_length=1, max_length=120)
+    label: str = Field(min_length=1, max_length=LABEL_MAX)
     holds: ManualHolds
     holds_label: str | None = Field(default=None, min_length=1, max_length=60)  # Other's text
     # How a date or a part of one is written (7c); none: the type's default
