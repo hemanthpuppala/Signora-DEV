@@ -55,3 +55,7 @@ tests/outputs/**/01-reading.json
 tests/outputs/**/02-layout.txt
 tests/outputs/**/02-document.md
 tests/outputs/**/03-request.json
+
+# Local design files kept beside the repository, not part of it
+/Signora Prototype.html
+/signora-landing.zip
