@@ -252,6 +252,27 @@ def read_envelope(
 PAGE = 50
 
 
+# A page of a department's envelopes. The page is picked first, from the envelopes alone, in the
+# order of an index (the default list: workspace, department, sent_at, id; under a state: workspace,
+# department, status, sent_at), so only its rows are joined to their document and recipients.
+LIST_SQL = (
+    "SELECT e.id, e.title, e.status, e.document_id, d.name AS document_name, v.version_no, "
+    "e.sent_at, e.expires_at, "
+    "coalesce(array_agg(r.name ORDER BY r.position) FILTER (WHERE r.kind = 'signer'), '{}') "
+    "AS signers, count(*) FILTER (WHERE r.kind = 'signer' AND r.status = 'signed') AS signed "
+    "FROM (SELECT id, title, status, document_id, version_id, sent_at, expires_at FROM envelopes "
+    "WHERE workspace_id = :w AND department_id = :dep "
+    "AND (CAST(:status AS text) IS NULL OR status = :status) "
+    "AND (CAST(:at AS timestamptz) IS NULL OR (sent_at, id) < (:at, :id)) "
+    "ORDER BY sent_at DESC, id DESC LIMIT :n) e "
+    "JOIN documents d ON d.id = e.document_id "
+    "JOIN document_versions v ON v.id = e.version_id "
+    "LEFT JOIN envelope_recipients r ON r.envelope_id = e.id "
+    "GROUP BY e.id, e.title, e.status, e.document_id, d.name, v.version_no, e.sent_at, "
+    "e.expires_at ORDER BY e.sent_at DESC, e.id DESC"
+)
+
+
 def list_envelopes(
     session: Session,
     workspace_id: uuid.UUID,
@@ -261,21 +282,9 @@ def list_envelopes(
     after: tuple[datetime, uuid.UUID] | None,
 ) -> list[EnvelopeSummary]:
     """A department's envelopes, newest first, ``PAGE`` at a time after a keyset ``after``
-    (sent_at, id): an index range on (workspace, department, status, sent_at), O(log N + PAGE)."""
+    (sent_at, id): one index range of the page's size, O(log N + PAGE) (``LIST_SQL``)."""
     rows = session.execute(
-        text(
-            "SELECT e.id, e.title, e.status, e.document_id, d.name AS document_name, "
-            "v.version_no, e.sent_at, e.expires_at, "
-            "coalesce(array_agg(r.name ORDER BY r.position) FILTER (WHERE r.kind = 'signer'), "
-            "'{}') AS signers, count(*) FILTER (WHERE r.kind = 'signer' AND r.status = 'signed') "
-            "AS signed FROM envelopes e JOIN documents d ON d.id = e.document_id "
-            "JOIN document_versions v ON v.id = e.version_id "
-            "LEFT JOIN envelope_recipients r ON r.envelope_id = e.id "
-            "WHERE e.workspace_id = :w AND e.department_id = :dep "
-            "AND (CAST(:status AS text) IS NULL OR e.status = :status) "
-            "AND (CAST(:at AS timestamptz) IS NULL OR (e.sent_at, e.id) < (:at, :id)) "
-            "GROUP BY e.id, d.name, v.version_no ORDER BY e.sent_at DESC, e.id DESC LIMIT :n"
-        ),
+        text(LIST_SQL),
         {
             "w": workspace_id,
             "dep": department_id,

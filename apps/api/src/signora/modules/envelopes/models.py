@@ -77,7 +77,8 @@ envelopes = Table(
     ),
     ForeignKeyConstraint(["sent_by", "workspace_id"], ["users.id", "users.workspace_id"]),
     ForeignKeyConstraint(["cancelled_by", "workspace_id"], ["users.id", "users.workspace_id"]),
-    Index(None, "workspace_id", "department_id", "status", "sent_at"),
+    Index(None, "workspace_id", "department_id", "status", "sent_at"),  # a department's, by state
+    Index(None, "workspace_id", "department_id", "sent_at", "id"),  # a department's, newest first
     Index(None, "document_id"),
 )
 

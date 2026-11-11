@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -105,3 +106,26 @@ def test_a_thousand_envelopes_list_in_under_200_ms(
     assert page.status_code == 200
     assert len(page.json()["envelopes"]) == store.PAGE and page.json()["next_cursor"]
     assert elapsed < 0.2, f"{elapsed:.3f} s"
+
+    # And it reads only its page. The index was by state, so the default list read all 1 001
+    # envelopes of the department, joined each to its recipients and sorted them, for every page.
+    with committing_db.unit_of_work() as uow:
+        plan = uow.session.execute(
+            text("EXPLAIN (ANALYZE, FORMAT JSON) " + store.LIST_SQL),
+            {
+                "w": company.workspace_id,
+                "dep": doc.department_id,
+                "status": None,
+                "at": None,
+                "id": None,
+                "n": store.PAGE + 1,
+            },
+        ).scalar_one()
+
+    def read(node: dict[str, Any], table: str) -> int:
+        own = (
+            node["Actual Rows"] * node["Actual Loops"] if node.get("Relation Name") == table else 0
+        )
+        return own + sum(read(child, table) for child in node.get("Plans", ()))
+
+    assert read(plan[0]["Plan"], "envelopes") == store.PAGE + 1
