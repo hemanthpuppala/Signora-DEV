@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 
 import { formError } from "@/shared/api/errors";
+import { CONSOLE_HOME } from "@/shared/lib/routes";
 import { can, type Me } from "@/shared/session";
 import {
   AddCard,
@@ -40,8 +41,8 @@ export function DepartmentsHome({ me }: { me: Me }) {
       <Tabs
         label="Department status"
         items={[
-          { href: "/", label: "Active", active: status === "active" },
-          { href: "/?status=archived", label: "Archived", active: status === "archived" },
+          { href: CONSOLE_HOME, label: "Active", active: status === "active" },
+          { href: `${CONSOLE_HOME}?status=archived`, label: "Archived", active: status === "archived" },
         ]}
       />
       {departments.isError ? <Notice tone="warning">{formError(departments.error)}</Notice> : null}

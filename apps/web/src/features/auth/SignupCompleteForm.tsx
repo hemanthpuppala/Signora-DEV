@@ -7,6 +7,7 @@ import { api, unwrap } from "@/shared/api/client";
 import { fieldErrors, formError } from "@/shared/api/errors";
 import { usePasswordRules } from "@/shared/api/usePasswordRules";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
+import { CONSOLE_HOME } from "@/shared/lib/routes";
 import { useLogIn } from "@/shared/session";
 import { AuthPanel, Button, Notice, PasswordField, TextField } from "@/shared/ui";
 
@@ -45,7 +46,7 @@ export function SignupCompleteForm() {
   // Created: log in with the password still in memory (the completion sets no session).
   useEffect(() => {
     if (created && email && logIn.isIdle) {
-      logIn.mutate({ email, password }, { onSuccess: () => router.replace("/") });
+      logIn.mutate({ email, password }, { onSuccess: () => router.replace(CONSOLE_HOME) });
     }
   }, [created, email, logIn, password, router]);
 

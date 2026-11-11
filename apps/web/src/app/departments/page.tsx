@@ -6,7 +6,7 @@ import { DepartmentsHome } from "@/features/departments/DepartmentsHome";
 import { ConsoleShell } from "@/shared/session";
 
 /** Console home: the company's departments. */
-export default function HomePage() {
+export default function DepartmentsPage() {
   return (
     <ConsoleShell>
       {(me) => (

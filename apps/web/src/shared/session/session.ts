@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
+import { CONSOLE_HOME } from "@/shared/lib/routes";
 
 export type Me = components["schemas"]["MeResponse"];
 /** Generated from the API's Permission enum, so a renamed permission fails the build. */
@@ -62,15 +63,15 @@ export function useSignOut() {
 /**
  * Where to go after log-in: only a path on this site (no open redirect). The value is resolved the
  * way the browser will resolve it (which drops tabs and newlines and treats "\\" like "/"), and kept
- * only when the result stays on this origin; anything else goes home.
+ * only when the result stays on this origin; anything else goes to the console's home.
  */
 export function safeNext(value: string | null | undefined, origin?: string): string {
-  if (!value || !value.startsWith("/")) return "/";
+  if (!value || !value.startsWith("/")) return CONSOLE_HOME;
   const here = origin ?? window.location.origin;
   try {
     const url = new URL(value, here);
-    return url.origin === here ? `${url.pathname}${url.search}${url.hash}` : "/";
+    return url.origin === here ? `${url.pathname}${url.search}${url.hash}` : CONSOLE_HOME;
   } catch {
-    return "/";
+    return CONSOLE_HOME;
   }
 }
