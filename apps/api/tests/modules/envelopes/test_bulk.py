@@ -16,7 +16,7 @@ from sqlalchemy import text
 from signora.kernel.db import Database
 from signora.kernel.errors import Conflict
 from signora.kernel.jobs import JobContext
-from signora.modules.envelopes import bulk
+from signora.modules.envelopes import bulk, service
 from tests.modules.documents.conftest import csrf_headers, log_in
 from tests.modules.envelopes.conftest import Sendable, make_countersigner, sendable
 from tests.modules.identity_access.conftest import Account, idempotency_key
@@ -283,14 +283,14 @@ def test_a_row_refused_at_send_time_is_marked_and_the_rest_go_on(
     doc = sendable(owner, run, detect)
     sheet = filled(owner, doc, clients(3))
     batch = send_batch(owner, doc, sheet, defaults(doc, company)).json()
-    real_send = bulk.service.send
+    real_send = service.send
 
     def refuse_the_second(*args: Any, **kwargs: Any) -> Any:
         if kwargs["request"].signers[0].name == "Client 1":
             raise Conflict("The template was archived")
         return real_send(*args, **kwargs)
 
-    monkeypatch.setattr(bulk.service, "send", refuse_the_second)
+    monkeypatch.setattr(service, "send", refuse_the_second)
     run_batch(committing_db, batch["id"])
 
     done = owner.get(f"/api/v1/envelope-batches/{batch['id']}").json()
