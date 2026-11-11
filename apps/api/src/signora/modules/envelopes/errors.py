@@ -10,6 +10,11 @@ class SamePerson(Conflict):
     title = "The same email is on two parties. Send anyway if one person signs as both"
 
 
+class NobodySigns(Conflict):
+    code = "nobody-signs"
+    title = "Nobody signs this template. Add who signs and where, then send"
+
+
 class EnvelopeClosed(Conflict):
     code = "envelope-closed"
     title = "This envelope is closed: it was completed, declined, cancelled or it expired"

@@ -12,6 +12,7 @@ import {
   Checkbox,
   DocumentCard,
   DocumentGrid,
+  LinkButton,
   Notice,
   PdfViewer,
   Section,
@@ -88,9 +89,12 @@ function stepOf(path: string, form: SendForm): number {
 export function SendModal({
   documents,
   initialDocumentId,
+  editHref,
   onClose,
   onSent,
 }: {
+  /** Where a template is edited: offered when nobody signs it, so it cannot be sent as it is. */
+  editHref: (documentId: string) => string;
   documents: readonly SendableDocument[];
   initialDocumentId?: string | undefined;
   onClose: () => void;
@@ -198,9 +202,12 @@ export function SendModal({
   const countersignerOf = (partyId: string, fallback: string | null | undefined) => countersigners[partyId] ?? fallback ?? "";
 
   // What blocks Next on each step (the server checks everything again on Send).
+  // No party at all: nobody would be asked to sign, so it is edited first (the server refuses it).
+  const nobodySigns = data ? data.signers.length === 0 && data.countersigners.length === 0 : false;
   const missing = (() => {
     if (!data) return step === DOCUMENT ? !documentId : true;
     if (step === DOCUMENT) return !documentId;
+    if (nobodySigns) return true;
     if (step === DETAILS)
       return data.fields.some(
         (f) => (f.required && asked(f) && !values[f.id]?.trim()) || tooLong(f) || unkept(f) !== undefined,
@@ -292,7 +299,7 @@ export function SendModal({
             arrow
             loading={send.isPending}
             loadingLabel="Sending…"
-            disabled={!data}
+            disabled={!data || nobodySigns}
             onClick={() => submit(false)}
           >
             Send envelope
@@ -369,6 +376,20 @@ export function SendModal({
         </div>
       ) : null}
 
+      {step !== DOCUMENT && nobodySigns && documentId ? (
+        <Notice
+          tone="warning"
+          title="Nobody signs this template"
+          action={
+            <LinkButton href={editHref(documentId)} variant="quiet">
+              Edit template
+            </LinkButton>
+          }
+        >
+          Add who signs and where, then send.
+        </Notice>
+      ) : null}
+
       {step === DETAILS && data ? (
         <div className={styles.steps}>
           {groups.length > 0 ? (
@@ -407,7 +428,7 @@ export function SendModal({
         <div className={styles.steps}>
           <Section title="Who signs">
             {data.signers.length === 0 ? (
-              <SmallText>No party signs this template first, so nobody is emailed a link to sign.</SmallText>
+              <SmallText>No party signs this template first: its countersigners are emailed as soon as it is sent.</SmallText>
             ) : null}
             {data.signers.map((signer, index) => {
               const person = signers[signer.party_id] ?? { name: "", email: "" };

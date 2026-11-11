@@ -53,7 +53,8 @@ def warnings_for(
     if not parties:
         found.append(ReviewWarning(code="no_signer", message="No party signs this version"))
     elif not any(party.kind == "signer" for party in parties):
-        # Countersigners sign after the signers: with none, a send emails nobody a link to sign.
+        # Countersigners sign after the signers. With none their turn begins when it is sent,
+        # which is worth a look: a template is usually signed by someone outside first.
         found.append(
             ReviewWarning(code="no_signer", message="Every party countersigns: nobody signs first")
         )

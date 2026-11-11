@@ -23,6 +23,7 @@ export default function DocumentRoute() {
             <SendModal
               documents={documents.data}
               initialDocumentId={documentId}
+              editHref={(documentId) => `/departments/${id}/documents/${documentId}`}
               onClose={() => setSending(false)}
               onSent={(envelope) => router.push(`/departments/${id}/envelopes/${envelope.id}`)}
             />

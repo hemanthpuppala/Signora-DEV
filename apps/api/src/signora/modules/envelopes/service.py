@@ -174,7 +174,8 @@ def send(
 ) -> EnvelopeView:
     """Send an approved version (§2, §8.1 FR-E3): checked against its form, written in one
     transaction, every signer emailed their own link (the emails are queued, so a failure never
-    undoes the send); countersigners wait for every signer (§3)."""
+    undoes the send); countersigners wait for every signer (§3), and with no signer to wait for
+    they are the ones emailed."""
     session = uow.session
     version, form = _sendable(session, actor, document_id, request.version_id)
     plan = plan_send(
@@ -199,7 +200,7 @@ def send(
         time_zone=request.time_zone,
     )
     sender = _from(session, actor)
-    for recipient_id, person in written.signers:
+    for recipient_id, person in written.first:
         _email_sign_request(
             uow,
             sender=sender,

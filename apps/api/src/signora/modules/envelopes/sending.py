@@ -10,11 +10,13 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from signora.kernel.errors import FieldError, ValidationFailed
+from signora.modules.envelopes.errors import NobodySigns
 from signora.modules.envelopes.form import Colleague, Condition, FormField, Place, SendForm
 from signora.modules.review.formats import (
     InvalidValueError,
@@ -117,6 +119,13 @@ class Plan:
     notify_emails: list[str]
     shared_emails: list[str] = field(default_factory=list)  # the same person on two parties
 
+    @property
+    def first(self) -> Literal["signer", "countersigner"]:
+        """Whose turn it is when the envelope goes out: the signers', all together; with no signer
+        to wait for, the countersigners'. They are written as sent and emailed their links; the
+        others wait."""
+        return "signer" if self.signers else "countersigner"
+
 
 def asked(fields: Iterable[FormField], values: Mapping[uuid.UUID, str]) -> set[uuid.UUID]:
     """The fields that are asked, given these values. A field under a condition is asked only when
@@ -194,6 +203,9 @@ def plan_send(
     colleagues: Mapping[uuid.UUID, Colleague],
     normalize_email: Callable[[str], str],
 ) -> Plan:
+    if not form.signers and not form.countersigners:
+        raise NobodySigns  # nothing to send: nobody would be asked to sign
+
     errors: list[FieldError] = []
 
     def email(path: str, raw: str) -> str:

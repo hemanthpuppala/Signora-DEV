@@ -113,7 +113,7 @@ describe("the send", () => {
     const onClose = vi.fn();
     render(
       <QueryClientProvider client={makeQueryClient()}>
-        <SendModal documents={DOCUMENTS} onClose={onClose} onSent={onSent} {...props} />
+        <SendModal documents={DOCUMENTS} editHref={(id) => `/departments/d-1/documents/${id}`} onClose={onClose} onSent={onSent} {...props} />
       </QueryClientProvider>,
     );
     return { onSent, onClose };
@@ -262,7 +262,7 @@ describe("the send", () => {
     expect(screen.getByLabelText("Reminders at most").closest("details")?.open).toBe(true);
   });
 
-  it("says when no party signs first, where the signers would be", async () => {
+  it("says its countersigners are emailed at once when no party signs first", async () => {
     fetchMock.mockImplementation(async (input) => {
       const path = new URL((input as Request).url).pathname;
       return path.endsWith("/send-form") ? reply(200, { ...FORM, signers: [], fields: [] }) : reply(404, {});
@@ -270,7 +270,19 @@ describe("the send", () => {
     open({ initialDocumentId: "doc-1" });
     await screen.findByText("Nothing to fill in before sending.");
     await next();
-    expect(screen.getByText("No party signs this template first, so nobody is emailed a link to sign.")).toBeTruthy();
+    expect(screen.getByText("No party signs this template first: its countersigners are emailed as soon as it is sent.")).toBeTruthy();
+  });
+
+  it("offers to edit a template nobody signs, and never sends it", async () => {
+    // With no party at all nobody would be asked to sign: it is edited first, not sent.
+    fetchMock.mockImplementation(async (input) => {
+      const path = new URL((input as Request).url).pathname;
+      return path.endsWith("/send-form") ? reply(200, { ...FORM, signers: [], countersigners: [], fields: [] }) : reply(404, {});
+    });
+    open({ initialDocumentId: "doc-1" });
+    expect(await screen.findByText("Nobody signs this template")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Edit template" }).getAttribute("href")).toBe("/departments/d-1/documents/doc-1");
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled).toBe(true);
   });
 
   it("asks before sending one person as two parties", async () => {

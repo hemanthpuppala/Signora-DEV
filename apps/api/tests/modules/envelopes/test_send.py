@@ -423,3 +423,87 @@ def test_a_dropdown_is_filled_in_from_its_own_options(
     sent = send(owner, doc, body("Texas"))
     assert sent.status_code == 201, sent.text
     assert {v["field_id"]: v["value"] for v in sent.json()["values"]}[dropdown["id"]] == "Texas"
+
+
+def _without_signers(
+    owner: TestClient, run: Callable[..., None], detect: Callable[..., None], *, firm: bool
+) -> tuple[Sendable, dict[str, Any] | None]:
+    """An approved version nobody signs first: with one countersigner party, or with no party."""
+    document_id, version_id = _in_review(owner, run, detect)
+    body = _body(_view(owner, document_id, version_id))
+    theirs = {p["id"] for p in body["parties"]}
+    party = {"id": str(uuid.uuid4()), "label": "Firm", "kind": "countersigner", "kind_label": None}
+    body["parties"] = [party] if firm else []
+    body["fields"] = [
+        {**f, "required": False} for f in body["fields"] if f["party_id"] not in theirs
+    ]
+    if firm:
+        body["fields"].append(
+            _drawn("Firm signature", party["id"], holds="signature", rect=[300, 600, 480, 636])
+        )
+    assert _save(owner, document_id, version_id, body).status_code == 200
+    assert _approve(owner, document_id, version_id).status_code == 204
+    view = _view(owner, document_id, version_id)
+    department_id = owner.get(f"{DOCUMENTS}/{document_id}").json()["department_id"]
+    return Sendable(document_id, version_id, department_id, view), (party if firm else None)
+
+
+SETTINGS = {"reminder_interval_hours": 24, "max_reminders": 3, "expiry_days": 30}
+
+
+def test_with_no_signer_to_wait_for_the_countersigners_are_emailed_at_once(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    """Countersigners wait for every signer. With no signer they waited for nobody, for ever: the
+    envelope went out, no one was emailed, and Remind reached no one. Their turn begins at once."""
+    doc, _ = _without_signers(owner, run, detect, firm=True)
+    firm = doc.party("Firm")
+
+    sent = send(
+        owner,
+        doc,
+        {
+            "version_id": doc.version_id,
+            "signers": [],
+            "countersigners": [{"party_id": firm["id"], "user_id": str(company.user_id)}],
+            "settings": SETTINGS,
+        },
+    )
+
+    assert sent.status_code == 201, sent.text
+    (recipient,) = sent.json()["recipients"]
+    assert (recipient["kind"], recipient["status"]) == ("countersigner", "sent")
+    assert recipient["delivery"]["status"] == "queued"  # emailed their link
+    with committing_db.unit_of_work() as uow:
+        emailed = uow.session.execute(
+            text(
+                "SELECT count(*) FROM email_messages WHERE category = 'sign_request' "
+                "AND dedupe_key = :k"
+            ),
+            {"k": f"sign_request:{recipient['id']}:1"},
+        ).scalar_one()
+    assert emailed == 1
+    reminded = owner.post(
+        f"/api/v1/envelopes/{sent.json()['id']}/remind",
+        headers={**csrf_headers(owner), **idempotency_key()},
+    )
+    assert reminded.json() == {"reminded": 1}
+
+
+def test_a_version_nobody_signs_is_not_sent(
+    owner: TestClient, run: Callable[..., None], detect: Callable[..., None]
+) -> None:
+    """With no party at all there is nobody to ask: the send is refused, in words that say what to
+    do. Review still only warns (it never blocks an approval)."""
+    doc, _ = _without_signers(owner, run, detect, firm=False)
+
+    refused = send(owner, doc, {"version_id": doc.version_id, "signers": [], "settings": SETTINGS})
+
+    assert (refused.status_code, refused.json()["code"]) == (409, "nobody-signs")
+    assert (
+        refused.json()["title"] == "Nobody signs this template. Add who signs and where, then send"
+    )

@@ -31,7 +31,7 @@ TIMELINE_MAX = 200
 class Written:
     envelope_id: uuid.UUID
     expires_at: datetime
-    signers: list[tuple[uuid.UUID, Person]]  # (recipient id, person), in signing order
+    first: list[tuple[uuid.UUID, Person]]  # whose turn it is, to email: (recipient id, person)
 
 
 def write_send(
@@ -79,7 +79,7 @@ def write_send(
             "name": person.name,
             "email": person.email,
             "user_id": str(person.user_id) if person.user_id else None,
-            "status": "sent" if kind == "signer" else "waiting",
+            "status": "sent" if kind == plan.first else "waiting",
         }
         for kind, stage, people in (
             ("signer", 1, plan.signers),
@@ -142,7 +142,12 @@ def write_send(
     return Written(
         envelope_id=envelope.id,
         expires_at=envelope.expires_at,
-        signers=[(ids[(1, i)], person) for i, person in enumerate(plan.signers, start=1)],
+        first=[
+            (ids[(stage, i)], person)
+            for stage, people in ((1, plan.signers), (2, plan.countersigners))
+            if (stage == 1) == (plan.first == "signer")
+            for i, person in enumerate(people, start=1)
+        ],
     )
 
 
