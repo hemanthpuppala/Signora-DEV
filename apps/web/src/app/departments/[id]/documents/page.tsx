@@ -6,9 +6,8 @@ import { DepartmentPage } from "@/features/departments/DepartmentPage";
 import { useDocuments } from "@/features/documents/api";
 import { DocumentsSection } from "@/features/documents/DocumentsSection";
 import { ConsoleShell } from "@/shared/session";
-import { HeadAction } from "@/shared/ui";
 
-/** A department's Documents tab: its documents as cards, and Upload document for editors. */
+/** A department's Templates tab: its templates as cards (Upload template is in the department's head). */
 export default function DepartmentDocumentsRoute() {
   const { id } = useParams<{ id: string }>();
   const documents = useDocuments(id);
@@ -20,11 +19,6 @@ export default function DepartmentDocumentsRoute() {
           id={id}
           tab="documents"
           documentCount={documents.data?.length}
-          tabActions={(department) =>
-            department.access === "edit" && department.status === "active" ? (
-              <HeadAction icon="upload" label="Upload template" href={`/departments/${id}/upload`} />
-            ) : null
-          }
         >
           {(department) => (
             <DocumentsSection

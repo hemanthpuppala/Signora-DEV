@@ -161,6 +161,39 @@ describe("departments screens", () => {
     expect(within(tabs).getByRole("link", { name: "Envelopes" }).getAttribute("href")).toBe("/departments/d-1");
   });
 
+  it("names the department's main actions, keeps Settings an icon, and offers Upload template on every tab", async () => {
+    fetchMock.mockImplementation(() => reply(200, finance));
+    for (const tab of ["envelopes", "documents"] as const) {
+      const { unmount } = render(
+        <QueryClientProvider client={makeQueryClient()}>
+          <DepartmentPage me={me(EDITOR)} id="d-1" tab={tab} onAddEnvelope={() => undefined} onSendInBulk={() => undefined}>
+            {() => null}
+          </DepartmentPage>
+        </QueryClientProvider>,
+      );
+
+      const upload = await screen.findByRole("link", { name: "Upload template" });
+      expect(upload.getAttribute("href")).toBe("/departments/d-1/upload");
+      for (const name of ["New envelope", "Send in bulk"]) {
+        expect(screen.getByRole("button", { name }).className).toMatch(/headActionNamed/); // words shown
+      }
+      expect(screen.getByRole("link", { name: "Settings" }).className).toMatch(/headAction(?!Named)/); // icon
+      unmount();
+    }
+  });
+
+  it("offers no upload to someone who cannot edit", async () => {
+    fetchMock.mockImplementation(() => reply(200, { ...finance, access: "read" }));
+    wrap(
+      <DepartmentPage me={me([])} id="d-1" tab="envelopes">
+        {() => null}
+      </DepartmentPage>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Finance" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Upload template" })).toBeNull();
+  });
+
   it("gives viewers no settings or restore", async () => {
     fetchMock.mockImplementation(() => reply(200, { ...finance, access: "read" }));
     wrap(

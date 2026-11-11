@@ -24,17 +24,17 @@ import { dayMonth, departmentKey, useDepartment, type Department } from "./api";
 export type DepartmentTab = "envelopes" | "documents";
 
 /**
- * Screens 07/08: one department. Every tab shares this head (the way back with Department
- * settings at its end, the name and its description, the counts) and the tabs; the open tab's
- * content comes from the route as ``children`` (a feature never imports another), and so do its
- * ``tabActions`` (at the end of the tab line) and the number of documents for the tab's label.
+ * Screens 07/08: one department. Every tab shares this head (the way back with the department's
+ * actions at its end, the name and its description, the counts) and the tabs, with Upload template
+ * at the end of the tab line whichever tab is open; the open tab's content comes from the route as
+ * ``children`` (a feature never imports another), and so does the number of documents for the
+ * tab's label.
  */
 export function DepartmentPage({
   me,
   id,
   tab,
   documentCount,
-  tabActions,
   onAddEnvelope,
   onSendInBulk,
   children,
@@ -43,7 +43,6 @@ export function DepartmentPage({
   id: string;
   tab: DepartmentTab;
   documentCount?: number | undefined;
-  tabActions?: (department: Department) => ReactNode;
   /** Opens the send (Phase 7); the route owns it, as features never import each other. */
   onAddEnvelope?: (() => void) | undefined;
   /** Opens the bulk send: one template to many people, from a spreadsheet. */
@@ -78,6 +77,7 @@ export function DepartmentPage({
 
   const manages = can(me, "departments.manage");
   const archived = data.status === "archived";
+  const edits = data.access === "edit" && !archived;
   return (
     <>
       <HeadRow
@@ -85,10 +85,10 @@ export function DepartmentPage({
         backActions={
           <>
             {!archived && onAddEnvelope && data.access === "edit" ? (
-              <HeadAction icon="send" label="New envelope" variant="primary" onClick={onAddEnvelope} />
+              <HeadAction icon="send" label="New envelope" variant="primary" named onClick={onAddEnvelope} />
             ) : null}
             {!archived && onSendInBulk && data.access === "edit" ? (
-              <HeadAction icon="upload" label="Send in bulk" onClick={onSendInBulk} />
+              <HeadAction icon="upload" label="Send in bulk" named onClick={onSendInBulk} />
             ) : null}
             {manages && !archived ? (
               <HeadAction icon="settings" label="Settings" href={`/departments/${id}/settings`} />
@@ -129,7 +129,9 @@ export function DepartmentPage({
             active: tab === "documents",
           },
         ]}
-        actions={tabActions?.(data)}
+        actions={
+          edits ? <HeadAction icon="upload" label="Upload template" named href={`/departments/${id}/upload`} /> : null
+        }
       />
       {children(data)}
     </>
