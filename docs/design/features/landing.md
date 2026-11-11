@@ -15,8 +15,9 @@ and where the app deliberately differs.
 ## 2. Functional requirements
 
 - **FR-1** `/` shows the landing page to everyone, signed in or not.
-- **FR-2** Without a session, the calls to action ("Request access" in the header, hero and closing
-  section) go to `/signup`, and "Sign in" goes to `/login`.
+- **FR-2** Without a session, the call to action reads "Sign up" in the header, the hero and the
+  closing section and goes to `/signup`; "Sign in", in the header, goes to `/login`. The footer does
+  not repeat either.
 - **FR-3** With a session, those calls to action read "Open workspace" and go to the console's home;
   "Sign in" is not shown.
 - **FR-4** The console's home (the departments list) is `/departments`. Logging in, accepting an
@@ -72,8 +73,9 @@ tokens, under a nonce-based CSP.
    imperative in any framework; keeping them outside React state keeps them frame-accurate to the
    prototype and keeps the page's React cost near zero.
 3. *The shared rules live once.* `runtime/autoplay.ts` holds the play / take over / resume rule
-   (FR-6) for all five demos. `runtime/scope.ts` owns every listener, timer, frame and observer, so
-   one `dispose()` satisfies NFR-3. Sample content used by both markup and demos is in `content.ts`.
+   (FR-6) for all five demos. A `Scope` owns every listener, timer, frame and observer, so
+   one `dispose()` satisfies NFR-3 (it lives in `shared/lib/scope.ts`, since the shared logo uses
+   it too). Sample content used by both markup and demos is in `content.ts`.
 4. *Styles are one stylesheet, `landing.css`, nested under the page's root class* rather than CSS
    Modules. The prototype's class names are the contract between its CSS and its script; keeping
    them makes the port checkable line by line against the prototype. Nesting everything under
@@ -95,7 +97,10 @@ a missing element fails loudly at mount (`runtime/dom.ts`).
 
 | Prototype | App | Why |
 |---|---|---|
-| "Request access" and "Sign in" open front-end-only dialogs | Links to `/signup` and `/login` (FR-2) | The product has self-serve sign-up and password log-in; a dialog that stores nothing would mislead |
+| "Request access" and "Sign in" open front-end-only dialogs | "Sign up" and "Sign in" link to `/signup` and `/login` (FR-2) | The product has self-serve sign-up and password log-in; a dialog that stores nothing would mislead, and nothing is requested |
+| Closing section says firms are admitted one at a time | Says what signing up leads to: a workspace, a template, a first envelope | The page states only what the product does |
+| Footer: name, a list of links, formats and copyright in three columns | Name and tagline, the section links as a labelled group, then one base line with formats and copyright | One idea per group; the ways in are not repeated under the closing section |
+| The signing logo is part of the page's script | A shared component, `shared/ui/SignatureLogo`, also used by the console and sign-in top bar | One logo on every page |
 | Follows the visitor's light or dark setting | Dark only | Matches the console |
 | Style attributes on some elements | Classes at the end of `landing.css` | NFR-1 |
 | Fonts from Google at run time | `next/font`, served from our origin | NFR-1 |
@@ -120,6 +125,9 @@ recorded data from the brand animation and is kept as data.
 
 - `Landing({ signedIn, className })`: the page.
 - `mountLanding(root): () => void`: starts every controller; the return value stops them.
+- `SignatureLogo({ className })` (shared): the signing logo on a canvas. Its ink is the CSS `color`;
+  the gaps in the quill take `--signature-paper`. It signs, rests 30 s and signs again; a page
+  opened while it rests shows it at rest, so moving between pages does not replay it.
 - `createAutoplay({ scope, reduced, watch, play, resume?, onStart?, onStop? })` returns
   `{ isOn(), takeOver(), restart() }`. `play(alive)` is one pass; it resolves `false` when cut short.
 - `mountPhoneSigning(...)` returns `{ setEnvelope(envelope | null), focusCode() }`, which the
@@ -146,3 +154,6 @@ a browser against the production build, where the CSP is strict.
 | 3 | Section controllers, autoplay and clean-up | done | `runtime/`; `runtime/autoplay.test.ts` |
 | 4 | Lint, typecheck, unit tests, production build | done | 328 web tests pass; `next build` succeeds |
 | 5 | Browser check of the production build (desktop, phone, reduced motion) | done | no console or CSP errors; demos reach their end states; 0 px horizontal overflow |
+| 6 | Signing logo as a shared component, in every top bar | done | `shared/ui/SignatureLogo.tsx`; seen on `/` and `/login` in a browser |
+| 7 | "Sign up" as the one call to action; footer regrouped | done | `Landing.test.tsx` |
+| 8 | Frosted blur applies in Chromium (prefixed declaration first, so the build keeps both) | done | computed `backdrop-filter` on the header and status pill in a browser |
