@@ -281,6 +281,8 @@ body:has(.signora-landing) { background: #0e0e0d; }
   .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; min-height: 200px; padding: 24px; border: 1px dashed rgb(var(--ink-rgb) / 0.38); cursor: pointer; transition: background-color 200ms, border-color 200ms, transform 220ms var(--ease); }
   .drop:hover, .drop.is-over { background: var(--surface); border-color: var(--ink); }
   .drop.is-over { transform: scale(0.99); }
+  /* The file input is visually hidden; the drop zone that stands in for it shows its keyboard focus. */
+  .drop:has(+ #file-in:focus-visible) { outline: 1px solid var(--ink); outline-offset: 3px; }
   .drop b { font-family: var(--display); font-weight: 400; font-size: 24px; }
   .drop span { font-size: 13px; color: var(--muted); }
   .file { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--ink); background: var(--surface); animation: lp-fadeup 420ms var(--ease) both; min-width: 0; }
