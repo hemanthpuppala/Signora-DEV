@@ -9,7 +9,7 @@ import uuid
 
 import pymupdf
 
-from signora.modules.rendering import DrawnSignature, Mark, Text, TypedSignature, render
+from signora.modules.rendering import DrawnSignature, Item, Mark, Text, TypedSignature, render
 
 ENVELOPE = uuid.UUID("0193a5f2-0000-7000-8000-000000000001")
 
@@ -24,7 +24,7 @@ def _pdf(pages: int = 1, *, rotate: int = 0, form: bool = False) -> bytes:
     if form:
         page = doc[0]
         widget = pymupdf.Widget()
-        widget.field_type = pymupdf.PDF_WIDGET_TYPE_TEXT
+        widget.field_type = pymupdf.PDF_WIDGET_TYPE_TEXT  # type: ignore[attr-defined]  # not in the stubs
         widget.field_name = "name"
         widget.rect = pymupdf.Rect(72, 200, 272, 220)
         page.add_widget(widget)
@@ -45,7 +45,7 @@ def _open(data: bytes) -> pymupdf.Document:
 
 
 def test_values_and_the_envelope_id_are_page_content_where_the_preview_puts_them() -> None:
-    items = [
+    items: list[Item] = [
         Text(1, (72, 300, 272, 320), "Maya Chen", 11, "liberation-sans"),
         Mark(1, (72, 340, 84, 352)),
         TypedSignature(1, (300, 600, 500, 640), "Maya Chen", "allura", "0123456789abcdef"),

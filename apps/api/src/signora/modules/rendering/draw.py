@@ -15,7 +15,8 @@ from dataclasses import dataclass
 
 import pymupdf
 
-from signora.modules.typesetting import baseline, fitted_size, font_path, left_edge
+from signora.modules.typesetting.fit import baseline, fitted_size, left_edge
+from signora.modules.typesetting.fonts import font_path
 from signora.modules.typesetting.mupdf import MUPDF_LOCK
 
 Rect = tuple[float, float, float, float]  # PDF points on the page as displayed
