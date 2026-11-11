@@ -14,8 +14,9 @@ rule of a single send (Phase 7 LLD §2, §11) holds for every row, checked by th
 ## 2. Functional requirements
 
 - **FR-1** For an approved version, the sender downloads a spreadsheet (XLSX) made for it: one
-  column for everything the send dialog asks per envelope, one example row, and choices and dates
-  restricted in the cells where the format allows.
+  column for everything the send dialog asks per envelope, choices and dates restricted in the
+  cells where the format allows, and a second sheet that says what each column takes. It has no
+  example row: a row left in by mistake would be sent.
 - **FR-2** The sender uploads the filled file as XLSX or CSV. Each row after the header is one
   envelope. Empty rows are ignored.
 - **FR-3** Every row is checked by the rules of a single send. Nothing is sent until the sender
@@ -24,7 +25,8 @@ rule of a single send (Phase 7 LLD §2, §11) holds for every row, checked by th
   words. The sender corrects cells there; a corrected row is re-checked and leaves the list of
   problems when it passes. Re-uploading is never required.
 - **FR-5** A row can be left out. Rows left out are not sent and can be downloaded as a file.
-- **FR-6** Two rows that would send to the same signer email are flagged before sending. The same
+- **FR-6** Two rows that would send to the same signer email are flagged before sending, as
+  something to look at rather than a stop: one person may rightly get two envelopes. The same
   batch submitted twice (a double click, a retry) sends once.
 - **FR-7** Settings (email code, reminders, expiry, who is notified), copy recipients and the
   default countersigners are chosen once for the batch. A row may name its own countersigner, and
@@ -69,8 +71,10 @@ Built from the send form of the version (`build_form`), in this order:
 - A header is the label the dialog shows. Two columns that would share a header get the party's
   label in front, so headers are unique; columns are matched by header, ignoring case and spaces.
 - A required column's header ends with ` *`.
-- An unknown header, or a missing required column, is a problem with the file, reported before any
-  row is shown: "This file has a column 'X' that this template does not ask for."
+- An unknown header, or one given twice, is a problem with the file, reported before any row is
+  shown: "This file has a column 'X' that this template does not ask for."
+- A required column the file lacks is not a problem with the file: it is a column of the sheet,
+  empty in every row, and is filled in where the problems are shown.
 - The XLSX carries the version it was made for (a hidden sheet). A file made for another version
   is refused with "This spreadsheet was made for an earlier version of the template. Download a
   new one."
@@ -94,8 +98,8 @@ the single send's checks apply unchanged.
 - The same email on two parties of one row: reported on both email cells ("The same person as
   <party>. Use another email, or send this one by itself"). A single send lets the sender confirm
   this; a batch does not ask forty times.
-- A signer email that another row also sends to: reported on both rows ("Also in row 12"). The
-  sender corrects one, or leaves one out.
+- A signer email that another row also sends to: noted on both rows ("Also in row 12") as a
+  warning. It does not stop the send.
 - A countersigner cell that is not an active colleague's email: "Not a colleague's email".
 
 ### 4.4 A batch's life
@@ -138,6 +142,11 @@ queued). Phase 8 is changing the envelopes module at the same time as this work.
 6. *The web side is its own files:* `BulkSendModal`, `BulkTable`, `BatchProgress` in
    `features/envelopes`. The single send dialog gains only the link across. `StepDialog` gains a
    slot beside its title and a way to mark a step as needing attention.
+
+7. *Request rows and judged rows are two types* (`RowIn`, `Row`), so the API's contract has one
+   clear shape each way.
+8. *Uploads are parsed with defusedxml installed*, which openpyxl then uses: a spreadsheet is
+   untrusted XML.
 
 **Consequences.** A batch cannot be filtered in the envelopes list yet (the list reads
 `envelopes`, which carries no batch); the batch's own view lists its rows and links to each
@@ -207,6 +216,10 @@ cells: { key: text }, problems: [{ key, message }] }] }`. `kind` is `text`, `ema
 **Buttons.** On a department's envelopes: "New envelope" and "Send in bulk". In the single dialog's
 head: "Send in bulk instead". In the bulk dialog's head: "Send one instead".
 
+**The spreadsheet to download** is offered as "Template" with the download mark in two places: in
+the footer of every approved template's card on the Template step, and at the top right of the
+Upload step. Its accessible name says what it is ("Download the spreadsheet for Mutual NDA").
+
 **The bulk dialog's steps.**
 
 | Step | The sender | Leaves when |
@@ -230,6 +243,9 @@ needing attention, and the steps after it cannot be reached.
 - A cell is re-checked when the sender leaves it. The count ("12 of 40 fixed") and a "Next problem"
   button follow the check.
 - Tab moves between cells in reading order.
+- Choices and dates use the browser's own select and date inputs here, not the dialog's custom
+  ones: in a dense table they are smaller, and they are the accessible standard for a grid of
+  inputs.
 
 **After sending.** The dialog closes. Above the envelopes list a line shows "Sending 31 of 48" and
 then "48 sent" or "45 sent, 3 could not be sent" with the rows and reasons; it can be dismissed.
@@ -254,11 +270,18 @@ then "48 sent" or "45 sent, 3 could not be sent" with the rows and reasons; it c
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
 | 12.1 | This design | done | this document |
-| 12.2 | The sheet: columns, cells, problems (`bulk_sheet.py`) | todo | — |
-| 12.3 | Files: XLSX template, reading XLSX and CSV (`bulk_files.py`) | todo | — |
-| 12.4 | Migration and tables; the batch service and job (`bulk.py`); `actor_of` | todo | — |
-| 12.5 | Routes and the API contract | todo | — |
-| 12.6 | `StepDialog`: the slot by the title, a stop that needs attention | todo | — |
-| 12.7 | The bulk dialog: Template, Upload, Fix table, Send to, Review | todo | — |
-| 12.8 | The two buttons, the links across, the progress line | todo | — |
-| 12.9 | Full gate; live check of a real batch | todo | — |
+| 12.2 | The sheet: columns, cells, problems (`bulk_sheet.py`) | done | `test_bulk_sheet.py` (30 tests), including "bulk and a single send refuse the same data" and 1,000 rows under 2 s |
+| 12.3 | Files: XLSX template, reading XLSX and CSV (`bulk_files.py`) | done | `test_bulk_files.py` (13 tests) |
+| 12.4 | Migration 0026 and tables; the batch service and job (`bulk.py`); `actor_of` | done | `test_bulk.py` (10 tests, through the API and the job); `test_schema.py` |
+| 12.5 | Routes and the API contract | done | `bulk_routes.py`; `make contracts-check` |
+| 12.6 | `StepDialog`: the slot by the title, a stop that needs attention; `DocumentCard`: an extra action | done | used by `bulk.test.tsx` |
+| 12.7 | The bulk dialog: Template, Upload, Fix table, Send to, Review | done | `bulk.test.tsx` (4 tests) |
+| 12.8 | The two buttons, the links across, the progress line | done | `bulk.test.tsx`; `app/departments/[id]/page.tsx` |
+| 12.9 | Full gate | done | API: lint, types, import contracts, tests; web: lint, types, 336 tests, build |
+| 12.10 | Live check of a real batch in a browser | todo | not run: a live stack here would send real email through the configured mail account |
+
+### Carried to the merge
+
+- Migration 0026's `down_revision` is 0024. If Phase 8's 0025 is merged first, set it to 0025.
+- `SendModal.tsx`, `envelopes/errors.py`, `identity_access/__init__.py` and `pyproject.toml` are
+  each touched in a few lines here and by Phase 8.
