@@ -57,3 +57,28 @@ class VerifyFirst(PermissionDenied):
 class DisclosureChanged(Conflict):
     code = "disclosure-changed"
     title = "The terms for electronic records changed. Read them again to continue"
+
+
+class ConsentFirst(PermissionDenied):
+    code = "consent-first"
+    title = "Agree to use electronic records first"
+
+
+class AlreadySigned(Conflict):
+    code = "already-signed"
+    title = "You have already signed this"
+
+
+class NotYours(PermissionDenied):
+    code = "not-yours"
+    title = "Someone else fills this field"
+
+
+class FieldLocked(Conflict):
+    code = "field-locked"
+    title = "This was filled in before it was sent to you"
+
+
+class FieldNotAsked(Conflict):
+    code = "field-not-asked"
+    title = "This field isn't asked with your other answers"

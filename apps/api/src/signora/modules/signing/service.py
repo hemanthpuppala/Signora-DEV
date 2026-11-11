@@ -10,13 +10,24 @@ from sqlalchemy import text
 
 from signora.kernel.config import get_settings
 from signora.kernel.db import UnitOfWork
-from signora.modules.envelopes import SignerRecipient, recipient_for_signing, record_opened
+from signora.modules.documents import VersionForSigning, version_for_signing
+from signora.modules.envelopes import (
+    SignerRecipient,
+    envelope_values,
+    recipient_for_signing,
+    record_opened,
+    record_viewed,
+)
 from signora.modules.envelopes.links import link_key, read_token
 from signora.modules.identity_access import hash_token
+from signora.modules.review import read_set
 from signora.modules.signing import codes, consent, sessions
+from signora.modules.signing.document import SignerDocument, build_view
 from signora.modules.signing.domain import mask_email, next_step
 from signora.modules.signing.errors import (
+    AlreadySigned,
     CodeNotRequired,
+    ConsentFirst,
     DisclosureChanged,
     LinkClosed,
     SessionEnded,
@@ -173,3 +184,50 @@ def give_consent(uow: UnitOfWork, who: Signer, version: str) -> Opened:
     if consent.record_consent(uow, recipient):
         audit(uow, recipient, "signing.consented")
     return _step(uow, recipient, who.verified)
+
+
+def require_ready(uow: UnitOfWork, who: Signer, *, to_change: bool = False) -> None:
+    """The document is shown only after the code (when asked) and consent (§2, §3); it is changed
+    only until the person has signed."""
+    recipient = who.recipient
+    if recipient.require_email_code and not who.verified:
+        raise VerifyFirst
+    if not consent.has_consented(uow, recipient.id):
+        raise ConsentFirst
+    if to_change and recipient.status == "signed":
+        raise AlreadySigned
+
+
+def version_of(uow: UnitOfWork, who: Signer) -> VersionForSigning:
+    require_ready(uow, who)
+    return version_for_signing(uow.session, who.recipient.version_id)
+
+
+def document(uow: UnitOfWork, who: Signer) -> SignerDocument:
+    """Every field with what this person may see of it (§4.2). O(F + P + V)."""
+    version = version_of(uow, who)
+    parties, fields = read_set(uow.session, who.recipient.version_id)
+    return build_view(
+        viewer=who.recipient,
+        pages=version.pages,
+        parties=parties,
+        fields=fields,
+        values=envelope_values(uow.session, who.recipient.envelope_id),
+        drafts=read_drafts(uow, who.recipient.id),
+    )
+
+
+def mark_viewed(uow: UnitOfWork, who: Signer) -> None:
+    """The document was shown (§4.5): recorded once, for the sender's timeline."""
+    require_ready(uow, who)
+    if record_viewed(uow.session, who.recipient):
+        audit(uow, who.recipient, "signing.viewed")
+
+
+def read_drafts(uow: UnitOfWork, recipient_id: uuid.UUID) -> dict[uuid.UUID, str]:
+    """A person's saved, unsubmitted values (§4.7)."""
+    rows = uow.session.execute(
+        text("SELECT field_id, value FROM signing_drafts WHERE recipient_id = :r"),
+        {"r": recipient_id},
+    )
+    return {row.field_id: row.value for row in rows}

@@ -23,6 +23,7 @@ class SignerRecipient:
     workspace_id: uuid.UUID
     envelope_id: uuid.UUID
     version_id: uuid.UUID
+    party_id: uuid.UUID | None
     kind: str  # signer, countersigner, copy
     status: str
     name: str
@@ -36,6 +37,7 @@ class SignerRecipient:
     require_email_code: bool
     title: str
     time_zone: str
+    font: str
     company: str
     sender_name: str
     sender_email: str
@@ -50,10 +52,11 @@ def recipient_for_signing(session: Session, recipient_id: uuid.UUID) -> SignerRe
     row = session.execute(
         text(
             """
-            SELECT r.id, r.workspace_id, r.envelope_id, r.version_id, r.kind, r.status, r.name,
-                   r.email, r.user_id, r.link_version, r.revoked_at IS NOT NULL AS revoked,
+            SELECT r.id, r.workspace_id, r.envelope_id, r.version_id, r.party_id, r.kind,
+                   r.status, r.name, r.email, r.user_id, r.link_version,
+                   r.revoked_at IS NOT NULL AS revoked,
                    r.signed_at, e.status AS envelope_status, e.expires_at <= now() AS expired,
-                   e.require_email_code, e.title, e.time_zone, w.name AS company,
+                   e.require_email_code, e.title, e.time_zone, e.font, w.name AS company,
                    u.name AS sender_name, u.email AS sender_email
             FROM envelope_recipients r
             JOIN envelopes e ON e.id = r.envelope_id
@@ -86,3 +89,49 @@ def record_opened(session: Session, recipient: SignerRecipient) -> bool:
         {"e": recipient.envelope_id},
     )
     return True
+
+
+def record_viewed(session: Session, recipient: SignerRecipient) -> bool:
+    """The document first shown to the person (Phase 8 §4.5): ``viewed``, and the envelope too
+    while it is ``opened``. Once; statuses only move forward."""
+    viewed = session.execute(
+        text(
+            "UPDATE envelope_recipients SET viewed_at = now(), "
+            "status = CASE WHEN status IN ('sent', 'opened') THEN 'viewed' ELSE status END "
+            "WHERE id = :r AND viewed_at IS NULL RETURNING id"
+        ),
+        {"r": recipient.id},
+    ).one_or_none()
+    if viewed is None:
+        return False
+    session.execute(
+        text(
+            "UPDATE envelopes SET status = 'viewed' WHERE id = :e AND status IN ('sent', 'opened')"
+        ),
+        {"e": recipient.envelope_id},
+    )
+    return True
+
+
+@dataclass(frozen=True)
+class GivenValue:
+    """A value an envelope holds, with who gave it (Phase 7 §2, Phase 8 §6)."""
+
+    field_id: uuid.UUID
+    value: str
+    given_by: str  # sender, prefill, recipient
+    recipient_id: uuid.UUID | None
+    recipient_kind: str | None  # signer or countersigner, for a recipient's own value
+
+
+def envelope_values(session: Session, envelope_id: uuid.UUID) -> list[GivenValue]:
+    """Every value of the envelope, one indexed read (its primary key's first column). O(V)."""
+    rows = session.execute(
+        text(
+            "SELECT v.field_id, v.value, v.given_by, v.recipient_id, r.kind AS recipient_kind "
+            "FROM envelope_values v LEFT JOIN envelope_recipients r ON r.id = v.recipient_id "
+            "WHERE v.envelope_id = :e"
+        ),
+        {"e": envelope_id},
+    )
+    return [GivenValue(**row._mapping) for row in rows]

@@ -146,6 +146,34 @@ def from_recipient(field: FieldView) -> FromRecipient | None:
     return None
 
 
+def form_fields_of(fields: Sequence[FieldView]) -> list[FormField]:
+    """Each field as sending and signing read it: what it holds, whose it is, its options, its
+    condition and its places. O(F), with an index by key for conditions. A condition on a field
+    outside ``fields`` is dropped (it cannot be met)."""
+    id_of_key = {field.key: field.id for field in fields}
+    return [
+        FormField(
+            id=field.id,
+            label=field.label,
+            holds=field.holds,
+            holds_label=field.holds_label,
+            format=field.format,
+            party_id=field.party_id if field.filled_by == "role" else None,
+            required=field.filled_by == "sender" and field.required,
+            from_recipient=from_recipient(field),
+            sensitive=field.sensitive,
+            options=options_of(field) if field.holds == "choice" else [],
+            places=places_of(field),
+            depends_on=Condition(
+                field_id=id_of_key[field.depends_on.key], option=field.depends_on.option
+            )
+            if field.depends_on and field.depends_on.key in id_of_key
+            else None,
+        )
+        for field in fields
+    ]
+
+
 def build_form(
     *,
     document_id: uuid.UUID,
@@ -160,8 +188,6 @@ def build_form(
     settings: FormSettings,
 ) -> SendForm:
     """O(R + F): one pass over the parties and one over the fields, with an index by key."""
-    id_of_key = {field.key: field.id for field in fields}
-    typed = [field for field in fields if field.holds not in NOT_TYPED]
     ordered = sorted(parties, key=lambda party: party.position)
 
     signers = [
@@ -184,27 +210,7 @@ def build_form(
         )
         for index, party in enumerate(firm)
     ]
-    form_fields = [
-        FormField(
-            id=field.id,
-            label=field.label,
-            holds=field.holds,
-            holds_label=field.holds_label,
-            format=field.format,
-            party_id=field.party_id if field.filled_by == "role" else None,
-            required=field.filled_by == "sender" and field.required,
-            from_recipient=from_recipient(field),
-            sensitive=field.sensitive,
-            options=options_of(field) if field.holds == "choice" else [],
-            places=places_of(field),
-            depends_on=Condition(
-                field_id=id_of_key[field.depends_on.key], option=field.depends_on.option
-            )
-            if field.depends_on and field.depends_on.key in id_of_key
-            else None,
-        )
-        for field in typed
-    ]
+    form_fields = [item for item in form_fields_of(fields) if item.holds not in NOT_TYPED]
     return SendForm(
         document_id=document_id,
         document_name=document_name,

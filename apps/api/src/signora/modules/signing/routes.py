@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request, Response, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import Database
-from signora.modules.signing import service
+from signora.modules.signing import drafts, service
+from signora.modules.signing.document import SignerDocument
 from signora.modules.signing.sessions import COOKIE
 from signora.modules.signing.views import CodeSentView, Opened, SignerState
 
@@ -134,3 +138,96 @@ def consent(
         opened = service.give_consent(uow, who, body.disclosure_version)
     _no_store(response)
     return opened
+
+
+_DOCUMENT: dict[int | str, dict[str, Any]] = {
+    401: {"description": "No live signing session for this person in this browser"},
+    403: {"description": "The code or consent comes first"},
+    404: {"description": "The request is no longer open"},
+}
+
+
+@router.get(
+    "/{recipient_id}/document",
+    summary="The document's fields as this person sees them",
+    responses=_DOCUMENT,
+)
+def document(recipient_id: uuid.UUID, request: Request, response: Response) -> SignerDocument:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        view = service.document(uow, who)
+    _no_store(response)
+    return view
+
+
+@router.get(
+    "/{recipient_id}/pdf",
+    summary="The document's pages (values are drawn over them, never in them)",
+    response_class=FileResponse,
+    responses=_DOCUMENT,
+)
+def pdf(recipient_id: uuid.UUID, request: Request) -> FileResponse:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        version = service.version_of(uow, who)
+    store: BlobStore = request.app.state.blob_store
+    return FileResponse(
+        store.path(version.pdf),
+        media_type="application/pdf",
+        filename=f"{version.document_name}.pdf",
+        content_disposition_type="inline",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+class DraftRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    value: str = Field(max_length=2000)
+
+
+class DraftSaved(BaseModel):
+    value: str  # as stored (an email lower-cased, a number written canonically)
+
+
+@router.put(
+    "/{recipient_id}/drafts/{field_id}",
+    summary="Save one of this person's values before they submit",
+    responses={
+        **_DOCUMENT,
+        409: {"description": "Locked, not asked, or already signed"},
+        422: {"description": "Not a valid value for the field, or too long for its box"},
+    },
+)
+def save_draft(
+    recipient_id: uuid.UUID, field_id: uuid.UUID, body: DraftRequest, request: Request
+) -> DraftSaved:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        service.require_ready(uow, who, to_change=True)
+        return DraftSaved(value=drafts.save_draft(uow, who, field_id, body.value))
+
+
+@router.delete(
+    "/{recipient_id}/drafts/{field_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Clear one of this person's values before they submit",
+    responses=_DOCUMENT,
+)
+def clear_draft(recipient_id: uuid.UUID, field_id: uuid.UUID, request: Request) -> None:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        service.require_ready(uow, who, to_change=True)
+        drafts.clear_draft(uow, who, field_id)
+
+
+@router.post(
+    "/{recipient_id}/viewed",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="The document was shown to this person (recorded once)",
+    responses=_DOCUMENT,
+)
+def viewed(recipient_id: uuid.UUID, request: Request) -> None:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        service.mark_viewed(uow, who)

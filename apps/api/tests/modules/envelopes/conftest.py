@@ -48,7 +48,10 @@ class Sendable:
 
 
 def sendable(
-    api: TestClient, run_job: Callable[..., None], detect_fields: Callable[..., None]
+    api: TestClient,
+    run_job: Callable[..., None],
+    detect_fields: Callable[..., None],
+    extra: Callable[[str], list[dict[str, Any]]] | None = None,
 ) -> Sendable:
     """The test NDA, reviewed: its client party (with a printed name and an email from the
     signer), a firm party that countersigns, a required effective date and an optional note filled
@@ -68,7 +71,10 @@ def sendable(
             "required": False,
         },
     ]
-    assert _save(api, document_id, version_id, body).status_code == 200
+    if extra is not None:  # more fields of the client party, given its id
+        body["fields"] += extra(party["id"])
+    saved = _save(api, document_id, version_id, body)
+    assert saved.status_code == 200, saved.text
     assert _approve(api, document_id, version_id).status_code == 204
     document = api.get(f"{DOCUMENTS}/{document_id}").json()
     return Sendable(

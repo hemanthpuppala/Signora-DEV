@@ -29,6 +29,7 @@ from tests.modules.identity_access.conftest import (  # noqa: F401 - fixtures by
     make_client,
     make_workspace,
 )
+from tests.modules.review.test_save import _drawn
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,41 @@ def sent_envelope(
 ) -> Sent:
     """The test NDA sent to one signer (Client), countersigned by ``colleague`` (Firm)."""
     doc = sendable(api, run_job, detect_fields)
+    response = send(api, doc, request_for(api, doc, colleague, **override))
+    assert response.status_code == 201, response.text
+    return Sent(doc, response.json())
+
+
+def client_fields(party: str) -> list[dict[str, Any]]:
+    """What the client fills besides signing: a required title, an optional phone, a private tax
+    number, and a box that, ticked, asks which marketing topics."""
+    marketing = _drawn("Client marketing", party, holds="checkbox", rect=[300, 752, 316, 768])
+    marketing["required"] = False
+    return [
+        _drawn("Client title", party, rect=[60, 720, 240, 740]),
+        {
+            **_drawn("Client phone", party, holds="phone", rect=[60, 750, 240, 770]),
+            "required": False,
+        },
+        _drawn("Client tax number", party, holds="tax_id", rect=[300, 720, 480, 740]),
+        marketing,
+        {
+            **_drawn("Marketing topics", party, rect=[330, 750, 480, 770]),
+            "required": False,
+            "depends_on": {"field_id": marketing["id"], "option": "checked"},
+        },
+    ]
+
+
+def signable_envelope(
+    api: TestClient,
+    run_job: Callable[..., None],
+    detect_fields: Callable[..., None],
+    colleague: Account,
+    **override: Any,
+) -> Sent:
+    """The test NDA with the client's own fields (``client_fields``), sent."""
+    doc = sendable(api, run_job, detect_fields, extra=client_fields)
     response = send(api, doc, request_for(api, doc, colleague, **override))
     assert response.status_code == 201, response.text
     return Sent(doc, response.json())

@@ -1058,6 +1058,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign/{recipient_id}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The document's fields as this person sees them */
+        get: operations["document_api_v1_sign__recipient_id__document_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sign/{recipient_id}/drafts/{field_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save one of this person's values before they submit */
+        put: operations["save_draft_api_v1_sign__recipient_id__drafts__field_id__put"];
+        post?: never;
+        /** Clear one of this person's values before they submit */
+        delete: operations["clear_draft_api_v1_sign__recipient_id__drafts__field_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sign/{recipient_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The document's pages (values are drawn over them, never in them) */
+        get: operations["pdf_api_v1_sign__recipient_id__pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sign/{recipient_id}/verify": {
         parameters: {
             query?: never;
@@ -1069,6 +1121,23 @@ export interface paths {
         put?: never;
         /** Check the email code; on a match this browser may go on for this person */
         post: operations["verify_api_v1_sign__recipient_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sign/{recipient_id}/viewed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The document was shown to this person (recorded once) */
+        post: operations["viewed_api_v1_sign__recipient_id__viewed_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1495,6 +1564,16 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DraftRequest */
+        DraftRequest: {
+            /** Value */
+            value: string;
+        };
+        /** DraftSaved */
+        DraftSaved: {
+            /** Value */
+            value: string;
         };
         /**
          * DrawnField
@@ -2452,6 +2531,55 @@ export interface components {
             /** Reminder Interval Hours */
             reminder_interval_hours?: number | null;
         };
+        /** SignerDocument */
+        SignerDocument: {
+            /** Fields */
+            fields: components["schemas"]["SignerField"][];
+            fit: components["schemas"]["FitRule"];
+            font: components["schemas"]["FontView"];
+            /** Pages */
+            pages: components["schemas"]["PageSize"][];
+            /** Parties */
+            parties: components["schemas"]["SignerParty"][];
+        };
+        /** SignerField */
+        SignerField: {
+            depends_on: components["schemas"]["Condition"] | null;
+            /** Draft */
+            draft: string | null;
+            /** Format */
+            format: string | null;
+            /** Hidden */
+            hidden: ("private" | "countersigner") | null;
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /** Holds Label */
+            holds_label: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Locked */
+            locked: boolean;
+            /** Mine */
+            mine: boolean;
+            /** Options */
+            options: components["schemas"]["Option"][];
+            /** Party Id */
+            party_id: string | null;
+            /** Places */
+            places: components["schemas"]["Place"][];
+            /** Required */
+            required: boolean;
+            /** Value */
+            value: string | null;
+        };
         /** SignerIn */
         SignerIn: {
             /** Email */
@@ -2463,6 +2591,18 @@ export interface components {
              * Format: uuid
              */
             party_id: string;
+        };
+        /** SignerParty */
+        SignerParty: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
         };
         /** SignerState */
         SignerState: {
@@ -6733,6 +6873,304 @@ export interface operations {
             };
         };
     };
+    document_api_v1_sign__recipient_id__document_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignerDocument"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    save_draft_api_v1_sign__recipient_id__drafts__field_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+                field_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftSaved"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked, not asked, or already signed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a valid value for the field, or too long for its box */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    clear_draft_api_v1_sign__recipient_id__drafts__field_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+                field_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    pdf_api_v1_sign__recipient_id__pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     verify_api_v1_sign__recipient_id__verify_post: {
         parameters: {
             query?: never;
@@ -6770,6 +7208,77 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    viewed_api_v1_sign__recipient_id__viewed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
             };
             /** @description Client error (problem details) */
             "4XX": {

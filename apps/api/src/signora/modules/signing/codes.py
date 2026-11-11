@@ -14,9 +14,10 @@ import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import text
+from sqlalchemy import Row, text
 
 from signora.kernel.config import get_settings
 from signora.kernel.db import UnitOfWork
@@ -57,7 +58,7 @@ def _seconds(span: timedelta) -> int:
     return max(0, math.ceil(span.total_seconds()))
 
 
-def _row(uow: UnitOfWork, recipient_id: uuid.UUID):  # type: ignore[no-untyped-def]
+def _row(uow: UnitOfWork, recipient_id: uuid.UUID) -> Row[Any] | None:
     return uow.session.execute(
         text(
             "SELECT link_version, code_mac, sent_at, expires_at, wrong_tries, used_at, "
@@ -73,7 +74,7 @@ def _now(uow: UnitOfWork) -> datetime:
     return now
 
 
-def _live(row, recipient: SignerRecipient, now: datetime) -> bool:  # type: ignore[no-untyped-def]
+def _live(row: Row[Any] | None, recipient: SignerRecipient, now: datetime) -> bool:
     limit = get_settings().signing.otp_max_attempts
     return (
         row is not None
@@ -91,7 +92,7 @@ def send_code(uow: UnitOfWork, recipient: SignerRecipient, *, again: bool) -> Co
     row = _row(uow, recipient.id)
     now = row.now if row is not None else _now(uow)
     masked = mask_email(recipient.email)
-    if _live(row, recipient, now) and not again:
+    if row is not None and _live(row, recipient, now) and not again:
         return CodeSent(row.sent_at, masked, _seconds(row.sent_at + RESEND_AFTER - now))
     if row is not None and now < row.sent_at + RESEND_AFTER:
         raise CodeWait(_seconds(row.sent_at + RESEND_AFTER - now))
