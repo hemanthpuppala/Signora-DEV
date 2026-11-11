@@ -224,13 +224,43 @@ class Person:
 
 
 @dataclass(frozen=True)
-class Declined:
-    """Who is told of a decline (Phase 8 §8.2): the sender and the Also notify list with the
-    reason; every other person already emailed without it."""
+class Contacts:
+    """Whom an envelope's news goes to besides its recipients: the sender and the Also notify list
+    (Phase 7 §4), and where its page is."""
 
     department_id: uuid.UUID
     sender: Person
     notify: list[str]
+
+
+def envelope_contacts(session: Session, envelope_id: uuid.UUID) -> Contacts:
+    row = session.execute(
+        text(
+            "SELECT e.department_id, e.notify_emails, u.name, u.email FROM envelopes e "
+            "JOIN users u ON u.id = e.sent_by WHERE e.id = :e"
+        ),
+        {"e": envelope_id},
+    ).one()
+    return Contacts(row.department_id, Person(row.name, row.email), list(row.notify_emails))
+
+
+def people(session: Session, recipient_ids: list[uuid.UUID]) -> list[tuple[uuid.UUID, Person]]:
+    rows = session.execute(
+        text(
+            "SELECT id, name, email FROM envelope_recipients WHERE id = ANY(:ids) "
+            "ORDER BY stage, position"
+        ),
+        {"ids": recipient_ids},
+    )
+    return [(row.id, Person(row.name, row.email)) for row in rows]
+
+
+@dataclass(frozen=True)
+class Declined:
+    """Who is told of a decline (Phase 8 §8.2): the sender and the Also notify list with the
+    reason; every other person already emailed without it."""
+
+    contacts: Contacts
     others: list[Person]
 
 
@@ -247,14 +277,10 @@ def record_declined(session: Session, recipient: SignerRecipient, reason: str) -
     ).one_or_none()
     if done is None:
         return None
-    envelope = session.execute(
-        text(
-            "UPDATE envelopes e SET status = 'declined' FROM users u "
-            "WHERE e.id = :e AND u.id = e.sent_by "
-            "RETURNING e.department_id, e.notify_emails, u.name, u.email"
-        ),
+    session.execute(
+        text("UPDATE envelopes SET status = 'declined' WHERE id = :e"),
         {"e": recipient.envelope_id},
-    ).one()
+    )
     others = session.execute(
         text(
             "SELECT name, email FROM envelope_recipients WHERE envelope_id = :e AND id <> :r "
@@ -264,8 +290,6 @@ def record_declined(session: Session, recipient: SignerRecipient, reason: str) -
         {"e": recipient.envelope_id, "r": recipient.id},
     )
     return Declined(
-        department_id=envelope.department_id,
-        sender=Person(envelope.name, envelope.email),
-        notify=list(envelope.notify_emails),
+        contacts=envelope_contacts(session, recipient.envelope_id),
         others=[Person(row.name, row.email) for row in others],
     )

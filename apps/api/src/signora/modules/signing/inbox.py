@@ -1,0 +1,133 @@
+"""To countersign (Phase 8 LLD §7.2): a Signora user's own envelopes waiting for their
+countersignature, across their departments, and how many for the navigation's dot."""
+
+from __future__ import annotations
+
+import base64
+import uuid
+from datetime import datetime
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel
+from sqlalchemy import text
+
+from signora.kernel.db import Database
+from signora.kernel.errors import FieldError, ValidationFailed
+from signora.modules.identity_access import Actor, current_actor
+
+router = APIRouter(prefix="/api/v1/me", tags=["signing"])
+Member = Annotated[Actor, Depends(current_actor)]
+PAGE = 50
+
+# Waiting for this user: their turn (every signer signed, the envelope open, before expiry), and
+# not yet signed or declined by them. One index range (§7.2).
+_WAITING = """
+    FROM envelope_recipients r
+    JOIN envelopes e ON e.id = r.envelope_id
+    JOIN documents d ON d.id = e.document_id
+    JOIN departments dep ON dep.id = e.department_id
+    WHERE r.kind = 'countersigner' AND r.user_id = :u AND r.status IN ('sent', 'opened', 'viewed')
+      AND e.status = 'signed' AND e.expires_at > now()
+"""
+
+
+class Waiting(BaseModel):
+    recipient_id: uuid.UUID
+    envelope_id: uuid.UUID
+    title: str
+    document_name: str
+    department_id: uuid.UUID
+    department_name: str
+    signers: list[str]
+    signed_at: datetime | None  # when the last signer signed
+    expires_at: datetime
+
+
+class WaitingPage(BaseModel):
+    items: list[Waiting]
+    next_cursor: str | None
+
+
+class WaitingCount(BaseModel):
+    count: int
+
+
+def _db(request: Request) -> Database:
+    database: Database = request.app.state.database
+    return database
+
+
+def _cursor(raw: str | None) -> tuple[datetime, uuid.UUID] | None:
+    if raw is None:
+        return None
+    try:
+        at, _, ident = base64.urlsafe_b64decode(raw.encode()).decode().partition("|")
+        return datetime.fromisoformat(at), uuid.UUID(ident)
+    except ValueError:
+        raise ValidationFailed([FieldError("cursor", "Not a page of this list")]) from None
+
+
+@router.get("/countersign", summary="Envelopes waiting for my countersignature, newest turn first")
+def waiting(
+    request: Request, actor: Member, cursor: Annotated[str | None, Query(max_length=200)] = None
+) -> WaitingPage:
+    after = _cursor(cursor)
+    with _db(request).unit_of_work() as uow:
+        rows = uow.session.execute(
+            text(
+                f"""
+                SELECT r.id AS recipient_id, e.id AS envelope_id, e.title, d.name AS document_name,
+                       e.department_id, dep.name AS department_name, e.expires_at,
+                       r.sent_at AS turn_at,
+                       (SELECT array_agg(s.name ORDER BY s.position) FROM envelope_recipients s
+                        WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signers,
+                       (SELECT max(s.signed_at) FROM envelope_recipients s
+                        WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signed_at
+                {_WAITING}
+                  AND (CAST(:at AS timestamptz) IS NULL OR (r.sent_at, r.id) < (:at, :id))
+                ORDER BY r.sent_at DESC, r.id DESC
+                LIMIT :limit
+                """  # noqa: S608 - the WHERE clause is a constant of this module
+            ),
+            {
+                "u": actor.user_id,
+                "at": after[0] if after else None,
+                "id": after[1] if after else None,
+                "limit": PAGE + 1,
+            },
+        ).all()
+    more = len(rows) > PAGE
+    shown = rows[:PAGE]
+    last = shown[-1] if more else None
+    return WaitingPage(
+        items=[
+            Waiting(
+                recipient_id=row.recipient_id,
+                envelope_id=row.envelope_id,
+                title=row.title,
+                document_name=row.document_name,
+                department_id=row.department_id,
+                department_name=row.department_name,
+                signers=list(row.signers or []),
+                signed_at=row.signed_at,
+                expires_at=row.expires_at,
+            )
+            for row in shown
+        ],
+        next_cursor=base64.urlsafe_b64encode(
+            f"{last.turn_at.isoformat()}|{last.recipient_id}".encode()
+        ).decode()
+        if last
+        else None,
+    )
+
+
+@router.get("/countersign/count", summary="How many envelopes wait for my countersignature")
+def waiting_count(request: Request, actor: Member) -> WaitingCount:
+    with _db(request).unit_of_work() as uow:
+        count = uow.session.execute(
+            text(f"SELECT count(*) {_WAITING}"),
+            {"u": actor.user_id},
+        ).scalar_one()
+    return WaitingCount(count=count)

@@ -190,3 +190,46 @@
   font-weight: 400;
   font-size: 32px;
 }
+
+/* To countersign: one row per envelope waiting. */
+.inbox {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px var(--gutter, 16px);
+}
+
+.rows {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--r25);
+}
+
+.row {
+  border-bottom: 1px solid var(--r25);
+}
+
+.rowLink {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rowLink:hover .rowTitle,
+.rowLink:focus-visible .rowTitle {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.rowTitle {
+  font-family: var(--serif);
+  font-size: 20px;
+}
+
+.rowMeta {
+  font-size: 13px;
+  color: var(--t60);
+}

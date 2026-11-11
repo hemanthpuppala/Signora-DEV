@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -30,6 +31,7 @@ class Disclosure(BaseModel):
 
 class SignerState(BaseModel):
     recipient_id: uuid.UUID
+    kind: Literal["signer", "countersigner"]
     name: str
     email_masked: str
     title: str

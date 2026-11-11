@@ -24,3 +24,24 @@ def declined_to_others(*, document: str) -> tuple[str, RenderedEmail]:
         paragraphs=["Nothing more is needed from you. The link you were sent no longer works."],
         footer="Questions? Reply to this email.",
     )
+
+
+def countersign_turn(
+    *, company: str, document: str, signers: str, url: str
+) -> tuple[str, RenderedEmail]:
+    heading = f"{company}: your countersignature is needed on {document}"
+    return heading, render_layout(
+        heading=heading,
+        paragraphs=[f"{signers} signed. It's your turn to countersign in Signora."],
+        action=EmailAction("Review and countersign", url),
+        footer="You'll be asked to sign in. It's also in To countersign in Signora.",
+    )
+
+
+def signers_signed(*, document: str, signers: str, url: str) -> tuple[str, RenderedEmail]:
+    heading = f"All signers have signed {document}"
+    return heading, render_layout(
+        heading=heading,
+        paragraphs=[f"{signers} signed. The countersigners have been asked to countersign."],
+        action=EmailAction("Open the envelope", url),
+    )

@@ -30,6 +30,7 @@ function reply(status: number, body: unknown) {
 
 const SIGNER = {
   recipient_id: RECIPIENT,
+  kind: "signer",
   name: "Maya Chen",
   email_masked: "m•••@example.com",
   title: "Mutual NDA · Maya Chen",

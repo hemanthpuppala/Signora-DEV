@@ -904,6 +904,40 @@ export interface paths {
         patch: operations["rename_self_api_v1_me_patch"];
         trace?: never;
     };
+    "/api/v1/me/countersign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Envelopes waiting for my countersignature, newest turn first */
+        get: operations["waiting_api_v1_me_countersign_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/countersign/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How many envelopes wait for my countersignature */
+        get: operations["waiting_count_api_v1_me_countersign_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/password": {
         parameters: {
             query?: never;
@@ -2704,6 +2738,8 @@ export interface components {
             adopted: components["schemas"]["Adopted"][];
             /** Fonts */
             fonts: components["schemas"]["FontView"][];
+            /** Saved */
+            saved: components["schemas"]["Adopted"][];
         };
         /** SignerDocument */
         SignerDocument: {
@@ -2785,6 +2821,11 @@ export interface components {
             disclosure: components["schemas"]["Disclosure"];
             /** Email Masked */
             email_masked: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signer" | "countersigner";
             /** Name */
             name: string;
             /**
@@ -3194,6 +3235,51 @@ export interface components {
              */
             status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready" | "approved";
             uploaded_by: components["schemas"]["PersonRef"];
+        };
+        /** Waiting */
+        Waiting: {
+            /**
+             * Department Id
+             * Format: uuid
+             */
+            department_id: string;
+            /** Department Name */
+            department_name: string;
+            /** Document Name */
+            document_name: string;
+            /**
+             * Envelope Id
+             * Format: uuid
+             */
+            envelope_id: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Recipient Id
+             * Format: uuid
+             */
+            recipient_id: string;
+            /** Signed At */
+            signed_at: string | null;
+            /** Signers */
+            signers: string[];
+            /** Title */
+            title: string;
+        };
+        /** WaitingCount */
+        WaitingCount: {
+            /** Count */
+            count: number;
+        };
+        /** WaitingPage */
+        WaitingPage: {
+            /** Items */
+            items: components["schemas"]["Waiting"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** WorkspaceView */
         WorkspaceView: {
@@ -6451,6 +6537,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    waiting_api_v1_me_countersign_get: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitingPage"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    waiting_count_api_v1_me_countersign_count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitingCount"];
                 };
             };
             /** @description Validation failed (problem details) */

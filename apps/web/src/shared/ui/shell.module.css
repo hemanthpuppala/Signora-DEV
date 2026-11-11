@@ -113,3 +113,19 @@
   text-transform: uppercase;
   max-width: calc(100% - 32px);
 }
+
+/* Something waits there for the person: a dot before the number, in the "sent" blue. */
+.navCount {
+  color: var(--ink);
+}
+
+.navCount::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 2px 1px 6px;
+  border-radius: 50%;
+  background: var(--st-sent);
+  vertical-align: middle;
+}

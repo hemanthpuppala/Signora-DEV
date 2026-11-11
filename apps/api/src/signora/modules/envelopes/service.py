@@ -119,10 +119,15 @@ def _from(session: Session, actor: Actor, sent_by: uuid.UUID | None = None) -> _
     return _From(row.company, row.name, row.email)
 
 
-def _link(recipient_id: uuid.UUID, link_version: int) -> str:
+def _link(recipient_id: uuid.UUID, link_version: int, kind: str) -> str:
+    """A signer's link carries their token (ADR-E1); a countersigner signs in Signora, signed in
+    (Phase 8 §7), so theirs is their countersign page."""
     settings = get_settings().app
+    base = str(settings.public_base_url).rstrip("/")
+    if kind == "countersigner":
+        return f"{base}/countersign/{recipient_id}"
     key = link_key(settings.secret_key.get_secret_value())
-    return signing_url(str(settings.public_base_url), make_token(key, recipient_id, link_version))
+    return signing_url(base, make_token(key, recipient_id, link_version))
 
 
 def _audit(uow: UnitOfWork, actor: Actor, action: str, envelope_id: uuid.UUID, **data: Any) -> None:
@@ -143,6 +148,7 @@ def _email_sign_request(
     workspace_id: uuid.UUID,
     recipient_id: uuid.UUID,
     link_version: int,
+    kind: str,
     person: Person,
     document: str,
     expires_at: datetime,
@@ -152,7 +158,7 @@ def _email_sign_request(
         sender=sender.sender,
         signer=person.name,
         document=document,
-        url=_link(recipient_id, link_version),
+        url=_link(recipient_id, link_version, kind),
         expires_at=expires_at,
     )
     email_id = send_email(
@@ -207,6 +213,7 @@ def send(
             workspace_id=actor.workspace_id,
             recipient_id=recipient_id,
             link_version=1,
+            kind=plan.first,
             person=person,
             document=form.document_name,
             expires_at=written.expires_at.astimezone(ZoneInfo(request.time_zone)),
@@ -356,7 +363,7 @@ def remind(
             company=sender.company,
             signer=recipient.name,
             document=envelope.document_name,
-            url=_link(recipient.id, recipient.link_version),
+            url=_link(recipient.id, recipient.link_version, recipient.kind),
             expires_at=envelope.expires_local,
         )
         email_id = send_email(
@@ -397,7 +404,7 @@ def resend(
         sender=sender.sender,
         signer=recipient.name,
         document=envelope.document_name,
-        url=_link(recipient.id, recipient.link_version),
+        url=_link(recipient.id, recipient.link_version, recipient.kind),
         expires_at=envelope.expires_local,
     )
     email_id = send_email(
@@ -490,6 +497,7 @@ def change_recipient(
             workspace_id=actor.workspace_id,
             recipient_id=recipient_id,
             link_version=link_version,
+            kind=recipient.kind,
             person=Person(new_name, new_email),
             document=envelope.document_name,
             expires_at=envelope.expires_local,
@@ -573,7 +581,7 @@ def signing_link(
     if recipient.status not in LIVE:
         raise RecipientSigned if recipient.status == "signed" else NotTheirTurn
     _audit(uow, actor, "envelope.link_copied", envelope.id, recipient_id=str(recipient_id))
-    return _link(recipient.id, recipient.link_version)
+    return _link(recipient.id, recipient.link_version, recipient.kind)
 
 
 # --- the list (§6) --------------------------------------------------------------------------------

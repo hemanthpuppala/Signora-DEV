@@ -270,6 +270,7 @@ protected_modules = [
     "signora.modules.signing.drafts",
     "signora.modules.signing.emails",
     "signora.modules.signing.errors",
+    "signora.modules.signing.inbox",
     "signora.modules.signing.models",
     "signora.modules.signing.routes",
     "signora.modules.signing.service",
@@ -277,6 +278,7 @@ protected_modules = [
     "signora.modules.signing.signatures",
     "signora.modules.signing.submit",
     "signora.modules.signing.trail",
+    "signora.modules.signing.turns",
     "signora.modules.signing.views",
 ]
 allowed_importers = ["signora.modules.signing", "signora.models", "signora.handlers"]

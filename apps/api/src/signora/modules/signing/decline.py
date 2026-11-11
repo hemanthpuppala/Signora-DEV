@@ -38,11 +38,11 @@ def decline(uow: UnitOfWork, who: Signer, reason: str) -> None:
     audit(uow, recipient, "signing.declined", reason=reason)
 
     base = str(get_settings().app.public_base_url).rstrip("/")
-    url = f"{base}/departments/{told.department_id}/envelopes/{recipient.envelope_id}"
+    url = f"{base}/departments/{told.contacts.department_id}/envelopes/{recipient.envelope_id}"
     subject, body = emails.declined_to_sender(
         name=recipient.name, document=recipient.title, reason=reason, url=url
     )
-    for to in dict.fromkeys([told.sender.email, *told.notify]):
+    for to in dict.fromkeys([told.contacts.sender.email, *told.contacts.notify]):
         send_email(
             uow,
             to=to,
@@ -64,5 +64,5 @@ def decline(uow: UnitOfWork, who: Signer, reason: str) -> None:
             category="sign_declined",
             workspace_id=recipient.workspace_id,
             dedupe_key=f"sign_declined:{recipient.envelope_id}:{person.email}",
-            reply_to=told.sender.email,
+            reply_to=told.contacts.sender.email,
         )

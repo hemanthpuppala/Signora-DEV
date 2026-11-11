@@ -160,3 +160,35 @@ def adopted(uow: UnitOfWork, recipient_id: uuid.UUID) -> dict[str, Adopted]:
 
 def signature_fonts() -> list[FontView]:
     return [font_view(entry.id) for entry in fonts_for("signature")]
+
+
+def saved(uow: UnitOfWork, user_id: uuid.UUID) -> list[Adopted]:
+    """A Signora user's saved signature and initials (§5.4), offered when they countersign."""
+    rows = uow.session.execute(
+        text(
+            "SELECT kind, method, text, font, strokes, sha256 FROM saved_signatures "
+            "WHERE user_id = :u ORDER BY kind DESC"
+        ),
+        {"u": user_id},
+    )
+    return [
+        _view(row.kind, row.method, row.text, row.font, row.strokes, bytes(row.sha256))
+        for row in rows
+    ]
+
+
+def save_for(uow: UnitOfWork, user_id: uuid.UUID, recipient_id: uuid.UUID) -> None:
+    """A countersigner's adopted signature and initials become their account's (§7.1.4)."""
+    uow.session.execute(
+        text(
+            """
+            INSERT INTO saved_signatures (user_id, kind, method, text, font, strokes, sha256)
+            SELECT :u, kind, method, text, font, strokes, sha256 FROM signing_signatures
+            WHERE recipient_id = :r
+            ON CONFLICT (user_id, kind) DO UPDATE
+            SET method = EXCLUDED.method, text = EXCLUDED.text, font = EXCLUDED.font,
+                strokes = EXCLUDED.strokes, sha256 = EXCLUDED.sha256, saved_at = now()
+            """
+        ),
+        {"u": user_id, "r": recipient_id},
+    )

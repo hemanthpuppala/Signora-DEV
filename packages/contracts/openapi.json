@@ -3894,10 +3894,18 @@
             },
             "title": "Fonts",
             "type": "array"
+          },
+          "saved": {
+            "items": {
+              "$ref": "#/components/schemas/Adopted"
+            },
+            "title": "Saved",
+            "type": "array"
           }
         },
         "required": [
           "adopted",
+          "saved",
           "fonts"
         ],
         "title": "SignatureState",
@@ -4187,6 +4195,14 @@
             "title": "Email Masked",
             "type": "string"
           },
+          "kind": {
+            "enum": [
+              "signer",
+              "countersigner"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -4233,6 +4249,7 @@
         },
         "required": [
           "recipient_id",
+          "kind",
           "name",
           "email_masked",
           "title",
@@ -5175,6 +5192,115 @@
           "is_current"
         ],
         "title": "VersionView",
+        "type": "object"
+      },
+      "Waiting": {
+        "properties": {
+          "department_id": {
+            "format": "uuid",
+            "title": "Department Id",
+            "type": "string"
+          },
+          "department_name": {
+            "title": "Department Name",
+            "type": "string"
+          },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
+          "envelope_id": {
+            "format": "uuid",
+            "title": "Envelope Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "recipient_id": {
+            "format": "uuid",
+            "title": "Recipient Id",
+            "type": "string"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          },
+          "signers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Signers",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_id",
+          "envelope_id",
+          "title",
+          "document_name",
+          "department_id",
+          "department_name",
+          "signers",
+          "signed_at",
+          "expires_at"
+        ],
+        "title": "Waiting",
+        "type": "object"
+      },
+      "WaitingCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "WaitingCount",
+        "type": "object"
+      },
+      "WaitingPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Waiting"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "WaitingPage",
         "type": "object"
       },
       "WorkspaceView": {
@@ -10224,6 +10350,157 @@
         "summary": "Change your name",
         "tags": [
           "members"
+        ]
+      }
+    },
+    "/api/v1/me/countersign": {
+      "get": {
+        "operationId": "waiting_api_v1_me_countersign_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitingPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Envelopes waiting for my countersignature, newest turn first",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/me/countersign/count": {
+      "get": {
+        "operationId": "waiting_count_api_v1_me_countersign_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitingCount"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "How many envelopes wait for my countersignature",
+        "tags": [
+          "signing"
         ]
       }
     },

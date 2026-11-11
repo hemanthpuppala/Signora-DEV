@@ -55,6 +55,7 @@ const ADOPTED = { kind: "signature", method: "drawn", text: null, font: null, st
 
 const STATE = {
   recipient_id: RECIPIENT,
+  kind: "signer" as const,
   name: "Maya Chen",
   email_masked: "m•••@example.com",
   title: "Mutual NDA · Maya Chen",

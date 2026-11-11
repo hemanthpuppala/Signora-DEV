@@ -6,6 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 
+from fastapi import Request
 from sqlalchemy import text
 
 from signora.kernel.config import get_settings
@@ -19,7 +20,7 @@ from signora.modules.envelopes import (
     record_viewed,
 )
 from signora.modules.envelopes.links import link_key, read_token
-from signora.modules.identity_access import hash_token
+from signora.modules.identity_access import current_actor, hash_token
 from signora.modules.review import read_set
 from signora.modules.signing import codes, consent, sessions
 from signora.modules.signing.document import SignerDocument, build_view
@@ -30,9 +31,11 @@ from signora.modules.signing.errors import (
     ConsentFirst,
     DisclosureChanged,
     LinkClosed,
+    NotTheirTurn,
     SessionEnded,
     VerifyFirst,
 )
+from signora.modules.signing.sessions import COOKIE
 from signora.modules.signing.trail import audit
 from signora.modules.signing.views import Disclosure, DisclosureParagraph, Opened, SignerState
 
@@ -123,10 +126,26 @@ def signer(uow: UnitOfWork, cookie: str | None, recipient_id: uuid.UUID) -> Sign
     return Signer(recipient, grant.verified_at is not None, digest)
 
 
+def acting(uow: UnitOfWork, request: Request, recipient_id: uuid.UUID) -> Signer:
+    """Who a signing request acts for. A signer: through this browser's signing session (§1). A
+    countersigner: signed in to Signora as the designated user, with the console's CSRF check
+    (§7.1.2, §7.1.7); their sign-in is the proof of who they are, so no email code."""
+    recipient = recipient_for_signing(uow.session, recipient_id)
+    if recipient is None or recipient.kind != "countersigner":
+        return signer(uow, request.cookies.get(COOKIE), recipient_id)
+    actor = current_actor(request)  # 401 when signed out; 403 without the CSRF token
+    if actor.user_id != recipient.user_id or not recipient.envelope_open:
+        raise LinkClosed
+    if recipient.envelope_status != "signed" and recipient.status != "signed":
+        raise NotTheirTurn
+    return Signer(recipient, verified=True, digest=b"")
+
+
 def state(uow: UnitOfWork, who: Signer) -> SignerState:
     recipient = who.recipient
     return SignerState(
         recipient_id=recipient.id,
+        kind="countersigner" if recipient.kind == "countersigner" else "signer",
         name=recipient.name,
         email_masked=mask_email(recipient.email),
         title=recipient.title,

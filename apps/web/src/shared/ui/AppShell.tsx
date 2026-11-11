@@ -6,7 +6,8 @@ import { cx } from "@/shared/lib/cx";
 import { ScrollLatch } from "./ScrollLatch";
 import styles from "./shell.module.css";
 
-export type NavItem = { href: string; label: string; active?: boolean };
+/** ``count``: things waiting there for the person (a dot and the number), shown above zero. */
+export type NavItem = { href: string; label: string; active?: boolean; count?: number };
 
 export type AppShellProps = {
   /** Workspace name shown next to the logo (signed-in console). */
@@ -39,6 +40,11 @@ export function TopBar({ workspace, nav = [], actions }: Omit<AppShellProps, "ch
                 aria-current={item.active ? "page" : undefined}
               >
                 {item.label}
+                {item.count ? (
+                  <span className={styles.navCount} aria-label={`, ${item.count} waiting`}>
+                    {` · ${item.count}`}
+                  </span>
+                ) : null}
               </Link>
             ))}
             {actions}

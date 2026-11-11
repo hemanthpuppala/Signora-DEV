@@ -141,3 +141,14 @@ export const declineSigning = (recipientId: string, reason: string, key: string)
       headers: { "Idempotency-Key": key },
     }),
   );
+
+export type Waiting = NonNullable<ReturnType<typeof useWaiting>["data"]>["items"][number];
+
+/** The signed-in user's envelopes waiting for their countersignature (Phase 8 §7.2). */
+export function useWaiting() {
+  return useQuery({
+    queryKey: ["me", "countersign"],
+    queryFn: () => unwrap(api.GET("/api/v1/me/countersign")),
+    refetchOnWindowFocus: true,
+  });
+}

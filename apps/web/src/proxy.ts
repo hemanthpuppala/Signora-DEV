@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "__Host-signora_session";
 const CONSOLE_PATHS = new Set(["/", "/people", "/settings"]);
-const isConsolePath = (path: string) => CONSOLE_PATHS.has(path) || path.startsWith("/departments");
+const isConsolePath = (path: string) =>
+  CONSOLE_PATHS.has(path) || path.startsWith("/departments") || path.startsWith("/countersign");
 
 /**
  * Next.js 16 request proxy (formerly middleware): sets a per-request nonce-based Content Security

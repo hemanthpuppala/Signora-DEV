@@ -27,7 +27,7 @@ from signora.modules.envelopes import (
 )
 from signora.modules.identity_access import normalize_email
 from signora.modules.review.formats import InvalidValueError, check_value
-from signora.modules.signing import consent, signatures
+from signora.modules.signing import consent, signatures, turns
 from signora.modules.signing.document import SIGNING_DATE, SIGNS
 from signora.modules.signing.drafts import SIGNED, merged_values
 from signora.modules.signing.errors import AlreadySigned, LinkClosed, NotTheirTurn
@@ -117,21 +117,31 @@ def submit(uow: UnitOfWork, who: Signer) -> Submitted:
     uow.session.execute(
         text("DELETE FROM signing_drafts WHERE recipient_id = :r"), {"r": recipient.id}
     )
+    if recipient.kind == "countersigner" and recipient.user_id is not None:
+        signatures.save_for(uow, recipient.user_id, recipient.id)  # saved on first countersign
     audit(
         uow,
         recipient,
         "signing.signed",
-        verified_by="email_code" if recipient.require_email_code else "email_link",
+        verified_by=_verified_by(recipient.kind, recipient.require_email_code),
         disclosure_version=consent.VERSION,
         values_sha256=_digest(given),
         signatures=",".join(sorted(mark.signature_id for mark in adopted.values())),
     )
     if recipient.kind == "signer" and unsigned(uow.session, recipient.envelope_id, "signer") == 0:
-        every_signer_signed(uow.session, recipient.envelope_id)
+        countersigners = every_signer_signed(uow.session, recipient.envelope_id)
         audit(uow, recipient, "envelope.signers_signed")
+        turns.countersigners_turn(uow, recipient, countersigners)
     return Submitted(signed_at=signed_at)
 
 
 def _digest(given: list[tuple[uuid.UUID, str]]) -> str:
     canonical = json.dumps(sorted((str(f), v) for f, v in given), separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _verified_by(kind: str, code: bool) -> str:
+    """How the person proved who they are, for the certificate (§11)."""
+    if kind == "countersigner":
+        return "signora_sign_in"
+    return "email_code" if code else "email_link"

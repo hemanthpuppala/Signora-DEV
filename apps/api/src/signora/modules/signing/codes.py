@@ -87,8 +87,8 @@ def _live(row: Row[Any] | None, recipient: SignerRecipient, now: datetime) -> bo
 
 def send_code(uow: UnitOfWork, recipient: SignerRecipient, *, again: bool) -> CodeSent:
     """Send a code, or keep the live one when the person did not ask for a new one (§2.1.1)."""
-    if not recipient.require_email_code:
-        raise CodeNotRequired
+    if not recipient.require_email_code or recipient.kind == "countersigner":
+        raise CodeNotRequired  # a countersigner's sign-in is their proof (§7.1.2)
     row = _row(uow, recipient.id)
     now = row.now if row is not None else _now(uow)
     masked = mask_email(recipient.email)

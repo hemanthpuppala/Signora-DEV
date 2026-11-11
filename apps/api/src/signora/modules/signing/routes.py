@@ -65,7 +65,7 @@ def open_link(body: OpenRequest, request: Request, response: Response) -> Opened
 )
 def signer_state(recipient_id: uuid.UUID, request: Request, response: Response) -> SignerState:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         _no_store(response)
         return service.state(uow, who)
 
@@ -94,7 +94,7 @@ def send_code(
     recipient_id: uuid.UUID, body: CodeRequest, request: Request, response: Response
 ) -> CodeSentView:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         sent = service.send_code(uow, who, again=body.again)
     _no_store(response)
     return CodeSentView(
@@ -114,7 +114,7 @@ def verify(
     recipient_id: uuid.UUID, body: VerifyRequest, request: Request, response: Response
 ) -> Opened:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         opened = service.verify(uow, who, body.code)
     _no_store(response)
     return opened
@@ -138,7 +138,7 @@ def consent(
     recipient_id: uuid.UUID, body: ConsentRequest, request: Request, response: Response
 ) -> Opened:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         opened = service.give_consent(uow, who, body.disclosure_version)
     _no_store(response)
     return opened
@@ -158,7 +158,7 @@ _DOCUMENT: dict[int | str, dict[str, Any]] = {
 )
 def document(recipient_id: uuid.UUID, request: Request, response: Response) -> SignerDocument:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         view = service.document(uow, who)
     _no_store(response)
     return view
@@ -172,7 +172,7 @@ def document(recipient_id: uuid.UUID, request: Request, response: Response) -> S
 )
 def pdf(recipient_id: uuid.UUID, request: Request) -> FileResponse:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         version = service.version_of(uow, who)
     store: BlobStore = request.app.state.blob_store
     return FileResponse(
@@ -207,7 +207,7 @@ def save_draft(
     recipient_id: uuid.UUID, field_id: uuid.UUID, body: DraftRequest, request: Request
 ) -> DraftSaved:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         service.require_ready(uow, who, to_change=True)
         return DraftSaved(value=drafts.save_draft(uow, who, field_id, body.value))
 
@@ -220,7 +220,7 @@ def save_draft(
 )
 def clear_draft(recipient_id: uuid.UUID, field_id: uuid.UUID, request: Request) -> None:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         service.require_ready(uow, who, to_change=True)
         drafts.clear_draft(uow, who, field_id)
 
@@ -233,12 +233,13 @@ def clear_draft(recipient_id: uuid.UUID, field_id: uuid.UUID, request: Request) 
 )
 def viewed(recipient_id: uuid.UUID, request: Request) -> None:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         service.mark_viewed(uow, who)
 
 
 class SignatureState(BaseModel):
     adopted: list[signatures.Adopted]  # this person's, for this envelope
+    saved: list[signatures.Adopted]  # a countersigner's account's, offered to use again
     fonts: list[FontView]  # the handwriting styles a typed signature may take
 
 
@@ -253,11 +254,15 @@ class Placed(BaseModel):
 )
 def signature(recipient_id: uuid.UUID, request: Request, response: Response) -> SignatureState:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         service.require_ready(uow, who)
         found = signatures.adopted(uow, who.recipient.id)
+        user = who.recipient.user_id
+        kept = signatures.saved(uow, user) if who.recipient.kind == "countersigner" and user else []
     _no_store(response)
-    return SignatureState(adopted=list(found.values()), fonts=signatures.signature_fonts())
+    return SignatureState(
+        adopted=list(found.values()), saved=kept, fonts=signatures.signature_fonts()
+    )
 
 
 @router.put(
@@ -273,7 +278,7 @@ def adopt(
     recipient_id: uuid.UUID, kind: signatures.Kind, body: signatures.SignatureIn, request: Request
 ) -> signatures.Adopted:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         service.require_ready(uow, who, to_change=True)
         return signatures.adopt(uow, who.recipient.id, who.recipient.workspace_id, kind, body)
 
@@ -285,7 +290,7 @@ def adopt(
 )
 def apply_all(recipient_id: uuid.UUID, kind: signatures.Kind, request: Request) -> Placed:
     with _db(request).unit_of_work() as uow:
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         service.require_ready(uow, who, to_change=True)
         return Placed(placed=drafts.apply_all(uow, who, kind))
 
@@ -308,7 +313,7 @@ def sign_and_submit(
     with _db(request).unit_of_work() as uow:
         if (replay := guard.begin(uow)) is not None:
             return replay
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         service.require_ready(uow, who)
         done = submit.submit(uow, who)
         return guard.finish(uow, status.HTTP_200_OK, done.model_dump(mode="json"))
@@ -342,7 +347,7 @@ def decline_to_sign(
     with _db(request).unit_of_work() as uow:
         if (replay := guard.begin(uow)) is not None:
             return replay
-        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        who = service.acting(uow, request, recipient_id)
         if who.recipient.require_email_code and not who.verified:
             raise VerifyFirst
         decline.decline(uow, who, reason)
