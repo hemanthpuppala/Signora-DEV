@@ -5,6 +5,17 @@
   gap: 16px;
 }
 
+/* A section's title with its "?" (InfoTip) beside it. */
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sectionTitle > p {
+  margin: 0;
+}
+
 /* Prototype .blocks / .block: groups of settings in one panel, title on the left, controls on
    the right, a hairline between rows. */
 .blocks {

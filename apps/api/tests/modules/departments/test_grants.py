@@ -17,14 +17,13 @@ from signora.modules.departments import access as access_module
 from signora.modules.departments import load_access
 from signora.modules.departments import service as service_module
 from signora.modules.identity_access import Permission
-from signora.modules.identity_access.access import Actor
-from signora.modules.identity_access.domain.permissions import parse_permissions
 from tests.modules.identity_access.conftest import (
     Account,
     csrf_headers,
     idempotency_key,
     log_in,
 )
+from tests.support.actors import actor_for
 
 URL = "/api/v1/departments"
 
@@ -52,32 +51,6 @@ def company(make_workspace: Callable[..., Account]) -> Account:
 def owner(client: TestClient, company: Account) -> TestClient:
     log_in(client, company.email)
     return client
-
-
-def actor_for(db: Database, account: Account) -> Actor:
-    """The member's actor as a request would see it (role permissions from the database)."""
-    with db.unit_of_work() as uow:
-        row = uow.session.execute(
-            text(
-                "SELECT r.key, r.name, r.permissions FROM users u JOIN roles r ON r.id = u.role_id "
-                "WHERE u.id = :u"
-            ),
-            {"u": account.user_id},
-        ).one()
-    return Actor(
-        user_id=account.user_id,
-        email=account.email,
-        name="x",
-        workspace_id=account.workspace_id,
-        workspace_name="x",
-        role_id=uuid.uuid4(),
-        role_key=row.key,
-        role_name=row.name,
-        role_description="",
-        permissions=parse_permissions(row.permissions)[0],
-        is_creator=False,
-        session_digest=b"",
-    )
 
 
 def test_a_grant_gives_edit_access_in_that_department_only(

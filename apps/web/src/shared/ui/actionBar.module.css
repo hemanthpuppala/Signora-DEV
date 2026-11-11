@@ -1,0 +1,41 @@
+/* A screen's state and actions on one sticky line (Phase 6 §7.1). No outer margin: the page's own
+   gap between blocks spaces it, as it does every other block. */
+.bar {
+  position: sticky;
+  z-index: 2;
+  top: var(--topbar-height);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  box-sizing: border-box;
+  min-height: var(--action-bar-height);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--sep);
+  background: var(--bg);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--t75);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+/* Facts read as one line: "Version 2 · Needs approval · 1 thing to check". */
+.status > * + *::before {
+  margin-right: 12px;
+  color: var(--t30);
+  content: "·";
+}

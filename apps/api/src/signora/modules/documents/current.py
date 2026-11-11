@@ -1,10 +1,10 @@
-"""Which version is current (Phase 4 LLD §4.2).
+"""Which version is current (Phase 4 LLD §4.2; Phase 6 §1.3).
 
-Only a ready version can be current. When a version becomes ready it becomes current only if it is
-the newest ready version: no higher-numbered version is ready. So a slow version 3 never takes over
-from version 4, and an older version that becomes ready late (Try again) never overrides a version a
-person chose by hand. Decided under the document's row lock, so two versions finishing at once
-cannot both win.
+Only an approved version can be current: it is what new sends use. When a version is approved it
+becomes current only if it is the newest approved version: no higher-numbered version is approved.
+So approving an older version never takes over from a newer approved one, nor overrides a version a
+person chose by hand. Decided under the document's row lock, so two approvals at once cannot both
+win.
 """
 
 from __future__ import annotations
@@ -47,16 +47,16 @@ class Promotion:
 def promote_if_newest(
     session: Session, document_id: uuid.UUID, version_id: uuid.UUID, version_no: int
 ) -> Promotion:
-    """Make a newly ready version current unless a higher-numbered version is ready too."""
+    """Make a newly approved version current unless a higher-numbered version is approved too."""
     previous = current_number(session, document_id)
-    newer_ready = session.execute(
+    newer_approved = session.execute(
         text(
             "SELECT EXISTS (SELECT 1 FROM document_versions WHERE document_id = :d "
-            "AND version_no > :n AND status = 'ready')"
+            "AND version_no > :n AND status = 'approved')"
         ),
         {"d": document_id, "n": version_no},
     ).scalar_one()
-    if newer_ready:
+    if newer_approved:
         return Promotion(promoted=False, previous=previous)
     set_current(session, document_id, version_id)
     return Promotion(promoted=True, previous=previous)

@@ -402,6 +402,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/versions/{version_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a version in review: its fields freeze, and the newest approved is current */
+        post: operations["approve_api_v1_documents__document_id__versions__version_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/versions/{version_id}/detection": {
         parameters: {
             query?: never;
@@ -428,7 +445,8 @@ export interface paths {
         };
         /** A version's fields, who fills them and where they are; the places found so far while its fields are being found */
         get: operations["version_fields_api_v1_documents__document_id__versions__version_id__fields_get"];
-        put?: never;
+        /** Save a version's parties, fields and places as the editor holds them */
+        put: operations["save_fields_api_v1_documents__document_id__versions__version_id__fields_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -487,6 +505,23 @@ export interface paths {
         put?: never;
         /** Try processing again after a passing failure (repeat-safe) */
         post: operations["retry_version_api_v1_documents__document_id__versions__version_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/versions/{version_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save an edit of an approved version as the next version (requires Idempotency-Key) */
+        post: operations["revise_fields_api_v1_documents__document_id__versions__version_id__revisions_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -803,6 +838,26 @@ export interface components {
              */
             upload_id: string;
         };
+        /** Approval */
+        Approval: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["PersonRef"];
+        };
+        /**
+         * ApproveRequest
+         * @description Approve with the revision the page shows and the warnings the person saw (§2.1): their
+         *     codes as a set, so a page listing ten warnings of three kinds sends what it likes.
+         */
+        ApproveRequest: {
+            /** Accepted */
+            accepted: ("no_signer" | "party_cannot_sign" | "own_value_not_a_partys" | "needs_a_look" | "already_signed" | "xfa" | "addressed_to_ai" | "overlapping_places" | "private_value")[];
+            /** Revision */
+            revision: number;
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */
@@ -965,6 +1020,16 @@ export interface components {
              */
             status: "active" | "archived";
         };
+        /** DependencyIn */
+        DependencyIn: {
+            /**
+             * Field Id
+             * Format: uuid
+             */
+            field_id: string;
+            /** Option */
+            option: string;
+        };
         /** DependencyView */
         DependencyView: {
             /** Key */
@@ -1094,6 +1159,49 @@ export interface components {
             /** Email */
             email: string;
         };
+        /** FieldIn */
+        FieldIn: {
+            depends_on?: components["schemas"]["DependencyIn"] | null;
+            /**
+             * Filled By
+             * @enum {string}
+             */
+            filled_by: "role" | "sender" | "none";
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /** Holds Label */
+            holds_label?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Party Id */
+            party_id?: string | null;
+            /** Places */
+            places: components["schemas"]["PlaceIn"][];
+            /** Required */
+            required: boolean;
+            /**
+             * Sensitive
+             * @default false
+             */
+            sensitive: boolean;
+        };
+        /** FieldSet */
+        FieldSet: {
+            /** Fields */
+            fields: components["schemas"]["FieldIn"][];
+            /** Parties */
+            parties: components["schemas"]["PartyIn"][];
+            /** Revision */
+            revision: number;
+        };
         /** FieldView */
         FieldView: {
             depends_on: components["schemas"]["DependencyView"] | null;
@@ -1102,8 +1210,13 @@ export interface components {
              * @enum {string}
              */
             filled_by: "role" | "sender" | "none";
-            /** Holds */
-            holds: string;
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /** Holds Label */
+            holds_label: string | null;
             /**
              * Id
              * Format: uuid
@@ -1115,6 +1228,13 @@ export interface components {
             label: string;
             /** Needs Review */
             needs_review: string | null;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "detected" | "added";
+            /** Party Id */
+            party_id: string | null;
             /** Placements */
             placements: components["schemas"]["PlacementView"][];
             /** Required */
@@ -1237,7 +1357,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready";
+            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready" | "approved";
         };
         /** LoginRequest */
         LoginRequest: {
@@ -1322,6 +1442,23 @@ export interface components {
             /** Width */
             width: number;
         };
+        /** PartyIn */
+        PartyIn: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signer" | "countersigner";
+            /** Kind Label */
+            kind_label?: string | null;
+            /** Label */
+            label: string;
+        };
         /**
          * PendingField
          * @description A place found by the read stage, before the AI has said who fills it (§6.3).
@@ -1351,14 +1488,44 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** PlaceIn */
+        PlaceIn: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "signature" | "checkbox" | "radio" | "combobox" | "listbox" | "blank";
+            /** Option Text */
+            option_text?: string | null;
+            /** Option Value */
+            option_value?: string | null;
+            /** Page */
+            page: number;
+            /** Rect */
+            rect: [
+                number,
+                number,
+                number,
+                number
+            ];
+        };
         /** PlacementView */
         PlacementView: {
+            /** Id */
+            id: string | null;
             /** Kind */
             kind: string;
             /** Option Text */
             option_text: string | null;
             /** Option Value */
             option_value: string | null;
+            /** Options */
+            options?: string[] | null;
             /** Page */
             page: number;
             /** Rect */
@@ -1419,6 +1586,37 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** ReviewWarning */
+        ReviewWarning: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "no_signer" | "party_cannot_sign" | "own_value_not_a_partys" | "needs_a_look" | "already_signed" | "xfa" | "addressed_to_ai" | "overlapping_places" | "private_value";
+            /** Count */
+            count?: number | null;
+            /** Field Id */
+            field_id?: string | null;
+            /** Message */
+            message: string;
+            /** Party Id */
+            party_id?: string | null;
+        };
+        /**
+         * Revised
+         * @description The version an edit of an approved version became; the page opens it.
+         */
+        Revised: {
+            /** Number */
+            number: number;
+            /** Revision */
+            revision: number;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+        };
         /** RoleDetailView */
         RoleDetailView: {
             /** Description */
@@ -1448,6 +1646,11 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** Saved */
+        Saved: {
+            /** Revision */
+            revision: number;
         };
         /** SettingsInput */
         SettingsInput: {
@@ -1550,6 +1753,92 @@ export interface components {
         };
         /** VersionFields */
         VersionFields: {
+            /**
+             * Allowed
+             * @default {
+             *       "blank": [
+             *         "signature",
+             *         "initials",
+             *         "date_signed",
+             *         "party_name",
+             *         "full_name",
+             *         "first_name",
+             *         "last_name",
+             *         "company",
+             *         "title",
+             *         "date_of_birth",
+             *         "email",
+             *         "phone",
+             *         "address",
+             *         "city",
+             *         "state",
+             *         "postal_code",
+             *         "country",
+             *         "url",
+             *         "tax_id",
+             *         "bank_account",
+             *         "date",
+             *         "number",
+             *         "currency",
+             *         "amount_in_words",
+             *         "percent",
+             *         "text",
+             *         "checkbox",
+             *         "choice",
+             *         "note",
+             *         "other"
+             *       ],
+             *       "checkbox": [
+             *         "checkbox"
+             *       ],
+             *       "combobox": [
+             *         "choice"
+             *       ],
+             *       "listbox": [
+             *         "choice"
+             *       ],
+             *       "radio": [
+             *         "choice"
+             *       ],
+             *       "signature": [
+             *         "signature",
+             *         "initials"
+             *       ],
+             *       "text": [
+             *         "signature",
+             *         "initials",
+             *         "date_signed",
+             *         "party_name",
+             *         "full_name",
+             *         "first_name",
+             *         "last_name",
+             *         "company",
+             *         "title",
+             *         "date_of_birth",
+             *         "email",
+             *         "phone",
+             *         "address",
+             *         "city",
+             *         "state",
+             *         "postal_code",
+             *         "country",
+             *         "url",
+             *         "tax_id",
+             *         "bank_account",
+             *         "date",
+             *         "number",
+             *         "currency",
+             *         "amount_in_words",
+             *         "percent",
+             *         "text",
+             *         "note",
+             *         "other"
+             *       ]
+             *     }
+             */
+            allowed: {
+                [key: string]: ("signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other")[];
+            };
             /** Fields */
             fields: components["schemas"]["FieldView"][];
             /** Fields From */
@@ -1559,12 +1848,32 @@ export interface components {
             found_again_failed?: string | null;
             /** Pending */
             pending: components["schemas"]["PendingField"][];
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
             /** Roles */
-            roles: components["schemas"]["signora__modules__detection__routes__RoleView"][];
+            roles: components["schemas"]["signora__modules__review__views__RoleView"][];
+            /**
+             * Shared
+             * @default [
+             *       "signature",
+             *       "initials",
+             *       "date_signed",
+             *       "party_name"
+             *     ]
+             */
+            shared: ("signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other")[];
             /** Stage */
             stage: ("read" | "ai" | "derive" | "store" | "done") | null;
             /** Status */
             status: string;
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: components["schemas"]["ReviewWarning"][];
         };
         /** VersionRef */
         VersionRef: {
@@ -1580,6 +1889,7 @@ export interface components {
         VersionView: {
             /** Ai Instructions */
             ai_instructions: string;
+            approved: components["schemas"]["Approval"] | null;
             /** Bytes */
             bytes: number;
             /**
@@ -1587,6 +1897,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Derived From */
+            derived_from: number | null;
             /** Description */
             description: string | null;
             /** Field Count */
@@ -1622,7 +1934,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready";
+            status: "processing" | "needs_password" | "needs_ocr" | "failed" | "detecting" | "ready" | "approved";
             uploaded_by: components["schemas"]["PersonRef"];
         };
         /** WorkspaceView */
@@ -1634,22 +1946,6 @@ export interface components {
             id: string;
             /** Name */
             name: string;
-        };
-        /** RoleView */
-        signora__modules__detection__routes__RoleView: {
-            /** Field Count */
-            field_count: number;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "signer" | "countersigner";
-            /** Label */
-            label: string;
-            /** Position */
-            position: number;
-            /** Slug */
-            slug: string;
         };
         /** RoleView */
         signora__modules__identity_access__routes__schemas__RoleView: {
@@ -1664,6 +1960,29 @@ export interface components {
             key: string;
             /** Name */
             name: string;
+        };
+        /** RoleView */
+        signora__modules__review__views__RoleView: {
+            /** Field Count */
+            field_count: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signer" | "countersigner";
+            /** Kind Label */
+            kind_label: string | null;
+            /** Label */
+            label: string;
+            /** Position */
+            position: number;
+            /** Slug */
+            slug: string;
         };
     };
     responses: never;
@@ -3126,6 +3445,68 @@ export interface operations {
             };
         };
     };
+    approve_api_v1_documents__document_id__versions__version_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Changed since it was opened, warnings changed, or not in review */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     run_detection_by_hand_api_v1_documents__document_id__versions__version_id__detection_post: {
         parameters: {
             query?: never;
@@ -3206,6 +3587,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["VersionFields"];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    save_fields_api_v1_documents__document_id__versions__version_id__fields_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldSet"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Saved"];
+                };
+            };
+            /** @description Changed by someone else, approved, or not in review */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {
@@ -3361,6 +3806,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    revise_fields_api_v1_documents__document_id__versions__version_id__revisions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldSet"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Revised"];
+                };
+            };
+            /** @description Not approved, or changed since it was opened */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {

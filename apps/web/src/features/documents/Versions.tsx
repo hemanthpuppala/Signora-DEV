@@ -62,7 +62,7 @@ export function Versions({
           const status = VERSION_STATUS[version.status];
           const pages = version.page_count === null ? null : `${version.page_count} ${version.page_count === 1 ? "page" : "pages"}`;
           const fieldCount =
-            version.status === "ready" && version.field_count !== null
+            (version.status === "ready" || version.status === "approved") && version.field_count !== null
               ? `${version.field_count} ${version.field_count === 1 ? "field" : "fields"}`
               : null;
           return (
@@ -71,7 +71,13 @@ export function Versions({
                 <span className={styles.number}>
                   <VersionLabel number={version.number} current={version.is_current} />
                 </span>
-                <StatusPill status={status.pill} label={status.label} />
+                {version.approved ? (
+                  <Tooltip label={`Approved by ${version.approved.by.name} on ${new Date(version.approved.at).toLocaleDateString()}`}>
+                    <StatusPill status={status.pill} label={status.label} />
+                  </Tooltip>
+                ) : (
+                  <StatusPill status={status.pill} label={status.label} />
+                )}
               </div>
               {/* What the AI called this version, once its fields are found; the file name until then. */}
               <Tooltip
@@ -81,7 +87,9 @@ export function Versions({
                 <span className={styles.filename}>{version.name ?? version.filename}</span>
               </Tooltip>
               <span className={styles.detail}>
-                {[pages, fieldCount].filter(Boolean).join(" · ")}
+                {[version.derived_from ? `from version ${version.derived_from}` : null, pages, fieldCount]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
               {/* One line: download at the start, the words in the middle, make current (a star) at the end. */}
               <div className={styles.versionActions}>
@@ -101,7 +109,7 @@ export function Versions({
                     Find fields again
                   </button>
                 ) : null}
-                {canEdit && version.status === "ready" && !version.is_current ? (
+                {canEdit && version.status === "approved" && !version.is_current ? (
                   <span className={styles.actionEnd}>
                     <IconButton icon="star" label="Make current" onClick={() => setConfirming(version)} />
                   </span>
@@ -124,7 +132,7 @@ export function Versions({
             </>
           }
         >
-          New sends will use it. A newer upload takes over again once it is ready.
+          New sends will use it. A newer version takes over again once it is approved.
           {makeCurrent.error ? <Notice tone="warning">{formError(makeCurrent.error)}</Notice> : null}
         </Dialog>
       ) : null}

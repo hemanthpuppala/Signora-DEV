@@ -160,3 +160,89 @@ def test_0016_queues_detection_for_every_processed_version_and_back(
         )
         assert connection.execute(text("SELECT count(*) FROM jobs")).scalar_one() == 0
     engine.dispose()
+
+
+def test_0018_keeps_ready_versions_in_review_without_a_current_one_and_back(
+    scratch: DatabaseSettings,
+) -> None:
+    """Phase 6 §9.3: ready stays ready (in review), current means approved so none is current, each
+    version with a run gets its review revision, and the names lose their ``ai_`` prefix."""
+    config = alembic_config(scratch)
+    command.upgrade(config, "0017")
+    engine = create_engine(scratch.url)
+    version = _processed_version(engine, status="ready")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE documents SET current_version_id = :v WHERE id = "
+                "(SELECT document_id FROM document_versions WHERE id = :v)"
+            ),
+            {"v": version},
+        )
+        connection.execute(
+            text("UPDATE document_versions SET ai_name = 'Mutual NDA' WHERE id = :v"),
+            {"v": version},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO detection_runs (version_id, run_id, workspace_id, stage, finished_at) "
+                "VALUES (:v, gen_random_uuid(), :w, 'done', now())"
+            ),
+            {"v": version, "w": SYSTEM_WORKSPACE},
+        )
+        field = connection.execute(
+            text(
+                "INSERT INTO version_fields (workspace_id, version_id, key, label, holds, "
+                "filled_by, required, sensitive, origin) VALUES (:w, :v, 'agreement.date', "
+                "'Effective date', 'date', 'sender', true, false, 'detected') RETURNING id"
+            ),
+            {"v": version, "w": SYSTEM_WORKSPACE},
+        ).scalar_one()
+        connection.execute(
+            text(
+                "INSERT INTO field_placements (workspace_id, version_id, field_id, page, x0, y0, "
+                "x1, y1, kind) VALUES (:w, :v, :f, 1, 10, 20, 110, 40, 'blank')"
+            ),
+            {"v": version, "w": SYSTEM_WORKSPACE, "f": field},
+        )
+
+    command.upgrade(config, "0018")
+
+    with engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT v.status, v.name, d.current_version_id, r.revision, r.baseline_version_id, "
+                "r.proposal FROM document_versions v JOIN documents d ON d.id = v.document_id "
+                "JOIN version_reviews r ON r.version_id = v.id WHERE v.id = :v"
+            ),
+            {"v": version},
+        ).one()
+    assert (row.status, row.name, row.current_version_id, row.revision) == (
+        "ready",
+        "Mutual NDA",
+        None,
+        0,
+    )
+    # Unedited, so its rows are the AI's proposal: the metrics' baseline (§1.5).
+    assert row.baseline_version_id == version
+    assert row.proposal == [
+        {
+            "page": 1,
+            "rect": [10, 20, 110, 40],
+            "holds": "date",
+            "label": "Effective date",
+            "filled_by": "sender",
+            "party_id": None,
+        }
+    ]
+
+    command.downgrade(config, "0017")
+
+    with engine.connect() as connection:
+        assert (
+            connection.execute(
+                text("SELECT ai_name FROM document_versions WHERE id = :v"), {"v": version}
+            ).scalar_one()
+            == "Mutual NDA"
+        )
+    engine.dispose()

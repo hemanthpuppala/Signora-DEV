@@ -216,10 +216,41 @@ protected_modules = [
 allowed_importers = ["signora.modules.detection", "signora.models", "signora.handlers"]
 
 [[tool.importlinter.contracts]]
+name = "Public interface only: review internals are imported only by review and composition roots"
+type = "protected"
+# review.keys and review.values are pure and public: detection's pure code imports them
+# directly, without the package's database half.
+protected_modules = [
+    "signora.modules.review.checks",
+    "signora.modules.review.editing",
+    "signora.modules.review.errors",
+    "signora.modules.review.fieldset",
+    "signora.modules.review.models",
+    "signora.modules.review.proposal",
+    "signora.modules.review.routes",
+    "signora.modules.review.service",
+    "signora.modules.review.store",
+    "signora.modules.review.views",
+]
+allowed_importers = ["signora.modules.review", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
 name = "Documents never depend on detection (detection drives documents through documents.lifecycle)"
 type = "forbidden"
 source_modules = ["signora.modules.documents"]
 forbidden_modules = ["signora.modules.detection"]
+
+[[tool.importlinter.contracts]]
+name = "One direction: detection -> review -> documents (ADR-R1); review never depends on detection"
+type = "forbidden"
+source_modules = ["signora.modules.review"]
+forbidden_modules = ["signora.modules.detection"]
+
+[[tool.importlinter.contracts]]
+name = "Documents never depend on review (review drives documents through documents.lifecycle)"
+type = "forbidden"
+source_modules = ["signora.modules.documents"]
+forbidden_modules = ["signora.modules.review"]
 
 [[tool.importlinter.contracts]]
 name = "Leaf modules import only the kernel"
@@ -252,5 +283,8 @@ source_modules = [
     "signora.modules.detection.reading",
     "signora.modules.detection.schema",
     "signora.modules.detection.untrusted",
+    # Review's naming of keys and its one list of values, shared with detection.
+    "signora.modules.review.keys",
+    "signora.modules.review.values",
 ]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]

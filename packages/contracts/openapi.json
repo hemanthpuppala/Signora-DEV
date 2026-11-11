@@ -67,6 +67,61 @@
         "title": "AddVersion",
         "type": "object"
       },
+      "Approval": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "$ref": "#/components/schemas/PersonRef"
+          }
+        },
+        "required": [
+          "by",
+          "at"
+        ],
+        "title": "Approval",
+        "type": "object"
+      },
+      "ApproveRequest": {
+        "additionalProperties": false,
+        "description": "Approve with the revision the page shows and the warnings the person saw (§2.1): their\ncodes as a set, so a page listing ten warnings of three kinds sends what it likes.",
+        "properties": {
+          "accepted": {
+            "items": {
+              "enum": [
+                "no_signer",
+                "party_cannot_sign",
+                "own_value_not_a_partys",
+                "needs_a_look",
+                "already_signed",
+                "xfa",
+                "addressed_to_ai",
+                "overlapping_places",
+                "private_value"
+              ],
+              "type": "string"
+            },
+            "maxItems": 9,
+            "title": "Accepted",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "accepted"
+        ],
+        "title": "ApproveRequest",
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "additionalProperties": false,
         "properties": {
@@ -403,6 +458,28 @@
         "title": "DepartmentSummary",
         "type": "object"
       },
+      "DependencyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "field_id": {
+            "format": "uuid",
+            "title": "Field Id",
+            "type": "string"
+          },
+          "option": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Option",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_id",
+          "option"
+        ],
+        "title": "DependencyIn",
+        "type": "object"
+      },
       "DependencyView": {
         "properties": {
           "key": {
@@ -735,6 +812,163 @@
         "title": "EmailResponse",
         "type": "object"
       },
+      "FieldIn": {
+        "additionalProperties": false,
+        "properties": {
+          "depends_on": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DependencyIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "filled_by": {
+            "enum": [
+              "role",
+              "sender",
+              "none"
+            ],
+            "title": "Filled By",
+            "type": "string"
+          },
+          "holds": {
+            "enum": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name",
+              "full_name",
+              "first_name",
+              "last_name",
+              "company",
+              "title",
+              "date_of_birth",
+              "email",
+              "phone",
+              "address",
+              "city",
+              "state",
+              "postal_code",
+              "country",
+              "url",
+              "tax_id",
+              "bank_account",
+              "date",
+              "number",
+              "currency",
+              "amount_in_words",
+              "percent",
+              "text",
+              "checkbox",
+              "choice",
+              "note",
+              "other"
+            ],
+            "title": "Holds",
+            "type": "string"
+          },
+          "holds_label": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holds Label"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceIn"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Places",
+            "type": "array"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "sensitive": {
+            "default": false,
+            "title": "Sensitive",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "holds",
+          "filled_by",
+          "required",
+          "places"
+        ],
+        "title": "FieldIn",
+        "type": "object"
+      },
+      "FieldSet": {
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldIn"
+            },
+            "maxItems": 2000,
+            "title": "Fields",
+            "type": "array"
+          },
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/PartyIn"
+            },
+            "maxItems": 20,
+            "title": "Parties",
+            "type": "array"
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "parties",
+          "fields"
+        ],
+        "title": "FieldSet",
+        "type": "object"
+      },
       "FieldView": {
         "properties": {
           "depends_on": {
@@ -757,8 +991,51 @@
             "type": "string"
           },
           "holds": {
+            "enum": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name",
+              "full_name",
+              "first_name",
+              "last_name",
+              "company",
+              "title",
+              "date_of_birth",
+              "email",
+              "phone",
+              "address",
+              "city",
+              "state",
+              "postal_code",
+              "country",
+              "url",
+              "tax_id",
+              "bank_account",
+              "date",
+              "number",
+              "currency",
+              "amount_in_words",
+              "percent",
+              "text",
+              "checkbox",
+              "choice",
+              "note",
+              "other"
+            ],
             "title": "Holds",
             "type": "string"
+          },
+          "holds_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holds Label"
           },
           "id": {
             "format": "uuid",
@@ -783,6 +1060,26 @@
               }
             ],
             "title": "Needs Review"
+          },
+          "origin": {
+            "enum": [
+              "detected",
+              "added"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
           },
           "placements": {
             "items": {
@@ -816,8 +1113,11 @@
           "key",
           "label",
           "holds",
+          "holds_label",
           "filled_by",
           "role",
+          "party_id",
+          "origin",
           "required",
           "sensitive",
           "depends_on",
@@ -1038,7 +1338,8 @@
               "needs_ocr",
               "failed",
               "detecting",
-              "ready"
+              "ready",
+              "approved"
             ],
             "title": "Status",
             "type": "string"
@@ -1251,6 +1552,50 @@
         "title": "PageView",
         "type": "object"
       },
+      "PartyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "signer",
+              "countersigner"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "kind_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind Label"
+          },
+          "label": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "kind"
+        ],
+        "title": "PartyIn",
+        "type": "object"
+      },
       "PendingField": {
         "description": "A place found by the read stage, before the AI has said who fills it (§6.3).",
         "properties": {
@@ -1323,8 +1668,100 @@
         "title": "PersonRef",
         "type": "object"
       },
+      "PlaceIn": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "signature",
+              "checkbox",
+              "radio",
+              "combobox",
+              "listbox",
+              "blank"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "option_text": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Text"
+          },
+          "option_value": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Value"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "rect": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Rect",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "page",
+          "rect",
+          "kind"
+        ],
+        "title": "PlaceIn",
+        "type": "object"
+      },
       "PlacementView": {
         "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
           "kind": {
             "title": "Kind",
             "type": "string"
@@ -1350,6 +1787,20 @@
               }
             ],
             "title": "Option Value"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
           },
           "page": {
             "title": "Page",
@@ -1377,6 +1828,7 @@
           }
         },
         "required": [
+          "id",
           "page",
           "rect",
           "kind",
@@ -1522,6 +1974,95 @@
         "title": "ResetRequest",
         "type": "object"
       },
+      "ReviewWarning": {
+        "properties": {
+          "code": {
+            "enum": [
+              "no_signer",
+              "party_cannot_sign",
+              "own_value_not_a_partys",
+              "needs_a_look",
+              "already_signed",
+              "xfa",
+              "addressed_to_ai",
+              "overlapping_places",
+              "private_value"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "field_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Id"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ReviewWarning",
+        "type": "object"
+      },
+      "Revised": {
+        "description": "The version an edit of an approved version became; the page opens it.",
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "number",
+          "revision"
+        ],
+        "title": "Revised",
+        "type": "object"
+      },
       "RoleDetailView": {
         "properties": {
           "description": {
@@ -1586,6 +2127,19 @@
           "description"
         ],
         "title": "RoleRef",
+        "type": "object"
+      },
+      "Saved": {
+        "properties": {
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "Saved",
         "type": "object"
       },
       "SettingsInput": {
@@ -1910,6 +2464,139 @@
       },
       "VersionFields": {
         "properties": {
+          "allowed": {
+            "additionalProperties": {
+              "items": {
+                "enum": [
+                  "signature",
+                  "initials",
+                  "date_signed",
+                  "party_name",
+                  "full_name",
+                  "first_name",
+                  "last_name",
+                  "company",
+                  "title",
+                  "date_of_birth",
+                  "email",
+                  "phone",
+                  "address",
+                  "city",
+                  "state",
+                  "postal_code",
+                  "country",
+                  "url",
+                  "tax_id",
+                  "bank_account",
+                  "date",
+                  "number",
+                  "currency",
+                  "amount_in_words",
+                  "percent",
+                  "text",
+                  "checkbox",
+                  "choice",
+                  "note",
+                  "other"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "default": {
+              "blank": [
+                "signature",
+                "initials",
+                "date_signed",
+                "party_name",
+                "full_name",
+                "first_name",
+                "last_name",
+                "company",
+                "title",
+                "date_of_birth",
+                "email",
+                "phone",
+                "address",
+                "city",
+                "state",
+                "postal_code",
+                "country",
+                "url",
+                "tax_id",
+                "bank_account",
+                "date",
+                "number",
+                "currency",
+                "amount_in_words",
+                "percent",
+                "text",
+                "checkbox",
+                "choice",
+                "note",
+                "other"
+              ],
+              "checkbox": [
+                "checkbox"
+              ],
+              "combobox": [
+                "choice"
+              ],
+              "listbox": [
+                "choice"
+              ],
+              "radio": [
+                "choice"
+              ],
+              "signature": [
+                "signature",
+                "initials"
+              ],
+              "text": [
+                "signature",
+                "initials",
+                "date_signed",
+                "party_name",
+                "full_name",
+                "first_name",
+                "last_name",
+                "company",
+                "title",
+                "date_of_birth",
+                "email",
+                "phone",
+                "address",
+                "city",
+                "state",
+                "postal_code",
+                "country",
+                "url",
+                "tax_id",
+                "bank_account",
+                "date",
+                "number",
+                "currency",
+                "amount_in_words",
+                "percent",
+                "text",
+                "note",
+                "other"
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "text",
+                "signature",
+                "checkbox",
+                "radio",
+                "combobox",
+                "listbox",
+                "blank"
+              ]
+            },
+            "title": "Allowed",
+            "type": "object"
+          },
           "fields": {
             "items": {
               "$ref": "#/components/schemas/FieldView"
@@ -1954,11 +2641,61 @@
             "title": "Pending",
             "type": "array"
           },
+          "revision": {
+            "default": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
           "roles": {
             "items": {
-              "$ref": "#/components/schemas/signora__modules__detection__routes__RoleView"
+              "$ref": "#/components/schemas/signora__modules__review__views__RoleView"
             },
             "title": "Roles",
+            "type": "array"
+          },
+          "shared": {
+            "default": [
+              "signature",
+              "initials",
+              "date_signed",
+              "party_name"
+            ],
+            "items": {
+              "enum": [
+                "signature",
+                "initials",
+                "date_signed",
+                "party_name",
+                "full_name",
+                "first_name",
+                "last_name",
+                "company",
+                "title",
+                "date_of_birth",
+                "email",
+                "phone",
+                "address",
+                "city",
+                "state",
+                "postal_code",
+                "country",
+                "url",
+                "tax_id",
+                "bank_account",
+                "date",
+                "number",
+                "currency",
+                "amount_in_words",
+                "percent",
+                "text",
+                "checkbox",
+                "choice",
+                "note",
+                "other"
+              ],
+              "type": "string"
+            },
+            "title": "Shared",
             "type": "array"
           },
           "stage": {
@@ -1982,6 +2719,14 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReviewWarning"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
@@ -2021,6 +2766,16 @@
             "title": "Ai Instructions",
             "type": "string"
           },
+          "approved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Approval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "bytes": {
             "title": "Bytes",
             "type": "integer"
@@ -2029,6 +2784,17 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "derived_from": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Derived From"
           },
           "description": {
             "anyOf": [
@@ -2142,7 +2908,8 @@
               "needs_ocr",
               "failed",
               "detecting",
-              "ready"
+              "ready",
+              "approved"
             ],
             "title": "Status",
             "type": "string"
@@ -2169,6 +2936,8 @@
           "field_count",
           "name",
           "description",
+          "derived_from",
+          "approved",
           "is_current"
         ],
         "title": "VersionView",
@@ -2191,43 +2960,6 @@
           "name"
         ],
         "title": "WorkspaceView",
-        "type": "object"
-      },
-      "signora__modules__detection__routes__RoleView": {
-        "properties": {
-          "field_count": {
-            "title": "Field Count",
-            "type": "integer"
-          },
-          "kind": {
-            "enum": [
-              "signer",
-              "countersigner"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "position": {
-            "title": "Position",
-            "type": "integer"
-          },
-          "slug": {
-            "title": "Slug",
-            "type": "string"
-          }
-        },
-        "required": [
-          "slug",
-          "label",
-          "kind",
-          "position",
-          "field_count"
-        ],
-        "title": "RoleView",
         "type": "object"
       },
       "signora__modules__identity_access__routes__schemas__RoleView": {
@@ -2255,6 +2987,61 @@
           "key",
           "name",
           "description"
+        ],
+        "title": "RoleView",
+        "type": "object"
+      },
+      "signora__modules__review__views__RoleView": {
+        "properties": {
+          "field_count": {
+            "title": "Field Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "signer",
+              "countersigner"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "kind_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind Label"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "label",
+          "kind",
+          "kind_label",
+          "position",
+          "field_count"
         ],
         "title": "RoleView",
         "type": "object"
@@ -4468,6 +5255,100 @@
         ]
       }
     },
+    "/api/v1/documents/{document_id}/versions/{version_id}/approve": {
+      "post": {
+        "operationId": "approve_api_v1_documents__document_id__versions__version_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Changed since it was opened, warnings changed, or not in review"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Approve a version in review: its fields freeze, and the newest approved is current",
+        "tags": [
+          "review"
+        ]
+      }
+    },
     "/api/v1/documents/{document_id}/versions/{version_id}/detection": {
       "post": {
         "operationId": "run_detection_by_hand_api_v1_documents__document_id__versions__version_id__detection_post",
@@ -4644,6 +5525,105 @@
         "summary": "A version's fields, who fills them and where they are; the places found so far while its fields are being found",
         "tags": [
           "detection"
+        ]
+      },
+      "put": {
+        "operationId": "save_fields_api_v1_documents__document_id__versions__version_id__fields_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Saved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Changed by someone else, approved, or not in review"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Save a version's parties, fields and places as the editor holds them",
+        "tags": [
+          "review"
         ]
       }
     },
@@ -4896,6 +5876,107 @@
         "summary": "Try processing again after a passing failure (repeat-safe)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/revisions": {
+      "post": {
+        "operationId": "revise_fields_api_v1_documents__document_id__versions__version_id__revisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Revised"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Not approved, or changed since it was opened"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Save an edit of an approved version as the next version (requires Idempotency-Key)",
+        "tags": [
+          "review"
         ]
       }
     },

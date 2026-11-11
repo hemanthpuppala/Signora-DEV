@@ -163,7 +163,9 @@ class PersonRef(BaseModel):
 
 
 # A version's state (Phase 4 §3.3, Phase 5 §1.1): processed versions are detecting, then ready.
-VersionStatus = Literal["processing", "needs_password", "needs_ocr", "failed", "detecting", "ready"]
+VersionStatus = Literal[
+    "processing", "needs_password", "needs_ocr", "failed", "detecting", "ready", "approved"
+]
 
 
 class VersionRef(BaseModel):
@@ -206,6 +208,11 @@ class PageView(BaseModel):
     rotation: int
 
 
+class Approval(BaseModel):
+    by: PersonRef
+    at: datetime
+
+
 class VersionView(BaseModel):
     id: uuid.UUID
     number: int
@@ -222,8 +229,10 @@ class VersionView(BaseModel):
     created_at: datetime
     processed_at: datetime | None
     field_count: int | None  # once ready
-    name: str | None  # what the AI called this version, once ready (Phase 5 §6.5)
-    description: str | None  # the AI's description of this version, once ready
+    name: str | None  # the AI's name for it, or "{source} - {n}" when edited (Phase 6 §1.2)
+    description: str | None
+    derived_from: int | None  # the number of the approved version it was edited from
+    approved: Approval | None
     is_current: bool
 
 
@@ -300,8 +309,15 @@ def version_view(
         created_at=version.created_at,
         processed_at=version.processed_at,
         field_count=version.field_count,
-        name=version.ai_name,
-        description=version.ai_description,
+        name=version.name,
+        description=version.description,
+        derived_from=version.derived_from_no,
+        approved=Approval(
+            by=PersonRef(id=version.approved_by_id, name=version.approved_by_name or ""),
+            at=version.approved_at,
+        )
+        if version.approved_by_id is not None and version.approved_at is not None
+        else None,
         is_current=version.id == current_id,
     )
 

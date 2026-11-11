@@ -49,7 +49,7 @@
       "id": "f5",
       "holds": "text",
       "filled_by": "sender",
-      "label": "Confidentiality term duration",
+      "label": "Term of confidentiality duration",
       "must_fill": true,
       "depends_on": {
         "id": "f7",
@@ -60,7 +60,7 @@
       "id": "f6",
       "holds": "choice",
       "filled_by": "sender",
-      "label": "Confidentiality term starts from",
+      "label": "Start point for confidentiality term",
       "must_fill": true,
       "depends_on": {
         "id": "f7",
@@ -71,7 +71,7 @@
       "id": "f7",
       "holds": "choice",
       "filled_by": "sender",
-      "label": "Term of confidentiality",
+      "label": "Term of confidentiality option",
       "must_fill": true,
       "depends_on": null
     },
@@ -87,7 +87,7 @@
       "id": "f9",
       "holds": "text",
       "filled_by": "sender",
-      "label": "Jurisdiction state and/or county",
+      "label": "Jurisdiction location",
       "must_fill": true,
       "depends_on": null
     },
@@ -165,17 +165,17 @@
     },
     {
       "id": "f19",
-      "holds": "text",
+      "holds": "address",
       "filled_by": "party_1",
-      "label": "Party 1 notice address or email",
+      "label": "Party 1 notice address",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f20",
-      "holds": "text",
+      "holds": "address",
       "filled_by": "party_2",
-      "label": "Party 2 notice address or email",
+      "label": "Party 2 notice address",
       "must_fill": true,
       "depends_on": null
     },
@@ -200,6 +200,6 @@
   "extra_fields": [],
   "document": {
     "name": "Mutual Non-Disclosure Agreement",
-    "description": "A mutual non-disclosure agreement between two parties. It covers the purpose and term of sharing information, confidentiality duration, governing law, jurisdiction and changes to the standard terms. Both parties sign; no countersignature."
+    "description": "A mutual non-disclosure agreement between Party 1 and Party 2. It covers permitted use, effective date and term, confidentiality duration, governing law, jurisdiction and changes to the standard terms. Both parties sign; no countersignature."
   }
 }

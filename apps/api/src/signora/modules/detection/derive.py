@@ -19,12 +19,12 @@ from pydantic import BaseModel, ConfigDict
 
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
-from signora.modules.detection.schema import ALLOWED, OWN, PARTY_VALUES, SENSITIVE, SHARED
+from signora.modules.detection.schema import ALLOWED
+from signora.modules.review.keys import name_words, unique
+from signora.modules.review.values import LABEL_MAX, OWN, PARTY_VALUES, SENSITIVE, SHARED
 
 NAME_MAX = 120
 DESCRIPTION_MAX = 300
-LABEL_MAX = 120
-KEY_WORDS_MAX = 40
 TOKEN = re.compile(r"\{(f\d+)(?:=[^{}]*)?\}")
 # Links and scripts in what the AI writes (§3.5): personal data is a later feature (Presidio).
 UNSAFE_TEXT = re.compile(
@@ -67,6 +67,7 @@ class PlacementOut(_Model):
     pdf_field: str | None = None
     option_value: str | None = None  # a choice: the value this place stands for
     option_text: str | None = None
+    options: list[str] | None = None  # a dropdown's or a list's own options, in the PDF's order
 
 
 class Dependency(_Model):
@@ -118,10 +119,6 @@ class Result(_Model):
     document: DocumentOut | None
     flags: Flags
     notes: list[str]
-
-
-def _slug(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
 
 
 def role_label(slug: str) -> str:
@@ -267,6 +264,7 @@ def _placements(found: FoundField) -> list[PlacementOut]:
             pdf_field=p.pdf_field,
             option_value=p.value if found.kind == "radio" else None,
             option_text=p.option_text,
+            options=list(found.options) if found.kind in ("combobox", "listbox") else None,
         )
         for p in found.placements
     ]
@@ -393,7 +391,7 @@ def derive(
             notes.append(f"checkbox group {group['label']!r} not used")
             continue
         for member in members:
-            items[member].group, items[member].group_label = number, group["label"]
+            items[member].group, items[member].group_label = number, group["label"][:LABEL_MAX]
 
     fields = _keyed(items)
     # Roles in signing order: signers by where they first appear, then countersigners (§4.5).
@@ -452,15 +450,6 @@ def _owner(item: _Item) -> tuple[str, str | None]:
     return "role", item.filled_by
 
 
-def _name_words(label: str, role: str | None) -> str:
-    words = _slug(label)
-    if role:  # "Recipient bank name" under recipient is recipient.bank_name
-        words = re.sub(rf"^{re.escape(role)}_?(?:s_)?", "", words)
-    if len(words) > KEY_WORDS_MAX:  # cut at a word boundary
-        words = words[:KEY_WORDS_MAX].rsplit("_", 1)[0]
-    return words or "field"
-
-
 def _option_value(item: _Item, placement: PlacementOut) -> str:
     """What a checkbox in a group stands for as an option: its own words, else the AI's label."""
     return placement.option_text or item.label
@@ -478,18 +467,18 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
         owner = role or "agreement"
         if item.group is not None:
             if item.group not in groups:
-                words = _name_words(item.group_label or "choice", role)
-                groups[item.group] = _unique(f"{owner}.{words}", taken)
+                words = name_words(item.group_label or "choice", role)
+                groups[item.group] = unique(f"{owner}.{words}", taken)
             key_of[id(item)] = groups[item.group]
         elif role and item.holds in SHARED:
             share = f"{role}.{item.holds}"
             if share not in shared:
-                shared[share] = _unique(share, taken)
+                shared[share] = unique(share, taken)
             key_of[id(item)] = shared[share]
         elif role and item.holds in PARTY_VALUES:
-            key_of[id(item)] = _unique(f"{role}.{item.holds}", taken)
+            key_of[id(item)] = unique(f"{role}.{item.holds}", taken)
         else:
-            key_of[id(item)] = _unique(f"{owner}.{_name_words(item.label, role)}", taken)
+            key_of[id(item)] = unique(f"{owner}.{name_words(item.label, role)}", taken)
     key_by_id = {i: key_of[id(item)] for item in ordered for i in item.ids}
     item_by_id = {i: item for item in ordered for i in item.ids}
 
@@ -574,11 +563,3 @@ def _break_loops(fields: dict[str, FieldOut]) -> None:
             field.needs_review = "; ".join(filter(None, [field.needs_review, note]))
         for key_on_path in path:
             state[key_on_path] = done
-
-
-def _unique(base: str, taken: set[str]) -> str:
-    key, n = base, 2
-    while key in taken:
-        key, n = f"{base}_{n}", n + 1
-    taken.add(key)
-    return key

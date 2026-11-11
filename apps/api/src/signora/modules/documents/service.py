@@ -98,8 +98,12 @@ class VersionRow:
     created_at: datetime
     processed_at: datetime | None
     field_count: int | None
-    ai_name: str | None
-    ai_description: str | None
+    name: str | None
+    description: str | None
+    derived_from_no: int | None
+    approved_by_id: uuid.UUID | None
+    approved_by_name: str | None
+    approved_at: datetime | None
 
 
 @dataclass(frozen=True)
@@ -114,16 +118,18 @@ _DOCUMENT_SELECT = """
     SELECT d.id, d.department_id, d.name, d.description, d.require_email_code,
            d.current_version_id, d.created_by AS created_by_id, u.name AS created_by_name,
            d.created_at, d.updated_at, d.archived_at,
-           c.version_no AS current_version_no, c.source_kind AS current_kind,
-           c.page_count AS current_page_count,
+           c.version_no AS current_version_no,
+           -- The current version's file; before one is approved, the newest version's (Phase 6).
+           COALESCE(c.source_kind, l.source_kind) AS current_kind,
+           COALESCE(c.page_count, l.page_count) AS current_page_count,
            l.id AS latest_version_id, l.version_no AS latest_version_no, l.status AS latest_status,
            l.created_at AS latest_created_at, l.field_count AS latest_field_count
     FROM documents d
     JOIN users u ON u.id = d.created_by
     LEFT JOIN document_versions c ON c.id = d.current_version_id
     JOIN LATERAL (
-        SELECT id, version_no, status, created_at, field_count FROM document_versions
-        WHERE document_id = d.id ORDER BY version_no DESC LIMIT 1
+        SELECT id, version_no, status, created_at, field_count, source_kind, page_count
+        FROM document_versions WHERE document_id = d.id ORDER BY version_no DESC LIMIT 1
     ) l ON true
     WHERE d.workspace_id = :w
 """
@@ -133,8 +139,12 @@ _VERSION_SELECT = """
            v.source_kind, v.source_filename, v.source_bytes, v.source_sha256, v.pdf_sha256,
            v.pdf_bytes, v.page_count, v.pages, v.pages_without_text, v.ai_instructions,
            v.uploaded_by AS uploaded_by_id, u.name AS uploaded_by_name, v.created_at,
-           v.processed_at, v.field_count, v.ai_name, v.ai_description
+           v.processed_at, v.field_count, v.name, v.description,
+           s.version_no AS derived_from_no, v.approved_by AS approved_by_id,
+           a.name AS approved_by_name, v.approved_at
     FROM document_versions v JOIN users u ON u.id = v.uploaded_by
+    LEFT JOIN document_versions s ON s.id = v.derived_from_version_id
+    LEFT JOIN users a ON a.id = v.approved_by
     WHERE v.workspace_id = :w
 """
 
@@ -362,7 +372,7 @@ def create_document(
     return get_document(session, actor.workspace_id, document_id), version_id
 
 
-def _lock_document(session: Session, actor: Actor, document_id: uuid.UUID) -> DocumentRow:
+def lock_document(session: Session, actor: Actor, document_id: uuid.UUID) -> DocumentRow:
     """The document under its row lock (version numbers, name changes), for changing."""
     locked = session.execute(
         text("SELECT id FROM documents WHERE id = :id AND workspace_id = :w FOR NO KEY UPDATE"),
@@ -386,7 +396,7 @@ def add_version(
     """The next version (processing). The same bytes as any version in the department are
     refused: they can only ever become a separate document (§2.3)."""
     session = uow.session
-    document = _lock_document(session, actor, document_id)
+    document = lock_document(session, actor, document_id)
     if document.archived_at is not None:
         raise DocumentArchived
     instructions = _valid_text("ai_instructions", ai_instructions, AI_INSTRUCTIONS_MAX)
@@ -420,7 +430,7 @@ def update_document(
 ) -> DocumentRow:
     """A person's change: their name or description is never replaced by the AI (topic 1)."""
     session = uow.session
-    current = _lock_document(session, actor, document_id)
+    current = lock_document(session, actor, document_id)
     if current.archived_at is not None:
         raise DocumentArchived
     assignments: list[str] = []
@@ -465,7 +475,7 @@ def update_document(
 def archive_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -> DocumentRow:
     """Repeat-safe: archiving an archived document returns it unchanged."""
     session = uow.session
-    _lock_document(session, actor, document_id)
+    lock_document(session, actor, document_id)
     changed = session.execute(
         text(
             "UPDATE documents SET archived_at = now(), archived_by = :u, updated_at = now() "
@@ -481,7 +491,7 @@ def archive_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -
 def restore_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -> DocumentRow:
     """Repeat-safe; ``409 document-name-taken`` when an active document now has the name."""
     session = uow.session
-    _lock_document(session, actor, document_id)
+    lock_document(session, actor, document_id)
     try:
         with session.begin_nested():
             changed = session.execute(
@@ -505,7 +515,7 @@ def restore_document(uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID) -
 def changeable_version(
     session: Session, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> VersionRow:
-    document = _lock_document(session, actor, document_id)
+    document = lock_document(session, actor, document_id)
     if document.archived_at is not None:
         raise DocumentArchived
     return get_version(session, actor.workspace_id, document_id, version_id)
@@ -584,11 +594,11 @@ def unlock_version(
 def make_current(
     uow: UnitOfWork, *, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> None:
-    """A person chooses which ready version new sends use (§4.2; the screen asks first).
-    Repeat-safe. A later upload that becomes ready takes over again."""
+    """A person chooses which approved version new sends use (§4.2, Phase 6 §1.3; the screen asks
+    first). Repeat-safe. A newer version approved later takes over again."""
     session = uow.session
     version = changeable_version(session, actor, document_id, version_id)
-    if version.status != "ready":
+    if version.status != "approved":
         raise VersionNotReady
     previous = current_number(session, document_id)
     if previous == version.version_no:

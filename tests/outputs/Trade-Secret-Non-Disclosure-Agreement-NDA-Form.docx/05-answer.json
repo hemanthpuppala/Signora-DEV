@@ -46,7 +46,7 @@
       "id": "f5",
       "holds": "date",
       "filled_by": "sender",
-      "label": "Effective date",
+      "label": "Effective date of agreement",
       "must_fill": true,
       "depends_on": null
     },
@@ -111,6 +111,6 @@
   "extra_fields": [],
   "document": {
     "name": "Trade Secret Non-Disclosure Agreement",
-    "description": "A trade secret non-disclosure agreement between a Company and a Recipient. It covers confidential information, non-disclosure obligations, term, exclusions, governing law and related remedies. The Recipient signs first and the Company countersigns."
+    "description": "A trade secret non-disclosure agreement between a Company and a Recipient. It covers confidential information, confidentiality and non-use obligations, exclusions, indemnification, governing law and other terms. The Recipient signs first, and the Company countersigns."
   }
 }

@@ -2,9 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import type { components } from "@signora/contracts";
+
 import { api, unwrap } from "@/shared/api/client";
 
-import { processingInterval, type Version } from "./api";
+import { hasWorkingCopy, processingInterval, type Version } from "./api";
 
 
 export const fieldsKey = (versionId: string, status: string) => ["fields", versionId, status] as const;
@@ -17,7 +19,7 @@ export const fieldsKey = (versionId: string, status: string) => ["fields", versi
 export function useVersionFields(documentId: string, version: Version | undefined) {
   return useQuery({
     queryKey: fieldsKey(version?.id ?? "", version?.status ?? ""),
-    enabled: version !== undefined && (version.status === "detecting" || version.status === "ready"),
+    enabled: version !== undefined && hasWorkingCopy(version.status),
     queryFn: () =>
       unwrap(
         api.GET("/api/v1/documents/{document_id}/versions/{version_id}/fields", {
@@ -26,11 +28,17 @@ export function useVersionFields(documentId: string, version: Version | undefine
       ),
     refetchInterval: (query) =>
       query.state.data?.status === "detecting" ? processingInterval([version?.created_at ?? ""]) : false,
+    // When the same version changes state (approved, fields found) its last fields stay on screen
+    // until the new ones arrive, so the panel never blinks; another version's never stand in.
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === version?.id ? previous : undefined),
   });
 }
 
-/** What a field holds, in plain words. */
-export const HOLDS: Record<string, string> = {
+/** What a field may hold: the contract's enum, from the API's one list (Phase 6 §1.8). */
+export type Holds = components["schemas"]["FieldView"]["holds"];
+
+/** What a field holds, in plain words: every value the API can send must have one (type-checked). */
+export const HOLDS: Record<Holds, string> = {
   signature: "Signature",
   initials: "Initials",
   date_signed: "Date signed",
@@ -48,6 +56,7 @@ export const HOLDS: Record<string, string> = {
   state: "State",
   postal_code: "Postal code",
   country: "Country",
+  url: "Website",
   tax_id: "Tax number",
   bank_account: "Bank account",
   date: "Date",
@@ -58,27 +67,43 @@ export const HOLDS: Record<string, string> = {
   text: "Text",
   checkbox: "Checkbox",
   choice: "Choice",
+  note: "Note",
+  other: "Other",
 };
+
+/** The types grouped for picking (Phase 6 §4); every type is in exactly one group (tested). */
+export const HOLD_GROUPS: readonly { label: string; holds: readonly Holds[] }[] = [
+  { label: "Signing", holds: ["signature", "initials", "date_signed"] },
+  { label: "Who they are", holds: ["party_name", "full_name", "first_name", "last_name", "company", "title", "date_of_birth"] },
+  { label: "Contact", holds: ["email", "phone", "address", "city", "state", "postal_code", "country", "url"] },
+  { label: "Money and numbers", holds: ["currency", "amount_in_words", "number", "percent", "date"] },
+  { label: "Private", holds: ["tax_id", "bank_account"] },
+  { label: "General", holds: ["text", "checkbox", "choice", "note", "other"] },
+];
+
+/** A party as the screens need it: by id, in signing order. */
+export type PartyRef = { id: string; label: string; kind: "signer" | "countersigner" };
+type FilledByRef = { filled_by: "role" | "sender" | "none"; party_id: string | null };
 
 /** The design system's party tones: signers in order, then the countersigning side (prototype 13). */
 const SIGNER_TONES = ["role1", "role2", "role3"] as const;
 export type Tone = (typeof SIGNER_TONES)[number] | "firm" | "sender" | "none";
 
-export function toneOf(field: Pick<FieldView, "filled_by" | "role">, roles: readonly RoleView[]): Tone {
+export function toneOf(field: FilledByRef, parties: readonly PartyRef[]): Tone {
   if (field.filled_by === "sender") return "sender";
-  if (field.filled_by === "none" || !field.role) return "none";
-  const role = roles.find((candidate) => candidate.slug === field.role);
-  if (!role) return "none";
-  if (role.kind === "countersigner") return "firm";
-  const signers = roles.filter((candidate) => candidate.kind === "signer");
-  return SIGNER_TONES[signers.indexOf(role) % SIGNER_TONES.length] ?? "role1";
+  if (field.filled_by === "none" || !field.party_id) return "none";
+  const party = parties.find((candidate) => candidate.id === field.party_id);
+  if (!party) return "none";
+  if (party.kind === "countersigner") return "firm";
+  const signers = parties.filter((candidate) => candidate.kind === "signer");
+  return SIGNER_TONES[signers.indexOf(party) % SIGNER_TONES.length] ?? "role1";
 }
 
 /** Who fills a field, in words: the party's label, before sending, or nobody. */
-export function whoFills(field: Pick<FieldView, "filled_by" | "role">, roles: readonly RoleView[]): string {
+export function whoFills(field: FilledByRef, parties: readonly PartyRef[]): string {
   if (field.filled_by === "sender") return "Filled in before sending";
-  if (field.filled_by === "none" || !field.role) return "Not asked";
-  return roles.find((role) => role.slug === field.role)?.label ?? field.role;
+  if (field.filled_by === "none" || !field.party_id) return "Not asked";
+  return parties.find((party) => party.id === field.party_id)?.label ?? "Not asked";
 }
 
 /** A signature or initials is drawn dashed (prototype 13's legend). */

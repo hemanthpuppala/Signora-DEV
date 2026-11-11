@@ -22,11 +22,11 @@
   ],
   "fields": [
     {
-      "key": "agreement.company_legal_name",
+      "key": "company.party_name",
       "label": "Company legal name",
       "holds": "party_name",
-      "filled_by": "sender",
-      "role": null,
+      "filled_by": "role",
+      "role": "company",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -51,11 +51,11 @@
       ]
     },
     {
-      "key": "agreement.company_mailing_address",
+      "key": "company.address",
       "label": "Company mailing address",
       "holds": "address",
-      "filled_by": "sender",
-      "role": null,
+      "filled_by": "role",
+      "role": "company",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -550,9 +550,9 @@
       ]
     },
     {
-      "key": "agreement.consideration_cents",
-      "label": "Consideration cents",
-      "holds": "number",
+      "key": "agreement.additional_consideration_amount_wording",
+      "label": "Additional consideration amount wording",
+      "holds": "text",
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -608,11 +608,11 @@
       ]
     },
     {
-      "key": "agreement.company_notice_email",
-      "label": "Company notice email",
+      "key": "company.email",
+      "label": "Company notices email",
       "holds": "email",
-      "filled_by": "sender",
-      "role": null,
+      "filled_by": "role",
+      "role": "company",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -724,7 +724,7 @@
     },
     {
       "key": "recipient.full_name",
-      "label": "Recipient printed name",
+      "label": "Recipient signer's printed name",
       "holds": "full_name",
       "filled_by": "role",
       "role": "recipient",
@@ -931,7 +931,7 @@
       "holds": "choice",
       "filled_by": "role",
       "role": "recipient",
-      "required": false,
+      "required": true,
       "sensitive": false,
       "depends_on": null,
       "needs_review": null,
@@ -1119,7 +1119,7 @@
       "holds": "date_of_birth",
       "filled_by": "role",
       "role": "recipient",
-      "required": true,
+      "required": false,
       "sensitive": true,
       "depends_on": {
         "key": "recipient.type",
@@ -1152,7 +1152,7 @@
       "holds": "tax_id",
       "filled_by": "role",
       "role": "recipient",
-      "required": true,
+      "required": false,
       "sensitive": true,
       "depends_on": null,
       "needs_review": null,
@@ -1177,7 +1177,7 @@
     },
     {
       "key": "recipient.email",
-      "label": "Recipient email",
+      "label": "Recipient notices email",
       "holds": "email",
       "filled_by": "role",
       "role": "recipient",
@@ -1268,7 +1268,7 @@
     },
     {
       "key": "recipient.title",
-      "label": "Business contact person's title",
+      "label": "Recipient business contact title",
       "holds": "title",
       "filled_by": "role",
       "role": "recipient",
@@ -1392,7 +1392,7 @@
       "holds": "choice",
       "filled_by": "sender",
       "role": null,
-      "required": false,
+      "required": true,
       "sensitive": false,
       "depends_on": null,
       "needs_review": null,
@@ -1529,8 +1529,8 @@
       ]
     },
     {
-      "key": "recipient.acknowledges_receipt_and_reading_of",
-      "label": "Acknowledges receipt and reading of security policy",
+      "key": "recipient.acknowledgement_of_information_security",
+      "label": "Acknowledgement of Information Security Policy",
       "holds": "checkbox",
       "filled_by": "role",
       "role": "recipient",
@@ -1558,8 +1558,8 @@
       ]
     },
     {
-      "key": "recipient.consents_to_email_notices",
-      "label": "Consents to email notices",
+      "key": "recipient.consent_to_email_notices",
+      "label": "Consent to email notices",
       "holds": "checkbox",
       "filled_by": "role",
       "role": "recipient",
@@ -1587,8 +1587,8 @@
       ]
     },
     {
-      "key": "recipient.acknowledges_disclosure_of_prior",
-      "label": "Acknowledges disclosure of prior knowledge",
+      "key": "recipient.acknowledgement_of_prior_knowledge",
+      "label": "Acknowledgement of prior knowledge disclosure",
       "holds": "checkbox",
       "filled_by": "role",
       "role": "recipient",
@@ -1619,7 +1619,7 @@
   "not_asked": [],
   "document": {
     "name": "Trade Secret Non-Disclosure Agreement",
-    "description": "A trade secret non-disclosure agreement between Company and Recipient. It covers permitted use, confidentiality, fees, non-solicitation, security, notices and return of information. Recipient signs first; Company countersigns, with a witness signature."
+    "description": "A trade secret nondisclosure agreement between a Company and a Recipient, with a witness. It covers confidentiality, permitted use, fees, non-solicitation, security, return of information, notices and acknowledgements. The Recipient signs first, and the Company countersigns; a witness also signs."
   },
   "flags": {
     "no_fields": false,

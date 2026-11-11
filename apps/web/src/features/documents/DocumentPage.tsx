@@ -7,17 +7,13 @@ import { api, unwrap } from "@/shared/api/client";
 import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import {
   Button,
-  Checkbox,
   ClampedText,
   Dialog,
   HeadAction,
   HeadRow,
   Heading1,
   Notice,
-  PdfViewer,
-  type PdfOverlayArgs,
   Section,
-  SmallText,
   TextArea,
   TextButton,
   TextField,
@@ -25,16 +21,15 @@ import {
 
 import { documentKey, hasWorkingCopy, useDocument, type DocumentDetail } from "./api";
 import styles from "./document.module.css";
-import { FieldBoxes, type Selection } from "./FieldBoxes";
-import { useVersionFields, type VersionFields } from "./fields";
+import { useVersionFields } from "./fields";
 import { VersionLabel } from "./VersionLabel";
 import { VersionProgress } from "./VersionProgress";
-import { FieldsPanel } from "./FieldsPanel";
 import { NewVersionForm, useNewVersion } from "./NewVersion";
+import { ReviewLayout } from "./review/ReviewLayout";
 import { Versions } from "./Versions";
 import { VersionState } from "./VersionState";
 
-type Patch = { name?: string; description?: string; require_email_code?: boolean };
+type Patch = { name?: string; description?: string };
 
 function useDocumentAction(id: string) {
   const queryClient = useQueryClient();
@@ -66,7 +61,7 @@ function useDocumentAction(id: string) {
  */
 export function DocumentPage({ departmentId, documentId }: { departmentId: string; documentId: string }) {
   const document = useDocument(documentId);
-  const { patch, archive } = useDocumentAction(documentId);
+  const { archive } = useDocumentAction(documentId);
   const [editing, setEditing] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -79,10 +74,6 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
     viewing ?? document.data?.current_version?.id ?? versions.find((version) => hasWorkingCopy(version.status))?.id ?? null;
   const shown = versions.find((version) => version.id === shownId && hasWorkingCopy(version.status));
   const fields = useVersionFields(documentId, shown);
-  const [picked, setPicked] = useState<{ version: string; selection: Selection; token: number } | null>(null);
-  const selection = picked && picked.version === shown?.id ? picked.selection : null;
-  const select = (next: Selection) =>
-    setPicked((previous) => ({ version: shown?.id ?? "", selection: next, token: (previous?.token ?? 0) + 1 }));
 
   if (document.isError) {
     const missing = document.error instanceof ApiError && document.error.status === 404;
@@ -94,9 +85,25 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
   const archived = data.archived_at !== null;
   const canEdit = data.access === "edit" && !archived;
   const newest = data.versions[0];
-  const view = fields.data;
-  const focus = picked && selection && view && shown ? focusOf(view, selection, picked.token) : null;
   const back = `/departments/${departmentId}/documents`;
+  const progress = (
+    <>
+      {newVersion.problem ? <Notice tone="warning">{newVersion.problem}</Notice> : null}
+      <VersionProgress uploading={newVersion.uploading} version={newest} />
+      {newVersion.pending ? (
+        <NewVersionForm
+          pending={newVersion.pending}
+          adding={newVersion.adding}
+          error={newVersion.instructionsError}
+          onAdd={newVersion.add}
+          onCancel={newVersion.cancel}
+        />
+      ) : null}
+      {newest && newest.status !== "ready" && newest.status !== "approved" ? (
+        <VersionState document={data} version={newest} canEdit={canEdit} />
+      ) : null}
+    </>
+  );
 
   return (
     <>
@@ -177,74 +184,26 @@ export function DocumentPage({ departmentId, documentId }: { departmentId: strin
           {archive.error ? formError(archive.error) : "This document can't get new versions or be sent."}
         </Notice>
       ) : null}
-      <div className={styles.layout}>
-        <div className={styles.main}>
-          {newVersion.problem ? <Notice tone="warning">{newVersion.problem}</Notice> : null}
-          <VersionProgress uploading={newVersion.uploading} version={newest} />
-          {newVersion.pending ? (
-            <NewVersionForm
-              pending={newVersion.pending}
-              adding={newVersion.adding}
-              error={newVersion.instructionsError}
-              onAdd={newVersion.add}
-              onCancel={newVersion.cancel}
-            />
-          ) : null}
-          {newest && newest.status !== "ready" ? (
-            <VersionState document={data} version={newest} canEdit={canEdit} />
-          ) : null}
-          {shown ? (
-            <>
-              {shown.id !== data.current_version?.id && data.current_version ? (
-                <div className={styles.caption}>
-                  <TextButton onClick={() => setViewing(null)}>Back to the current version</TextButton>
-                </div>
-              ) : null}
-              <PdfViewer
-                url={`/api/v1/documents/${data.id}/versions/${shown.id}/pdf`}
-                pages={shown.pages}
-                label={`${data.name}, version ${shown.number}`}
-                focus={focus}
-                {...(view
-                  ? {
-                      renderOverlay: ({ page, scale }: PdfOverlayArgs) => (
-                        <FieldBoxes
-                          page={page}
-                          scale={scale}
-                          fields={view.fields}
-                          pending={view.pending}
-                          roles={view.roles}
-                          selected={selection}
-                          onSelect={select}
-                        />
-                      ),
-                    }
-                  : {})}
-              />
-            </>
-          ) : null}
-        </div>
-        <div className={styles.side}>
-          {shown && view ? (
-            <Section title={`Fields · version ${shown.number}`}>
-              <FieldsPanel view={view} selected={selection} onSelect={select} />
+      {shown ? (
+        <ReviewLayout
+          key={shown.id}
+          document={data}
+          version={shown}
+          view={fields.data}
+          canEdit={canEdit}
+          top={progress}
+          onOpen={setViewing}
+        />
+      ) : (
+        <div className={styles.layout}>
+          <div className={styles.main}>{progress}</div>
+          <div className={styles.side}>
+            <Section title="Versions">
+              <Versions document={data} viewing={shownId} onOpen={setViewing} canEdit={canEdit} />
             </Section>
-          ) : null}
-          <Section title="Signing">
-            <Checkbox
-              checked={data.require_email_code}
-              disabled={!canEdit || patch.isPending}
-              onChange={(event) => patch.mutate({ require_email_code: event.target.checked })}
-            >
-              Require email code
-            </Checkbox>
-            <SmallText>Clients enter a code sent to their email before they can sign. Each send keeps this setting.</SmallText>
-          </Section>
-          <Section title="Versions">
-            <Versions document={data} viewing={shownId} onOpen={setViewing} canEdit={canEdit} />
-          </Section>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
@@ -296,16 +255,3 @@ function About({ document, onDone }: { document: DocumentDetail; onDone: () => v
     </form>
   );
 }
-
-/** Where the viewer goes for a chosen field: the chosen place of it, on its page. */
-function focusOf(view: VersionFields, selection: Selection, token: number) {
-  const placements =
-    selection.kind === "field"
-      ? view.fields.find((field) => field.key === selection.key)?.placements
-      : view.pending.find((found) => found.id === selection.id)?.placements;
-  const placement = placements?.[selection.place];
-  if (!placement) return null;
-  const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = placement.rect;
-  return { page: placement.page, rect: [x0, y0, x1, y1] as const, token };
-}
-

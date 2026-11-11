@@ -4,10 +4,14 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ActionBar,
   Button,
   ClampedText,
   EmailField,
+  ExpandableList,
+  ExpandableRow,
   IconButton,
+  InfoTip,
   SearchField,
   Select,
   StatusPill,
@@ -244,5 +248,111 @@ describe("ClampedText", () => {
     overflow(200);
     render(<ClampedText>Short.</ClampedText>);
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("ExpandableRow", () => {
+  it("opens its details in place under its button, and says so", async () => {
+    function Rows() {
+      const [open, setOpen] = useState(false);
+      return (
+        <ExpandableList label="Fields">
+          <ExpandableRow id="f" title="Company" meta="Required" expanded={open} regionLabel="Details of Company" onToggle={() => setOpen(!open)}>
+            Page 1
+          </ExpandableRow>
+        </ExpandableList>
+      );
+    }
+    render(<Rows />);
+    const row = screen.getByRole("button", { name: "Company" }); // the title alone; the facts describe it
+    expect(row).toHaveAccessibleDescription("Required");
+    expect(row).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: "Details of Company" })).toBeNull();
+
+    await userEvent.click(row);
+    expect(row).toHaveAttribute("aria-expanded", "true");
+    expect(row).toHaveAttribute("aria-controls", "f-details");
+    expect(screen.getByRole("region", { name: "Details of Company" })).toHaveTextContent("Page 1");
+  });
+});
+
+describe("ActionBar", () => {
+  it("is a named region with the state and the actions", () => {
+    render(
+      <ActionBar label="Review" actions={<Button compact>Approve version</Button>}>
+        <span>Version 2</span>
+        <span>Needs approval</span>
+      </ActionBar>,
+    );
+    const bar = screen.getByRole("region", { name: "Review" });
+    expect(bar).toHaveTextContent("Version 2Needs approval");
+    expect(screen.getByRole("button", { name: "Approve version" })).toBeInTheDocument();
+  });
+});
+
+describe("ExpandableList, scrolling", () => {
+  it("brings an opened row to its top and fits that row and the two under it", async () => {
+    const heights: Record<string, number> = { a: 50, b: 50, c: 200, d: 50, e: 50, f: 50 };
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return heights[this.id] ?? 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (this: HTMLElement) {
+      return this.id === "c" ? 100 : 0;
+    });
+    const scrollTo = vi.fn();
+    HTMLElement.prototype.scrollTo = scrollTo as unknown as HTMLElement["scrollTo"];
+    function Rows() {
+      const [open, setOpen] = useState<string | null>(null);
+      return (
+        <ExpandableList label="Fields" scrollable>
+          {Object.keys(heights).map((id) => (
+            <ExpandableRow key={id} id={id} title={id.toUpperCase()} expanded={open === id} regionLabel={id} onToggle={() => setOpen(open === id ? null : id)}>
+              Details
+            </ExpandableRow>
+          ))}
+        </ExpandableList>
+      );
+    }
+    render(<Rows />);
+    const list = screen.getByRole("list", { name: "Fields" });
+    expect(list.style.maxHeight).toBe(""); // all closed: the design system's table height
+
+    await userEvent.click(screen.getByRole("button", { name: "C" }));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 100, behavior: "smooth" });
+    expect(list.style.maxHeight).toBe("301px"); // C (200) + D + E (50 each) + the hairline
+
+    await userEvent.click(screen.getByRole("button", { name: "C" }));
+    expect(list.style.maxHeight).toBe("");
+    vi.restoreAllMocks();
+  });
+});
+
+describe("InfoTip", () => {
+  it("opens on hover, stays open after a click until Escape or a press elsewhere, and is read when open", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <InfoTip label="Places">Where this field appears.</InfoTip>
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+    const button = screen.getByRole("button", { name: "About Places" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("note")).toBeNull();
+
+    await user.hover(button);
+    expect(screen.getByRole("note")).toHaveTextContent("Where this field appears.");
+    await user.unhover(button);
+    expect(screen.queryByRole("note")).toBeNull();
+
+    await user.click(button); // a tap on a phone: stays open
+    await user.unhover(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("note")).toBeNull();
+
+    await user.click(button);
+    await user.click(screen.getByRole("button", { name: "Elsewhere" }));
+    expect(screen.queryByRole("note")).toBeNull();
   });
 });

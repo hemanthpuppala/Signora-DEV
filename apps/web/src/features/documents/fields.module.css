@@ -59,6 +59,61 @@
   }
 }
 
+/* --- editing on the page (Phase 6 §5) --------------------------------------------------------- */
+/* With a tool chosen the whole page takes the press: a click places a box, a drag draws one. */
+.boxes.drawing {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+.boxes.drawing .box {
+  pointer-events: none;
+}
+
+.movable {
+  cursor: move;
+  touch-action: none;
+}
+
+.handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--paper-ink);
+  background: var(--paper);
+  touch-action: none;
+}
+
+.nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.se {
+  right: -5px;
+  bottom: -5px;
+  cursor: nwse-resize;
+}
+
+.sketch {
+  border: 1.5px dashed var(--paper-ink);
+  background: transparent;
+  pointer-events: none;
+}
+
 /* Party tones: shared by boxes and the panel's dots. */
 .role1 {
   border-color: var(--role1);
@@ -106,13 +161,6 @@
   gap: 16px;
 }
 
-.headline {
-  margin: 0;
-  font-family: var(--serif);
-  font-size: 20px;
-  color: var(--ink);
-}
-
 .steps {
   display: flex;
   flex-direction: column;
@@ -140,22 +188,6 @@
   color: var(--t30);
 }
 
-.parties {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 14px;
-}
-
-.parties li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .dot {
   flex: none;
   width: 10px;
@@ -165,95 +197,9 @@
   border-radius: 50%;
 }
 
-.label {
-  color: var(--ink);
-  overflow-wrap: anywhere;
-}
-
 .meta {
   font-size: 12px;
   color: var(--t60);
-}
-
-.count {
-  margin-left: auto;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--t60);
-}
-
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chip {
-  padding: 4px 10px;
-  border: 1px solid var(--sep);
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  color: var(--t75);
-  cursor: pointer;
-}
-
-.chipOn {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  max-height: 420px;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-  border: 1px solid var(--sep);
-  background: var(--surface);
-}
-
-.list:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-
-.item {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 2px;
-  align-items: center;
-  width: 100%;
-  padding: 10px 12px;
-  border: 0;
-  border-top: 1px solid var(--sep);
-  background: transparent;
-  font: inherit;
-  font-size: 14px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.list > li:first-child > .item,
-.list > .item:first-child {
-  border-top: 0;
-}
-
-.item .meta {
-  grid-column: 2;
-}
-
-.item:hover,
-.selected {
-  background: var(--r05);
-}
-
-.selected {
-  box-shadow: inset 2px 0 0 var(--ink);
-  animation: chosenRow 0.9s ease-out 1; /* brightens, then settles: where the eye should land */
 }
 
 @keyframes chosenRow {
@@ -263,10 +209,6 @@
   to {
     background: var(--r05);
   }
-}
-
-.item {
-  transition: background 0.15s;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -279,15 +221,6 @@
   }
 }
 
-.details {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--sep);
-  background: var(--surface);
-}
-
 .options {
   display: flex;
   flex-direction: column;
@@ -298,10 +231,3 @@
   font-size: 14px;
 }
 
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--t60);
-}

@@ -17,7 +17,6 @@ Box = tuple[float, float, float, float]
 
 BUCKET = 12.0  # points per bucket: about one line of text
 TEXT_MAX = 160  # characters kept of a label or a value
-OPTION_TEXT_MAX = 400  # characters kept of an option's words
 
 
 def displayed(page: pymupdf.Page, box: Box | pymupdf.Rect) -> Box:

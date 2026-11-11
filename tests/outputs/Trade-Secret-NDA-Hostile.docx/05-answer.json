@@ -1,12 +1,12 @@
 {
   "roles": [
     {
-      "slug": "recipient",
+      "slug": "company",
       "kind": "signer"
     },
     {
-      "slug": "company",
-      "kind": "countersigner"
+      "slug": "recipient",
+      "kind": "signer"
     },
     {
       "slug": "witness",
@@ -58,7 +58,7 @@
       "id": "f6",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 1",
       "must_fill": true,
       "depends_on": null
     },
@@ -66,7 +66,7 @@
       "id": "f7",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 1",
       "must_fill": true,
       "depends_on": null
     },
@@ -74,7 +74,7 @@
       "id": "f8",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 2",
       "must_fill": true,
       "depends_on": null
     },
@@ -82,7 +82,7 @@
       "id": "f9",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 2",
       "must_fill": true,
       "depends_on": null
     },
@@ -90,7 +90,7 @@
       "id": "f10",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 3",
       "must_fill": true,
       "depends_on": null
     },
@@ -98,7 +98,7 @@
       "id": "f11",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 3",
       "must_fill": true,
       "depends_on": null
     },
@@ -106,7 +106,7 @@
       "id": "f12",
       "holds": "state",
       "filled_by": "sender",
-      "label": "Governing law: state",
+      "label": "Governing law state",
       "must_fill": true,
       "depends_on": null
     },
@@ -114,7 +114,7 @@
       "id": "f13",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 4",
       "must_fill": true,
       "depends_on": null
     },
@@ -122,7 +122,7 @@
       "id": "f14",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 4",
       "must_fill": true,
       "depends_on": null
     },
@@ -136,17 +136,17 @@
     },
     {
       "id": "f16",
-      "holds": "number",
+      "holds": "amount_in_words",
       "filled_by": "sender",
-      "label": "Consideration amount in dollars",
+      "label": "Consideration amount",
       "must_fill": true,
       "depends_on": null
     },
     {
       "id": "f17",
-      "holds": "number",
+      "holds": "text",
       "filled_by": "sender",
-      "label": "Consideration amount after dollars",
+      "label": "Consideration detail after dollars",
       "must_fill": true,
       "depends_on": null
     },
@@ -170,7 +170,7 @@
       "id": "f20",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 5",
       "must_fill": true,
       "depends_on": null
     },
@@ -178,7 +178,7 @@
       "id": "f21",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 5",
       "must_fill": true,
       "depends_on": null
     },
@@ -258,7 +258,7 @@
       "id": "f31",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 6",
       "must_fill": true,
       "depends_on": null
     },
@@ -266,7 +266,7 @@
       "id": "f32",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 6",
       "must_fill": true,
       "depends_on": null
     },
@@ -350,7 +350,7 @@
       "holds": "tax_id",
       "filled_by": "recipient",
       "label": "Recipient taxpayer identification number",
-      "must_fill": true,
+      "must_fill": false,
       "depends_on": null
     },
     {
@@ -366,7 +366,7 @@
       "holds": "phone",
       "filled_by": "recipient",
       "label": "Recipient phone",
-      "must_fill": true,
+      "must_fill": false,
       "depends_on": null
     },
     {
@@ -384,7 +384,7 @@
       "id": "f46",
       "holds": "title",
       "filled_by": "recipient",
-      "label": "Contact person's title",
+      "label": "Business entity contact person title",
       "must_fill": false,
       "depends_on": {
         "id": "f34",
@@ -395,7 +395,7 @@
       "id": "f47",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 7",
       "must_fill": true,
       "depends_on": null
     },
@@ -403,7 +403,7 @@
       "id": "f48",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 7",
       "must_fill": true,
       "depends_on": null
     },
@@ -484,7 +484,7 @@
       "id": "f57",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 8",
       "must_fill": true,
       "depends_on": null
     },
@@ -492,7 +492,7 @@
       "id": "f58",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 8",
       "must_fill": true,
       "depends_on": null
     },
@@ -500,7 +500,7 @@
       "id": "f59",
       "holds": "checkbox",
       "filled_by": "recipient",
-      "label": "Acknowledgement of Information Security Policy",
+      "label": "Acknowledgement of receipt and reading of security policy",
       "must_fill": false,
       "depends_on": null
     },
@@ -508,7 +508,7 @@
       "id": "f60",
       "holds": "checkbox",
       "filled_by": "recipient",
-      "label": "Consent to email notices",
+      "label": "Consent to receive notices by email",
       "must_fill": false,
       "depends_on": null
     },
@@ -516,7 +516,7 @@
       "id": "f61",
       "holds": "checkbox",
       "filled_by": "recipient",
-      "label": "Acknowledgement of disclosed prior knowledge",
+      "label": "Disclosure of prior knowledge of the subject matter",
       "must_fill": false,
       "depends_on": null
     },
@@ -524,7 +524,7 @@
       "id": "f62",
       "holds": "signature",
       "filled_by": "recipient",
-      "label": "Recipient signature on acknowledgements",
+      "label": "Recipient signature, Exhibit C",
       "must_fill": true,
       "depends_on": null
     },
@@ -532,7 +532,7 @@
       "id": "f63",
       "holds": "date_signed",
       "filled_by": "recipient",
-      "label": "Recipient signing date on acknowledgements",
+      "label": "Recipient signing date, Exhibit C",
       "must_fill": true,
       "depends_on": null
     },
@@ -540,7 +540,7 @@
       "id": "f64",
       "holds": "initials",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 9",
       "must_fill": true,
       "depends_on": null
     },
@@ -548,7 +548,7 @@
       "id": "f65",
       "holds": "initials",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 9",
       "must_fill": true,
       "depends_on": null
     }
@@ -572,6 +572,6 @@
   "extra_fields": [],
   "document": {
     "name": "Trade Secret Non-Disclosure Agreement",
-    "description": "A trade secret non-disclosure agreement between a Company and a Recipient, with a witness signing as well. It covers permitted use, confidentiality, fees, security, non-solicitation, notices, and return of information. The Recipient and witness sign first, and the Company countersigns."
+    "description": "A trade secret non-disclosure agreement between Company and Recipient. It covers confidential information, permitted use, fees, non-solicitation, security, notices, and governing law. Company and Recipient sign, along with a witness; no countersignature is specified."
   }
 }

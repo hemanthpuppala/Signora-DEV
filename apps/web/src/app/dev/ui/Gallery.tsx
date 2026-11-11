@@ -3,14 +3,20 @@
 import { useState } from "react";
 
 import {
+  ActionBar,
   BodyText,
   Button,
   Cap,
   Checkbox,
+  Chip,
+  ChipGroup,
   Display,
   Eyebrow,
+  ExpandableList,
+  ExpandableRow,
   Heading1,
   Heading2,
+  InfoTip,
   MetricGrid,
   MetricTile,
   Mono,
@@ -42,6 +48,8 @@ export function Gallery() {
   const toast = useToast();
   const [access, setAccess] = useState<string | null>("read");
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState<string | null>("company");
+  const [place, setPlace] = useState(0);
 
   return (
     <>
@@ -136,6 +144,60 @@ export function Gallery() {
             </tbody>
           </table>
         </TablePanel>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.row}>
+          <Eyebrow>Action bar, rows that open in place</Eyebrow>
+          <InfoTip label="this section">
+            <span>What a section is for, in a line or two.</span>
+            <span>
+              <strong>A button</strong>: what it does, when its name does not say it all.
+            </span>
+          </InfoTip>
+        </div>
+        <ActionBar label="Review" actions={<Button compact>Approve version</Button>}>
+          <span>Version 2</span>
+          <span>Needs approval</span>
+          <span>1 thing to check</span>
+        </ActionBar>
+        <div className={styles.row}>
+          <Button variant="quiet" compact icon="plus">
+            Add a place
+          </Button>
+          <Button variant="quiet" compact icon="pages">
+            On every page
+          </Button>
+          <Button variant="destructive" compact icon="trash">
+            Delete field
+          </Button>
+        </div>
+        <ChipGroup label="Places">
+          {["1 · Page 1", "2 · Page 1", "3 · Page 4"].map((words, index) => (
+            <Chip key={words} selected={place === index} onClick={() => setPlace(index)}>
+              {words}
+            </Chip>
+          ))}
+        </ChipGroup>
+        <ExpandableList label="Fields">
+          <ExpandableRow id="gallery-add" tone="add" title="Add field" expanded={false} regionLabel="New field" onToggle={() => undefined} />
+          {[
+            { id: "company", title: "Company", meta: "Filled in before sending · Company · Required" },
+            { id: "signature", title: "Client signature", meta: "Client · Signature · Required" },
+          ].map((row) => (
+            <ExpandableRow
+              key={row.id}
+              id={`gallery-${row.id}`}
+              title={row.title}
+              meta={row.meta}
+              expanded={open === row.id}
+              regionLabel={`Details of ${row.title}`}
+              onToggle={() => setOpen(open === row.id ? null : row.id)}
+            >
+              <SmallText>Page 1</SmallText>
+            </ExpandableRow>
+          ))}
+        </ExpandableList>
       </section>
     </>
   );

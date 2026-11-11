@@ -98,6 +98,13 @@ def test_a_ready_versions_fields_with_their_roles_places_and_dependencies(
     assert term["depends_on"] == {"key": choice["key"], "option": "True"}
     assert all(f["placements"] for f in view["fields"])
     assert view["pending"] == [] and view["flags"]["no_fields"] is False
+    # Phase 6: ids for editing, the revision a Save starts from, and the warnings before Approve.
+    party = {r["slug"]: r["id"] for r in view["roles"]}
+    signed = [f for f in view["fields"] if f["holds"] == "signature"]
+    assert {f["party_id"] for f in signed} == {party["party_1"], party["party_2"]}
+    assert all(p["id"] for f in view["fields"] for p in f["placements"])
+    assert view["revision"] == 0
+    assert "party_cannot_sign" not in {w["code"] for w in view["warnings"]}  # both can sign
 
 
 def test_the_places_found_show_while_the_ai_works(
@@ -155,8 +162,8 @@ def test_finding_fields_again_restarts_and_a_failure_keeps_the_fields_found_befo
     assert _run_id(committing_db, version_id) != first_run
     assert _fields(owner, document_id, version_id)["stage"] == "read"  # a new run from the start
 
-    # Review fix: a failed second look once left the current version "failed" (no viewer, and a
-    # current version that was not ready). It is ready again, with the fields found before.
+    # Review fix: a failed second look once left the version "failed" (no viewer, and a current
+    # version that was not ready). It is ready again, with the fields found before.
     detect(version_id, FakeAssigner(AiError("ai_not_configured", "no key")))
     after = _fields(owner, document_id, version_id)
     assert after["status"] == "ready"
@@ -167,7 +174,6 @@ def test_finding_fields_again_restarts_and_a_failure_keeps_the_fields_found_befo
         before["flags"],
     )
     document = owner.get(f"{DOCUMENTS}/{document_id}").json()
-    assert document["current_version"]["id"] == version_id
     assert document["versions"][0]["status"] == "ready"
 
     assert _run_by_hand(owner, document_id, version_id).json() == {"mode": "restart"}

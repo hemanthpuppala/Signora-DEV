@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 import pymupdf
 
 from signora.modules.detection.geometry import (
-    OPTION_TEXT_MAX,
     TEXT_MAX,
     Box,
     cut,
@@ -23,6 +22,7 @@ from signora.modules.detection.geometry import (
 )
 from signora.modules.detection.page_text import Marked, PageText, pages
 from signora.modules.detection.reading import FieldKind, FoundField, PageInfo, Placement
+from signora.modules.review.values import OPTION_MAX
 
 KINDS: dict[int, FieldKind] = {
     pymupdf.PDF_WIDGET_TYPE_TEXT: "text",  # type: ignore[attr-defined]
@@ -185,7 +185,7 @@ def read_form(document: pymupdf.Document) -> FormRead:
             option_text = None
             if kind in ("radio", "checkbox"):
                 region = _option_region(position, refs, kinds, boxes, page.mediabox.width)
-                option_text = cut(text.compose(region, skip=ref), OPTION_TEXT_MAX)
+                option_text = cut(text.compose(region, skip=ref), OPTION_MAX)
             flags_kind, flags_value = document.xref_get_key(widget.xref, "F")
             annotation = int(flags_value) if flags_kind == "int" else 0
             placement = Placement(

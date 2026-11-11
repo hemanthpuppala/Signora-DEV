@@ -22,11 +22,11 @@
   ],
   "fields": [
     {
-      "key": "company.party_name",
+      "key": "agreement.company_legal_name",
       "label": "Company legal name",
       "holds": "party_name",
-      "filled_by": "role",
-      "role": "company",
+      "filled_by": "sender",
+      "role": null,
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -51,11 +51,11 @@
       ]
     },
     {
-      "key": "company.address",
+      "key": "agreement.company_mailing_address",
       "label": "Company mailing address",
       "holds": "address",
-      "filled_by": "role",
-      "role": "company",
+      "filled_by": "sender",
+      "role": null,
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -182,7 +182,7 @@
     },
     {
       "key": "recipient.initials",
-      "label": "Recipient initials, page 1",
+      "label": "Recipient initials",
       "holds": "initials",
       "filled_by": "role",
       "role": "recipient",
@@ -323,7 +323,7 @@
     },
     {
       "key": "company.initials",
-      "label": "Company initials, page 1",
+      "label": "Company initials",
       "holds": "initials",
       "filled_by": "role",
       "role": "company",
@@ -521,9 +521,9 @@
       ]
     },
     {
-      "key": "agreement.consideration_amount",
-      "label": "Consideration amount",
-      "holds": "amount_in_words",
+      "key": "agreement.consideration_amount_in_dollars",
+      "label": "Consideration amount in dollars",
+      "holds": "number",
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -550,12 +550,12 @@
       ]
     },
     {
-      "key": "agreement.consideration_payment_details",
-      "label": "Consideration payment details",
-      "holds": "text",
+      "key": "agreement.consideration_amount_in_cents",
+      "label": "Consideration amount in cents",
+      "holds": "number",
       "filled_by": "sender",
       "role": null,
-      "required": true,
+      "required": false,
       "sensitive": false,
       "depends_on": null,
       "needs_review": null,
@@ -608,11 +608,11 @@
       ]
     },
     {
-      "key": "company.email",
+      "key": "agreement.company_notices_email",
       "label": "Company notices email",
       "holds": "email",
-      "filled_by": "role",
-      "role": "company",
+      "filled_by": "sender",
+      "role": null,
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -931,7 +931,7 @@
       "holds": "choice",
       "filled_by": "role",
       "role": "recipient",
-      "required": false,
+      "required": true,
       "sensitive": false,
       "depends_on": null,
       "needs_review": null,
@@ -1119,7 +1119,7 @@
       "holds": "date_of_birth",
       "filled_by": "role",
       "role": "recipient",
-      "required": false,
+      "required": true,
       "sensitive": true,
       "depends_on": {
         "key": "recipient.type",
@@ -1210,7 +1210,7 @@
       "holds": "phone",
       "filled_by": "role",
       "role": "recipient",
-      "required": true,
+      "required": false,
       "sensitive": false,
       "depends_on": null,
       "needs_review": null,
@@ -1239,7 +1239,7 @@
       "holds": "full_name",
       "filled_by": "role",
       "role": "recipient",
-      "required": false,
+      "required": true,
       "sensitive": false,
       "depends_on": {
         "key": "recipient.type",
@@ -1358,8 +1358,8 @@
       ]
     },
     {
-      "key": "agreement.total_for_the_first_year",
-      "label": "Total for the first year",
+      "key": "agreement.total_fee_for_the_first_year",
+      "label": "Total fee for the first year",
       "holds": "currency",
       "filled_by": "sender",
       "role": null,
@@ -1390,7 +1390,7 @@
       "holds": "choice",
       "filled_by": "sender",
       "role": null,
-      "required": false,
+      "required": true,
       "sensitive": false,
       "depends_on": null,
       "needs_review": null,
@@ -1429,7 +1429,7 @@
     },
     {
       "key": "recipient.bank_name",
-      "label": "Recipient bank name",
+      "label": "Bank name",
       "holds": "text",
       "filled_by": "role",
       "role": "recipient",
@@ -1462,7 +1462,7 @@
     },
     {
       "key": "recipient.bank_account",
-      "label": "Recipient bank account number",
+      "label": "Bank account number",
       "holds": "bank_account",
       "filled_by": "role",
       "role": "recipient",
@@ -1495,7 +1495,7 @@
     },
     {
       "key": "recipient.bank_account_2",
-      "label": "Recipient bank routing number",
+      "label": "Bank routing number",
       "holds": "bank_account",
       "filled_by": "role",
       "role": "recipient",
@@ -1527,12 +1527,12 @@
       ]
     },
     {
-      "key": "recipient.received_and_read_the_information",
-      "label": "Recipient received and read the Information Security Policy",
+      "key": "recipient.acknowledgment_of_information_security",
+      "label": "Acknowledgment of information security policy",
       "holds": "checkbox",
       "filled_by": "role",
       "role": "recipient",
-      "required": false,
+      "required": true,
       "sensitive": false,
       "depends_on": null,
       "needs_review": null,
@@ -1556,8 +1556,8 @@
       ]
     },
     {
-      "key": "recipient.consents_to_email_notices",
-      "label": "Recipient consents to email notices",
+      "key": "recipient.consent_to_receive_notices_by_email",
+      "label": "Consent to receive notices by email",
       "holds": "checkbox",
       "filled_by": "role",
       "role": "recipient",
@@ -1585,8 +1585,8 @@
       ]
     },
     {
-      "key": "recipient.disclosed_prior_knowledge_of_the",
-      "label": "Recipient disclosed prior knowledge of the Subject Matter",
+      "key": "recipient.disclosure_of_prior_knowledge_of_the",
+      "label": "Disclosure of prior knowledge of the subject matter",
       "holds": "checkbox",
       "filled_by": "role",
       "role": "recipient",
@@ -1626,7 +1626,7 @@
   ],
   "document": {
     "name": "Trade Secret Non-Disclosure Agreement",
-    "description": "A non-disclosure agreement between a Company and a Recipient, with a witness signature block. It covers confidential information, permitted use, fees, security, return of information, notices and other obligations. The Recipient signs first, the Company countersigns, and a witness also signs."
+    "description": "A confidentiality and non-disclosure agreement between a Company and a Recipient. It covers permitted use, confidentiality obligations, fees, payment details, security, notices and related protections. The Recipient signs first, the Company countersigns, and a witness also signs."
   },
   "flags": {
     "no_fields": false,

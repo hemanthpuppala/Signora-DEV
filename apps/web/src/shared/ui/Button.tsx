@@ -16,6 +16,8 @@ export type ButtonProps = {
   loading?: boolean;
   loadingLabel?: string;
   compact?: boolean;
+  /** A leading icon that says what the action does at a glance (it never replaces the words). */
+  icon?: IconName;
   children: ReactNode;
 } & ButtonHTMLAttributes<HTMLButtonElement>;
 
@@ -25,6 +27,7 @@ export function Button({
   loading = false,
   loadingLabel = "Sending…",
   compact = false,
+  icon,
   disabled,
   className,
   type = "button",
@@ -45,6 +48,7 @@ export function Button({
       aria-busy={loading || undefined}
       {...rest}
     >
+      {icon && !loading ? <Icon name={icon} size={15} className={styles.icon} /> : null}
       {loading ? loadingLabel : children}
       {arrow && !loading ? <span aria-hidden="true">→</span> : null}
     </button>
