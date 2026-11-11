@@ -167,7 +167,7 @@ def read_envelope(
         text(
             "SELECT e.id, e.title, e.status, e.department_id, e.document_id, d.name AS "
             "document_name, e.version_id, v.version_no, e.sent_by, u.name AS sent_by_name, "
-            "e.sent_at, e.expires_at, e.cancelled_at, e.require_email_code, "
+            "e.sent_at, e.expires_at, e.cancelled_at, e.completed_at, e.require_email_code, "
             "e.reminder_interval_hours, e.max_reminders, e.notify_emails, e.font FROM envelopes e "
             "JOIN documents d ON d.id = e.document_id "
             "JOIN document_versions v ON v.id = e.version_id JOIN users u ON u.id = e.sent_by "
@@ -241,6 +241,7 @@ def read_envelope(
         sent_at=envelope.sent_at,
         expires_at=envelope.expires_at,
         cancelled_at=envelope.cancelled_at,
+        completed_at=envelope.completed_at,
         require_email_code=envelope.require_email_code,
         reminder_interval_hours=envelope.reminder_interval_hours,
         max_reminders=envelope.max_reminders,

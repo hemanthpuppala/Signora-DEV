@@ -12,6 +12,7 @@ from signora.modules.detection import jobs as detection_jobs
 from signora.modules.documents import jobs as documents_jobs
 from signora.modules.identity_access import jobs as identity_jobs
 from signora.modules.notifications import service as notifications
+from signora.modules.signing import jobs as signing_jobs
 
 
 def register_all(jobs_registry: JobRegistry) -> list[RecurringJob]:
@@ -23,4 +24,5 @@ def register_all(jobs_registry: JobRegistry) -> list[RecurringJob]:
         *identity_jobs.register(jobs_registry),
         *documents_jobs.register(jobs_registry),
         *detection_jobs.register(jobs_registry),
+        *signing_jobs.register(jobs_registry),
     ]

@@ -71,6 +71,7 @@ class EnvelopeView(BaseModel):
     sent_at: datetime
     expires_at: datetime
     cancelled_at: datetime | None
+    completed_at: datetime | None  # the signed copy made and sent (Phase 8 §12)
     require_email_code: bool
     reminder_interval_hours: int
     max_reminders: int

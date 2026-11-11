@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import uuid
 from typing import Annotated, Any
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import FileResponse, JSONResponse
@@ -13,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import Database
 from signora.kernel.errors import FieldError, ValidationFailed
+from signora.kernel.http import attachment
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.signing import decline, drafts, drawing, service, signatures, submit
 from signora.modules.signing.document import SignerDocument
@@ -382,9 +382,3 @@ def copy(recipient_id: uuid.UUID, request: Request) -> Response:
         media_type="application/pdf",
         headers={"Content-Disposition": attachment(name), "Cache-Control": "no-store"},
     )
-
-
-def attachment(name: str) -> str:
-    """A download's file name, any script (RFC 6266 with RFC 5987's UTF-8 form)."""
-    plain = name.encode("ascii", "replace").decode().replace('"', "").replace("?", "_")
-    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"

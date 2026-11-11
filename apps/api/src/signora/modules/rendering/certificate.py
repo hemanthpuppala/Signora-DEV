@@ -206,7 +206,7 @@ def _html(data: Certificate, images: dict[str, str]) -> str:
     return "".join(out)
 
 
-def certificate(data: Certificate) -> bytes:
+def certificate_pdf(data: Certificate) -> bytes:
     """The certificate as a PDF, as many letter pages as it takes."""
     with MUPDF_LOCK:
         archive = pymupdf.Archive()

@@ -7,12 +7,13 @@ import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.config import get_settings
 from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import FieldError, NotFound, ValidationFailed
@@ -24,6 +25,7 @@ from signora.modules.envelopes import emails, store
 from signora.modules.envelopes.document import EnvelopeDocument, build_document
 from signora.modules.envelopes.errors import (
     EnvelopeClosed,
+    NotCompleted,
     NotTheirTurn,
     RecipientSigned,
     SamePerson,
@@ -35,6 +37,7 @@ from signora.modules.envelopes.store import read_envelope, record_email, write_s
 from signora.modules.envelopes.views import EnvelopePage, EnvelopeSummary, EnvelopeView
 from signora.modules.identity_access import Actor, Permission, normalize_email
 from signora.modules.notifications import send_email
+from signora.modules.rendering import combine
 from signora.modules.review import read_set
 
 
@@ -621,3 +624,35 @@ def list_envelopes(
     page = found[: store.PAGE]
     more = len(found) > store.PAGE
     return EnvelopePage(envelopes=page, next_cursor=_cursor(page[-1]) if more and page else None)
+
+
+# --- the completed copy (Phase 8 §12.3) -----------------------------------------------------------
+
+DownloadPart = Literal["document", "certificate", "combined"]
+
+
+def completed_copy(
+    session: Session, store: BlobStore, actor: Actor, envelope_id: uuid.UUID, part: DownloadPart
+) -> tuple[bytes, str]:
+    """A completed envelope's signed document, its certificate, or both in one file, with the
+    file's name; for whoever may see the envelope."""
+    view = get_envelope(session, actor, envelope_id)
+    row = session.execute(
+        text(
+            "SELECT workspace_id, signed_blob, certificate_blob FROM envelopes "
+            "WHERE id = :e AND status = 'completed'"
+        ),
+        {"e": envelope_id},
+    ).one_or_none()
+    if row is None:
+        raise NotCompleted
+
+    def read(token: str) -> bytes:
+        with store.open(BlobRef.from_token(row.workspace_id, token)) as source:
+            return source.read()
+
+    if part == "document":
+        return read(row.signed_blob), f"{view.title}.pdf"
+    if part == "certificate":
+        return read(row.certificate_blob), f"{view.title} - certificate of completion.pdf"
+    return combine(read(row.signed_blob), read(row.certificate_blob)), f"{view.title} - signed.pdf"

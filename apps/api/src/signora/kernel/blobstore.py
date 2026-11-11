@@ -51,6 +51,16 @@ class BlobRef:
         h = self.sha256
         return f"workspaces/{self.workspace_id}/blobs/sha256/{h[0:2]}/{h[2:4]}/{h}"
 
+    @property
+    def token(self) -> str:
+        """The object within its workspace, kept beside the workspace id: "sha256:size"."""
+        return f"{self.sha256}:{self.size}"
+
+    @classmethod
+    def from_token(cls, workspace_id: uuid.UUID, token: str) -> BlobRef:
+        sha256, _, size = token.partition(":")
+        return cls(workspace_id, sha256, int(size))
+
 
 class BlobStore(Protocol):
     def put(self, workspace_id: uuid.UUID, data: BinaryIO, *, max_bytes: int) -> BlobRef:

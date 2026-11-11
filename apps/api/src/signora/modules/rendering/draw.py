@@ -231,3 +231,20 @@ def render(pdf: bytes, items: Sequence[Item], *, envelope_id: uuid.UUID) -> byte
             return out
         finally:
             doc.close()
+
+
+def combine(*pdfs: bytes) -> bytes:
+    """PDFs one after another in one file (the document, then its certificate)."""
+    with MUPDF_LOCK:
+        out = pymupdf.open()
+        try:
+            for data in pdfs:
+                part = pymupdf.open(stream=data, filetype="pdf")
+                try:
+                    out.insert_pdf(part)
+                finally:
+                    part.close()
+            joined: bytes = out.tobytes(garbage=3, deflate=True)
+            return joined
+        finally:
+            out.close()

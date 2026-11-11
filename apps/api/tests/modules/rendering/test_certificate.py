@@ -7,7 +7,7 @@ import uuid
 
 import pymupdf
 
-from signora.modules.rendering import Certificate, Copy, Signature, Signed, certificate
+from signora.modules.rendering import Certificate, Copy, Signature, Signed, certificate_pdf
 
 DRAWN = Signature(
     "drawn", None, None, [[(100, 200), (500, 260), (900, 180)]], "0123456789abcdef", "Drawn"
@@ -64,7 +64,7 @@ def _text(pdf: bytes) -> tuple[pymupdf.Document, str]:
 
 def test_it_says_who_signed_how_they_proved_it_and_what_was_signed() -> None:
     doc, words = _text(
-        certificate(
+        certificate_pdf(
             _data(
                 [
                     _person(
@@ -89,7 +89,7 @@ def test_it_says_who_signed_how_they_proved_it_and_what_was_signed() -> None:
 def test_a_long_certificate_runs_over_pages() -> None:
     people = [_person("Signer", f"Person {n}", DRAWN, "Email link") for n in range(25)]
 
-    doc, words = _text(certificate(_data(people)))
+    doc, words = _text(certificate_pdf(_data(people)))
 
     assert doc.page_count > 2
     assert "Person 0" in words and "Person 24" in words

@@ -27,7 +27,7 @@ from signora.modules.envelopes import (
 )
 from signora.modules.identity_access import normalize_email
 from signora.modules.review.formats import InvalidValueError, check_value
-from signora.modules.signing import consent, signatures, turns
+from signora.modules.signing import completion, consent, signatures, turns
 from signora.modules.signing.document import SIGNING_DATE, SIGNS
 from signora.modules.signing.drafts import SIGNED, merged_values
 from signora.modules.signing.errors import AlreadySigned, LinkClosed, NotTheirTurn
@@ -131,7 +131,14 @@ def submit(uow: UnitOfWork, who: Signer) -> Submitted:
     if recipient.kind == "signer" and unsigned(uow.session, recipient.envelope_id, "signer") == 0:
         countersigners = every_signer_signed(uow.session, recipient.envelope_id)
         audit(uow, recipient, "envelope.signers_signed")
-        turns.countersigners_turn(uow, recipient, countersigners)
+        if countersigners:
+            turns.countersigners_turn(uow, recipient, countersigners)
+        else:
+            completion.queue(uow, recipient.envelope_id)  # nobody countersigns
+    elif recipient.kind == "countersigner" and not unsigned(
+        uow.session, recipient.envelope_id, "countersigner"
+    ):
+        completion.queue(uow, recipient.envelope_id)  # the last countersignature
     return Submitted(signed_at=signed_at)
 
 

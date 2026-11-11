@@ -15,6 +15,7 @@ import {
   HeadRow,
   Heading1,
   IconButton,
+  LinkButton,
   Item,
   ItemAction,
   ItemActions,
@@ -181,6 +182,10 @@ export function draftFrom(envelope: Envelope): SendDraft {
   };
 }
 
+/** A completed envelope's signed document, its certificate, or both in one file (§12.3). */
+const download = (envelopeId: string, part: "document" | "certificate" | "combined") =>
+  `/api/v1/envelopes/${envelopeId}/download?part=${part}`;
+
 export function EnvelopePage({
   departmentId,
   envelopeId,
@@ -300,6 +305,28 @@ export function EnvelopePage({
         </MetaLine>
       </HeadRow>
       {remind.error ? <Notice tone="warning">{formError(remind.error)}</Notice> : null}
+      {data.status === "completed" ? (
+        <Notice
+          title={data.completed_at ? `Completed ${day(data.completed_at)}` : "Completed"}
+          action={
+            <span className={styles.downloads}>
+              <LinkButton href={download(data.id, "combined")} download>
+                Download
+              </LinkButton>
+              <LinkButton href={download(data.id, "document")} variant="quiet" download>
+                Document
+              </LinkButton>
+              <LinkButton href={download(data.id, "certificate")} variant="quiet" download>
+                Certificate
+              </LinkButton>
+            </span>
+          }
+        >
+          Everyone has signed. Everyone was emailed the signed document and its certificate.
+        </Notice>
+      ) : data.status === "signed" && data.recipients.every((r) => r.kind === "copy" || r.status === "signed") ? (
+        <Notice title="Making the signed copy…">Everyone has signed. The signed document and its certificate are being made.</Notice>
+      ) : null}
       {data.status === "declined"
         ? (() => {
             const who = data.recipients.find((r) => r.status === "declined");

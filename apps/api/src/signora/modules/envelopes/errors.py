@@ -28,3 +28,8 @@ class RecipientSigned(Conflict):
 class NotTheirTurn(Conflict):
     code = "not-their-turn"
     title = "Countersigners are emailed once every signer has signed"
+
+
+class NotCompleted(Conflict):
+    code = "not-completed"
+    title = "The signed copy is made once everyone has signed"

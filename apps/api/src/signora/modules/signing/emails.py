@@ -45,3 +45,18 @@ def signers_signed(*, document: str, signers: str, url: str) -> tuple[str, Rende
         paragraphs=[f"{signers} signed. The countersigners have been asked to countersign."],
         action=EmailAction("Open the envelope", url),
     )
+
+
+def completed(
+    *, document: str, signers: str, attached: bool, sender_email: str
+) -> tuple[str, RenderedEmail]:
+    heading = f"{document} is complete"
+    paragraphs = [f"Everyone has signed: {signers}."]
+    paragraphs.append(
+        "The signed document and its certificate of completion are attached."
+        if attached
+        else f"The signed copy is too large to email. Ask {sender_email} for it."
+    )
+    return heading, render_layout(
+        heading=heading, paragraphs=paragraphs, footer="Keep this email for your records."
+    )

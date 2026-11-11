@@ -216,3 +216,10 @@
   line-height: 1.45;
   color: var(--ink);
 }
+
+/* A completed envelope's downloads. */
+.downloads {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

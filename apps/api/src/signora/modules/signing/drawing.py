@@ -83,11 +83,11 @@ def _items(field: FormField, value: str, font: str, mark: Any) -> list[Item]:
     return out
 
 
-def signed_pdf(
+def collect(
     uow: UnitOfWork, store: BlobStore, recipient: SignerRecipient, *, viewer: SignerRecipient | None
-) -> bytes:
-    """The envelope's document with its values written in: all of them (``viewer`` None: the
-    completed document), or only those ``viewer`` may see (their copy as signed so far)."""
+) -> tuple[bytes, list[Item]]:
+    """The version's PDF and what to write in it: every value (``viewer`` None: the completed
+    document) or only those ``viewer`` may see (their copy as signed so far). Reads only."""
     version = version_for_signing(uow.session, recipient.version_id)
     parties, fields = read_set(uow.session, recipient.version_id)
     values = envelope_values(uow.session, recipient.envelope_id)
@@ -108,5 +108,11 @@ def signed_pdf(
         mark = marks.get((given.recipient_id, field.holds)) if given.recipient_id else None
         items += _items(field, value, recipient.font, mark)
     with store.open(version.pdf) as source:
-        pdf = source.read()
+        return source.read(), items
+
+
+def signed_pdf(
+    uow: UnitOfWork, store: BlobStore, recipient: SignerRecipient, *, viewer: SignerRecipient | None
+) -> bytes:
+    pdf, items = collect(uow, store, recipient, viewer=viewer)
     return render(pdf, items, envelope_id=recipient.envelope_id)
