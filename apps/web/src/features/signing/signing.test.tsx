@@ -139,25 +139,22 @@ describe("the signer's page", () => {
 
   });
 
-  it("names the sender and the step", async () => {
-    fetchMock.mockImplementation(() =>
-      reply(200, {
-        recipient_id: RECIPIENT,
-        name: "Maya Chen",
-        email_masked: "m•••@example.com",
-        title: "Mutual NDA · Maya Chen",
-        company: "Hale & Ward LLP",
-        sender_name: "Rosa Hale",
-        sender_email: "rosa@haleward.example",
-        next: "done",
-        signed_at: "2026-11-11T09:14:22Z",
-        disclosure: SIGNER.disclosure,
-      }),
-    );
+  it("thanks the signer, says when and how, offers a copy and says what is next", async () => {
+    fetchMock.mockImplementation((input) => {
+      const path = new URL((input as Request).url).pathname;
+      if (path.endsWith("/done")) {
+        return reply(200, { signed_at: "2026-11-11T17:14:22Z", verified_by: "email_code", waiting_for: ["Leo Chen"], countersigning: "Hale & Ward LLP" });
+      }
+      return reply(200, { ...SIGNER, next: "done", signed_at: "2026-11-11T17:14:22Z" });
+    });
     show(<SignerPage recipientId={RECIPIENT} />);
 
-    expect(await screen.findByText("Signed.")).toBeTruthy();
-    expect(screen.getByText("Rosa Hale sent you this to review and sign.")).toBeTruthy();
+    expect(await screen.findByText("Signed. Thank you, Maya.")).toBeTruthy();
+    expect(screen.getByText("Email code to m•••@example.com")).toBeTruthy();
+    const copy = screen.getByRole("link", { name: "Download a copy" });
+    expect(copy.getAttribute("href")).toBe(`/api/v1/sign/${RECIPIENT}/copy.pdf`);
+    expect(copy.hasAttribute("download")).toBe(true);
+    expect(screen.getByText("Waiting for Leo Chen to sign, then Hale & Ward LLP countersigns. You'll get the completed copy by email.")).toBeTruthy();
   });
 
   it("asks to open the link again when the session ended", async () => {

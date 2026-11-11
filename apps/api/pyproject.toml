@@ -267,6 +267,7 @@ protected_modules = [
     "signora.modules.signing.consent",
     "signora.modules.signing.decline",
     "signora.modules.signing.document",
+    "signora.modules.signing.drawing",
     "signora.modules.signing.drafts",
     "signora.modules.signing.emails",
     "signora.modules.signing.errors",
@@ -282,6 +283,25 @@ protected_modules = [
     "signora.modules.signing.views",
 ]
 allowed_importers = ["signora.modules.signing", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Public interface only: rendering internals are imported only by rendering"
+type = "protected"
+protected_modules = ["signora.modules.rendering.draw"]
+allowed_importers = ["signora.modules.rendering"]
+
+[[tool.importlinter.contracts]]
+name = "Rendering only draws: it never reads what it is told to draw (Phase 8 §16)"
+type = "forbidden"
+source_modules = ["signora.modules.rendering"]
+forbidden_modules = [
+    "signora.modules.signing",
+    "signora.modules.envelopes",
+    "signora.modules.documents",
+    "signora.modules.review",
+    "sqlalchemy",
+    "fastapi",
+]
 
 [[tool.importlinter.contracts]]
 name = "Signing drives envelopes: nothing it builds on imports signing (Phase 8 §16)"

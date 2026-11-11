@@ -47,3 +47,15 @@ class CodeSentView(BaseModel):
     sent_at: datetime
     email_masked: str
     resend_after: int
+
+
+VerifiedBy = Literal["email_code", "email_link", "signora_sign_in"]
+
+
+class DoneView(BaseModel):
+    """The done screen (§9.1): when they signed, how they proved who they are, what is next."""
+
+    signed_at: datetime
+    verified_by: VerifiedBy
+    waiting_for: list[str]  # signers still to sign
+    countersigning: str | None  # the company, while its countersigners have still to sign

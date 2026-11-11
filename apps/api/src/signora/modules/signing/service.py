@@ -37,7 +37,14 @@ from signora.modules.signing.errors import (
 )
 from signora.modules.signing.sessions import COOKIE
 from signora.modules.signing.trail import audit
-from signora.modules.signing.views import Disclosure, DisclosureParagraph, Opened, SignerState
+from signora.modules.signing.views import (
+    Disclosure,
+    DisclosureParagraph,
+    DoneView,
+    Opened,
+    SignerState,
+    VerifiedBy,
+)
 
 
 def _idle() -> timedelta:
@@ -250,3 +257,31 @@ def read_drafts(uow: UnitOfWork, recipient_id: uuid.UUID) -> dict[uuid.UUID, str
         {"r": recipient_id},
     )
     return {row.field_id: row.value for row in rows}
+
+
+def done(uow: UnitOfWork, who: Signer) -> DoneView:
+    """What the done screen says (§9.1). Only for someone who has signed."""
+    recipient = who.recipient
+    if recipient.status != "signed" or recipient.signed_at is None:
+        raise NotTheirTurn
+    rows = uow.session.execute(
+        text(
+            "SELECT kind, name, status FROM envelope_recipients WHERE envelope_id = :e "
+            "AND kind IN ('signer', 'countersigner') ORDER BY stage, position"
+        ),
+        {"e": recipient.envelope_id},
+    ).all()
+    countersigning = any(r.kind == "countersigner" and r.status != "signed" for r in rows)
+    verified: VerifiedBy = (
+        "signora_sign_in"
+        if recipient.kind == "countersigner"
+        else "email_code"
+        if recipient.require_email_code
+        else "email_link"
+    )
+    return DoneView(
+        signed_at=recipient.signed_at,
+        verified_by=verified,
+        waiting_for=[r.name for r in rows if r.kind == "signer" and r.status != "signed"],
+        countersigning=recipient.company if countersigning else None,
+    )

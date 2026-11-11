@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import FileResponse, JSONResponse
@@ -13,11 +14,11 @@ from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import Database
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
-from signora.modules.signing import decline, drafts, service, signatures, submit
+from signora.modules.signing import decline, drafts, drawing, service, signatures, submit
 from signora.modules.signing.document import SignerDocument
 from signora.modules.signing.errors import VerifyFirst
 from signora.modules.signing.sessions import COOKIE
-from signora.modules.signing.views import CodeSentView, Opened, SignerState
+from signora.modules.signing.views import CodeSentView, DoneView, Opened, SignerState
 from signora.modules.typesetting import FontView
 
 router = APIRouter(prefix="/api/v1/sign", tags=["signing"])
@@ -352,3 +353,38 @@ def decline_to_sign(
             raise VerifyFirst
         decline.decline(uow, who, reason)
         return guard.finish(uow, status.HTTP_200_OK, DeclinedView().model_dump(mode="json"))
+
+
+@router.get("/{recipient_id}/done", summary="What the done screen says", responses=_DOCUMENT)
+def done(recipient_id: uuid.UUID, request: Request, response: Response) -> DoneView:
+    with _db(request).unit_of_work() as uow:
+        who = service.acting(uow, request, recipient_id)
+        view = service.done(uow, who)
+    _no_store(response)
+    return view
+
+
+@router.get(
+    "/{recipient_id}/copy.pdf",
+    summary="A copy of the document as signed so far, with only what this person may see",
+    response_class=Response,
+    responses={**_DOCUMENT, 200: {"content": {"application/pdf": {}}}},
+)
+def copy(recipient_id: uuid.UUID, request: Request) -> Response:
+    store: BlobStore = request.app.state.blob_store
+    with _db(request).unit_of_work() as uow:
+        who = service.acting(uow, request, recipient_id)
+        service.require_ready(uow, who)
+        pdf = drawing.signed_pdf(uow, store, who.recipient, viewer=who.recipient)
+    name = f"{who.recipient.title} - signed by {who.recipient.name}.pdf"
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": attachment(name), "Cache-Control": "no-store"},
+    )
+
+
+def attachment(name: str) -> str:
+    """A download's file name, any script (RFC 6266 with RFC 5987's UTF-8 form)."""
+    plain = name.encode("ascii", "replace").decode().replace('"', "").replace("?", "_")
+    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"

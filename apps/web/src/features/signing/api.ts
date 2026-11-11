@@ -152,3 +152,18 @@ export function useWaiting() {
     refetchOnWindowFocus: true,
   });
 }
+
+export function useDone(recipientId: string) {
+  return useQuery({
+    queryKey: ["signer", recipientId, "done"],
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/sign/{recipient_id}/done", {
+          params: { path: { recipient_id: recipientId } },
+        }),
+      ),
+    retry: false,
+  });
+}
+
+export const copyUrl = (recipientId: string) => `/api/v1/sign/${recipientId}/copy.pdf`;

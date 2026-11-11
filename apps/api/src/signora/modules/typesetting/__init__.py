@@ -4,7 +4,7 @@ rule that fits a value to its box, shared by the preview's data and the signed P
 Public interface — other modules import only from here.
 """
 
-from signora.modules.typesetting.fit import fitted_size, place_size
+from signora.modules.typesetting.fit import baseline, fitted_size, left_edge, place_size
 from signora.modules.typesetting.fonts import (
     DEFAULT_FONT,
     FONTS,
@@ -12,6 +12,7 @@ from signora.modules.typesetting.fonts import (
     FontUse,
     UnknownFontError,
     font,
+    font_path,
     fonts_for,
     has_glyphs,
 )
@@ -29,11 +30,14 @@ __all__ = [
     "FontView",
     "Measured",
     "UnknownFontError",
+    "baseline",
     "fitted_size",
     "font",
+    "font_path",
     "font_view",
     "fonts_for",
     "has_glyphs",
+    "left_edge",
     "place_size",
     "router",
     "text_sizes",

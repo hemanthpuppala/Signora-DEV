@@ -1040,6 +1040,51 @@
         "title": "DocumentSummary",
         "type": "object"
       },
+      "DoneView": {
+        "description": "The done screen (§9.1): when they signed, how they proved who they are, what is next.",
+        "properties": {
+          "countersigning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Countersigning"
+          },
+          "signed_at": {
+            "format": "date-time",
+            "title": "Signed At",
+            "type": "string"
+          },
+          "verified_by": {
+            "enum": [
+              "email_code",
+              "email_link",
+              "signora_sign_in"
+            ],
+            "title": "Verified By",
+            "type": "string"
+          },
+          "waiting_for": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Waiting For",
+            "type": "array"
+          }
+        },
+        "required": [
+          "signed_at",
+          "verified_by",
+          "waiting_for",
+          "countersigning"
+        ],
+        "title": "DoneView",
+        "type": "object"
+      },
       "DraftRequest": {
         "additionalProperties": false,
         "properties": {
@@ -11467,6 +11512,89 @@
         ]
       }
     },
+    "/api/v1/sign/{recipient_id}/copy.pdf": {
+      "get": {
+        "operationId": "copy_api_v1_sign__recipient_id__copy_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {}
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "403": {
+            "description": "The code or consent comes first"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A copy of the document as signed so far, with only what this person may see",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
     "/api/v1/sign/{recipient_id}/decline": {
       "post": {
         "operationId": "decline_to_sign_api_v1_sign__recipient_id__decline_post",
@@ -11649,6 +11777,93 @@
           }
         },
         "summary": "The document's fields as this person sees them",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/done": {
+      "get": {
+        "operationId": "done_api_v1_sign__recipient_id__done_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoneView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "403": {
+            "description": "The code or consent comes first"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "What the done screen says",
         "tags": [
           "signing"
         ]

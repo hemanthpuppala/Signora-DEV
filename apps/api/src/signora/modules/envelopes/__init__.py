@@ -32,7 +32,7 @@ from signora.modules.envelopes.recipients import (
     write_values,
 )
 from signora.modules.envelopes.routes import router
-from signora.modules.envelopes.sending import asked, fits, name_part
+from signora.modules.envelopes.sending import asked, fits, name_part, written_in
 from signora.modules.envelopes.store import count_sends
 
 __all__ = [
@@ -65,4 +65,5 @@ __all__ = [
     "router",
     "unsigned",
     "write_values",
+    "written_in",
 ]

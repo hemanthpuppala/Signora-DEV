@@ -1126,6 +1126,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign/{recipient_id}/copy.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A copy of the document as signed so far, with only what this person may see */
+        get: operations["copy_api_v1_sign__recipient_id__copy_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sign/{recipient_id}/decline": {
         parameters: {
             query?: never;
@@ -1152,6 +1169,23 @@ export interface paths {
         };
         /** The document's fields as this person sees them */
         get: operations["document_api_v1_sign__recipient_id__document_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sign/{recipient_id}/done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the done screen says */
+        get: operations["done_api_v1_sign__recipient_id__done_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1739,6 +1773,26 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * DoneView
+         * @description The done screen (§9.1): when they signed, how they proved who they are, what is next.
+         */
+        DoneView: {
+            /** Countersigning */
+            countersigning: string | null;
+            /**
+             * Signed At
+             * Format: date-time
+             */
+            signed_at: string;
+            /**
+             * Verified By
+             * @enum {string}
+             */
+            verified_by: "email_code" | "email_link" | "signora_sign_in";
+            /** Waiting For */
+            waiting_for: string[];
         };
         /** DraftRequest */
         DraftRequest: {
@@ -7381,6 +7435,79 @@ export interface operations {
             };
         };
     };
+    copy_api_v1_sign__recipient_id__copy_pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     decline_to_sign_api_v1_sign__recipient_id__decline_post: {
         parameters: {
             query?: never;
@@ -7483,6 +7610,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignerDocument"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    done_api_v1_sign__recipient_id__done_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DoneView"];
                 };
             };
             /** @description No live signing session for this person in this browser */

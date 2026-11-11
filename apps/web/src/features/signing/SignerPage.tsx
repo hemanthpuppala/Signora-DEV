@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
-
 import { AuthPanel, BodyText } from "@/shared/ui";
 
 import { useSigner, type SignerState } from "./api";
 import { ConsentStep } from "./ConsentStep";
+import { DoneScreen } from "./DoneScreen";
 import { SignerProblem } from "./SignerNotices";
 import { SigningScreen } from "./SigningScreen";
 import { VerifyStep } from "./VerifyStep";
@@ -32,15 +31,7 @@ export function SignerPage({ recipientId }: { recipientId: string }) {
   if (state.next === "verify") return <VerifyStep state={state} />;
   if (state.next === "consent") return <ConsentStep state={state} />;
   if (state.next === "sign") return <SigningScreen state={state} />;
-  if (state.kind === "countersigner") {
-    return (
-      <AuthPanel eyebrow={`${state.company} · ${state.title}`} heading="Countersigned.">
-        <BodyText>
-          <Link href="/countersign">Back to To countersign</Link>
-        </BodyText>
-      </AuthPanel>
-    );
-  }
+  if (state.next === "done") return <DoneScreen state={state} />;
   return (
     <AuthPanel eyebrow={`${state.company} · ${state.title}`} heading={HEADINGS[state.next]}>
       <BodyText>
