@@ -17,7 +17,7 @@ import pymupdf
 
 from signora.modules.typesetting.mupdf import MUPDF_LOCK
 
-FontUse = Literal["text", "signature"]
+FontUse = Literal["text", "signature", "certificate"]
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ class Font:
     family: str  # the name the browser gives it (FontFace) and the PDF embeds
     file: str  # in fonts/
     licence: str  # in fonts/, shipped beside the file
-    use: FontUse = "text"  # a filled value's, or a typed signature's (Phase 8 §5.2)
+    use: FontUse = "text"  # a filled value's, a typed signature's (§5.2), or the certificate's
 
 
 # Liberation Sans: SIL Open Font License 1.1, and Arial's widths, the commonest agreement font.
@@ -37,6 +37,22 @@ FONTS: tuple[Font, ...] = (
         family="Liberation Sans",
         file="LiberationSans-Regular.ttf",
         licence="LiberationSans-LICENSE.txt",
+    ),
+    # The certificate of completion's headings and fingerprints (Phase 8 §11): the same family,
+    # under the same licence as Liberation Sans.
+    Font(
+        id="liberation-sans-bold",
+        family="Liberation Sans Bold",
+        file="LiberationSans-Bold.ttf",
+        licence="LiberationSans-LICENSE.txt",
+        use="certificate",
+    ),
+    Font(
+        id="liberation-mono",
+        family="Liberation Mono",
+        file="LiberationMono-Regular.ttf",
+        licence="LiberationSans-LICENSE.txt",
+        use="certificate",
     ),
     # Typed signatures' handwriting styles (Phase 8 §5.2), SIL Open Font License 1.1 each.
     Font(

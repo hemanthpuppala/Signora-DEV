@@ -76,14 +76,16 @@ def test_it_says_who_signed_how_they_proved_it_and_what_was_signed() -> None:
         )
     )
 
-    assert "Certificate of completion" in words
+    assert "Certificate of Completion" in words
     assert "0193A5F2-0000-7000-8000-000000000001" in words
     for expected in ("Maya Chen", "Rosa Hale", "Signora sign-in", "203.0.113.7", "Typed, Allura"):
         assert expected in words
     assert "0123456789ABCDEF" in words and "FEDCBA9876543210" in words
     assert "a" * 64 in words and "b" * 64 in words
     assert "esign-disclosure-v1" in words and "There is no fee." in words
-    assert sum(len(doc[i].get_images()) for i in range(doc.page_count)) == 2  # each signature
+    # Each signature drawn as signed, as vectors: the drawing's lines, the typed one's letters.
+    assert any(d["type"] == "s" and len(d["items"]) > 1 for d in doc[0].get_drawings())
+    assert "Rosa Hale" in words
 
 
 def test_a_long_certificate_runs_over_pages() -> None:
