@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const SESSION_COOKIE = "__Host-signora_session";
-const CONSOLE_PATHS = new Set(["/", "/people", "/settings"]);
+import { SESSION_COOKIE } from "@/shared/lib/routes";
+
+// "/" is the public landing page; everything below is the signed-in console.
+const CONSOLE_PATHS = new Set(["/people", "/settings"]);
 const isSigningPath = (path: string) =>
   path.startsWith("/s/") || path.startsWith("/sign/") || path.startsWith("/countersign");
 const isConsolePath = (path: string) =>
@@ -18,7 +20,7 @@ export function proxy(request: NextRequest) {
   if (isConsolePath(pathname) && !request.cookies.has(SESSION_COOKIE)) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
-    login.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname)}`;
+    login.search = `?next=${encodeURIComponent(pathname)}`;
     return NextResponse.redirect(login);
   }
 

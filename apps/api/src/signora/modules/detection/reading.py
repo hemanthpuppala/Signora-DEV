@@ -54,12 +54,14 @@ class FoundField(_Model):
     pdf_field: str | None = None
     placements: list[Placement]
     tooltip: str | None = None  # the form author's own description (/TU)
+    caption: str | None = None  # words printed in the top of a form field's own box (a cell's)
     label_left: str | None = None
     label_above: str | None = None
     label_below: str | None = None
     text_inside: str | None = None  # words drawn in its box (often its own appearance)
     value: str | None = None
     sample_value: bool = False  # a bracketed value a template ships with ("[Fill in state]")
+    drawn: bool = False  # a blank from a line drawn as a graphic, not marked in the text (F1)
     options: list[str] = []  # dropdown and list choices; a radio group's option values
     required: bool = False
     read_only: bool = False
@@ -84,7 +86,9 @@ class FoundField(_Model):
 
     @property
     def label(self) -> str | None:
-        return self.tooltip or self.label_left or self.label_above or self.label_below
+        return (
+            self.tooltip or self.caption or self.label_left or self.label_above or self.label_below
+        )
 
 
 class PageInfo(_Model):

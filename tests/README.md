@@ -24,7 +24,7 @@ tests/
 | `00-converted.pdf` | a Word file as Gotenberg converted it (Word files only) | no: full text |
 | `01-reading.json` | what the read stage found: every field with its kind, places, options, labels | no: full text |
 | `02-layout.txt` | the document as the AI reads it: layout text with field markers ⟦f1⟧ | no: full text |
-| `03-request.json` | the exact request: model, system prompt, user message, JSON schema | no: full text |
+| `03-request.json` | the exact request: model, reasoning effort, system prompt, user message, answer schema | no: full text |
 | `04-calls.json` | each AI call: request id, model, latency, tokens, the problems our checks found | yes |
 | `05-answer.json` | the AI's last answer, parsed and validated against the schema | yes |
 | `result.json` | **the final output**: what the product stores (roles, fields by key, flags) | yes |

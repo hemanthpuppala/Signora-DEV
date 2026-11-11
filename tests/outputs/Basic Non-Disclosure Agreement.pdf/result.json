@@ -1,0 +1,374 @@
+{
+  "fields_from": "blanks",
+  "roles": [
+    {
+      "slug": "disclosing_party",
+      "kind": "signer",
+      "label": "Disclosing Party",
+      "position": 1
+    },
+    {
+      "slug": "receiving_party",
+      "kind": "signer",
+      "label": "Receiving Party",
+      "position": 2
+    }
+  ],
+  "fields": [
+    {
+      "key": "agreement.agreement_date",
+      "label": "Agreement date",
+      "holds": "date",
+      "format": "Month D, YYYY",
+      "filled_by": "sender",
+      "role": null,
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f1"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            72.0,
+            87.8,
+            255.4,
+            100.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "disclosing_party.party_name",
+      "label": "Disclosing party name",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "role",
+      "role": "disclosing_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f2"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            228.1,
+            114.8,
+            411.5,
+            127.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "disclosing_party.address",
+      "label": "Disclosing party mailing address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "disclosing_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f3"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            72.0,
+            128.8,
+            438.6,
+            141.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "receiving_party.party_name",
+      "label": "Receiving party name",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "role",
+      "role": "receiving_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f4"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            224.4,
+            155.8,
+            407.7,
+            168.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "receiving_party.address",
+      "label": "Receiving party mailing address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "receiving_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f5"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            72.0,
+            169.8,
+            438.6,
+            182.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "disclosing_party.signature",
+      "label": "Disclosing party signature",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "role",
+      "role": "disclosing_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f6"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            125.3,
+            452.2,
+            449.0,
+            477.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "disclosing_party.full_name",
+      "label": "Disclosing party printed name",
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "role",
+      "role": "disclosing_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f7"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            192.1,
+            491.9,
+            357.0,
+            504.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "disclosing_party.date_signed",
+      "label": "Disclosing party signing date",
+      "holds": "date_signed",
+      "format": "Month D, YYYY",
+      "filled_by": "role",
+      "role": "disclosing_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f8"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            389.6,
+            491.9,
+            481.4,
+            504.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "receiving_party.signature",
+      "label": "Receiving party signature",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "role",
+      "role": "receiving_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f9"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            125.3,
+            533.2,
+            449.0,
+            558.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "receiving_party.full_name",
+      "label": "Receiving party printed name",
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "role",
+      "role": "receiving_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f10"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            192.1,
+            573.0,
+            357.0,
+            585.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "receiving_party.date_signed",
+      "label": "Receiving party signing date",
+      "holds": "date_signed",
+      "format": "Month D, YYYY",
+      "filled_by": "role",
+      "role": "receiving_party",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f11"
+      ],
+      "placements": [
+        {
+          "page": 2,
+          "rect": [
+            389.6,
+            573.0,
+            481.4,
+            585.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    }
+  ],
+  "not_asked": [],
+  "document": {
+    "name": "Basic Non-Disclosure Agreement",
+    "description": "A non-disclosure agreement between a disclosing party and a receiving party. It covers confidential information, permitted exclusions, confidentiality obligations and the duration of those obligations. Both parties sign; no countersignature is specified."
+  },
+  "flags": {
+    "no_fields": false,
+    "addressed_to_ai": false,
+    "repaired": false,
+    "xfa": false,
+    "already_signed": false,
+    "name_dropped": false
+  },
+  "notes": []
+}

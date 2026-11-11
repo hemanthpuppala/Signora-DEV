@@ -6,6 +6,7 @@ import { useEffect, type ReactNode } from "react";
 
 import { userMessage } from "@/shared/api/errors";
 import { api, unwrap } from "@/shared/api/client";
+import { CONSOLE_HOME } from "@/shared/lib/routes";
 import { AppShell, Notice, TextButton, TopBar, type AppShellProps, type NavItem } from "@/shared/ui";
 
 import { can, useSession, useSignOut, type Me, type PermissionName } from "./session";
@@ -24,7 +25,7 @@ const NAV: readonly {
   requires?: PermissionName;
   matches: (path: string) => boolean;
 }[] = [
-  { href: "/", label: "Departments", matches: (p) => p === "/" || p.startsWith("/departments") },
+  { href: CONSOLE_HOME, label: "Departments", matches: (p) => p.startsWith(CONSOLE_HOME) },
   { href: "/countersign", label: "To countersign", matches: (p) => p.startsWith("/countersign") },
   { href: "/people", label: "People", requires: "members.manage", matches: (p) => p === "/people" },
   { href: "/settings", label: "Settings", matches: (p) => p === "/settings" },
@@ -71,7 +72,7 @@ export function ConsoleShell({ requires, width = "content", children }: ConsoleS
   if (session.isError) {
     return (
       <>
-        <TopBar />
+        <TopBar home={CONSOLE_HOME} />
         <main style={{ padding: "48px var(--gutter)" }}>
           <Notice tone="warning" title="Signora is unreachable">
             {userMessage(session.error)}
@@ -81,7 +82,7 @@ export function ConsoleShell({ requires, width = "content", children }: ConsoleS
     );
   }
   const me = session.data;
-  if (!me) return <TopBar />; // loading, or about to redirect
+  if (!me) return <TopBar home={CONSOLE_HOME} />; // loading, or about to redirect
 
   const nav: NavItem[] = NAV.filter((item) => !item.requires || can(me, item.requires)).map(
     (item) => ({
@@ -100,7 +101,7 @@ export function ConsoleShell({ requires, width = "content", children }: ConsoleS
     </TextButton>
   );
   return (
-    <AppShell workspace={me.workspace.name} nav={nav} actions={actions} width={width}>
+    <AppShell home={CONSOLE_HOME} workspace={me.workspace.name} nav={nav} actions={actions} width={width}>
       {requires && !can(me, requires) ? (
         <Notice title="No access">{NO_ACCESS[requires] ?? NO_ACCESS_DEFAULT}</Notice>
       ) : (

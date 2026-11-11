@@ -25,6 +25,7 @@ from signora.modules.detection.derive import Result, derive
 from signora.modules.detection.prompt import SYSTEM_PROMPT, user_message
 from signora.modules.detection.read import read_document
 from signora.modules.detection.run import ask
+from signora.modules.detection.schema import answer_model
 from signora.modules.documents.conversion import docx_to_pdf
 
 TESTS = Path(__file__).resolve().parents[1]
@@ -120,8 +121,13 @@ def run(source: Path, *, instructions: str, effort: str | None, out: Path) -> Pa
     _write(
         out / "03-request.json",
         {
+            "model": ai.model,
+            "reasoning_effort": ai.reasoning_effort,
             "system": SYSTEM_PROMPT,
             "user": user_message(reading, current_name=source.stem, instructions=instructions),
+            "answer_schema": answer_model([field.id for field in reading.asked]).model_json_schema()
+            if reading.asked
+            else None,
         },
     )
     with pymupdf.open(stream=data, filetype="pdf") as document:

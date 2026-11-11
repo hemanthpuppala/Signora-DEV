@@ -61,7 +61,6 @@
   --sans: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans",
     "Droid Sans", "Helvetica Neue", sans-serif;
   --mono: var(--font-mono), ui-monospace, Menlo, monospace;
-  --logo: var(--font-logo), -apple-system, sans-serif;
 
   /* shape */
   --radius: 0;

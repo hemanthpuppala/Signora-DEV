@@ -1,7 +1,8 @@
-"""Blanks marked in a document's text (LLD §2.4): underscores, placeholders, checkbox glyphs.
+"""Blanks marked on a document's page (LLD §2.4): underscores, placeholders, checkbox glyphs, and
+lines drawn as graphics (findings F1, ``drawn_lines``).
 
 A Word file converted to PDF, or a printed agreement, has no form fields, but its blanks are marked
-in its text. Each becomes a field with its exact position. In a fillable PDF, only the blanks no
+on its pages. Each becomes a field with its exact position. In a fillable PDF, only the blanks no
 form field covers are added (§2.2). Blanks marked by nothing are the AI's ``extra_fields``.
 """
 
@@ -11,6 +12,7 @@ import re
 
 import pymupdf
 
+from signora.modules.detection.drawn_lines import drawn_blanks
 from signora.modules.detection.geometry import (
     TEXT_MAX,
     Box,
@@ -19,36 +21,19 @@ from signora.modules.detection.geometry import (
     cut,
     displayed,
 )
-from signora.modules.detection.page_text import Marked, PageText, pages
+from signora.modules.detection.page_text import (
+    FAR_ABOVE,
+    Marked,
+    PageText,
+    pages,
+    split_at_runs,
+)
 from signora.modules.detection.reading import FieldKind, FoundField, Placement
 from signora.modules.review.values import OPTION_MAX
 
-UNDERSCORES = re.compile(r"_{3,}")
 PLACEHOLDER = re.compile(r"\[[^\[\]]{2,80}\]|\{\{[^{}]{1,80}\}\}|«[^«»]{1,80}»|<<[^<>]{1,80}>>")
 CHECKBOX_GLYPHS = frozenset({"☐", "□", "❑", "❒", "▢"})
 RUN_GAP = 6.0  # runs on one row closer than this are one blank ("____ ____" typed in two goes)
-
-
-def _share(box: Box, text: str, start: int, end: int) -> Box:
-    """The part of a word's box that characters ``start:end`` take: their share of its width."""
-    x0, y0, x1, y1 = box
-    width = (x1 - x0) / max(len(text), 1)
-    return (x0 + width * start, y0, x0 + width * end, y1)
-
-
-def split_at_runs(text: str, box: Box) -> list[tuple[str, Box, bool]]:
-    """A word cut where its underscore runs are: each piece with its box and whether it is a run.
-    "20____" gives "20" (words printed before a blank) and the run; a word with no run is itself."""
-    pieces: list[tuple[str, Box, bool]] = []
-    at = 0
-    for match in UNDERSCORES.finditer(text):
-        if match.start() > at:
-            pieces.append((text[at : match.start()], _share(box, text, at, match.start()), False))
-        pieces.append((match.group(), _share(box, text, match.start(), match.end()), True))
-        at = match.end()
-    if at < len(text):
-        pieces.append((text[at:], _share(box, text, at, len(text)), False))
-    return pieces
 
 
 def _runs(page: pymupdf.Page) -> list[Box]:
@@ -150,13 +135,18 @@ def find_blanks(
         runs = [box for box in _runs(page) if free(box)]
         holders = [item for item in _placeholders(page) if free(item[0])]
         glyphs = [box for box in _glyphs(page) if free(box)]
-        if not (runs or holders or glyphs):
+        # Lines drawn as graphics (F1): not under a form field or a blank found in the text.
+        marked = [*(covered or {}).get(number, []), *runs, *(h[0] for h in holders), *glyphs]
+        lines = drawn_blanks(page, marked)
+        if not (runs or holders or glyphs or lines):
             continue
         refs: list[tuple[str, FieldKind, Box]] = [
             *[(f"blank:{number}:r{i}", "blank", box) for i, box in enumerate(runs)],
             *[(f"blank:{number}:p{i}", "blank", box) for i, (box, _, _) in enumerate(holders)],
             *[(f"blank:{number}:c{i}", "checkbox", box) for i, box in enumerate(glyphs)],
+            *[(f"blank:{number}:l{i}", "blank", box) for i, box in enumerate(lines)],
         ]
+        drawn = {f"blank:{number}:l{i}" for i in range(len(lines))}
         text = PageText(
             page,
             [Marked(ref, None, box) for ref, _, box in refs],
@@ -177,16 +167,22 @@ def find_blanks(
                 option_text=option_text,
                 continued=[displayed(page, rest) for rest in holder[2]] if holder else [],
             )
+            left = cut(text.left(box), TEXT_MAX)
+            above = cut(text.above(box), TEXT_MAX)
+            below = cut(text.below(box), TEXT_MAX) if kind == "blank" else None
+            if not (left or above or below):  # a lone line: its heading may sit rows above (F3)
+                above = cut(text.above(box, reach=FAR_ABOVE), TEXT_MAX)
             found.append(
                 FoundField(
                     ref=ref,
                     kind=kind,
                     placements=[placement],
-                    label_left=cut(text.left(box), TEXT_MAX),
-                    label_above=cut(text.above(box), TEXT_MAX),
-                    label_below=cut(text.below(box), TEXT_MAX) if kind == "blank" else None,
+                    label_left=left,
+                    label_above=above,
+                    label_below=below,
                     value=holder[1] if holder else None,
                     sample_value=holder is not None,
+                    drawn=ref in drawn,
                 )
             )
     return found

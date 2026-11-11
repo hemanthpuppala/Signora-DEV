@@ -3,6 +3,7 @@
 Public interface — other modules import only from here.
 """
 
+from signora.modules.envelopes.bulk_routes import router as bulk_router
 from signora.modules.envelopes.emails import moment_in_words
 from signora.modules.envelopes.form import (
     Condition,
@@ -49,6 +50,7 @@ __all__ = [
     "Place",
     "SignerRecipient",
     "asked",
+    "bulk_router",
     "count_sends",
     "envelope_contacts",
     "envelope_values",

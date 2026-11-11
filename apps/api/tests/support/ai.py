@@ -50,6 +50,7 @@ def plain_answer(fields: Fields) -> dict[str, Any]:
                 "label": f"Field {field_id}",
                 "must_fill": True,
                 "depends_on": None,
+                "same_as": None,
             }
         )
     return {

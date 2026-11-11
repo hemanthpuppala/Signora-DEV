@@ -30,14 +30,25 @@
   flex-wrap: wrap;
 }
 
+/* The signed logo. Its box is the size of the letterforms; the canvas is larger and centred on
+   them, so the quill has room to move around the word without changing the bar's layout. */
 .logo {
-  font: 500 18px/1 var(--logo);
-  letter-spacing: 0.16em;
-  color: var(--ink);
+  position: relative;
+  display: block;
+  width: 101px;
+  height: 40px;
 }
 
-.logo:hover {
+.logoMark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100px;
+  height: 82px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
   color: var(--ink);
+  --signature-paper: var(--bg);
 }
 
 /* "SIGNORA | Company": the company after a hairline (its logo, later, in the same place). */
@@ -67,21 +78,42 @@
   gap: 10px 32px;
 }
 
+/* Every item in the bar has the same hairline underline: drawn in from the left on hover, and
+   resting in place under the page the visitor is on. It is a background, not a border, so it can
+   grow, and every link keeps the same height whether or not it is underlined. */
 .navLink {
   font: 400 11px/1 var(--sans);
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--t75);
+  padding-bottom: 5px;
+  background: linear-gradient(var(--r40), var(--r40)) 0 100% / 0 1px no-repeat;
+  transition:
+    color 0.15s,
+    background-size 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .navLink:hover {
   color: var(--ink);
+  background-size: 100% 1px;
 }
 
 .navActive {
   color: var(--ink);
-  border-bottom: 1px solid var(--r40);
-  padding-bottom: 5px;
+  background-size: 100% 1px;
+}
+
+/* A button in the bar ("Log out") gets the same underline, at the same distance under its text
+   (the button is 40px tall for touch; its text sits in the middle). */
+.nav > button {
+  background: linear-gradient(var(--r40), var(--r40)) 0 30px / 0 1px no-repeat;
+  transition:
+    color 0.15s,
+    background-size 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.nav > button:hover:not(:disabled) {
+  background-size: 100% 1px;
 }
 
 .main {
