@@ -9685,7 +9685,8 @@
               "default": "text",
               "enum": [
                 "text",
-                "signature"
+                "signature",
+                "certificate"
               ],
               "title": "Use",
               "type": "string"

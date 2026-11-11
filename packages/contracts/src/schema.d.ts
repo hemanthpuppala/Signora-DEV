@@ -6115,7 +6115,7 @@ export interface operations {
     list_fonts_api_v1_fonts_get: {
         parameters: {
             query?: {
-                use?: "text" | "signature";
+                use?: "text" | "signature" | "certificate";
             };
             header?: never;
             path?: never;
