@@ -25,7 +25,8 @@ from signora.modules.envelopes import (
 from signora.modules.rendering import DrawnSignature, Item, Mark, Text, TypedSignature, render
 from signora.modules.review import read_set
 from signora.modules.review.formats import written
-from signora.modules.signing.document import SIGNS, build_view
+from signora.modules.review.values import SIGNING_PLACES
+from signora.modules.signing.document import build_view
 from signora.modules.typesetting import place_size
 
 
@@ -52,7 +53,7 @@ def _signatures(uow: UnitOfWork, values: Sequence[GivenValue]) -> dict[tuple[uui
 
 def _items(field: FormField, value: str, font: str, mark: Any) -> list[Item]:
     places = field.places
-    if field.holds in SIGNS:
+    if field.holds in SIGNING_PLACES:
         if mark is None:
             return []
         out: list[Item] = []

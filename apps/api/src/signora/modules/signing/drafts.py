@@ -15,8 +15,9 @@ from signora.modules.envelopes import FormField, asked, envelope_values, fits, f
 from signora.modules.identity_access import normalize_email
 from signora.modules.review import read_set
 from signora.modules.review.formats import InvalidValueError, check_value
+from signora.modules.review.values import SIGNING_PLACES
 from signora.modules.signing import signatures
-from signora.modules.signing.document import SIGNS, build_view
+from signora.modules.signing.document import build_view
 from signora.modules.signing.errors import AdoptFirst, FieldLocked, FieldNotAsked, NotYours
 from signora.modules.signing.service import Signer, read_drafts
 
@@ -82,7 +83,7 @@ def save_draft(uow: UnitOfWork, who: Signer, field_id: uuid.UUID, raw: str) -> s
     m = merged_values(uow, who)
     items, merged = m.items, m.values
     item = _mine(who, items, field_id, m.locked)
-    if item.holds in SIGNS:
+    if item.holds in SIGNING_PLACES:
         return _tap(uow, who, item, raw, items, merged)
     try:
         value = check_value(

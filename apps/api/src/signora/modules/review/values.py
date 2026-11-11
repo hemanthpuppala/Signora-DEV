@@ -133,6 +133,9 @@ PARTY_VALUES = frozenset(
         "bank_account",
     }
 )
+# Where a party signs. The one rule of who is asked to sign: a party with none of these places is
+# not (review warns of it, sending fills its fields in, signing never asks it).
+SIGNING_PLACES = frozenset({"signature", "initials"})
 # Only the party itself gives these; anything else a sender may fill in before sending.
 OWN = frozenset({"signature", "initials", "date_signed"})
 # One value per party wherever it is asked (Phase 5 §4.3).

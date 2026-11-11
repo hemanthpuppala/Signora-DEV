@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from signora.modules.review import FieldView, RoleView
 from signora.modules.review.formats import NOT_TYPED
-from signora.modules.review.values import ManualHolds, choice_options
+from signora.modules.review.values import SIGNING_PLACES, ManualHolds, choice_options
 from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, FitRule, FontView, font_view
 
 # A party's fields that come from the person signing as it, as DocuSign's Full Name, First Name,
@@ -144,9 +144,6 @@ def from_recipient(field: FieldView) -> FromRecipient | None:
     if field.holds in EMAIL_HOLDS:
         return "email"
     return None
-
-
-SIGNING_PLACES = frozenset({"signature", "initials"})
 
 
 def signing_parties(fields: Sequence[FieldView]) -> set[uuid.UUID]:

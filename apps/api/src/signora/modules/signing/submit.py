@@ -27,8 +27,9 @@ from signora.modules.envelopes import (
 )
 from signora.modules.identity_access import normalize_email
 from signora.modules.review.formats import InvalidValueError, check_value
+from signora.modules.review.values import SIGNING_PLACES
 from signora.modules.signing import completion, consent, signatures, turns
-from signora.modules.signing.document import SIGNING_DATE, SIGNS
+from signora.modules.signing.document import SIGNING_DATE
 from signora.modules.signing.drafts import SIGNED, merged_values
 from signora.modules.signing.errors import AlreadySigned, LinkClosed, NotTheirTurn
 from signora.modules.signing.service import Signer
@@ -75,7 +76,7 @@ def submit(uow: UnitOfWork, who: Signer) -> Submitted:
         if item.holds == SIGNING_DATE:
             given.append((item.id, signed_on))
             continue
-        if item.holds in SIGNS:
+        if item.holds in SIGNING_PLACES:
             mark = adopted.get(item.holds)
             if value == SIGNED and mark is not None:
                 given.append((item.id, f"{item.holds}:{mark.signature_id}"))

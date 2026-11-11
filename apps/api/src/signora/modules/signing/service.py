@@ -23,6 +23,7 @@ from signora.modules.envelopes import (
 from signora.modules.envelopes.links import link_key, read_token
 from signora.modules.identity_access import current_actor, hash_token
 from signora.modules.review import read_set
+from signora.modules.review.values import SIGNING_PLACES
 from signora.modules.signing import codes, consent, sessions, signatures
 from signora.modules.signing.document import SignerDocument, build_view
 from signora.modules.signing.domain import mask_email, next_step
@@ -279,7 +280,7 @@ def document(uow: UnitOfWork, who: Signer) -> SignerDocument:
     seen = {
         field.value.partition(":")[2]
         for field in view.fields
-        if field.value and field.holds in ("signature", "initials")
+        if field.value and field.holds in SIGNING_PLACES
     }
     if seen:
         signed = signatures.signed_in_envelope(uow, who.recipient.envelope_id)
@@ -321,9 +322,9 @@ def done(uow: UnitOfWork, who: Signer) -> DoneView:
     approved = not uow.session.execute(
         text(
             "SELECT EXISTS (SELECT 1 FROM version_fields WHERE version_id = :v AND role_id = :p "
-            "AND holds IN ('signature', 'initials'))"
+            "AND holds = ANY(:places))"
         ),
-        {"v": recipient.version_id, "p": recipient.party_id},
+        {"v": recipient.version_id, "p": recipient.party_id, "places": sorted(SIGNING_PLACES)},
     ).scalar_one()
     verified: VerifiedBy = (
         "signora_sign_in"

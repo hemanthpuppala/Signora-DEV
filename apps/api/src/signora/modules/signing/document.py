@@ -23,12 +23,11 @@ from signora.modules.envelopes import (
     name_part,
 )
 from signora.modules.review import FieldView, RoleView
-from signora.modules.review.values import SENSITIVE, ManualHolds
+from signora.modules.review.values import SENSITIVE, SIGNING_PLACES, ManualHolds
 from signora.modules.signing.signatures import Adopted
 from signora.modules.typesetting import FIT_RULE, FitRule, FontView, font_view
 
 Hidden = Literal["private", "countersigner"]
-SIGNS = frozenset({"signature", "initials"})  # placed by a tap (§5.3)
 SIGNING_DATE = "date_signed"  # filled at submit (§5.6)
 
 
@@ -127,7 +126,7 @@ def build_view(
                 mine=mine,
                 required=mine
                 and item.holds != SIGNING_DATE
-                and (item.holds in SIGNS or required[item.id]),
+                and (item.holds in SIGNING_PLACES or required[item.id]),
                 options=item.options,
                 depends_on=item.depends_on,
                 places=item.places,

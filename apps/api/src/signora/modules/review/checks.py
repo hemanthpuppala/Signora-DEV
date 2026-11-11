@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from signora.modules.review.values import OWN, SENSITIVE
+from signora.modules.review.values import OWN, SENSITIVE, SIGNING_PLACES
 from signora.modules.review.views import FieldView, RoleView
 
 WarningCode = Literal[
@@ -58,11 +58,7 @@ def warnings_for(
         found.append(
             ReviewWarning(code="no_signer", message="Every party countersigns: nobody signs first")
         )
-    signs = {
-        f.party_id
-        for f in fields
-        if f.holds in ("signature", "initials") and f.party_id is not None
-    }
+    signs = {f.party_id for f in fields if f.holds in SIGNING_PLACES and f.party_id is not None}
     for party in parties:
         if party.id not in signs:
             found.append(
