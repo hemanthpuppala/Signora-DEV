@@ -32,6 +32,23 @@
   font-weight: 400;
 }
 
+/* The title's end of the head: a quiet link to another way of doing the job, then Close. */
+.headEnd {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* A stop that still needs the person: its count beside the label, in the one colour the product
+   uses for "not right yet". */
+.attention {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--st-declined);
+  color: var(--ink);
+  letter-spacing: 0.08em;
+}
+
 .close {
   width: 32px;
   height: 32px;

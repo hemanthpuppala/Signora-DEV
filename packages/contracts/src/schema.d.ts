@@ -243,6 +243,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/departments/{department_id}/envelope-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A department's bulk sends still going, or sent in the last day */
+        get: operations["list_batches_api_v1_departments__department_id__envelope_batches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/departments/{department_id}/envelopes": {
         parameters: {
             query?: never;
@@ -385,6 +402,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/envelope-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a checked sheet: one envelope per row, in the background (requires Idempotency-Key) */
+        post: operations["send_batch_api_v1_documents__document_id__envelope_batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/envelopes": {
         parameters: {
             query?: never;
@@ -447,6 +481,74 @@ export interface paths {
         put?: never;
         /** Approve a version in review: its fields freeze, and the newest approved is current */
         post: operations["approve_api_v1_documents__document_id__versions__version_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/versions/{version_id}/bulk-rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read a filled spreadsheet (XLSX or CSV, the raw bytes as the body): rows and problems */
+        post: operations["read_bulk_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/versions/{version_id}/bulk-rows/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check rows again after edits: the same sheet with each row's problems */
+        post: operations["check_bulk_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/versions/{version_id}/bulk-rows/left-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The given rows as a CSV with the spreadsheet's headers */
+        post: operations["left_out_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_left_out_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/versions/{version_id}/bulk-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The spreadsheet to fill in for a bulk send of this version (XLSX) */
+        get: operations["bulk_template_api_v1_documents__document_id__versions__version_id__bulk_template_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -590,6 +692,23 @@ export interface paths {
         put?: never;
         /** Open a password-protected PDF with its password (never stored) */
         post: operations["unlock_version_api_v1_documents__document_id__versions__version_id__unlock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelope-batches/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A bulk send's progress and its failed rows */
+        get: operations["get_batch_api_v1_envelope_batches__batch_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1062,6 +1181,106 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /**
+         * BatchDefaults
+         * @description What is chosen once for every row (FR-7); a row's own setting replaces the matching one
+         *     here. Who countersigns is not chosen here: every row names its own.
+         */
+        BatchDefaults: {
+            /** Copies */
+            copies?: components["schemas"]["CopyIn"][];
+            settings: components["schemas"]["SettingsIn"];
+            /**
+             * Time Zone
+             * @default UTC
+             */
+            time_zone: string;
+        };
+        /** BatchFailure */
+        BatchFailure: {
+            /** Error */
+            error: string;
+            /** Label */
+            label: string;
+            /** Row No */
+            row_no: number;
+        };
+        /** BatchRequest */
+        BatchRequest: {
+            defaults: components["schemas"]["BatchDefaults"];
+            /** File Name */
+            file_name: string;
+            /** Rows */
+            rows: components["schemas"]["RowIn"][];
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+        };
+        /** BatchView */
+        BatchView: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Department Id
+             * Format: uuid
+             */
+            department_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Name */
+            document_name: string;
+            /** Failed */
+            failed: number;
+            /** Failures */
+            failures: components["schemas"]["BatchFailure"][];
+            /** File Name */
+            file_name: string;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Sent */
+            sent: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "sending" | "finished";
+            /** Total */
+            total: number;
+        };
+        /** Batches */
+        Batches: {
+            /** Batches */
+            batches: components["schemas"]["BatchView"][];
+        };
+        /**
+         * CellProblem
+         * @description What is wrong with a cell, in words. A warning is shown but does not stop the send.
+         */
+        CellProblem: {
+            /** Key */
+            key: string;
+            /**
+             * Level
+             * @default error
+             * @enum {string}
+             */
+            level: "error" | "warning";
+            /** Message */
+            message: string;
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */
@@ -1076,6 +1295,37 @@ export interface components {
              * Format: uuid
              */
             role_id: string;
+        };
+        /**
+         * CheckRequest
+         * @description Rows to judge again after the sender's edits, with what is chosen once for all of them.
+         */
+        CheckRequest: {
+            /** Columns */
+            columns: string[];
+            defaults: components["schemas"]["BatchDefaults"];
+            /** Rows */
+            rows: components["schemas"]["RowIn"][];
+        };
+        /**
+         * Column
+         * @description One thing a row gives. ``key`` names it for the life of the sheet; ``header`` is what the
+         *     sender reads at the top of the column, the label the send dialog shows.
+         */
+        Column: {
+            /** Header */
+            header: string;
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "email" | "date" | "choice" | "checkbox" | "number";
+            /** Options */
+            options?: components["schemas"]["Option"][];
+            /** Required */
+            required: boolean;
         };
         /** Condition */
         Condition: {
@@ -2214,6 +2464,34 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * Row
+         * @description A row as it is judged: its cells as they are read (a choice as its option's value, a tick
+         *     as ``yes``, a colleague as their email), with what is wrong with it. Whoever shows the row
+         *     shows these cells and needs no reading rules of their own.
+         */
+        Row: {
+            /** Cells */
+            cells: {
+                [key: string]: string;
+            };
+            /** Problems */
+            problems: components["schemas"]["CellProblem"][];
+            /** Row No */
+            row_no: number;
+        };
+        /**
+         * RowIn
+         * @description A row as it is given: its number in the file and what its cells hold.
+         */
+        RowIn: {
+            /** Cells */
+            cells: {
+                [key: string]: string;
+            };
+            /** Row No */
+            row_no: number;
+        };
         /** Saved */
         Saved: {
             /** Revision */
@@ -2304,6 +2582,15 @@ export interface components {
             notify_emails?: string[] | null;
             /** Reminder Interval Hours */
             reminder_interval_hours?: number | null;
+        };
+        /** Sheet */
+        Sheet: {
+            /** Columns */
+            columns: components["schemas"]["Column"][];
+            /** Problems */
+            problems?: string[];
+            /** Rows */
+            rows: components["schemas"]["Row"][];
         };
         /** SignerIn */
         SignerIn: {
@@ -3629,6 +3916,58 @@ export interface operations {
             };
         };
     };
+    list_batches_api_v1_departments__department_id__envelope_batches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                department_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Batches"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     list_envelopes_api_v1_departments__department_id__envelopes_get: {
         parameters: {
             query?: {
@@ -4170,6 +4509,66 @@ export interface operations {
             };
         };
     };
+    send_batch_api_v1_documents__document_id__envelope_batches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchView"];
+                };
+            };
+            /** @description Not approved or archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A row still has a problem; nothing is sent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     send_envelope_api_v1_documents__document_id__envelopes_post: {
         parameters: {
             query?: never;
@@ -4365,6 +4764,250 @@ export interface operations {
                 content?: never;
             };
             /** @description Changed since it was opened, warnings changed, or not in review */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    read_bulk_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_post: {
+        parameters: {
+            query: {
+                filename: string;
+            };
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sheet"];
+                };
+            };
+            /** @description Not approved, or made for another version */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Over 5 MB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a spreadsheet, empty, or over 1,000 rows */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    check_bulk_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sheet"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    left_out_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_left_out_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckRequest"];
+            };
+        };
+        responses: {
+            /** @description The file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    bulk_template_api_v1_documents__document_id__versions__version_id__bulk_template_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Not approved, or nobody signs it */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4882,6 +5525,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    get_batch_api_v1_envelope_batches__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchView"];
                 };
             };
             /** @description Validation failed (problem details) */

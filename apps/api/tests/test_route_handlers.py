@@ -20,6 +20,10 @@ ALLOWED_ASYNC_HANDLERS: dict[str, str] = {
         "the body as it arrives); the database work and file checks run in the thread pool "
         "(Phase 4 LLD §2.2)"
     ),
+    "modules/envelopes/bulk_routes.py:read_bulk_rows": (
+        "streams a spreadsheet's raw bytes to disk under a size limit, as the documents upload "
+        "does; reading and checking it run in the thread pool (Bulk send LLD §8)"
+    ),
 }
 
 

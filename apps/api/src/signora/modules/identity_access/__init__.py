@@ -10,6 +10,7 @@ from signora.modules.identity_access.domain.passwords import PasswordPolicy
 from signora.modules.identity_access.domain.permissions import DEPARTMENT_GRANT, Permission
 from signora.modules.identity_access.hooks import MemberRemovedHook, on_member_removed
 from signora.modules.identity_access.routes import router
+from signora.modules.identity_access.sessions import actor_of
 
 __all__ = [
     "DEPARTMENT_GRANT",
@@ -18,6 +19,7 @@ __all__ = [
     "MemberRemovedHook",
     "PasswordPolicy",
     "Permission",
+    "actor_of",
     "authorize",
     "current_actor",
     "normalize_email",

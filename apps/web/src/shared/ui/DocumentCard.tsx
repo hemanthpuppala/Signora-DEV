@@ -30,6 +30,7 @@ export function DocumentCard({
   facts,
   status,
   download,
+  extra,
   action = "Open",
 }: {
   /** Where the card leads; or ``choose`` instead, to pick it (the send's first step, Phase 7). */
@@ -44,6 +45,8 @@ export function DocumentCard({
   /** Shown at the top right (a status dot). */
   status: ReactNode;
   download?: { href: string; label: string } | undefined;
+  /** Something else to do with the document, at the start of the footer (a file to download). */
+  extra?: ReactNode;
   action?: string;
 }) {
   return (
@@ -87,6 +90,7 @@ export function DocumentCard({
               <IconButton icon="download" label={download.label} href={download.href} download />
             </span>
           ) : null}
+          {extra ? <span className={styles.above}>{extra}</span> : null}
           <span className={styles.go} aria-hidden="true">{`${action} →`}</span>
         </span>
       </article>

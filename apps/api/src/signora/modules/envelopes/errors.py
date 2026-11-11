@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from signora.kernel.errors import Conflict
+from signora.kernel.errors import Conflict, DomainError
 
 
 class SamePerson(Conflict):
@@ -13,6 +13,37 @@ class SamePerson(Conflict):
 class NobodySigns(Conflict):
     code = "nobody-signs"
     title = "Nobody signs this template. Add who signs and where, then send"
+
+
+class UnreadableFile(DomainError):
+    code = "bulk-file-unreadable"
+    status = 422
+    title = "This file could not be read. Use the spreadsheet downloaded here, as XLSX or CSV"
+
+
+class TooManyRows(DomainError):
+    code = "bulk-file-too-many-rows"
+    status = 422
+    title = "This file has too many rows. Send it in parts"
+
+
+class EmptyFile(DomainError):
+    code = "bulk-file-empty"
+    status = 422
+    title = "This file has no rows under its headers"
+
+
+class OutdatedSpreadsheet(Conflict):
+    code = "bulk-file-outdated"
+    title = "This spreadsheet was made for an earlier version of the template. Download a new one"
+
+
+class RowsNeedFixing(DomainError):
+    """A batch whose rows still have problems: nothing of it is sent (Bulk send LLD §4.4)."""
+
+    code = "bulk-rows-need-fixing"
+    status = 422
+    title = "Some rows still have problems. Fix them or leave them out, then send"
 
 
 class EnvelopeClosed(Conflict):

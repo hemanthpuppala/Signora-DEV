@@ -36,6 +36,7 @@ export function DepartmentPage({
   documentCount,
   tabActions,
   onAddEnvelope,
+  onSendInBulk,
   children,
 }: {
   me: Me;
@@ -45,6 +46,8 @@ export function DepartmentPage({
   tabActions?: (department: Department) => ReactNode;
   /** Opens the send (Phase 7); the route owns it, as features never import each other. */
   onAddEnvelope?: (() => void) | undefined;
+  /** Opens the bulk send: one template to many people, from a spreadsheet. */
+  onSendInBulk?: (() => void) | undefined;
   children: (department: Department) => ReactNode;
 }) {
   const queryClient = useQueryClient();
@@ -83,6 +86,9 @@ export function DepartmentPage({
           <>
             {!archived && onAddEnvelope && data.access === "edit" ? (
               <HeadAction icon="send" label="New envelope" variant="primary" onClick={onAddEnvelope} />
+            ) : null}
+            {!archived && onSendInBulk && data.access === "edit" ? (
+              <HeadAction icon="upload" label="Send in bulk" onClick={onSendInBulk} />
             ) : null}
             {manages && !archived ? (
               <HeadAction icon="settings" label="Settings" href={`/departments/${id}/settings`} />
