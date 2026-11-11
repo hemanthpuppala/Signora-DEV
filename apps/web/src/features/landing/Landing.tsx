@@ -304,7 +304,7 @@ export function Landing({ signedIn, className }: LandingProps) {
                 </ol>
                 <div className="panes">
                   <div className="pane is-active" data-pane="1">
-                    <h3>Upload your template</h3>
+                    <h3 tabIndex={-1}>Upload your template</h3>
                     <label className="drop" id="drop" htmlFor="file-in">
                       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
                         <path
@@ -338,7 +338,7 @@ export function Landing({ signedIn, className }: LandingProps) {
                     </div>
                   </div>
                   <div className="pane" data-pane="2">
-                    <h3>Fields, extracted</h3>
+                    <h3 tabIndex={-1}>Fields, extracted</h3>
                     <div className="scan" id="scan" aria-hidden="true">
                       <i />
                       <i />
@@ -361,7 +361,7 @@ export function Landing({ signedIn, className }: LandingProps) {
                     </div>
                   </div>
                   <div className="pane" data-pane="3">
-                    <h3>Enter client details</h3>
+                    <h3 tabIndex={-1}>Enter client details</h3>
                     <form className="form" id="details" noValidate>
                       <label className="field" htmlFor="c-name">
                         Client name
@@ -398,7 +398,7 @@ export function Landing({ signedIn, className }: LandingProps) {
                   </div>
                   <div className="pane" data-pane="4">
                     <div className="send-view" id="send-view">
-                      <h3>Ready to send</h3>
+                      <h3 tabIndex={-1}>Ready to send</h3>
                       <dl className="summary" id="summary" />
                       <div className="pane-foot">
                         <button className="link-btn" type="button" data-back="3">
@@ -410,7 +410,7 @@ export function Landing({ signedIn, className }: LandingProps) {
                       </div>
                     </div>
                     <div className="sent-view" id="sent-view" hidden>
-                      <h3>Sent. Here is the access code.</h3>
+                      <h3 tabIndex={-1}>Sent. Here is the access code.</h3>
                       <p className="soft" id="sent-line" />
                       <div className="code-show" id="code-show" />
                       <div className="pane-foot">
@@ -522,7 +522,9 @@ export function Landing({ signedIn, className }: LandingProps) {
                     <div className="view" id="v-sign">
                       <div className="v-head">
                         <small>Step 2 of 2</small>
-                        <b id="v-doc-2">Engagement Letter</b>
+                        <b id="v-doc-2" tabIndex={-1}>
+                          Engagement Letter
+                        </b>
                       </div>
                       <div className="v-body">
                         <div className="v-lines" aria-hidden="true">

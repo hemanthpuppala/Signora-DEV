@@ -3,7 +3,7 @@ import { looksLikeEmail } from "@/shared/lib/email";
 import { FIELD_NAMES, SAMPLE_TEMPLATE } from "../content";
 
 import { createAutoplay } from "./autoplay";
-import { fieldError, q, qa, setBusy } from "./dom";
+import { fieldError, focusHeading, q, qa, setBusy } from "./dom";
 import type { Toast } from "./pageChrome";
 import type { PhoneSigning } from "./phoneSigning";
 import type { Scope } from "@/shared/lib/scope";
@@ -89,12 +89,14 @@ export function mountEnvelopeBuilder(
   let extraction = 0;
 
   // ── Steps ──
-  function go(step: number): void {
+  /** Shows a step. `byVisitor` moves keyboard focus to it; the demo's own steps leave focus alone. */
+  function go(step: number, byVisitor = false): void {
     for (const pane of panes) {
       const number = Number(pane.dataset.pane);
       pane.classList.toggle("is-active", number === step);
       pane.classList.toggle("is-left", number < step);
       pane.inert = number !== step;
+      if (byVisitor && number === step) focusHeading(pane);
     }
     steps.forEach((item, i) => {
       if (i + 1 === step) item.setAttribute("aria-current", "step");
@@ -192,7 +194,7 @@ export function mountEnvelopeBuilder(
     );
   }
   scope.on(toExtract, "click", () => {
-    go(2);
+    go(2, true);
     runExtract();
   });
   scope.on(toDetails, "click", () => {
@@ -200,7 +202,7 @@ export function mountEnvelopeBuilder(
     scope.timeout(() => nameInput.focus({ preventScroll: true }), 220);
   });
   for (const back of qa(builder, "[data-back]")) {
-    scope.on(back, "click", () => go(Number(back.dataset.back)));
+    scope.on(back, "click", () => go(Number(back.dataset.back), true));
   }
 
   // ── 03 Details ──
@@ -236,7 +238,7 @@ export function mountEnvelopeBuilder(
     );
     sendView.hidden = false;
     sentView.hidden = true;
-    go(4);
+    go(4, !autoplay.isOn());
   });
 
   // ── 04 Send ──
@@ -263,6 +265,7 @@ export function mountEnvelopeBuilder(
     if (autoplay.isOn()) return;
     phone.setEnvelope({ code: sent, clientName: client.name, documentName: withoutExtension(file.name) });
     toast("Envelope sent");
+    focusHeading(sentView);
   });
   scope.on(q(builder, "#copy-code"), "click", async () => {
     if (!code) return;
@@ -295,6 +298,7 @@ export function mountEnvelopeBuilder(
   }
   scope.on(q(builder, "#new-env"), "click", () => {
     reset();
+    go(1, true);
     phone.setEnvelope(null);
   });
 

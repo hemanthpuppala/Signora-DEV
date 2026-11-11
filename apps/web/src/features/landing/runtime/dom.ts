@@ -49,6 +49,15 @@ export function setBusy(button: HTMLButtonElement, label: string): (() => void) 
   };
 }
 
+/**
+ * Moves keyboard focus to the first visible heading in `container`. A step change makes the pane
+ * that held the pressed button inert, which would otherwise drop focus back to the page.
+ */
+export function focusHeading(container: Element): void {
+  const heading = qa(container, "h3, [tabindex='-1']").find((element) => !element.closest("[hidden]"));
+  heading?.focus({ preventScroll: true });
+}
+
 /** Marks a field valid or invalid with its message; returns whether it is valid. */
 export function fieldError(input: HTMLInputElement, slot: HTMLElement, message: string): boolean {
   input.setAttribute("aria-invalid", message ? "true" : "false");

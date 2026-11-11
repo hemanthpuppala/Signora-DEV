@@ -128,6 +128,8 @@ export function mountPhoneSigning(root: HTMLElement, scope: Scope, reduced: bool
     await wait(420);
     restore();
     show("sign");
+    // The code view, which held the pressed button, is now inert: focus moves on with the visitor.
+    if (!autoplay.isOn()) q(root, "#v-doc-2").focus({ preventScroll: true });
   });
 
   // ── Step 2: the signature pad ──
@@ -216,7 +218,10 @@ export function mountPhoneSigning(root: HTMLElement, scope: Scope, reduced: bool
     clearPad();
     show("code");
   }
-  scope.on(q(root, "#sign-reset"), "click", reset);
+  scope.on(q(root, "#sign-reset"), "click", () => {
+    reset();
+    digits[0]?.focus({ preventScroll: true });
+  });
 
   // ── The demo ──
   const glyph = new Path2D(SIG.path);
