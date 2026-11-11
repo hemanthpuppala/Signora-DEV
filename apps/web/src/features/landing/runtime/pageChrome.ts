@@ -1,7 +1,9 @@
+import { clamp } from "@/shared/lib/canvas";
+
 import { SECTIONS } from "../content";
 
-import { clamp, cssVar, q, qa, sizeCanvas } from "./dom";
-import type { Scope } from "./scope";
+import { cssVar, q, qa, sizeCanvas } from "./dom";
+import type { Scope } from "@/shared/lib/scope";
 
 /** Display headlines drift sideways as they cross the viewport (a third of the distance on phones). */
 function mountDrift(root: HTMLElement, scope: Scope, reduced: boolean): void {

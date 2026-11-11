@@ -30,14 +30,25 @@
   flex-wrap: wrap;
 }
 
+/* The signed logo. Its box is the size of the letterforms; the canvas is larger and centred on
+   them, so the quill has room to move around the word without changing the bar's layout. */
 .logo {
-  font: 500 18px/1 var(--logo);
-  letter-spacing: 0.16em;
-  color: var(--ink);
+  position: relative;
+  display: block;
+  width: 101px;
+  height: 40px;
 }
 
-.logo:hover {
+.logoMark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100px;
+  height: 82px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
   color: var(--ink);
+  --signature-paper: var(--bg);
 }
 
 .workspace {

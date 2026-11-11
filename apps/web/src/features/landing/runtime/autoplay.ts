@@ -1,4 +1,4 @@
-import type { Scope } from "./scope";
+import type { Scope } from "@/shared/lib/scope";
 
 /** How long a demo the visitor took over stays theirs before it plays again by itself. */
 export const IDLE_MS = 60_000;

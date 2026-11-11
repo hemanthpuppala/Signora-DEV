@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { cx } from "@/shared/lib/cx";
 import { CONSOLE_HOME } from "@/shared/lib/routes";
+import { SignatureLogo } from "@/shared/ui";
 
 import { FIELD_NAMES, LANES, SECTIONS, TEAMS } from "./content";
 import { LandingRuntime } from "./LandingRuntime";
@@ -58,7 +59,7 @@ export function Landing({ signedIn, className }: LandingProps) {
       <div className="page">
         <header className="top">
           <a className="top-brand" href="#top" aria-label="Signora, back to top">
-            <canvas id="logo-canvas" aria-hidden="true" />
+            <SignatureLogo />
           </a>
           <nav className="top-links" aria-label="Sections" id="top-links">
             {SECTIONS.map((section) => (

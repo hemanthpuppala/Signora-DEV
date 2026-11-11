@@ -148,7 +148,7 @@ body:has(.signora-landing) { background: #0e0e0d; }
   }
   .top-brand { position: relative; display: block; width: calc(101px + 2 * clamp(12px, 1.6vw, 22px)); border-right: 1px solid var(--ink); }
   /* The canvas is centred on the cell; its drawing is centred on the letterforms, with room around them for the quill's path. */
-  .top-brand canvas { position: absolute; left: 50%; top: 50%; width: 100px; height: 82px; transform: translate(-50%, -50%); pointer-events: none; }
+  .top-brand canvas { color: var(--ink); --signature-paper: var(--paper); position: absolute; left: 50%; top: 50%; width: 100px; height: 82px; transform: translate(-50%, -50%); pointer-events: none; }
   .top-links { position: relative; display: flex; align-items: center; gap: 30px; padding: 0 var(--pad-x); font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; }
   .top-links a, .top-links button { position: relative; padding: 8px 0; border: 0; background: none; color: var(--ink-soft); letter-spacing: inherit; text-transform: inherit; font-size: inherit; font-weight: inherit; cursor: pointer; transition: color 180ms; }
   .top-links a:hover, .top-links button:hover, .top-links a[aria-current="true"] { color: var(--ink); }

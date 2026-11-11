@@ -1,8 +1,10 @@
+import { clamp } from "@/shared/lib/canvas";
+
 import { FIELD_NAMES } from "../content";
 
 import { createAutoplay } from "./autoplay";
-import { clamp, q, qa } from "./dom";
-import type { Scope } from "./scope";
+import { q, qa } from "./dom";
+import type { Scope } from "@/shared/lib/scope";
 
 /**
  * §03: Signora reads a template. A light travels round the page while it reads, then each blank is

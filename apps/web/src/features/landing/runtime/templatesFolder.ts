@@ -1,8 +1,10 @@
+import { clamp } from "@/shared/lib/canvas";
+
 import { TEAMS } from "../content";
 
 import { createAutoplay } from "./autoplay";
-import { clamp, q, qa } from "./dom";
-import type { Scope } from "./scope";
+import { q, qa } from "./dom";
+import type { Scope } from "@/shared/lib/scope";
 
 /**
  * §02: one folder that holds a team's templates. The demo opens it for each team in turn, fanning

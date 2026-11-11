@@ -2,7 +2,7 @@ import { LANE_STEPS } from "../content";
 
 import { createAutoplay } from "./autoplay";
 import { q, qa } from "./dom";
-import type { Scope } from "./scope";
+import type { Scope } from "@/shared/lib/scope";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 

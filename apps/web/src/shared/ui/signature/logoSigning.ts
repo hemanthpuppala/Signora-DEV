@@ -1,11 +1,13 @@
-import { clamp, context2d, cssVar, q } from "./dom";
-import { LOGO, SIG } from "./penPaths";
-import type { Scope } from "./scope";
+import { clamp } from "@/shared/lib/canvas";
+import type { Scope } from "@/shared/lib/scope";
 
-/** The part of the pen-path drawing the header shows: the letterforms plus room for the quill. */
+import { LOGO, SIG } from "./penPaths";
+
+/** The part of the pen-path drawing the logo shows: the letterforms plus room for the quill. */
 const VIEW = { x: 19.25, y: -43.15, w: 304, h: 250 };
 const REST_MS = 30_000;
 const TAU = Math.PI * 2;
+const VANE = ["#ffffff", "#e4e4e4", "#8e8e8e"] as const;
 
 // The quill, drawn with its nib at (18, 88).
 const QUILL = {
@@ -17,18 +19,25 @@ const QUILL = {
     "M18.1 88.1L20.0 86.2L21.8 84.4L23.5 82.6L25.2 80.8L26.8 79.0L28.3 77.2L29.8 75.4L31.2 73.6L32.6 71.9L33.9 70.2L35.2 68.5L36.5 66.9L35.4 66.1L34.2 67.7L32.8 69.3L31.5 71.0L30.0 72.7L28.6 74.4L27.1 76.1L25.6 77.9L24.0 79.8L22.5 81.7L21.0 83.7L19.4 85.7L17.8 87.9Z",
 };
 
-type Colors = { ink: string; paper: string; vane: [string, string, string] };
+/**
+ * When the signing last finished, anywhere in this tab. The logo is on every page; a page opened
+ * while the logo is resting shows it at rest instead of signing again on each navigation.
+ */
+let lastFinished = Number.NEGATIVE_INFINITY;
 
 /**
- * The header logo: a quill writes "Signora" along the recorded pen path, rests in the logo pose,
- * and writes it again after `REST_MS`. Under reduced motion it shows the finished logo.
+ * The Signora logo on a canvas: a quill writes "Signora" along the recorded pen path, rests in the
+ * logo pose, and writes it again after `REST_MS`. Under reduced motion it shows the finished logo.
+ *
+ * The ink takes the canvas's CSS `color`; the gaps in the quill take its `--signature-paper`
+ * (the colour behind the logo).
  */
-export function mountLogoSigning(root: HTMLElement, scope: Scope, reduced: boolean): void {
-  const canvas = q<HTMLCanvasElement>(root, "#logo-canvas");
-  const ctx = context2d(canvas);
+export function mountLogoSigning(canvas: HTMLCanvasElement, scope: Scope, reduced: boolean): void {
   // Ink accumulates on a second canvas, so each frame stamps only the new dots.
   const inkCanvas = document.createElement("canvas");
-  const ink = context2d(inkCanvas);
+  const ctx = canvas.getContext("2d");
+  const ink = inkCanvas.getContext("2d");
+  if (!ctx || !ink) return;
   const glyph = new Path2D(SIG.path);
   const quill = {
     vane: new Path2D(QUILL.vane),
@@ -36,11 +45,8 @@ export function mountLogoSigning(root: HTMLElement, scope: Scope, reduced: boole
     rachis: new Path2D(QUILL.rachis),
     shaft: new Path2D(QUILL.shaft),
   };
-  const colors: Colors = {
-    ink: cssVar(root, "--ink"),
-    paper: cssVar(root, "--paper"),
-    vane: ["#ffffff", "#e4e4e4", "#8e8e8e"],
-  };
+  const style = getComputedStyle(canvas);
+  const colors = { ink: style.color, paper: style.getPropertyValue("--signature-paper").trim() || "#000000" };
   let stamped = 0;
   let frame = 0;
   let rest = 0;
@@ -48,8 +54,8 @@ export function mountLogoSigning(root: HTMLElement, scope: Scope, reduced: boole
 
   function clearInk(): void {
     stamped = 0;
-    ink.setTransform(1, 0, 0, 1, 0, 0);
-    ink.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
+    ink!.setTransform(1, 0, 0, 1, 0, 0);
+    ink!.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
   }
   function size(): void {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -71,19 +77,19 @@ export function mountLogoSigning(root: HTMLElement, scope: Scope, reduced: boole
     const count = dots.length / 4;
     let i = stamped;
     if (i >= count || dots[i * 4 + 3]! > t) return;
-    const k = applyView(ink);
-    const minRadius = (0.6 * (canvas.width / canvas.clientWidth)) / k;
-    ink.fillStyle = "#000";
-    ink.beginPath();
+    const k = applyView(ink!);
+    const minRadius = (0.6 * (canvas.width / Math.max(1, canvas.clientWidth))) / k;
+    ink!.fillStyle = "#000";
+    ink!.beginPath();
     while (i < count && dots[i * 4 + 3]! <= t) {
       const x = dots[i * 4]!;
       const y = dots[i * 4 + 1]!;
       const radius = Math.max(minRadius, dots[i * 4 + 2]! * 1.12 + 0.12);
-      ink.moveTo(x + radius, y);
-      ink.arc(x, y, radius, 0, TAU);
+      ink!.moveTo(x + radius, y);
+      ink!.arc(x, y, radius, 0, TAU);
       i++;
     }
-    ink.fill();
+    ink!.fill();
     stamped = i;
   }
   /** The quill's [x, y, tiltDeg, lift, opacity] at time `t`, between recorded frames. */
@@ -97,49 +103,51 @@ export function mountLogoSigning(root: HTMLElement, scope: Scope, reduced: boole
     return [0, 1, 2, 3, 4].map((k) => track[i * 5 + k]! + (track[j * 5 + k]! - track[i * 5 + k]!) * mix);
   }
   function draw(t: number): void {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const c = ctx!;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, canvas.width, canvas.height);
+    if (!canvas.width || !canvas.height) return;
     // The ink so far, clipped to the true letterforms and tinted with the ink colour.
-    ctx.save();
-    applyView(ctx);
-    ctx.clip(glyph);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalCompositeOperation = "source-over";
-    ctx.drawImage(inkCanvas, 0, 0);
-    ctx.globalCompositeOperation = "source-in";
-    ctx.fillStyle = colors.ink;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
+    c.save();
+    applyView(c);
+    c.clip(glyph);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalCompositeOperation = "source-over";
+    c.drawImage(inkCanvas, 0, 0);
+    c.globalCompositeOperation = "source-in";
+    c.fillStyle = colors.ink;
+    c.fillRect(0, 0, canvas.width, canvas.height);
+    c.restore();
     // Once the writing ends, the full letterforms fade in over the stamped ink.
     const u = clamp((t - LOGO.writeEnd) / 0.7, 0, 1);
     const dry = u * u * u * (10 - 15 * u + 6 * u * u);
     if (dry > 0) {
-      applyView(ctx);
-      ctx.globalAlpha = dry;
-      ctx.fillStyle = colors.ink;
-      ctx.fill(glyph);
-      ctx.globalAlpha = 1;
+      applyView(c);
+      c.globalAlpha = dry;
+      c.fillStyle = colors.ink;
+      c.fill(glyph);
+      c.globalAlpha = 1;
     }
     const [x = 0, y = 0, tilt = 0, lift = 0, opacity = 0] = nibAt(t);
     if (opacity <= 0.001) return;
-    applyView(ctx);
-    ctx.translate(x, y - lift * 7);
-    ctx.rotate((tilt * Math.PI) / 180);
-    ctx.scale(1 + 0.035 * lift, 1 + 0.035 * lift);
-    ctx.translate(-18, -88);
-    ctx.globalAlpha = opacity;
-    const gradient = ctx.createLinearGradient(26.3, 12, 82, 72);
-    gradient.addColorStop(0, colors.vane[0]);
-    gradient.addColorStop(0.55, colors.vane[1]);
-    gradient.addColorStop(1, colors.vane[2]);
-    ctx.fillStyle = gradient;
-    ctx.fill(quill.vane);
-    ctx.fillStyle = colors.paper;
-    ctx.fill(quill.cuts);
-    ctx.fill(quill.rachis);
-    ctx.fillStyle = colors.ink;
-    ctx.fill(quill.shaft);
-    ctx.globalAlpha = 1;
+    applyView(c);
+    c.translate(x, y - lift * 7);
+    c.rotate((tilt * Math.PI) / 180);
+    c.scale(1 + 0.035 * lift, 1 + 0.035 * lift);
+    c.translate(-18, -88);
+    c.globalAlpha = opacity;
+    const gradient = c.createLinearGradient(26.3, 12, 82, 72);
+    gradient.addColorStop(0, VANE[0]);
+    gradient.addColorStop(0.55, VANE[1]);
+    gradient.addColorStop(1, VANE[2]);
+    c.fillStyle = gradient;
+    c.fill(quill.vane);
+    c.fillStyle = colors.paper;
+    c.fill(quill.cuts);
+    c.fill(quill.rachis);
+    c.fillStyle = colors.ink;
+    c.fill(quill.shaft);
+    c.globalAlpha = 1;
   }
   function play(): void {
     scope.clearTimeout(rest);
@@ -155,12 +163,13 @@ export function mountLogoSigning(root: HTMLElement, scope: Scope, reduced: boole
         frame = scope.frame(tick);
       } else {
         frame = 0;
+        lastFinished = performance.now();
         rest = scope.timeout(play, REST_MS);
       }
     };
     frame = scope.frame(tick);
   }
-  /** Repaints the current pose (after a resize or theme change) unless the writing is running. */
+  /** Repaints the current pose (after a resize) unless the writing is running. */
   function redraw(): void {
     if (frame) return;
     clearInk();
@@ -169,9 +178,11 @@ export function mountLogoSigning(root: HTMLElement, scope: Scope, reduced: boole
   }
 
   size();
-  if (reduced) {
+  const sinceFinished = performance.now() - lastFinished;
+  if (reduced || sinceFinished < REST_MS) {
     lastTime = LOGO.end;
     redraw();
+    if (!reduced) rest = scope.timeout(play, REST_MS - sinceFinished);
   } else {
     scope.timeout(play, 500);
   }

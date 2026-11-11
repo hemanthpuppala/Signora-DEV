@@ -1,7 +1,9 @@
+import { context2d } from "@/shared/lib/canvas";
+
 import { createAutoplay } from "./autoplay";
-import { context2d, cssVar, q, qa, setBusy, sizeCanvas, type Surface } from "./dom";
-import { SIG } from "./penPaths";
-import type { Scope } from "./scope";
+import { cssVar, q, qa, setBusy, sizeCanvas, type Surface } from "./dom";
+import { SIG } from "@/shared/ui/signature/penPaths";
+import type { Scope } from "@/shared/lib/scope";
 
 const TAU = Math.PI * 2;
 const DEFAULT_DOCUMENT = "Engagement Letter";

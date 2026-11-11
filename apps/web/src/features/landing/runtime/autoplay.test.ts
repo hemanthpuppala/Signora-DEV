@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAutoplay, IDLE_MS } from "./autoplay";
-import { Scope } from "./scope";
+import { Scope } from "@/shared/lib/scope";
 
 /** Stands in for the browser's visibility reports; `show(true)` scrolls the demo into view. */
 function installVisibility() {

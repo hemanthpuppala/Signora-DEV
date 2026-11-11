@@ -6,7 +6,7 @@ import { createAutoplay } from "./autoplay";
 import { fieldError, q, qa, setBusy } from "./dom";
 import type { Toast } from "./pageChrome";
 import type { PhoneSigning } from "./phoneSigning";
-import type { Scope } from "./scope";
+import type { Scope } from "@/shared/lib/scope";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const ACCEPTED = ["pdf", "docx"];

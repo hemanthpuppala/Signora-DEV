@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { cx } from "@/shared/lib/cx";
 
 import { ScrollLatch } from "./ScrollLatch";
+import { SignatureLogo } from "./SignatureLogo";
 import styles from "./shell.module.css";
 
 export type NavItem = { href: string; label: string; active?: boolean };
@@ -26,8 +27,8 @@ export function TopBar({ home = "/", workspace, nav = [], actions }: Omit<AppShe
     <header className={styles.topbar}>
       <div className={cx(styles.topbarInner, styles.wrap)}>
         <div className={styles.brand}>
-          <Link href={home} className={styles.logo}>
-            SIGNORA
+          <Link href={home} className={styles.logo} aria-label="Signora">
+            <SignatureLogo className={styles.logoMark} />
           </Link>
           {workspace ? <span className={styles.workspace}>{workspace}</span> : null}
         </div>

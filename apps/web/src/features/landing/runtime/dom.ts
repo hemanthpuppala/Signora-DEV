@@ -1,3 +1,5 @@
+import { context2d } from "@/shared/lib/canvas";
+
 /** The element matching `selector`; the landing markup always has it, so a miss is a broken build. */
 export function q<T extends Element = HTMLElement>(root: ParentNode, selector: string): T {
   const element = root.querySelector<T>(selector);
@@ -28,12 +30,6 @@ export function sizeCanvas(canvas: HTMLCanvasElement): Surface {
   return { ctx, w, h };
 }
 
-export function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Landing page: this browser has no 2D canvas");
-  return ctx;
-}
-
 /** Shows a spinner and `label` on a button while its action runs; the returned call restores it. */
 export function setBusy(button: HTMLButtonElement, label: string): () => void {
   const original = Array.from(button.childNodes);
@@ -53,8 +49,4 @@ export function fieldError(input: HTMLInputElement, slot: HTMLElement, message: 
   input.setAttribute("aria-invalid", message ? "true" : "false");
   slot.textContent = message;
   return !message;
-}
-
-export function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
 }

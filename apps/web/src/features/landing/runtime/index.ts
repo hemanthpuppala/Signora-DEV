@@ -1,11 +1,11 @@
+import { Scope } from "@/shared/lib/scope";
+
 import { mountEnvelopeBuilder } from "./envelopeBuilder";
 import { mountExtractionClip } from "./extractionClip";
 import { mountFirmLanes } from "./firmLanes";
 import { mountHeroFlux } from "./heroFlux";
-import { mountLogoSigning } from "./logoSigning";
 import { createToast, mountPageChrome } from "./pageChrome";
 import { mountPhoneSigning } from "./phoneSigning";
-import { Scope } from "./scope";
 import { mountTemplatesFolder } from "./templatesFolder";
 
 /**
@@ -16,7 +16,6 @@ export function mountLanding(root: HTMLElement): () => void {
   const scope = new Scope();
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   mountPageChrome(root, scope, reduced);
-  mountLogoSigning(root, scope, reduced);
   mountHeroFlux(root, scope, reduced);
   mountTemplatesFolder(root, scope, reduced);
   mountExtractionClip(root, scope, reduced);

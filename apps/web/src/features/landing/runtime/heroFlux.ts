@@ -1,5 +1,5 @@
 import { q, sizeCanvas } from "./dom";
-import type { Scope } from "./scope";
+import type { Scope } from "@/shared/lib/scope";
 
 // Ruled lines displaced by simplex noise. The pointer bends them like a lens (uMouse), a click
 // leaves a swirl that decays (uSw: x, y, start time, direction), and uIntro reveals the lines from
