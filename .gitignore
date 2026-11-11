@@ -11,6 +11,8 @@ eval/
 
 # Runtime data
 data/
+# Not runtime data: the list of common passwords the password rule reads. It ships with the code.
+!apps/api/src/signora/modules/identity_access/domain/data/
 *.log
 
 # Python
