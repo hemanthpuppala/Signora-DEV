@@ -24,11 +24,25 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.worksheet import Worksheet
 
-from signora.modules.envelopes.bulk_sheet import MAX_ROWS, Column, header_text
+from signora.kernel.errors import DomainError
+from signora.modules.envelopes.bulk_sheet import (
+    MAX_COLUMNS,
+    MAX_ROWS,
+    Column,
+    clean_cell,
+    header_text,
+)
 from signora.modules.envelopes.errors import EmptyFile, TooManyRows, UnreadableFile
 
 MAX_FILE_BYTES = 5 * 1024 * 1024
-MAX_COLUMNS = 500
+# An XLSX is a ZIP: what it unpacks to is bounded before anything is parsed, so a small file
+# cannot unpack into memory without end.
+MAX_UNPACKED_BYTES = 40 * 1024 * 1024
+MAX_ZIP_MEMBERS = 500
+# Lines looked at, empty ones included: a file with one row a million lines down is not walked.
+MAX_SCANNED_ROWS = 20_000
+# A cell that a spreadsheet would run as a formula starts with one of these (CSV injection).
+_FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
 ROWS_SHEET = "Envelopes"
 GUIDE_SHEET = "How to fill this in"
 VERSION_SHEET = "_signora"  # hidden: the version the file was made for
@@ -93,7 +107,8 @@ def write_template(columns: Sequence[Column], *, version_id: uuid.UUID, title: s
     last_row = MAX_ROWS + 1
     for index, column in enumerate(columns, start=1):
         letter = get_column_letter(index)
-        cell = sheet.cell(row=1, column=index, value=header_text(column))
+        cell = sheet.cell(row=1, column=index)
+        _write_text(cell, header_text(column))
         cell.font = Font(bold=True)
         cell.alignment = Alignment(vertical="top", wrap_text=True)
         sheet.column_dimensions[letter].width = max(16, min(40, len(column.header) + 4))
@@ -120,12 +135,16 @@ def write_template(columns: Sequence[Column], *, version_id: uuid.UUID, title: s
     sheet.freeze_panes = "A2"
 
     guide: Worksheet = book.create_sheet(GUIDE_SHEET)
-    guide.append([title])
-    guide.append(["One row is one envelope. Fill the Envelopes sheet from row 2 and upload it."])
-    guide.append([])
-    guide.append(["Column", "", "What to enter"])
-    for column in columns:
-        guide.append(list(_guide_line(column)))
+    lines: list[tuple[str, ...]] = [
+        (title,),
+        ("One row is one envelope. Fill the Envelopes sheet from row 2 and upload it.",),
+        (),
+        ("Column", "", "What to enter"),
+        *(_guide_line(column) for column in columns),
+    ]
+    for row_index, line in enumerate(lines, start=1):
+        for column_index, text in enumerate(line, start=1):
+            _write_text(guide.cell(row=row_index, column=column_index), text)
     for cell in (guide["A1"], guide["A4"], guide["B4"], guide["C4"]):
         cell.font = Font(bold=True)
     guide.column_dimensions["A"].width = 36
@@ -141,12 +160,30 @@ def write_template(columns: Sequence[Column], *, version_id: uuid.UUID, title: s
     return out.getvalue()
 
 
+def _write_text(cell: Any, text: str) -> None:
+    """Text into a cell as text. A template's labels are written by people: one that starts with
+    "=" would otherwise be stored as a formula, and run when a colleague opens the file."""
+    cell.value = text
+    cell.data_type = "s"
+
+
+def _csv_safe(text: str) -> str:
+    """A cell for a CSV that a spreadsheet will open: one that would be run as a formula is
+    written as text, with the apostrophe spreadsheets take to mean "this is text"."""
+    return f"'{text}" if text.startswith(_FORMULA_STARTS) else text
+
+
+def _csv_plain(text: str) -> str:
+    """The reverse, on reading: the apostrophe ``_csv_safe`` put there is not part of the value."""
+    return text[1:] if text.startswith("'") and text[1:].startswith(_FORMULA_STARTS) else text
+
+
 def write_rows(columns: Sequence[Column], rows: Iterable[Sequence[str]]) -> bytes:
     """Rows as a CSV with the template's headers: the rows a sender left out (FR-5)."""
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow([header_text(column) for column in columns])
-    writer.writerows(rows)
+    writer.writerow([_csv_safe(header_text(column)) for column in columns])
+    writer.writerows([_csv_safe(cell) for cell in row] for row in rows)
     return out.getvalue().encode("utf-8-sig")  # the mark lets a spreadsheet read it as UTF-8
 
 
@@ -167,7 +204,7 @@ def _text(value: Any) -> str:
         return value.isoformat()
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
-    return str(value).strip()
+    return clean_cell(str(value))
 
 
 def _rows(lines: Iterator[Sequence[Any]]) -> tuple[list[str], list[tuple[int, list[str]]]]:
@@ -176,12 +213,17 @@ def _rows(lines: Iterator[Sequence[Any]]) -> tuple[list[str], list[tuple[int, li
         headers = [_text(value) for value in next(lines)]
     except StopIteration:
         raise EmptyFile from None
-    if len(headers) > MAX_COLUMNS:
-        raise UnreadableFile
     while headers and not headers[-1]:
         headers.pop()
+    if len(headers) > MAX_COLUMNS:
+        raise UnreadableFile
     rows: list[tuple[int, list[str]]] = []
     for number, line in enumerate(lines, start=2):
+        if number > MAX_SCANNED_ROWS:
+            raise TooManyRows(
+                f"This file goes on past line {MAX_SCANNED_ROWS:,}. Keep the rows together at "
+                "the top of the sheet"
+            )
         cells = [_text(value) for value in line[: len(headers)]]
         if not any(cells):
             continue
@@ -194,10 +236,25 @@ def _rows(lines: Iterator[Sequence[Any]]) -> tuple[list[str], list[tuple[int, li
     return headers, rows
 
 
+def _check_archive(data: bytes) -> None:
+    """Refuse an archive that unpacks to more than a spreadsheet of this size could (a ZIP bomb).
+    The sizes are the archive's own; reading a member stops at the size it declares."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            members = archive.infolist()
+    except (zipfile.BadZipFile, OSError, ValueError) as error:
+        raise UnreadableFile from error
+    if len(members) > MAX_ZIP_MEMBERS or sum(m.file_size for m in members) > MAX_UNPACKED_BYTES:
+        raise UnreadableFile
+
+
 def _read_xlsx(data: bytes) -> FileRows:
+    _check_archive(data)
     try:
         book = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-    except (zipfile.BadZipFile, KeyError, ValueError, OSError) as error:
+    except (
+        Exception
+    ) as error:  # the file is someone else's: whatever is wrong with it, it is unreadable
         raise UnreadableFile from error
     try:
         names = book.sheetnames
@@ -205,7 +262,8 @@ def _read_xlsx(data: bytes) -> FileRows:
         if not visible:
             raise UnreadableFile
         sheet = book[ROWS_SHEET] if ROWS_SHEET in names else book[visible[0]]
-        headers, rows = _rows(sheet.iter_rows(values_only=True))
+        # No further than the widest sheet this reads, whatever size the sheet says it is.
+        headers, rows = _rows(sheet.iter_rows(values_only=True, max_col=MAX_COLUMNS + 1))
         version_id = None
         if VERSION_SHEET in names:
             first = next(book[VERSION_SHEET].iter_rows(max_row=1, max_col=1, values_only=True), ())
@@ -214,6 +272,10 @@ def _read_xlsx(data: bytes) -> FileRows:
             except ValueError:
                 version_id = None
         return FileRows(headers, rows, version_id)
+    except DomainError:
+        raise
+    except Exception as error:  # a sheet is parsed as it is read: its faults surface here
+        raise UnreadableFile from error
     finally:
         book.close()
 
@@ -223,13 +285,18 @@ def _read_csv(data: bytes) -> FileRows:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError:
         text = data.decode("cp1252", errors="replace")  # a spreadsheet's older export
-    sample = text[:4096]
+    # The separator is whichever of the usual three the header line uses most. Quotes are always
+    # double quotes: guessing the quote character from the content lets a value's own apostrophe
+    # be taken for one.
+    first_line = text.split("\n", 1)[0]
+    delimiter = max(",;\t", key=first_line.count)
+    # Each cell without the apostrophe ``_csv_safe`` may have put there, before it is cleaned.
+    lines = (
+        [_csv_plain(cell) for cell in line]
+        for line in csv.reader(io.StringIO(text), delimiter=delimiter)
+    )
     try:
-        dialect: type[csv.Dialect] | csv.Dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
-    except csv.Error:
-        dialect = csv.excel
-    try:
-        headers, rows = _rows(iter(csv.reader(io.StringIO(text), dialect)))
+        headers, rows = _rows(lines)
     except csv.Error as error:
         raise UnreadableFile from error
     return FileRows(headers, rows, None)

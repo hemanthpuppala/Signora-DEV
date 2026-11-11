@@ -12,9 +12,16 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    ValidationError,
+    field_validator,
+)
 
 from signora.kernel.errors import ValidationFailed
 from signora.modules.envelopes.errors import NobodySigns
@@ -31,6 +38,21 @@ from signora.modules.envelopes.sending import (
 )
 
 MAX_ROWS = 1000
+MAX_COLUMNS = 500
+# A cell holds at most what a field's value may (sending.ValueIn), and one character more, so a
+# value over the limit is still seen to be over it and named on its cell.
+CELL_MAX = 2001
+KEY_MAX = 120
+
+
+def clean_cell(text: str) -> str:
+    """A cell's text without what no value should carry: control characters (a NUL the database
+    cannot store, an escape sequence, a line break that could start a new header in an email)
+    become spaces, and the text is cut at the cell limit. The one definition, for a file's cells
+    and for rows sent back by the browser."""
+    cleaned = "".join(" " if (ord(ch) < 32 or 127 <= ord(ch) < 160) else ch for ch in text)
+    return cleaned.strip()[:CELL_MAX]
+
 
 Kind = Literal["text", "email", "date", "choice", "checkbox", "number"]
 Level = Literal["error", "warning"]
@@ -70,7 +92,15 @@ class RowIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     row_no: int = Field(ge=1, le=1_000_000)  # the file's row number, as the sender sees it
-    cells: dict[str, str] = Field(max_length=500)
+    cells: dict[
+        Annotated[str, StringConstraints(max_length=KEY_MAX)],
+        Annotated[str, StringConstraints(max_length=20_000)],
+    ] = Field(max_length=MAX_COLUMNS)
+
+    @field_validator("cells")
+    @classmethod
+    def _clean(cls, cells: dict[str, str]) -> dict[str, str]:
+        return {key: clean_cell(text) for key, text in cells.items()}
 
 
 class Row(BaseModel):
@@ -263,9 +293,8 @@ def match_headers(headers: Sequence[str], known: Sequence[Column]) -> Matched:
             continue
         column = by_header.get(_plain(header))
         if column is None:
-            problems.append(
-                f'This file has a column "{header.strip()}" that this template does not ask for'
-            )
+            shown = clean_cell(header)[:80]
+            problems.append(f'This file has a column "{shown}" that this template does not ask for')
             keys.append(None)
         elif column.key in used:
             problems.append(f'The column "{column.header}" is in this file twice')

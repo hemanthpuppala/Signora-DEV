@@ -11,9 +11,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -26,12 +26,15 @@ from signora.modules.departments import get_department, load_access
 from signora.modules.envelopes import service
 from signora.modules.envelopes.bulk_files import FileRows, read_file, write_rows, write_template
 from signora.modules.envelopes.bulk_sheet import (
+    KEY_MAX,
+    MAX_COLUMNS,
     MAX_ROWS,
     BatchDefaults,
     Column,
     RowIn,
     Sheet,
     check_rows,
+    clean_cell,
     columns_of,
     known_columns,
     match_headers,
@@ -56,7 +59,10 @@ class _In(BaseModel):
 class CheckRequest(_In):
     """Rows to judge again after the sender's edits, with what is chosen once for all of them."""
 
-    columns: list[str] = Field(max_length=500)  # the sheet's column keys, as upload gave them
+    # The sheet's column keys, as upload gave them.
+    columns: list[Annotated[str, StringConstraints(max_length=KEY_MAX)]] = Field(
+        max_length=MAX_COLUMNS
+    )
     rows: list[RowIn] = Field(max_length=MAX_ROWS)
     defaults: BatchDefaults
 
@@ -64,6 +70,12 @@ class CheckRequest(_In):
 class BatchRequest(_In):
     version_id: uuid.UUID
     file_name: str = Field(min_length=1, max_length=255)
+
+    @field_validator("file_name")
+    @classmethod
+    def _clean_name(cls, name: str) -> str:
+        return clean_cell(name)[:255] or "spreadsheet"
+
     rows: list[RowIn] = Field(min_length=1, max_length=MAX_ROWS)
     defaults: BatchDefaults
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -14,7 +15,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from signora.kernel.db import Database
+from signora.kernel.errors import RateLimited
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
+from signora.kernel.ratelimit import RateLimiter
 from signora.kernel.spool import spool_body
 from signora.modules.envelopes import bulk
 from signora.modules.envelopes.bulk_files import MAX_FILE_BYTES, XLSX_TYPE
@@ -36,6 +39,21 @@ _FILE: dict[int | str, dict[str, Any]] = {
 }
 
 
+# How often one person may do each, an hour: generous for real work (a sender re-checks on every
+# corrected cell), a ceiling on work a signed-in person could otherwise ask for without end.
+WINDOW = timedelta(hours=1)
+FILES_PER_HOUR = 60
+CHECKS_PER_HOUR = 1500
+BATCHES_PER_HOUR = 30
+
+
+def _limit(request: Request, actor: Actor, what: str, limit: int) -> None:
+    limiter: RateLimiter = request.app.state.rate_limiter
+    retry = limiter.hit(f"envelopes.bulk.{what}:{actor.user_id}", limit=limit, window=WINDOW)
+    if retry is not None:
+        raise RateLimited(retry)
+
+
 def _db(request: Request) -> Database:
     database: Database = request.app.state.database
     return database
@@ -43,8 +61,10 @@ def _db(request: Request) -> Database:
 
 def _download(data: bytes, filename: str, media_type: str) -> Response:
     """A file to save, named for people: the name survives any characters in a template's name."""
-    plain = filename.encode("ascii", "replace").decode().replace('"', "'")
-    disposition = f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(filename)}"
+    # A header is one line: nothing in a template's name may end it or start another.
+    name = "".join(ch for ch in filename if ch.isprintable()) or "download"
+    plain = name.encode("ascii", "replace").decode().replace('"', "'").replace("\\", "_")
+    disposition = f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
     return Response(data, media_type=media_type, headers={"Content-Disposition": disposition})
 
 
@@ -86,6 +106,7 @@ async def read_bulk_rows(
             bulk.template(uow.session, actor, document_id, version_id)
 
     await run_in_threadpool(authorize)  # before reading the body
+    _limit(request, actor, "file", FILES_PER_HOUR)
     path: Path = await spool_body(request, max_bytes=MAX_FILE_BYTES)
 
     def parse() -> Sheet:
@@ -116,6 +137,7 @@ def check_bulk_rows(
     request: Request,
     actor: Member,
 ) -> Sheet:
+    _limit(request, actor, "check", CHECKS_PER_HOUR)
     with _db(request).unit_of_work() as uow:
         return bulk.check(uow.session, actor, document_id, version_id, body)
 
@@ -159,6 +181,7 @@ def send_batch(
     with _db(request).unit_of_work() as uow:
         if (replay := guard.begin(uow)) is not None:
             return replay
+        _limit(request, actor, "batch", BATCHES_PER_HOUR)
         batch = bulk.create_batch(uow, actor=actor, document_id=document_id, request=body)
         return guard.finish(uow, status.HTTP_201_CREATED, batch.model_dump(mode="json"))
 

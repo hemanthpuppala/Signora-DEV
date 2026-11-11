@@ -392,6 +392,7 @@
         "properties": {
           "columns": {
             "items": {
+              "maxLength": 120,
               "type": "string"
             },
             "maxItems": 500,
@@ -3563,9 +3564,13 @@
         "properties": {
           "cells": {
             "additionalProperties": {
+              "maxLength": 20000,
               "type": "string"
             },
             "maxProperties": 500,
+            "propertyNames": {
+              "maxLength": 120
+            },
             "title": "Cells",
             "type": "object"
           },
