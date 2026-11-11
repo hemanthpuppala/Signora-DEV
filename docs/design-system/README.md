@@ -18,7 +18,7 @@ The public landing page (screen 01) is the exception: it has its own approved pr
 | Text | `--ink #fff`, `--t75`, `--t60`, `--t55`, `--t30` (white at that % opacity) |
 | Lines | `--sep` (8%), `--r40`, `--r25`, `--r15`, `--r08`, `--r05` (white at that % opacity) |
 | Roles on paper | `--role1 #8c8c8c`, `--role2 #5a5a5a`, `--role3 #b0b0b0`, `--firm #222` (+ matching `*f` fills) |
-| Fonts | `--serif` Cormorant Garamond 300/400/500 (+ italic), `--sans` system UI, `--mono` Source Code Pro, `--logo` Inter Tight 500 |
+| Fonts | `--serif` Cormorant Garamond 300/400/500 (+ italic), `--sans` system UI, `--mono` Source Code Pro. The logo is the signed mark (`SignatureLogo`), not a font |
 | Radius | `0` everywhere |
 
 ## Status colors (dot only, label stays white)

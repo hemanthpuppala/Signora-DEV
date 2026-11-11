@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Inter_Tight, Source_Code_Pro } from "next/font/google";
+import { Cormorant_Garamond, Source_Code_Pro } from "next/font/google";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
@@ -22,12 +22,6 @@ const mono = Source_Code_Pro({
   variable: "--font-mono",
   display: "swap",
 });
-const logo = Inter_Tight({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-logo",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: { default: "Signora", template: "%s · Signora" },
@@ -47,7 +41,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // Security Policy requires: Next.js applies the nonce from proxy.ts to its script tags.
   await headers();
   return (
-    <html lang="en" className={`${serif.variable} ${mono.variable} ${logo.variable}`}>
+    <html lang="en" className={`${serif.variable} ${mono.variable}`}>
       <body>
         <QueryProvider>
           <ToastProvider>{children}</ToastProvider>
