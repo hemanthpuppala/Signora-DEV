@@ -143,3 +143,30 @@ def test_two_same_value_fields_at_one_position_are_keyed_without_error() -> None
     _same_values(answer, items, [])
     (field,) = _keyed(items)
     assert field.ids == ["f1", "f2"] and len(field.placements) == 2
+
+
+def test_a_link_to_a_field_not_kept_says_so() -> None:
+    """Review #8: a same_as to a field that was not kept (a drawn line nobody fills, dropped)
+    gave the note "not the same value (None)"."""
+    from signora.modules.detection.derive import PlacementOut, _Item, _same_values
+
+    kept = _Item(
+        ids=["f2"],
+        label="Address",
+        holds="address",
+        filled_by="party_1",
+        required=True,
+        placements=[PlacementOut(page=1, rect=(10, 30, 100, 40), kind="blank")],
+        order=(1, 30.0, 10.0),
+        review=[],
+    )
+    answer = {
+        "fields": [
+            {"id": "f1", "filled_by": "party_1", "holds": "address", "same_as": None},
+            {"id": "f2", "filled_by": "party_1", "holds": "address", "same_as": "f1"},
+        ]
+    }
+    notes: list[str] = []
+    _same_values(answer, {"f2": kept}, notes)
+    assert notes == ["f2: kept apart from f1: f1 was not kept as a field"]
+    assert kept.same is None

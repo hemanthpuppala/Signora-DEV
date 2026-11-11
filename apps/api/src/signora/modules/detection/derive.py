@@ -608,11 +608,16 @@ def _same_values(answer: dict[str, Any], items: dict[str, _Item], notes: list[st
             continue
         why = _not_the_same(item, by_id)
         mine, theirs = items.get(item["id"]), items.get(same)
-        if why is None and mine and theirs:
-            stored_apart = (mine.filled_by, mine.holds) != (theirs.filled_by, theirs.holds)
-            why = "not the same once checked" if stored_apart else None
+        if why is None:
+            missing = [i for i, kept in ((item["id"], mine), (same, theirs)) if kept is None]
+            if missing:
+                why = f"{missing[0]} was not kept as a field"
+            elif (
+                mine and theirs and (mine.filled_by, mine.holds) != (theirs.filled_by, theirs.holds)
+            ):
+                why = "not the same party's or kind once checked"
         if why is not None or mine is None or theirs is None:
-            notes.append(f"{item['id']}: kept apart from {same}: not the same value ({why})")
+            notes.append(f"{item['id']}: kept apart from {same}: {why}")
             continue
         parent[root(item["id"])] = root(same)
     rank = {id(item): n for n, item in enumerate(_reading_order(items))}
