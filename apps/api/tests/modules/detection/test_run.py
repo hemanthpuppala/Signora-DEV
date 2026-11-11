@@ -100,6 +100,7 @@ def test_detection_makes_the_version_ready_with_its_fields(
             {"d": document_id},
         ).scalar_one()
     assert (audited["fields"], audited["calls"], audited["model"]) == (6, 1, "fake-model")
+    assert audited["name_dropped"] is False  # F6: a refused name or description is recorded
     assert "Governing Law" not in str(audited)  # no document text in the audit
 
 

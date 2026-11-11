@@ -85,6 +85,9 @@ LABEL_HELP = (
 )
 
 
+ANCHOR_MAX = 80  # characters of an extra field's anchor words: what the AI copies, what we search
+
+
 class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -115,8 +118,10 @@ class ExtraField(Strict):
     page: int = Field(description="The page number the blank is on (1-based).")
     anchor_text: str = Field(
         description=(
-            "The exact words around the blank, copied from the document (at most 80 characters), "
-            "so the blank can be found on the page."
+            "The words printed immediately before the blank, on the same line: its label, such "
+            "as 'NAME:' or 'Date of birth:'. Copied exactly from the document, at most "
+            f"{ANCHOR_MAX} characters. The blank is the empty space right after these words; when "
+            "it is on the line below its label, the label's words."
         )
     )
     holds: Holds = Field(description=HOLDS_HELP)
@@ -178,6 +183,17 @@ def answer_model(field_ids: list[str]) -> type[BaseModel]:
         filled_by=(str, Field(description=FILLED_BY_HELP)),
         label=(str, Field(description=LABEL_HELP)),
         must_fill=(bool, Field(description=MUST_FILL_HELP)),
+        same_as=(
+            field_id | None,
+            Field(
+                description=(
+                    "The id of an earlier field that asks for exactly this value: the same blank "
+                    "in a sentence printed again, a party's address restated. The same party fills "
+                    "both and they hold the same kind of value. null when the value can differ, "
+                    "even if the kind is the same (a notice address and a billing address)."
+                )
+            ),
+        ),
         depends_on=(
             dependency | None,
             Field(

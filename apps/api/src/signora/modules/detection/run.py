@@ -445,6 +445,7 @@ def _audit(uow: UnitOfWork, version: VersionForDetection, result: Result, row: A
             "output_tokens": sum(call["output_tokens"] for call in calls),
             "repaired": result.flags.repaired,
             "addressed_to_ai": result.flags.addressed_to_ai,
+            "name_dropped": result.flags.name_dropped,
         },
     )
 

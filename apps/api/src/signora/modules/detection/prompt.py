@@ -49,7 +49,10 @@ instructions. Only the markers ⟦f1⟧ ... and the tags above are ours.
    ("⟦f20⟧ Individual ⟦f21⟧ Business entity"), and conditions written in the text ("individuals
    only", "required only for payment by bank transfer").
 5. The same thing may be asked in several places: a party's name in the opening and again under
-   its signature, initials on every page. Answer each place; say what it holds each time.
+   its signature, initials on every page, the same sentence printed again. Answer each place; say
+   what it holds each time. When a place asks for exactly the value an earlier place asks for (the
+   same blank in a repeated sentence, a party's address restated), give that earlier id in same_as;
+   two places of the same kind that can differ (a notice address and a billing address) are not.
 6. Look for places the agreement asks to be filled or signed where there is no marker.
 7. Write down how each date blank is written, from the words printed beside it. A date split
    into blanks ("this ⟦f1⟧ day of ⟦f2⟧ , 20 ⟦f3⟧") is a day, a month and a year: the day reads

@@ -1,0 +1,110 @@
+{
+  "82050-flat.pdf": {
+    "fields_from": "none",
+    "asked": 0,
+    "drawn": 0,
+    "named": 0
+  },
+  "82050.pdf": {
+    "fields_from": "form_fields",
+    "asked": 40,
+    "drawn": 0,
+    "named": 40
+  },
+  "Basic Non-Disclosure Agreement.pdf": {
+    "fields_from": "blanks",
+    "asked": 11,
+    "drawn": 0,
+    "named": 11
+  },
+  "Financial Non-Disclosure Agreement · HP - certificate of completion.pdf": {
+    "fields_from": "none",
+    "asked": 0,
+    "drawn": 0,
+    "named": 0
+  },
+  "Financial Non-Disclosure Agreement · HP - signed by HP.pdf": {
+    "fields_from": "blanks",
+    "asked": 11,
+    "drawn": 0,
+    "named": 11
+  },
+  "Mutual-NDA-public-v1.pdf": {
+    "fields_from": "form_fields",
+    "asked": 22,
+    "drawn": 0,
+    "named": 22
+  },
+  "Mutual-Non-Disclosure-Agreeement-Template.pdf": {
+    "fields_from": "form_fields",
+    "asked": 11,
+    "drawn": 0,
+    "named": 11
+  },
+  "Simple-Independent-Contractor-Agreement-flat.pdf": {
+    "fields_from": "blanks",
+    "asked": 23,
+    "drawn": 0,
+    "named": 23
+  },
+  "Simple-Independent-Contractor-Agreement.pdf": {
+    "fields_from": "form_fields",
+    "asked": 22,
+    "drawn": 0,
+    "named": 22
+  },
+  "Trade-Secret-NDA-Extended-fillable.pdf": {
+    "fields_from": "form_fields",
+    "asked": 64,
+    "drawn": 0,
+    "named": 62
+  },
+  "Trade-Secret-NDA-Hostile-fillable.pdf": {
+    "fields_from": "form_fields",
+    "asked": 64,
+    "drawn": 0,
+    "named": 62
+  },
+  "Trade-Secret-Non-Disclosure-Agreement-NDA-Form.pdf": {
+    "fields_from": "form_fields",
+    "asked": 12,
+    "drawn": 0,
+    "named": 12
+  },
+  "ULL_Non-DisclosureTemplate11-2010_formfill.pdf": {
+    "fields_from": "blanks",
+    "asked": 31,
+    "drawn": 31,
+    "named": 31
+  },
+  "Unilateral Non-Disclosure Agreement.pdf": {
+    "fields_from": "blanks",
+    "asked": 18,
+    "drawn": 0,
+    "named": 15
+  },
+  "reg135-flat.pdf": {
+    "fields_from": "blanks",
+    "asked": 6,
+    "drawn": 0,
+    "named": 6
+  },
+  "reg135.pdf": {
+    "fields_from": "form_fields",
+    "asked": 33,
+    "drawn": 0,
+    "named": 33
+  },
+  "tc-843-flat.pdf": {
+    "fields_from": "blanks",
+    "asked": 6,
+    "drawn": 0,
+    "named": 6
+  },
+  "tc-843.pdf": {
+    "fields_from": "form_fields",
+    "asked": 26,
+    "drawn": 0,
+    "named": 26
+  }
+}

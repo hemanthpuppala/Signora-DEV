@@ -22,11 +22,12 @@
   ],
   "fields": [
     {
-      "key": "company.party_name",
+      "key": "agreement.company_legal_name",
       "label": "Company legal name",
       "holds": "party_name",
-      "filled_by": "role",
-      "role": "company",
+      "format": null,
+      "filled_by": "sender",
+      "role": null,
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -46,16 +47,18 @@
           "kind": "text",
           "pdf_field": "Text1",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
-      "key": "company.address",
+      "key": "agreement.company_mailing_address",
       "label": "Company mailing address",
       "holds": "address",
-      "filled_by": "role",
-      "role": "company",
+      "format": null,
+      "filled_by": "sender",
+      "role": null,
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -75,7 +78,8 @@
           "kind": "text",
           "pdf_field": "Text2",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -83,6 +87,7 @@
       "key": "recipient.party_name",
       "label": "Recipient legal name",
       "holds": "party_name",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -105,7 +110,8 @@
           "kind": "text",
           "pdf_field": "Text3",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 7,
@@ -118,7 +124,8 @@
           "kind": "text",
           "pdf_field": "Text30",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -126,6 +133,7 @@
       "key": "recipient.address",
       "label": "Recipient mailing address",
       "holds": "address",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -147,7 +155,8 @@
           "kind": "text",
           "pdf_field": "Text4",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -155,6 +164,7 @@
       "key": "agreement.effective_date",
       "label": "Effective date",
       "holds": "date",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -176,14 +186,16 @@
           "kind": "text",
           "pdf_field": "Text5",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.initials",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 1",
       "holds": "initials",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -213,7 +225,8 @@
           "kind": "text",
           "pdf_field": "Text6",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 2,
@@ -226,7 +239,8 @@
           "kind": "text",
           "pdf_field": "Text8",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 3,
@@ -239,7 +253,8 @@
           "kind": "text",
           "pdf_field": "Text10",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 4,
@@ -252,7 +267,8 @@
           "kind": "text",
           "pdf_field": "Text13",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 5,
@@ -265,7 +281,8 @@
           "kind": "text",
           "pdf_field": "Text20",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 6,
@@ -278,7 +295,8 @@
           "kind": "text",
           "pdf_field": "Text28",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 7,
@@ -291,7 +309,8 @@
           "kind": "text",
           "pdf_field": "Text42",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 8,
@@ -304,7 +323,8 @@
           "kind": "text",
           "pdf_field": "Text50",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 9,
@@ -317,14 +337,16 @@
           "kind": "text",
           "pdf_field": "Text53",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "company.initials",
-      "label": "Company initials",
+      "label": "Company initials, page 1",
       "holds": "initials",
+      "format": null,
       "filled_by": "role",
       "role": "company",
       "required": true,
@@ -354,7 +376,8 @@
           "kind": "text",
           "pdf_field": "Text7",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 2,
@@ -367,7 +390,8 @@
           "kind": "text",
           "pdf_field": "Text9",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 3,
@@ -380,7 +404,8 @@
           "kind": "text",
           "pdf_field": "Text11",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 4,
@@ -393,7 +418,8 @@
           "kind": "text",
           "pdf_field": "Text14",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 5,
@@ -406,7 +432,8 @@
           "kind": "text",
           "pdf_field": "Text21",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 6,
@@ -419,7 +446,8 @@
           "kind": "text",
           "pdf_field": "Text29",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 7,
@@ -432,7 +460,8 @@
           "kind": "text",
           "pdf_field": "Text43",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 8,
@@ -445,7 +474,8 @@
           "kind": "text",
           "pdf_field": "Text51",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 9,
@@ -458,14 +488,16 @@
           "kind": "text",
           "pdf_field": "Text54",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "agreement.governing_law_state",
       "label": "Governing law state",
-      "holds": "state",
+      "holds": "text",
+      "format": null,
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -487,7 +519,8 @@
           "kind": "text",
           "pdf_field": "Text12",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -495,6 +528,7 @@
       "key": "agreement.permitted_purpose",
       "label": "Permitted purpose",
       "holds": "text",
+      "format": null,
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -516,14 +550,16 @@
           "kind": "text",
           "pdf_field": "Text15",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
-      "key": "agreement.consideration_amount_in_dollars",
-      "label": "Consideration amount in dollars",
-      "holds": "currency",
+      "key": "agreement.consideration_amount_in_words",
+      "label": "Consideration amount in words",
+      "holds": "amount_in_words",
+      "format": null,
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -545,14 +581,16 @@
           "kind": "text",
           "pdf_field": "Text16",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
-      "key": "agreement.additional_consideration_detail",
-      "label": "Additional consideration detail",
-      "holds": "text",
+      "key": "agreement.consideration_amount_in_figures",
+      "label": "Consideration amount in figures",
+      "holds": "currency",
+      "format": null,
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -574,7 +612,8 @@
           "kind": "text",
           "pdf_field": "Text17",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -582,6 +621,7 @@
       "key": "agreement.non_solicitation_period_in_months",
       "label": "Non-solicitation period in months",
       "holds": "number",
+      "format": null,
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -603,16 +643,18 @@
           "kind": "text",
           "pdf_field": "Text18",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
-      "key": "company.email",
-      "label": "Company notices email",
+      "key": "agreement.company_notice_email_address",
+      "label": "Company notice email address",
       "holds": "email",
-      "filled_by": "role",
-      "role": "company",
+      "format": null,
+      "filled_by": "sender",
+      "role": null,
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -632,7 +674,8 @@
           "kind": "text",
           "pdf_field": "Text19",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -640,6 +683,7 @@
       "key": "recipient.signature",
       "label": "Recipient signature",
       "holds": "signature",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -662,7 +706,8 @@
           "kind": "signature",
           "pdf_field": "Signature1",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 9,
@@ -675,7 +720,8 @@
           "kind": "signature",
           "pdf_field": "Signature4",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -683,6 +729,7 @@
       "key": "recipient.date_signed",
       "label": "Recipient signing date",
       "holds": "date_signed",
+      "format": "Month D, YYYY",
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -705,7 +752,8 @@
           "kind": "text",
           "pdf_field": "Text22",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         },
         {
           "page": 9,
@@ -718,14 +766,16 @@
           "kind": "text",
           "pdf_field": "Text52",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.full_name",
-      "label": "Recipient signer's printed name",
+      "label": "Recipient printed name",
       "holds": "full_name",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -747,7 +797,8 @@
           "kind": "text",
           "pdf_field": "Text23",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -755,6 +806,7 @@
       "key": "company.signature",
       "label": "Company signature",
       "holds": "signature",
+      "format": null,
       "filled_by": "role",
       "role": "company",
       "required": true,
@@ -776,7 +828,8 @@
           "kind": "signature",
           "pdf_field": "Signature2",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -784,6 +837,7 @@
       "key": "company.date_signed",
       "label": "Company signing date",
       "holds": "date_signed",
+      "format": "Month D, YYYY",
       "filled_by": "role",
       "role": "company",
       "required": true,
@@ -805,14 +859,16 @@
           "kind": "text",
           "pdf_field": "Text24",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "company.full_name",
-      "label": "Company signer's printed name",
+      "label": "Company representative printed name",
       "holds": "full_name",
+      "format": null,
       "filled_by": "role",
       "role": "company",
       "required": true,
@@ -834,7 +890,8 @@
           "kind": "text",
           "pdf_field": "Text25",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -842,6 +899,7 @@
       "key": "witness.signature",
       "label": "Witness signature",
       "holds": "signature",
+      "format": null,
       "filled_by": "role",
       "role": "witness",
       "required": true,
@@ -863,7 +921,8 @@
           "kind": "signature",
           "pdf_field": "Signature3",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -871,6 +930,7 @@
       "key": "witness.date_signed",
       "label": "Witness signing date",
       "holds": "date_signed",
+      "format": "Month D, YYYY",
       "filled_by": "role",
       "role": "witness",
       "required": true,
@@ -892,7 +952,8 @@
           "kind": "text",
           "pdf_field": "Text26",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -900,6 +961,7 @@
       "key": "witness.full_name",
       "label": "Witness printed name",
       "holds": "full_name",
+      "format": null,
       "filled_by": "role",
       "role": "witness",
       "required": true,
@@ -921,7 +983,8 @@
           "kind": "text",
           "pdf_field": "Text27",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -929,6 +992,7 @@
       "key": "recipient.type",
       "label": "Recipient type",
       "holds": "choice",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -951,7 +1015,8 @@
           "kind": "checkbox",
           "pdf_field": "Check Box1",
           "option_value": "Individual",
-          "option_text": "Individual"
+          "option_text": "Individual",
+          "options": null
         },
         {
           "page": 7,
@@ -964,7 +1029,8 @@
           "kind": "checkbox",
           "pdf_field": "Check Box2",
           "option_value": "Business entity",
-          "option_text": "Business entity"
+          "option_text": "Business entity",
+          "options": null
         }
       ]
     },
@@ -972,6 +1038,7 @@
       "key": "recipient.address_2",
       "label": "Recipient street address",
       "holds": "address",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -993,7 +1060,8 @@
           "kind": "text",
           "pdf_field": "Text31",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1001,6 +1069,7 @@
       "key": "recipient.city",
       "label": "Recipient city",
       "holds": "city",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -1022,7 +1091,8 @@
           "kind": "text",
           "pdf_field": "Text32",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1030,6 +1100,7 @@
       "key": "recipient.state",
       "label": "Recipient state",
       "holds": "state",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -1051,7 +1122,8 @@
           "kind": "text",
           "pdf_field": "Text33",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1059,6 +1131,7 @@
       "key": "recipient.postal_code",
       "label": "Recipient ZIP code",
       "holds": "postal_code",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -1080,7 +1153,8 @@
           "kind": "text",
           "pdf_field": "Text34",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1088,6 +1162,7 @@
       "key": "recipient.country",
       "label": "Recipient country",
       "holds": "country",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -1109,7 +1184,8 @@
           "kind": "text",
           "pdf_field": "Text35",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1117,6 +1193,7 @@
       "key": "recipient.date_of_birth",
       "label": "Recipient date of birth",
       "holds": "date_of_birth",
+      "format": "Month D, YYYY",
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -1142,7 +1219,8 @@
           "kind": "text",
           "pdf_field": "Text36",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1150,6 +1228,7 @@
       "key": "recipient.tax_id",
       "label": "Recipient taxpayer identification number",
       "holds": "tax_id",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -1171,14 +1250,16 @@
           "kind": "text",
           "pdf_field": "Text37",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.email",
-      "label": "Recipient email",
+      "label": "Recipient email address",
       "holds": "email",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -1200,17 +1281,19 @@
           "kind": "text",
           "pdf_field": "Text38",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.phone",
-      "label": "Recipient phone",
+      "label": "Recipient phone number",
       "holds": "phone",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
-      "required": true,
+      "required": false,
       "sensitive": false,
       "depends_on": null,
       "needs_review": null,
@@ -1229,14 +1312,16 @@
           "kind": "text",
           "pdf_field": "Text39",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.full_name_2",
-      "label": "Business entity contact person's name",
+      "label": "Recipient business contact person",
       "holds": "full_name",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
@@ -1262,14 +1347,16 @@
           "kind": "text",
           "pdf_field": "Text40",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.title",
-      "label": "Business entity contact person's title",
+      "label": "Recipient business contact title",
       "holds": "title",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": false,
@@ -1295,7 +1382,8 @@
           "kind": "text",
           "pdf_field": "Text41",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1303,6 +1391,7 @@
       "key": "agreement.signing_fee",
       "label": "Signing fee",
       "holds": "currency",
+      "format": null,
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -1324,7 +1413,8 @@
           "kind": "text",
           "pdf_field": "Text44",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1332,6 +1422,7 @@
       "key": "agreement.annual_confidentiality_fee",
       "label": "Annual confidentiality fee",
       "holds": "currency",
+      "format": null,
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -1353,34 +1444,8 @@
           "kind": "text",
           "pdf_field": "Text45",
           "option_value": null,
-          "option_text": null
-        }
-      ]
-    },
-    {
-      "key": "agreement.total_for_the_first_year",
-      "label": "Total for the first year",
-      "holds": "currency",
-      "filled_by": "sender",
-      "role": null,
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": "placed from the words around it: check its position",
-      "ids": [],
-      "placements": [
-        {
-          "page": 8,
-          "rect": [
-            72.1,
-            133.2,
-            203.3,
-            143.4
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
@@ -1388,6 +1453,7 @@
       "key": "agreement.payment_method",
       "label": "Payment method",
       "holds": "choice",
+      "format": null,
       "filled_by": "sender",
       "role": null,
       "required": true,
@@ -1410,7 +1476,8 @@
           "kind": "checkbox",
           "pdf_field": "Check Box3",
           "option_value": "Bank transfer",
-          "option_text": "Bank transfer"
+          "option_text": "Bank transfer",
+          "options": null
         },
         {
           "page": 8,
@@ -1423,24 +1490,22 @@
           "kind": "checkbox",
           "pdf_field": "Check Box4",
           "option_value": "Check",
-          "option_text": "Check"
+          "option_text": "Check",
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.bank_name",
-      "label": "Bank name",
+      "label": "Recipient bank name",
       "holds": "text",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
       "sensitive": false,
-      "depends_on": {
-        "key": "agreement.payment_method",
-        "option": "Bank transfer",
-        "source": "ai"
-      },
-      "needs_review": null,
+      "depends_on": null,
+      "needs_review": "its condition was on a field someone else fills; check when it applies",
       "ids": [
         "f54"
       ],
@@ -1456,24 +1521,22 @@
           "kind": "text",
           "pdf_field": "Text47",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.bank_account",
-      "label": "Bank account number",
+      "label": "Recipient bank account number",
       "holds": "bank_account",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
       "sensitive": true,
-      "depends_on": {
-        "key": "agreement.payment_method",
-        "option": "Bank transfer",
-        "source": "ai"
-      },
-      "needs_review": null,
+      "depends_on": null,
+      "needs_review": "its condition was on a field someone else fills; check when it applies",
       "ids": [
         "f55"
       ],
@@ -1489,24 +1552,22 @@
           "kind": "text",
           "pdf_field": "Text48",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
       "key": "recipient.bank_account_2",
-      "label": "Bank routing number",
+      "label": "Recipient bank routing number",
       "holds": "bank_account",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": true,
       "sensitive": true,
-      "depends_on": {
-        "key": "agreement.payment_method",
-        "option": "Bank transfer",
-        "source": "ai"
-      },
-      "needs_review": null,
+      "depends_on": null,
+      "needs_review": "its condition was on a field someone else fills; check when it applies",
       "ids": [
         "f56"
       ],
@@ -1522,14 +1583,16 @@
           "kind": "text",
           "pdf_field": "Text49",
           "option_value": null,
-          "option_text": null
+          "option_text": null,
+          "options": null
         }
       ]
     },
     {
-      "key": "recipient.acknowledgement_of_receipt_and_reading",
-      "label": "Acknowledgement of receipt and reading of Company Information Security Policy",
+      "key": "recipient.acknowledgment_of_receipt_and_reading",
+      "label": "Acknowledgment of receipt and reading of Company Information Security Policy",
       "holds": "checkbox",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": false,
@@ -1551,7 +1614,8 @@
           "kind": "checkbox",
           "pdf_field": "Check Box5",
           "option_value": null,
-          "option_text": "Recipient has received and read Company's Information Security Policy."
+          "option_text": "Recipient has received and read Company's Information Security Policy.",
+          "options": null
         }
       ]
     },
@@ -1559,6 +1623,7 @@
       "key": "recipient.consent_to_receive_notices_by_email",
       "label": "Consent to receive notices by email",
       "holds": "checkbox",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": false,
@@ -1580,14 +1645,16 @@
           "kind": "checkbox",
           "pdf_field": "Check Box6",
           "option_value": null,
-          "option_text": "Recipient consents to receive notices under this Agreement by email."
+          "option_text": "Recipient consents to receive notices under this Agreement by email.",
+          "options": null
         }
       ]
     },
     {
-      "key": "recipient.acknowledgement_of_disclosure_of_prior",
-      "label": "Acknowledgement of disclosure of prior knowledge of the Subject Matter",
+      "key": "recipient.disclosure_of_prior_knowledge_of_the",
+      "label": "Disclosure of prior knowledge of the Subject Matter",
       "holds": "checkbox",
+      "format": null,
       "filled_by": "role",
       "role": "recipient",
       "required": false,
@@ -1609,7 +1676,8 @@
           "kind": "checkbox",
           "pdf_field": "Check Box7",
           "option_value": null,
-          "option_text": "Recipient has disclosed to Company in writing any prior knowledge of the Subject Matter (optional)."
+          "option_text": "Recipient has disclosed to Company in writing any prior knowledge of the Subject Matter (optional).",
+          "options": null
         }
       ]
     }
@@ -1626,15 +1694,17 @@
   ],
   "document": {
     "name": "Trade Secret Non-Disclosure Agreement",
-    "description": null
+    "description": "A trade-secret nondisclosure agreement between Company and Recipient. It covers permitted use, confidentiality, fees, non-solicitation, security, notices, payment details and acknowledgements. Recipient signs with a witness, and Company countersigns."
   },
   "flags": {
     "no_fields": false,
     "addressed_to_ai": false,
-    "repaired": true,
+    "repaired": false,
     "xfa": false,
     "already_signed": false,
-    "name_dropped": true
+    "name_dropped": false
   },
-  "notes": []
+  "notes": [
+    "extra field 'Total for the first year' dropped: a form field already sits after its words: that field is the blank"
+  ]
 }

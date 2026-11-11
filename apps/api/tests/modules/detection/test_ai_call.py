@@ -58,6 +58,7 @@ def test_the_answer_only_takes_this_documents_ids() -> None:
                 "label": "Client signature",
                 "must_fill": True,
                 "depends_on": None,
+                "same_as": None,
             }
         ],
         "checkbox_groups": [],
@@ -104,6 +105,7 @@ ANSWER = {
             "label": "Client name",
             "must_fill": True,
             "depends_on": None,
+            "same_as": None,
         }
     ],
     "checkbox_groups": [],

@@ -313,7 +313,9 @@ def test_an_extra_field_is_placed_from_its_words_and_one_not_found_is_dropped() 
     result = derive(reading, answer, document, problems=[], repaired=False)
     extra = next(f for f in result.fields if f.key == "party_1.initials")
     assert extra.placements[0].kind == "blank" and extra.ids == []
-    assert extra.needs_review == "placed from the words around it: check its position"
+    assert extra.needs_review == "placed after the words printed before it: check its position"
+    (words,) = document[0].search_for("Continues until terminated.")
+    assert extra.placements[0].rect[0] > words.x1  # after its words, never on them
     assert any("'Ghost' dropped" in note for note in result.notes)
 
 

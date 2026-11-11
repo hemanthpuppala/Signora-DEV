@@ -75,9 +75,13 @@ class RowIndex[T]:
     def __init__(self, items: Iterable[tuple[Box, T]]) -> None:
         self._buckets: dict[int, list[tuple[Box, T]]] = {}
         for box, item in items:
-            entry = (box, item)  # one object in every bucket it spans, so ``near`` yields it once
-            for bucket in range(int(box[1] // BUCKET), int(box[3] // BUCKET) + 1):
-                self._buckets.setdefault(bucket, []).append(entry)
+            self.add(box, item)
+
+    def add(self, box: Box, item: T) -> None:
+        """One more item: O(rows it spans)."""
+        entry = (box, item)  # one object in every bucket it spans, so ``near`` yields it once
+        for bucket in range(int(box[1] // BUCKET), int(box[3] // BUCKET) + 1):
+            self._buckets.setdefault(bucket, []).append(entry)
 
     def near(self, top: float, bottom: float) -> Iterator[tuple[Box, T]]:
         """Each item spanning a row between ``top`` and ``bottom``, once."""

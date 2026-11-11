@@ -20,7 +20,7 @@ from signora.modules.detection.geometry import (
     same_row,
     union,
 )
-from signora.modules.detection.page_text import Marked, PageText, pages
+from signora.modules.detection.page_text import FAR_ABOVE, Marked, PageText, pages
 from signora.modules.detection.reading import FieldKind, FoundField, PageInfo, Placement
 from signora.modules.review.values import OPTION_MAX
 
@@ -217,11 +217,14 @@ def read_form(document: pymupdf.Document) -> FormRead:
                 label_above=cut(text.above(box), TEXT_MAX),
                 label_below=cut(text.below(box), TEXT_MAX) if kind == "signature" else None,
                 text_inside=cut(text.within(position), TEXT_MAX),
+                caption=cut(text.caption(position, box), TEXT_MAX),
                 value=cut(current, TEXT_MAX),
                 sample_value=bool(current and SAMPLE_VALUE.match(current)),
                 required=bool(flags & REQUIRED),
                 read_only=bool(flags & READ_ONLY),
             )
+            if not found.label:
+                found.label_above = cut(text.above(box, reach=FAR_ABOVE), TEXT_MAX)
             if kind == "text":
                 found.multiline = bool(flags & MULTILINE)
                 found.max_length = widget.text_maxlen or None
@@ -244,6 +247,20 @@ def read_form(document: pymupdf.Document) -> FormRead:
     )
 
 
+def box_issues(found: FoundField, pages: list[PageInfo]) -> list[str]:
+    """What is wrong with a field's boxes, in words: one with no size, one outside its page. A
+    person must look at these (review flags them); the other issues are for reading only."""
+    notes = []
+    for placement in found.placements:
+        x0, y0, x1, y1 = placement.rect
+        page = pages[placement.page - 1]
+        if x1 - x0 < 1 or y1 - y0 < 1:
+            notes.append(f"page {placement.page}: a box with no size")
+        elif x1 < 0 or y1 < 0 or x0 > page.width or y0 > page.height:
+            notes.append(f"page {placement.page}: a box outside the page")
+    return notes
+
+
 def issues(found: FoundField, pages: list[PageInfo]) -> list[str]:
     """What a person should know about a field, in words (review shows them)."""
     notes = []
@@ -259,13 +276,7 @@ def issues(found: FoundField, pages: list[PageInfo]) -> list[str]:
         notes.append("already signed: kept as it is")
     if all(placement.hidden for placement in found.placements):
         notes.append("hidden: never asked for")
-    for placement in found.placements:
-        x0, y0, x1, y1 = placement.rect
-        page = pages[placement.page - 1]
-        if x1 - x0 < 1 or y1 - y0 < 1:
-            notes.append(f"page {placement.page}: a box with no size")
-        elif x1 < 0 or y1 < 0 or x0 > page.width or y0 > page.height:
-            notes.append(f"page {placement.page}: a box outside the page")
+    notes += box_issues(found, pages)
     if found.kind == "radio":
         if any(placement.option_text is None for placement in found.placements):
             notes.append("an option has no words next to it")

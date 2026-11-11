@@ -1,0 +1,213 @@
+"""Blank lines drawn as graphics (findings F1): a thin line with nothing written on it is a blank;
+underlined words, lines under found blanks, separators, table borders and unlabelled header and
+footer rules are not."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any
+
+import pymupdf
+import pytest
+
+from signora.modules.detection.derive import derive
+from signora.modules.detection.read import read_document
+from signora.modules.detection.reading import FoundField
+
+PARAGRAPH = "The parties have executed this Agreement as of the dates written below, in two copies."
+Draw = Callable[[pymupdf.Page], object]
+
+
+def _page(*steps: Draw, rotation: int = 0) -> bytes:
+    """A flat page with a paragraph (it sets the text's width) and the given drawing steps."""
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((72, 200), PARAGRAPH, fontsize=11)
+    for step in steps:
+        step(page)
+    page.set_rotation(rotation)
+    data: bytes = document.tobytes()
+    return data
+
+
+def _text(x: float, y: float, text: str) -> Draw:
+    return lambda page: page.insert_text((x, y), text, fontsize=11)
+
+
+def _line(x0: float, x1: float, y: float) -> Draw:
+    return lambda page: page.draw_line((x0, y), (x1, y), width=0.75)
+
+
+def _bar(x0: float, x1: float, y: float) -> Draw:
+    """A line drawn as a thin filled rectangle, as word processors draw underlines."""
+    return lambda page: page.draw_rect(pymupdf.Rect(x0, y, x1, y + 0.8), color=None, fill=(0, 0, 0))
+
+
+def _drawn(data: bytes) -> list[FoundField]:
+    return [found for found in read_document(data).asked if found.drawn]
+
+
+def _end(text: str, x: float = 72) -> float:
+    return x + pymupdf.get_text_length(text, fontsize=11)
+
+
+def test_underlined_spaces_after_a_label_are_a_blank_labelled_by_it() -> None:
+    (blank,) = _drawn(_page(_text(72, 300, "Name:"), _line(_end("Name:") + 4, 260, 302)))
+    assert blank.kind == "blank" and blank.label == "Name:"
+
+
+def test_a_line_drawn_as_a_thin_bar_is_a_blank_too() -> None:
+    assert len(_drawn(_page(_text(72, 300, "Date:"), _bar(_end("Date:") + 4, 200, 302)))) == 1
+
+
+def test_no_break_spaces_on_the_line_leave_it_empty() -> None:
+    spaces = "\u00a0" * 20
+    data = _page(_text(72, 300, "Name:" + spaces), _line(_end("Name:") + 2, 220, 302))
+    assert len(_drawn(data)) == 1
+
+
+def test_one_underline_under_a_label_and_its_spaces_gives_the_stretch_after_the_label() -> None:
+    data = _page(_text(72, 300, "Name:"), _line(72, 260, 302))
+    (blank,) = _drawn(data)
+    assert blank.placements[0].rect[0] >= _end("Name:")  # after the label, not under it
+
+
+def test_an_underlined_word_is_not_a_blank() -> None:
+    assert _drawn(_page(_text(72, 300, "Disclosing"), _line(72, _end("Disclosing"), 302))) == []
+
+
+def test_a_line_under_typed_underscores_is_not_found_twice() -> None:
+    data = _page(
+        _text(72, 300, "Name: " + "_" * 30), _line(_end("Name: "), _end("Name: " + "_" * 30), 302)
+    )
+    assert _drawn(data) == [] and len(read_document(data).asked) == 1
+
+
+def test_a_separator_across_the_text_is_not_a_blank_even_drawn_in_pieces() -> None:
+    """A table's row rule is often drawn once per column: joined, it is one separator."""
+    right = _end(PARAGRAPH)
+    whole = _page(_line(72, right, 260))
+    pieces = _page(_line(72, 225, 260), _line(225.5, right, 260))
+    assert _drawn(whole) == [] and _drawn(pieces) == []
+
+
+def test_a_ruled_tables_borders_are_not_blanks() -> None:
+    def table(page: pymupdf.Page) -> None:
+        for y in (240, 260, 280):
+            page.draw_line((72, y), (300, y), width=0.75)
+        for x in (72, 186, 300):
+            page.draw_line((x, 240), (x, 280), width=0.75)
+
+    assert _drawn(_page(table)) == []
+
+
+def test_an_unlabelled_footer_rule_is_not_a_blank_but_footer_initials_are() -> None:
+    footer = _page(_line(72, 300, 760))
+    initials = _page(_text(72, 760, "Initials:"), _line(_end("Initials:") + 4, 160, 762))
+    assert _drawn(footer) == []
+    (blank,) = _drawn(initials)
+    assert blank.label == "Initials:"
+
+
+def test_a_line_under_a_form_field_is_not_a_blank() -> None:
+    def field(page: pymupdf.Page) -> None:
+        widget = pymupdf.Widget()
+        widget.field_name, widget.field_type = "Name", pymupdf.PDF_WIDGET_TYPE_TEXT  # type: ignore[attr-defined]
+        widget.rect = pymupdf.Rect(110, 288, 260, 302)
+        page.add_widget(widget)
+
+    data = _page(_text(72, 300, "Name:"), _line(110, 260, 302), field)
+    reading = read_document(data)
+    assert [found.kind for found in reading.asked] == ["text"]
+
+
+def test_on_a_turned_page_a_drawn_blank_is_placed_as_the_page_is_shown() -> None:
+    data = _page(_text(72, 300, "Name:"), _line(_end("Name:") + 4, 260, 302), rotation=90)
+    (blank,) = _drawn(data)
+    shown = pymupdf.open(stream=data, filetype="pdf")[0].rect
+    x0, y0, x1, y1 = blank.placements[0].rect
+    assert 0 <= x0 < x1 <= shown.width and 0 <= y0 < y1 <= shown.height
+
+
+@pytest.mark.parametrize(("filled_by", "kept"), [("none", False), ("client", True)])
+def test_a_drawn_line_the_ai_says_nobody_fills_is_not_kept(filled_by: str, kept: bool) -> None:
+    data = _page(_text(72, 300, "Name:"), _line(_end("Name:") + 4, 260, 302))
+    reading = read_document(data)
+    (blank,) = reading.asked
+    answer: dict[str, Any] = {
+        "roles": [{"slug": "client", "kind": "signer"}],
+        "fields": [
+            {
+                "id": blank.id,
+                "holds": "full_name",
+                "format": None,
+                "filled_by": filled_by,
+                "label": "Name",
+                "must_fill": True,
+                "depends_on": None,
+            }
+        ],
+        "checkbox_groups": [],
+        "extra_fields": [],
+        "document": None,
+    }
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        result = derive(reading, answer, document, problems=[], repaired=False)
+    assert bool(result.fields) is kept
+    assert any("drawn line nobody fills" in note for note in result.notes) is not kept
+
+
+def test_a_line_drawn_in_white_shows_nothing_and_is_not_a_blank() -> None:
+    white = _page(lambda page: page.draw_line((72, 302), (300, 302), color=(1, 1, 1)))
+    assert _drawn(white) == []
+
+
+def test_a_labelled_line_across_the_text_is_a_blank_an_unlabelled_one_a_separator() -> None:
+    right = _end(PARAGRAPH)
+    labelled = _page(_text(72, 300, "Address:"), _line(_end("Address:") + 4, right, 302))
+    assert len(_drawn(labelled)) == 1
+    assert _drawn(_page(_line(72, right, 302))) == []
+
+
+def test_two_lines_of_a_row_at_slightly_different_heights_stay_two() -> None:
+    """Review #2: the right column's line, 0.5 pt higher, came first in the join and swallowed the
+    left column's line, so one party's signature line was lost."""
+    data = _page(
+        _text(72, 300, "Signature:"),
+        _text(320, 300, "Signature:"),
+        _bar(130, 280, 300.0),
+        lambda page: page.draw_line((380, 300.5), (530, 300.5), width=0.5),
+    )
+    assert len(_drawn(data)) == 2
+
+
+@pytest.mark.parametrize(
+    ("label", "y", "to_margin"),
+    [
+        pytest.param("Initials:", 762, False, id="footer-initials-underlined-with-label"),
+        pytest.param("Address:", 302, True, id="full-width-address-underlined-with-label"),
+    ],
+)
+def test_an_underline_that_starts_under_its_label_is_labelled_by_it(
+    label: str, y: float, to_margin: bool
+) -> None:
+    """Review #5: a label counted only when it ended left of the line, so a footer's "Initials:"
+    or a full-width "Address:" underlined together with its label was dropped as decoration."""
+    end = _end(PARAGRAPH) if to_margin else _end(label) + 60
+    (blank,) = _drawn(_page(_text(72, y - 2, label), _line(72, end, y)))
+    assert blank.label == label and blank.placements[0].rect[0] >= _end(label)
+
+
+def test_an_underlined_heading_across_the_text_is_still_a_separator() -> None:
+    """The heading's own words on a full-width rule do not make it a labelled blank."""
+    assert (
+        _drawn(_page(_text(72, 298, "SECTION 1. DEFINITIONS"), _line(72, _end(PARAGRAPH), 300)))
+        == []
+    )
+
+
+def test_a_heading_with_a_colon_on_a_bar_across_the_text_is_not_a_blank() -> None:
+    """A form's section bar, "Section 1: Vehicle Information": a colon inside the words, but the
+    words do not end with it, so it is no label of a blank."""
+    data = _page(_text(72, 298, "Section 1: Vehicle Information"), _bar(72, _end(PARAGRAPH), 300))
+    assert _drawn(data) == []
