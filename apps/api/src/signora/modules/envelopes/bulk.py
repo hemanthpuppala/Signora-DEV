@@ -29,7 +29,7 @@ from signora.modules.envelopes.bulk_sheet import (
     MAX_ROWS,
     BatchDefaults,
     Column,
-    Row,
+    RowIn,
     Sheet,
     check_rows,
     columns_of,
@@ -57,14 +57,14 @@ class CheckRequest(_In):
     """Rows to judge again after the sender's edits, with what is chosen once for all of them."""
 
     columns: list[str] = Field(max_length=500)  # the sheet's column keys, as upload gave them
-    rows: list[Row] = Field(max_length=MAX_ROWS)
+    rows: list[RowIn] = Field(max_length=MAX_ROWS)
     defaults: BatchDefaults
 
 
 class BatchRequest(_In):
     version_id: uuid.UUID
     file_name: str = Field(min_length=1, max_length=255)
-    rows: list[Row] = Field(min_length=1, max_length=MAX_ROWS)
+    rows: list[RowIn] = Field(min_length=1, max_length=MAX_ROWS)
     defaults: BatchDefaults
 
 
@@ -124,9 +124,9 @@ def template(
     return f"{form.document_name} bulk send.xlsx", data
 
 
-def _sheet_rows(file: FileRows, keys: Sequence[str | None]) -> list[Row]:
+def _sheet_rows(file: FileRows, keys: Sequence[str | None]) -> list[RowIn]:
     return [
-        Row(
+        RowIn(
             row_no=number,
             cells={key: cell for key, cell in zip(keys, cells, strict=False) if key and cell},
         )

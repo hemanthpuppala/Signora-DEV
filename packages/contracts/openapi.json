@@ -195,7 +195,7 @@
           },
           "rows": {
             "items": {
-              "$ref": "#/components/schemas/Row-Input"
+              "$ref": "#/components/schemas/RowIn"
             },
             "maxItems": 1000,
             "minItems": 1,
@@ -320,6 +320,34 @@
         "title": "Batches",
         "type": "object"
       },
+      "CellProblem": {
+        "description": "What is wrong with a cell, in words. A warning is shown but does not stop the send.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "level": {
+            "default": "error",
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "message"
+        ],
+        "title": "CellProblem",
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "additionalProperties": false,
         "properties": {
@@ -375,7 +403,7 @@
           },
           "rows": {
             "items": {
-              "$ref": "#/components/schemas/Row-Input"
+              "$ref": "#/components/schemas/RowIn"
             },
             "maxItems": 1000,
             "title": "Rows",
@@ -3010,20 +3038,15 @@
         "title": "PlacementView",
         "type": "object"
       },
-      "Problem-Input": {
-        "description": "What is wrong with a cell, in words. A warning is shown but does not stop the send.",
+      "Problem": {
+        "description": "Why a version is not ready, in words a person acts on (§2.5, §3.2-3.4).",
         "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
+          "can_retry": {
+            "title": "Can Retry",
+            "type": "boolean"
           },
-          "level": {
-            "default": "error",
-            "enum": [
-              "error",
-              "warning"
-            ],
-            "title": "Level",
+          "code": {
+            "title": "Code",
             "type": "string"
           },
           "message": {
@@ -3032,8 +3055,9 @@
           }
         },
         "required": [
-          "key",
-          "message"
+          "code",
+          "message",
+          "can_retry"
         ],
         "title": "Problem",
         "type": "object"
@@ -3503,40 +3527,39 @@
         "title": "RoleRef",
         "type": "object"
       },
-      "Row-Input": {
-        "additionalProperties": false,
+      "Row": {
+        "description": "A row as it is judged: the same, with what is wrong with it.",
         "properties": {
           "cells": {
             "additionalProperties": {
               "type": "string"
             },
-            "maxProperties": 500,
             "title": "Cells",
             "type": "object"
           },
           "problems": {
             "items": {
-              "$ref": "#/components/schemas/Problem-Input"
+              "$ref": "#/components/schemas/CellProblem"
             },
             "title": "Problems",
             "type": "array"
           },
           "row_no": {
-            "maximum": 1000000.0,
-            "minimum": 1.0,
             "title": "Row No",
             "type": "integer"
           }
         },
         "required": [
           "row_no",
-          "cells"
+          "cells",
+          "problems"
         ],
         "title": "Row",
         "type": "object"
       },
-      "Row-Output": {
+      "RowIn": {
         "additionalProperties": false,
+        "description": "A row as it is given: its number in the file and what its cells hold.",
         "properties": {
           "cells": {
             "additionalProperties": {
@@ -3545,13 +3568,6 @@
             "maxProperties": 500,
             "title": "Cells",
             "type": "object"
-          },
-          "problems": {
-            "items": {
-              "$ref": "#/components/schemas/signora__modules__envelopes__bulk_sheet__Problem"
-            },
-            "title": "Problems",
-            "type": "array"
           },
           "row_no": {
             "maximum": 1000000.0,
@@ -3564,7 +3580,7 @@
           "row_no",
           "cells"
         ],
-        "title": "Row",
+        "title": "RowIn",
         "type": "object"
       },
       "Saved": {
@@ -3855,7 +3871,7 @@
           },
           "rows": {
             "items": {
-              "$ref": "#/components/schemas/Row-Output"
+              "$ref": "#/components/schemas/Row"
             },
             "title": "Rows",
             "type": "array"
@@ -4733,7 +4749,7 @@
           "problem": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/signora__modules__documents__routes__Problem"
+                "$ref": "#/components/schemas/Problem"
               },
               {
                 "type": "null"
@@ -4836,58 +4852,6 @@
           "email"
         ],
         "title": "Colleague",
-        "type": "object"
-      },
-      "signora__modules__documents__routes__Problem": {
-        "description": "Why a version is not ready, in words a person acts on (§2.5, §3.2-3.4).",
-        "properties": {
-          "can_retry": {
-            "title": "Can Retry",
-            "type": "boolean"
-          },
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message",
-          "can_retry"
-        ],
-        "title": "Problem",
-        "type": "object"
-      },
-      "signora__modules__envelopes__bulk_sheet__Problem": {
-        "description": "What is wrong with a cell, in words. A warning is shown but does not stop the send.",
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "level": {
-            "default": "error",
-            "enum": [
-              "error",
-              "warning"
-            ],
-            "title": "Level",
-            "type": "string"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "message"
-        ],
-        "title": "Problem",
         "type": "object"
       },
       "signora__modules__envelopes__form__Colleague": {

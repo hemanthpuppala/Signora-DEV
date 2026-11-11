@@ -11,7 +11,7 @@ from signora.kernel.errors import ValidationFailed
 from signora.modules.envelopes.bulk_sheet import (
     SAME_PERSON,
     BatchDefaults,
-    Row,
+    RowIn,
     check_row,
     check_rows,
     columns_of,
@@ -227,7 +227,7 @@ def test_a_problem_about_a_column_the_file_lacks_brings_the_column_in() -> None:
     checked = check_rows(
         sheet_form,
         [c for c in matched.columns if c.header != "Reference"],
-        [Row(row_no=2, cells=cells(**{field_key(PLAN): "Gold"}))],
+        [RowIn(row_no=2, cells=cells(**{field_key(PLAN): "Gold"}))],
         defaults(sheet_form),
         normalize_email=normalize_email,
     )
@@ -393,7 +393,7 @@ def test_a_problem_with_the_batch_itself_is_said_once_not_on_every_row() -> None
     checked = check_rows(
         sheet_form,
         columns_of(sheet_form),
-        [Row(row_no=2, cells=cells()), Row(row_no=3, cells=cells(**{EMAIL: "b@example.com"}))],
+        [RowIn(row_no=2, cells=cells()), RowIn(row_no=3, cells=cells(**{EMAIL: "b@example.com"}))],
         batch,
         normalize_email=normalize_email,
     )
@@ -408,9 +408,9 @@ def test_a_problem_with_the_batch_itself_is_said_once_not_on_every_row() -> None
 def test_rows_sending_to_the_same_signer_are_flagged_but_not_stopped() -> None:
     sheet_form = form()
     rows = [
-        Row(row_no=2, cells=cells()),
-        Row(row_no=3, cells=cells(**{EMAIL: "other@example.com"})),
-        Row(row_no=7, cells=cells(**{EMAIL: " Avery@Example.com "})),
+        RowIn(row_no=2, cells=cells()),
+        RowIn(row_no=3, cells=cells(**{EMAIL: "other@example.com"})),
+        RowIn(row_no=7, cells=cells(**{EMAIL: " Avery@Example.com "})),
     ]
     checked = check_rows(
         sheet_form,
@@ -435,7 +435,7 @@ def test_rows_sending_to_the_same_signer_are_flagged_but_not_stopped() -> None:
 
 def test_only_rows_without_errors_are_sendable() -> None:
     sheet_form = form()
-    rows = [Row(row_no=2, cells=cells()), Row(row_no=3, cells=cells(**{EMAIL: ""}))]
+    rows = [RowIn(row_no=2, cells=cells()), RowIn(row_no=3, cells=cells(**{EMAIL: ""}))]
     checked = check_rows(
         sheet_form,
         columns_of(sheet_form),
@@ -460,7 +460,7 @@ def test_checking_a_thousand_rows_is_fast() -> None:
 
     sheet_form = form()
     rows = [
-        Row(row_no=n + 2, cells=cells(**{EMAIL: f"client{n}@example.com"})) for n in range(1000)
+        RowIn(row_no=n + 2, cells=cells(**{EMAIL: f"client{n}@example.com"})) for n in range(1000)
     ]
     started = time.perf_counter()
     checked = check_rows(

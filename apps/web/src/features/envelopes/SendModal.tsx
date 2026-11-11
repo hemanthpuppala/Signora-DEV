@@ -51,16 +51,16 @@ type Person = { name: string; email: string };
 type Copy = Person & { key: string };
 
 /** The settings typed as numbers, each within the range the server takes (envelopes.sending.SettingsIn). */
-const LIMITS = {
+export const LIMITS = {
   reminder_interval_hours: { label: "Remind every (hours)", min: 1, max: 720 },
   max_reminders: { label: "Reminders at most", min: 0, max: 20 },
   expiry_days: { label: "Expires after (days)", min: 1, max: 365 },
 } as const;
 type Limited = keyof typeof LIMITS;
-const LIMITED = Object.keys(LIMITS) as Limited[];
+export const LIMITED = Object.keys(LIMITS) as Limited[];
 
 /** Why a setting cannot be sent as typed: the rule, as its hint would state it. */
-function outOfRange(setting: Limited, text: string): string | undefined {
+export function outOfRange(setting: Limited, text: string): string | undefined {
   const { min, max } = LIMITS[setting];
   const whole = /^\d+$/.test(text.trim());
   return whole && Number(text) >= min && Number(text) <= max ? undefined : `Enter a whole number from ${min} to ${max}`;
@@ -92,6 +92,7 @@ export function SendModal({
   editHref,
   onClose,
   onSent,
+  onSendInBulk,
 }: {
   /** Where a template is edited: offered when nobody signs it, so it cannot be sent as it is. */
   editHref: (documentId: string) => string;
@@ -99,6 +100,8 @@ export function SendModal({
   initialDocumentId?: string | undefined;
   onClose: () => void;
   onSent: (envelope: Envelope) => void;
+  /** Opens the bulk send instead (where the department's page offers both). */
+  onSendInBulk?: (() => void) | undefined;
 }) {
   const [step, setStep] = useState(initialDocumentId ? DETAILS : DOCUMENT);
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId ?? null);
@@ -294,6 +297,7 @@ export function SendModal({
   return (
     <StepDialog
       title={data ? `Send ${data.document_name}` : "New envelope"}
+      aside={onSendInBulk ? <TextButton onClick={onSendInBulk}>Send in bulk instead</TextButton> : undefined}
       steps={STEPS}
       current={step}
       onStep={(target) => setStep(target)}

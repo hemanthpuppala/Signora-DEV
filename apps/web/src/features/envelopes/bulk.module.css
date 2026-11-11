@@ -1,0 +1,276 @@
+/* A bulk send (Bulk send LLD §9): the upload step, the table of rows, the progress line. */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* A step's heading with one action at its far end (the spreadsheet to download). */
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0;
+  font: 400 10px/1.4 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+/* "Template" with a download mark: a link to the spreadsheet for a template. */
+.templateLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 7px;
+  font: 400 10px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t75);
+}
+
+.templateLink:hover,
+.templateLink:focus-visible {
+  color: var(--ink);
+}
+
+.templateLink svg {
+  width: 14px;
+  height: 14px;
+}
+
+.problems {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* --- the table ---------------------------------------------------------------------------------- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.count {
+  font-size: 13px;
+  color: var(--t75);
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+/* The rows scroll inside this box, both ways; the header and the first column stay in place. */
+.scroller {
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  border: 1px solid var(--sep);
+}
+
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  padding: 0;
+  border-bottom: 1px solid var(--sep);
+  border-right: 1px solid var(--sep);
+  background: var(--surface);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  font: 400 10px/1.4 var(--sans);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--t75);
+  white-space: nowrap;
+}
+
+.required::after {
+  content: " *";
+  color: var(--t55);
+}
+
+/* The row's number and "Leave out", in place while the table scrolls sideways. */
+.table .rowHead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 132px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  font-weight: 400;
+  color: var(--t60);
+  white-space: nowrap;
+}
+
+.table thead .rowHead {
+  z-index: 3;
+}
+
+.rowNo {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--t75);
+}
+
+.rowAction {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 400 10px/1.6 var(--sans);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--t60);
+  cursor: pointer;
+}
+
+.rowAction:hover,
+.rowAction:focus-visible {
+  color: var(--ink);
+}
+
+.out td,
+.out .rowNo {
+  color: var(--t30);
+}
+
+.out .input {
+  color: var(--t30);
+  text-decoration: line-through;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 168px;
+}
+
+.input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--ink);
+  color-scheme: dark;
+}
+
+select.input {
+  appearance: auto;
+}
+
+.input:hover {
+  border-color: var(--r15);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+}
+
+/* A problem: marked by more than colour (a rule on the cell's edge and its words underneath). */
+.input[aria-invalid="true"] {
+  border-color: var(--st-declined);
+  box-shadow: inset 3px 0 0 var(--st-declined);
+}
+
+.warned {
+  border-color: var(--r40);
+  border-style: dashed;
+}
+
+.tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  color: var(--t75);
+}
+
+.message {
+  padding: 0 12px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.message[data-level="warning"] {
+  color: var(--t75);
+}
+
+.more {
+  padding: 12px;
+  text-align: center;
+  color: var(--t55);
+}
+
+/* --- review and progress ------------------------------------------------------------------------ */
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 28px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.facts dt {
+  color: var(--t55);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.batches {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.failures {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--t75);
+}

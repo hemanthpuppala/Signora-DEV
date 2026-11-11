@@ -56,7 +56,7 @@ class Column(BaseModel):
     options: list[Option] = Field(default_factory=list)  # a choice's, or the colleagues to pick
 
 
-class Problem(BaseModel):
+class CellProblem(BaseModel):
     """What is wrong with a cell, in words. A warning is shown but does not stop the send."""
 
     key: str
@@ -64,12 +64,21 @@ class Problem(BaseModel):
     level: Level = "error"
 
 
-class Row(BaseModel):
+class RowIn(BaseModel):
+    """A row as it is given: its number in the file and what its cells hold."""
+
     model_config = ConfigDict(extra="forbid")
 
     row_no: int = Field(ge=1, le=1_000_000)  # the file's row number, as the sender sees it
     cells: dict[str, str] = Field(max_length=500)
-    problems: list[Problem] = Field(default_factory=list)
+
+
+class Row(BaseModel):
+    """A row as it is judged: the same, with what is wrong with it."""
+
+    row_no: int
+    cells: dict[str, str]
+    problems: list[CellProblem]
 
 
 class Sheet(BaseModel):
@@ -314,7 +323,7 @@ _SETTING_LIMITS = {
 
 
 def _settings(
-    cells: Mapping[str, str], defaults: SettingsIn, problems: list[Problem]
+    cells: Mapping[str, str], defaults: SettingsIn, problems: list[CellProblem]
 ) -> SettingsIn:
     """The batch's settings with this row's own in place of them (FR-7)."""
     changed: dict[str, object] = {}
@@ -323,7 +332,7 @@ def _settings(
         ticked = _ticked(code)
         if ticked is None:
             problems.append(
-                Problem(key=setting_key("require_email_code"), message="Give yes or no")
+                CellProblem(key=setting_key("require_email_code"), message="Give yes or no")
             )
         else:
             changed["require_email_code"] = ticked
@@ -334,7 +343,7 @@ def _settings(
         if raw.isascii() and raw.isdigit():
             changed[name] = int(raw)
         else:
-            problems.append(Problem(key=setting_key(name), message=message))
+            problems.append(CellProblem(key=setting_key(name), message=message))
     if not changed:
         return defaults
     try:
@@ -343,7 +352,7 @@ def _settings(
         for issue in error.errors():
             name = str(issue["loc"][0]) if issue["loc"] else ""
             problems.append(
-                Problem(key=setting_key(name), message=_SETTING_LIMITS.get(name, issue["msg"]))
+                CellProblem(key=setting_key(name), message=_SETTING_LIMITS.get(name, issue["msg"]))
             )
         return defaults
 
@@ -353,15 +362,15 @@ class Checked:
     """A row judged: what is wrong with it, and when nothing is, the request to send it with and
     the plan a single send would write."""
 
-    problems: list[Problem]
+    problems: list[CellProblem]
     general: list[str]  # the batch's own problems this row met (said once per sheet)
     request: SendRequest | None
     plan: Plan | None
 
 
-def _request_problems(error: ValidationError, form: SendForm) -> list[Problem]:
+def _request_problems(error: ValidationError, form: SendForm) -> list[CellProblem]:
     """A request the API itself would refuse (an empty or over-long name, say), on its cell."""
-    problems: list[Problem] = []
+    problems: list[CellProblem] = []
     for issue in error.errors():
         loc = issue["loc"]
         key = ""
@@ -378,7 +387,7 @@ def _request_problems(error: ValidationError, form: SendForm) -> list[Problem]:
             message = f"Use {limit} or fewer characters"
         else:
             message = str(issue["msg"])
-        problems.append(Problem(key=key, message=message))
+        problems.append(CellProblem(key=key, message=message))
     return problems
 
 
@@ -390,14 +399,14 @@ def check_row(
     normalize_email: Callable[[str], str],
 ) -> Checked:
     """One row as a single send would judge it. O(P + F)."""
-    problems: list[Problem] = []
+    problems: list[CellProblem] = []
     general: list[str] = []
 
     def add(key: str, message: str) -> None:
         # The first thing said about a cell stands: a later item about the same cell is a
         # consequence of it (a colleague that is not one, then "choose who countersigns").
         if all(problem.key != key for problem in problems):
-            problems.append(Problem(key=key, message=message))
+            problems.append(CellProblem(key=key, message=message))
 
     # Signers: every party of the form, so a missing one is named on its own cells.
     signers: list[dict[str, object]] = []
@@ -537,7 +546,7 @@ def _label(plan: Plan) -> str:
 def check_rows(
     form: SendForm,
     columns: Sequence[Column],
-    rows: Sequence[Row],
+    rows: Sequence[RowIn],
     defaults: BatchDefaults,
     *,
     normalize_email: Callable[[str], str],
@@ -573,7 +582,7 @@ def check_rows(
                 more = "" if len(others) <= 3 else f" and {len(others) - 3} more"
                 noun = "row" if len(others) == 1 else "rows"
                 checked[index].problems.append(
-                    Problem(
+                    CellProblem(
                         key=signer_key(party_id, "email"),
                         message=f"Also in {noun} {listed}{more}",
                         level="warning",

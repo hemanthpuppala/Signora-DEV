@@ -1213,7 +1213,7 @@ export interface components {
             /** File Name */
             file_name: string;
             /** Rows */
-            rows: components["schemas"]["Row-Input"][];
+            rows: components["schemas"]["RowIn"][];
             /**
              * Version Id
              * Format: uuid
@@ -1267,6 +1267,22 @@ export interface components {
             /** Batches */
             batches: components["schemas"]["BatchView"][];
         };
+        /**
+         * CellProblem
+         * @description What is wrong with a cell, in words. A warning is shown but does not stop the send.
+         */
+        CellProblem: {
+            /** Key */
+            key: string;
+            /**
+             * Level
+             * @default error
+             * @enum {string}
+             */
+            level: "error" | "warning";
+            /** Message */
+            message: string;
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */
@@ -1291,7 +1307,7 @@ export interface components {
             columns: string[];
             defaults: components["schemas"]["BatchDefaults"];
             /** Rows */
-            rows: components["schemas"]["Row-Input"][];
+            rows: components["schemas"]["RowIn"][];
         };
         /**
          * Column
@@ -2281,17 +2297,13 @@ export interface components {
         };
         /**
          * Problem
-         * @description What is wrong with a cell, in words. A warning is shown but does not stop the send.
+         * @description Why a version is not ready, in words a person acts on (§2.5, §3.2-3.4).
          */
-        "Problem-Input": {
-            /** Key */
-            key: string;
-            /**
-             * Level
-             * @default error
-             * @enum {string}
-             */
-            level: "error" | "warning";
+        Problem: {
+            /** Can Retry */
+            can_retry: boolean;
+            /** Code */
+            code: string;
             /** Message */
             message: string;
         };
@@ -2454,25 +2466,29 @@ export interface components {
             /** Name */
             name: string;
         };
-        /** Row */
-        "Row-Input": {
+        /**
+         * Row
+         * @description A row as it is judged: the same, with what is wrong with it.
+         */
+        Row: {
             /** Cells */
             cells: {
                 [key: string]: string;
             };
             /** Problems */
-            problems?: components["schemas"]["Problem-Input"][];
+            problems: components["schemas"]["CellProblem"][];
             /** Row No */
             row_no: number;
         };
-        /** Row */
-        "Row-Output": {
+        /**
+         * RowIn
+         * @description A row as it is given: its number in the file and what its cells hold.
+         */
+        RowIn: {
             /** Cells */
             cells: {
                 [key: string]: string;
             };
-            /** Problems */
-            problems?: components["schemas"]["signora__modules__envelopes__bulk_sheet__Problem"][];
             /** Row No */
             row_no: number;
         };
@@ -2574,7 +2590,7 @@ export interface components {
             /** Problems */
             problems?: string[];
             /** Rows */
-            rows: components["schemas"]["Row-Output"][];
+            rows: components["schemas"]["Row"][];
         };
         /** SignerIn */
         SignerIn: {
@@ -2949,7 +2965,7 @@ export interface components {
             pages: components["schemas"]["PageView"][];
             /** Pages Without Text */
             pages_without_text: number[];
-            problem: components["schemas"]["signora__modules__documents__routes__Problem"] | null;
+            problem: components["schemas"]["Problem"] | null;
             /** Processed At */
             processed_at: string | null;
             /**
@@ -2983,34 +2999,6 @@ export interface components {
             id: string;
             /** Name */
             name: string;
-        };
-        /**
-         * Problem
-         * @description Why a version is not ready, in words a person acts on (§2.5, §3.2-3.4).
-         */
-        signora__modules__documents__routes__Problem: {
-            /** Can Retry */
-            can_retry: boolean;
-            /** Code */
-            code: string;
-            /** Message */
-            message: string;
-        };
-        /**
-         * Problem
-         * @description What is wrong with a cell, in words. A warning is shown but does not stop the send.
-         */
-        signora__modules__envelopes__bulk_sheet__Problem: {
-            /** Key */
-            key: string;
-            /**
-             * Level
-             * @default error
-             * @enum {string}
-             */
-            level: "error" | "warning";
-            /** Message */
-            message: string;
         };
         /** Colleague */
         signora__modules__envelopes__form__Colleague: {
