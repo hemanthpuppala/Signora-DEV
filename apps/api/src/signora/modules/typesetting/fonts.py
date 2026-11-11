@@ -30,12 +30,35 @@ class Font:
 
 
 # Liberation Sans: SIL Open Font License 1.1, and Arial's widths, the commonest agreement font.
+# Each file's licence ships beside it.
 FONTS: tuple[Font, ...] = (
     Font(
         id="liberation-sans",
         family="Liberation Sans",
         file="LiberationSans-Regular.ttf",
         licence="LiberationSans-LICENSE.txt",
+    ),
+    # Typed signatures' handwriting styles (Phase 8 §5.2), SIL Open Font License 1.1 each.
+    Font(
+        id="great-vibes",
+        family="Great Vibes",
+        file="GreatVibes-Regular.ttf",
+        licence="GreatVibes-LICENSE.txt",
+        use="signature",
+    ),
+    Font(
+        id="allura",
+        family="Allura",
+        file="Allura-Regular.ttf",
+        licence="Allura-LICENSE.txt",
+        use="signature",
+    ),
+    Font(
+        id="sacramento",
+        family="Sacramento",
+        file="Sacramento-Regular.ttf",
+        licence="Sacramento-LICENSE.txt",
+        use="signature",
     ),
 )
 DEFAULT_FONT = "liberation-sans"

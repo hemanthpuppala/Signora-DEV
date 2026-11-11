@@ -121,3 +121,28 @@ def test_the_fingerprint_is_of_what_was_adopted_and_nothing_else() -> None:
     assert one != fingerprint("initials", "typed", "Maya Chen", "font-a", None)
     assert one != fingerprint("signature", "typed", "Maya  Chen", "font-a", None)
     assert len(one) == 32
+
+
+def test_a_typed_signature_takes_a_handwriting_style_that_draws_every_letter(
+    sent: Sent, browser: TestClient
+) -> None:
+    signer = _ready(browser, sent)
+    styles = [font["id"] for font in browser.get(f"{SIGN}/{signer}/signature").json()["fonts"]]
+    assert styles == ["great-vibes", "allura", "sacramento"]
+
+    typed = _adopt(browser, signer, method="typed", text="  Maya Chen ", font="allura")
+    assert typed.status_code == 200, typed.text
+    assert (typed.json()["text"], typed.json()["font"]["family"]) == ("Maya Chen", "Allura")
+
+    no_letters = _adopt(browser, signer, method="typed", text="李明", font="allura")
+    assert no_letters.json()["errors"][0]["message"] == "Draw your signature instead"
+
+
+def test_the_fonts_are_listed_by_use(client: TestClient) -> None:
+    signature = client.get("/api/v1/fonts", params={"use": "signature"}).json()
+    text = client.get("/api/v1/fonts").json()
+
+    assert [f["id"] for f in signature] == ["great-vibes", "allura", "sacramento"]
+    assert [f["id"] for f in text] == ["liberation-sans"]
+    served = client.get(signature[0]["url"])
+    assert served.status_code == 200 and served.headers["content-type"] == "font/ttf"
