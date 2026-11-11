@@ -1,5 +1,7 @@
 /* To countersign (Phase 8 §7.2): a table on a computer, stacked blocks on a phone. */
+/* Always the full column: the page never narrows to what is in it, so nothing moves between tabs. */
 .page {
+  width: 100%;
   max-width: 1080px;
   margin: 0 auto;
   padding: 32px var(--gutter) 64px;
@@ -46,10 +48,54 @@
   color: var(--t60);
 }
 
+/* Fixed columns, the same in both tabs and whatever the rows hold. */
 .table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 14px;
+}
+
+/* The button's column is as wide as the button; the rest share what is left. */
+.colEnvelope {
+  width: auto; /* whatever the others leave */
+}
+
+.colSigners {
+  width: 18%;
+}
+
+.colWhen {
+  width: 14%;
+}
+
+.colAction {
+  width: 208px;
+}
+
+.table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emptyRow {
+  padding: 32px 0;
+  color: var(--t55);
+  text-align: left;
+}
+
+.tabCount {
+  color: var(--t55);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  color: var(--t55);
+  font-size: 13px;
 }
 
 .table th {
@@ -125,7 +171,8 @@
   color: var(--st-viewed);
 }
 
-.action {
+.table td.action {
+  overflow: visible;
   text-align: right;
   white-space: nowrap;
 }

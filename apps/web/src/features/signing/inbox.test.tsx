@@ -41,7 +41,8 @@ describe("to countersign", () => {
     fetchMock.mockImplementation((input) => {
       const url = new URL((input as Request).url);
       asked.push(url.searchParams.get("state") ?? "");
-      return reply(200, { items: url.searchParams.get("state") === "done" ? [] : [item()], next_cursor: null });
+      const done = url.searchParams.get("state") === "done";
+      return reply(200, { items: done ? [] : [item()], next_cursor: null, total: done ? 0 : 1, waiting: 1, done: 0 });
     });
     render(
       <QueryClientProvider client={makeQueryClient()}>
@@ -57,13 +58,18 @@ describe("to countersign", () => {
     expect(screen.getByText("In 2 days")).toBeTruthy(); // expiring soon, said in orange
     expect(screen.getByRole("link", { name: "Countersign" }).getAttribute("href")).toBe("/countersign/r-9");
 
-    await userEvent.setup().click(screen.getByRole("tab", { name: "Countersigned" }));
+    expect(screen.getByRole("tab", { name: /Waiting for you\s*·\s*1/ })).toBeTruthy();
+    expect(screen.getByText("Showing 1 of 1")).toBeTruthy();
+
+    await userEvent.setup().click(screen.getByRole("tab", { name: /Countersigned/ }));
+    // The same table, its header kept; an empty row says so, nothing moves.
     expect(await screen.findByText("You haven't countersigned anything yet.")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Countersigned" })).toBeTruthy();
     expect(asked).toContain("done");
   });
 
   it("says when nothing waits", async () => {
-    fetchMock.mockImplementation(() => reply(200, { items: [], next_cursor: null }));
+    fetchMock.mockImplementation(() => reply(200, { items: [], next_cursor: null, total: 0, waiting: 0, done: 0 }));
     render(
       <QueryClientProvider client={makeQueryClient()}>
         <CountersignInbox />

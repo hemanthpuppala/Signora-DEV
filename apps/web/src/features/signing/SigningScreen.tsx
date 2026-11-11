@@ -314,11 +314,18 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
   const done = mine.filter((field) => ownValue(field, drafts)).length;
   const signPlaces = (kind: Adopted["kind"]) => mine.filter((field) => field.holds === kind).length;
   const nextField = step === "complete" ? undefined : nextAfter(current);
+  // Nothing to sign or fill (a party the template gave no place): their act is to review and
+  // approve, and every word says so.
+  const approving = mine.length === 0;
   const guideWords =
     step === "complete"
       ? compact
-        ? "Review and sign"
-        : "Complete"
+        ? approving
+          ? "Review and approve"
+          : "Review and sign"
+        : approving
+          ? "Review and approve"
+          : "Complete"
       : nextField && SIGNS.has(nextField.holds) && compact
         ? nextField.holds === "initials"
           ? "Initial here"
@@ -330,14 +337,15 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
   const statement = (
     <>
       <p className={styles.statement}>
-        By selecting Sign and submit, I agree to sign this document electronically and to be bound by it, the same as a
-        handwritten signature.
+        {approving
+          ? "By selecting Approve, I confirm I've reviewed this document and approve it."
+          : "By selecting Sign and submit, I agree to sign this document electronically and to be bound by it, the same as a handwritten signature."}
       </p>
       <Checkbox ref={confirmRef} checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)}>
-        I&apos;ve reviewed this document and this is my signature
+        {approving ? "I've reviewed this document" : "I've reviewed this document and this is my signature"}
       </Checkbox>
       <Button disabled={missing !== null || submit.isPending} onClick={() => submit.run(null)}>
-        {submit.isPending ? "Signing…" : "Sign and submit"}
+        {submit.isPending ? (approving ? "Approving…" : "Signing…") : approving ? "Approve" : "Sign and submit"}
       </Button>
       {missing ? <p className={styles.missing}>{missing}</p> : null}
       {refusal && !Object.keys(fieldErrors(refusal)).length ? (
@@ -420,7 +428,7 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
         />
       ) : null}
       {reviewing ? (
-        <Dialog title="Sign and submit" onClose={() => setReviewing(false)} actions={<TextButton onClick={() => setReviewing(false)}>Back to the document</TextButton>}>
+        <Dialog title={approving ? "Review and approve" : "Sign and submit"} onClose={() => setReviewing(false)} actions={<TextButton onClick={() => setReviewing(false)}>Back to the document</TextButton>}>
           <div className={styles.review}>{statement}</div>
         </Dialog>
       ) : null}
@@ -472,6 +480,7 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
         <ViewerLayout>
           <ViewerPane>{viewer}</ViewerPane>
           <DetailsPane>
+            {approving ? null : (
             <section className={styles.panelBlock} aria-label="Your fields">
               <div className={styles.progressLine}>
                 <span className={styles.blockTitle}>Your fields</span>
@@ -501,6 +510,7 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
                 })}
               </ul>
             </section>
+            )}
 
             {signPlaces("signature") + signPlaces("initials") > 0 ? (
               <section className={styles.panelBlock} aria-label="Your signature">
@@ -522,7 +532,7 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
               </section>
             ) : null}
 
-            <section ref={submitRef} className={`${styles.panelBlock} ${atConfirm && !confirmed ? styles.attention : ""}`} aria-label="Sign and submit">
+            <section ref={submitRef} className={`${styles.panelBlock} ${atConfirm && !confirmed ? styles.attention : ""}`} aria-label={approving ? "Approve" : "Sign and submit"}>
               {statement}
             </section>
 

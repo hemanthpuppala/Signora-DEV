@@ -58,13 +58,18 @@ def warnings_for(
         found.append(
             ReviewWarning(code="no_signer", message="Every party countersigns: nobody signs first")
         )
-    signs = {f.party_id for f in fields if f.holds == "signature" and f.party_id is not None}
+    signs = {
+        f.party_id
+        for f in fields
+        if f.holds in ("signature", "initials") and f.party_id is not None
+    }
     for party in parties:
         if party.id not in signs:
             found.append(
                 ReviewWarning(
                     code="party_cannot_sign",
-                    message=f"{party.label} has no place to sign",
+                    message=f"{party.label} has no place to sign: they won't be asked to sign, "
+                    "and their fields are filled in when sending",
                     party_id=party.id,
                 )
             )

@@ -5366,6 +5366,10 @@
       },
       "WaitingPage": {
         "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/Waiting"
@@ -5383,11 +5387,22 @@
               }
             ],
             "title": "Next Cursor"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "waiting": {
+            "title": "Waiting",
+            "type": "integer"
           }
         },
         "required": [
           "items",
-          "next_cursor"
+          "next_cursor",
+          "total",
+          "waiting",
+          "done"
         ],
         "title": "WaitingPage",
         "type": "object"
@@ -10567,6 +10582,23 @@
                 }
               ],
               "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           }
         ],

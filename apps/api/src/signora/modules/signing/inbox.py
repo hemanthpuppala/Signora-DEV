@@ -38,6 +38,18 @@ _WAITING = (
     "AND e.expires_at > now()"
 )
 _DONE = _FROM + " AND r.status = 'signed'"
+# A search across what a row shows: its title, template, department and signers' names.
+_SEARCH = """
+    AND (CAST(:q AS text) IS NULL OR e.title ILIKE :q OR d.name ILIKE :q OR dep.name ILIKE :q
+         OR EXISTS (SELECT 1 FROM envelope_recipients s WHERE s.envelope_id = e.id
+                    AND s.kind = 'signer' AND s.name ILIKE :q))
+"""
+
+
+def _escape(words: str) -> str:
+    """A search's own % and _ are letters, not patterns."""
+    return words.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
 
 # (order, cursor's comparison, the row's key) for each list.
 _ORDER: dict[State, tuple[str, str, str]] = {
@@ -63,6 +75,9 @@ class Waiting(BaseModel):
 class WaitingPage(BaseModel):
     items: list[Waiting]
     next_cursor: str | None
+    total: int  # how many match, across every page
+    waiting: int  # how many wait for them (the first tab's count), whatever the search
+    done: int  # how many they countersigned (the second tab's)
 
 
 class WaitingCount(BaseModel):
@@ -93,10 +108,12 @@ def waiting(
     actor: Member,
     state: State = "waiting",
     cursor: Annotated[str | None, Query(max_length=200)] = None,
+    q: Annotated[str | None, Query(max_length=100)] = None,
 ) -> WaitingPage:
     after = _cursor(cursor)
     order, beyond, key = _ORDER[state]
-    where = _WAITING if state == "waiting" else _DONE
+    where = (_WAITING if state == "waiting" else _DONE) + _SEARCH
+    needle = f"%{_escape(q.strip())}%" if q and q.strip() else None
     with _db(request).unit_of_work() as uow:
         rows = uow.session.execute(
             text(
@@ -116,11 +133,19 @@ def waiting(
             ),
             {
                 "u": actor.user_id,
+                "q": needle,
                 "at": after[0] if after else None,
                 "id": after[1] if after else None,
                 "limit": PAGE + 1,
             },
         ).all()
+        counts = uow.session.execute(
+            text(
+                f"SELECT (SELECT count(*) {where}) AS total, "
+                f"(SELECT count(*) {_WAITING}) AS waiting, (SELECT count(*) {_DONE}) AS done"
+            ),
+            {"u": actor.user_id, "q": needle},
+        ).one()
     more = len(rows) > PAGE
     shown = rows[:PAGE]
     last = shown[-1] if more else None
@@ -146,6 +171,9 @@ def waiting(
         ).decode()
         if last
         else None,
+        total=counts.total,
+        waiting=counts.waiting,
+        done=counts.done,
     )
 
 

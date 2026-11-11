@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { formError } from "@/shared/api/errors";
 import { Heading1, LinkButton, Notice, SearchField, TextButton } from "@/shared/ui";
 
-import { useWaiting, type InboxState, type Waiting } from "./api";
+import { useWaiting, type InboxState } from "./api";
 import styles from "./inbox.module.css";
 
 const DAY = 86_400_000;
 const SOON_DAYS = 3; // an expiry this close is said in the "waiting" orange
-const SEARCH_FROM = 9; // a search box once the list is longer than a screen
 
 function day(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -31,10 +30,6 @@ function expiry(iso: string, now: number): { words: string; soon: boolean } {
   return { words: day(iso), soon: false };
 }
 
-function matches(item: Waiting, needle: string): boolean {
-  return `${item.title} ${item.document_name} ${item.department_name} ${item.signers.join(" ")}`.toLowerCase().includes(needle);
-}
-
 /**
  * To countersign (Phase 8 §7.2): a table that holds up at any length. What waits for me, soonest
  * expiry first, each marked with the "waiting" orange; what I countersigned in its own tab, muted.
@@ -42,13 +37,23 @@ function matches(item: Waiting, needle: string): boolean {
  */
 export function CountersignInbox() {
   const [state, setState] = useState<InboxState>("waiting");
-  const [query, setQuery] = useState("");
-  const list = useWaiting(state);
+  const [typed, setTyped] = useState("");
+  const query = useDebounced(typed.trim(), 300);
+  const list = useWaiting(state, query);
   const [now] = useState(() => Date.now());
+  const first = list.data?.pages[0];
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
-  const needle = query.trim().toLowerCase();
-  const shown = needle ? items.filter((item) => matches(item, needle)) : items;
   const waiting = state === "waiting";
+  const counts = { waiting: first?.waiting, done: first?.done };
+  const total = first?.total ?? 0;
+
+  const quiet = (words: string) => (
+    <tr>
+      <td colSpan={5} className={styles.emptyRow}>
+        {words}
+      </td>
+    </tr>
+  );
 
   return (
     <main className={styles.page}>
@@ -62,78 +67,94 @@ export function CountersignInbox() {
               role="tab"
               aria-selected={state === one}
               className={styles.tab}
-              onClick={() => {
-                setState(one);
-                setQuery("");
-              }}
+              onClick={() => setState(one)}
             >
               {one === "waiting" ? "Waiting for you" : "Countersigned"}
+              {counts[one] !== undefined ? <span className={styles.tabCount}>{` · ${counts[one]}`}</span> : null}
             </button>
           ))}
         </div>
-        {items.length >= SEARCH_FROM ? (
-          <SearchField label="Search" value={query} onChange={(event) => setQuery(event.target.value)} />
-        ) : null}
+        <SearchField label="Search by template, department or signer" value={typed} onChange={(event) => setTyped(event.target.value)} />
       </div>
 
       {list.isError ? <Notice tone="warning">{formError(list.error)}</Notice> : null}
-      {list.data && shown.length === 0 ? (
-        <p className={styles.empty}>
-          {needle ? "Nothing matches." : waiting ? "Nothing waits for your countersignature." : "You haven't countersigned anything yet."}
-        </p>
-      ) : null}
 
-      {shown.length > 0 ? (
-        <table className={waiting ? styles.table : `${styles.table} ${styles.muted}`}>
-          <thead>
-            <tr>
-              <th scope="col">Envelope</th>
-              <th scope="col">Signed by</th>
-              <th scope="col">{waiting ? "Waiting" : "Countersigned"}</th>
-              <th scope="col">{waiting ? "Expires" : "Copy"}</th>
-              <th scope="col">
-                <span className={styles.hidden}>Action</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((item) => {
-              const ends = expiry(item.expires_at, now);
-              return (
-                <tr key={item.recipient_id}>
-                  <td className={styles.envelope}>
+      <table className={waiting ? styles.table : `${styles.table} ${styles.muted}`}>
+        <colgroup>
+          <col className={styles.colEnvelope} />
+          <col className={styles.colSigners} />
+          <col className={styles.colWhen} />
+          <col className={styles.colWhen} />
+          <col className={styles.colAction} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Envelope</th>
+            <th scope="col">Signed by</th>
+            <th scope="col">{waiting ? "Waiting" : "Countersigned"}</th>
+            <th scope="col">{waiting ? "Expires" : "Copy"}</th>
+            <th scope="col">
+              <span className={styles.hidden}>Action</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {!list.data && !list.isError ? quiet("Loading…") : null}
+          {list.data && items.length === 0
+            ? quiet(query ? "Nothing matches your search." : waiting ? "Nothing waits for your countersignature." : "You haven't countersigned anything yet.")
+            : null}
+          {items.map((item) => {
+            const ends = expiry(item.expires_at, now);
+            return (
+              <tr key={item.recipient_id}>
+                <td>
+                  <span className={styles.envelope}>
                     {waiting ? <span className={styles.dot} aria-label="Waiting for you" role="img" /> : null}
                     <span className={styles.names}>
-                      <Link href={waiting ? `/countersign/${item.recipient_id}` : `/departments/${item.department_id}/envelopes/${item.envelope_id}`} className={styles.title}>
+                      <Link
+                        href={waiting ? `/countersign/${item.recipient_id}` : `/departments/${item.department_id}/envelopes/${item.envelope_id}`}
+                        className={styles.title}
+                      >
                         {item.document_name}
                       </Link>
                       <span className={styles.department}>{item.department_name}</span>
                     </span>
-                  </td>
-                  <td data-label="Signed by">{item.signers.join(", ")}</td>
-                  <td data-label={waiting ? "Waiting" : "Countersigned"}>
-                    {waiting ? waited(item.signed_at, now) : item.countersigned_at ? day(item.countersigned_at) : ""}
-                  </td>
-                  <td data-label={waiting ? "Expires" : "Copy"} className={waiting && ends.soon ? styles.soon : undefined}>
-                    {waiting ? ends.words : item.completed ? "Completed" : "Being made"}
-                  </td>
-                  <td className={styles.action}>
-                    {waiting ? (
-                      <LinkButton href={`/countersign/${item.recipient_id}`}>Countersign</LinkButton>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      ) : null}
+                  </span>
+                </td>
+                <td data-label="Signed by">{item.signers.join(", ")}</td>
+                <td data-label={waiting ? "Waiting" : "Countersigned"}>
+                  {waiting ? waited(item.signed_at, now) : item.countersigned_at ? day(item.countersigned_at) : ""}
+                </td>
+                <td data-label={waiting ? "Expires" : "Copy"} className={waiting && ends.soon ? styles.soon : undefined}>
+                  {waiting ? ends.words : item.completed ? "Completed" : "Being made"}
+                </td>
+                <td className={styles.action}>
+                  {waiting ? <LinkButton href={`/countersign/${item.recipient_id}`}>Countersign</LinkButton> : null}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
-      {list.hasNextPage && !needle ? (
-        <TextButton onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>
-          {list.isFetchingNextPage ? "Loading…" : "Show more"}
-        </TextButton>
-      ) : null}
+      <div className={styles.footer}>
+        {total > 0 ? <span>{`Showing ${items.length} of ${total}`}</span> : <span />}
+        {list.hasNextPage ? (
+          <TextButton onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>
+            {list.isFetchingNextPage ? "Loading…" : "Show more"}
+          </TextButton>
+        ) : null}
+      </div>
     </main>
   );
+}
+
+/** A value that settles: the latest one once it has not changed for ``ms`` (a search as typed). */
+function useDebounced(value: string, ms: number): string {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettled(value), ms);
+    return () => window.clearTimeout(timer);
+  }, [value, ms]);
+  return settled;
 }

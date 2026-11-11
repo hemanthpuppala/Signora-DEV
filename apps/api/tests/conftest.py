@@ -7,6 +7,7 @@ migrated to head. ``db`` gives a unit-of-work factory whose work is rolled back 
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -18,7 +19,8 @@ from signora.kernel.db import Database, create_db_engine
 from signora.kernel.jobs import core as jobs_core
 from signora.kernel.migrations import upgrade_to_head
 
-TEST_DATABASE = "signora_test"
+# Overridable, so two checkouts running tests at once (each recreates its database) never share one.
+TEST_DATABASE = os.environ.get("SIGNORA_TEST_DATABASE", "signora_test")
 
 
 @pytest.fixture(scope="session", autouse=True)

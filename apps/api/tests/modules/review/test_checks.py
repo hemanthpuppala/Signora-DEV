@@ -73,7 +73,10 @@ def test_nobody_signs_and_a_party_with_nowhere_to_sign() -> None:
     parties = [_party(CLIENT, "Client"), _party(FIRM, "Firm", "countersigner")]
     found = warnings_for(parties, [_field("Client signature", "signature", CLIENT)], {})
     assert [(w.code, w.party_id) for w in found] == [("party_cannot_sign", FIRM)]
-    assert found[0].message == "Firm has no place to sign"
+    assert found[0].message == (
+        "Firm has no place to sign: they won't be asked to sign, "
+        "and their fields are filled in when sending"
+    )
     # Only countersigners: they sign after the signers, so a send would email nobody.
     only_firm = warnings_for(
         [_party(FIRM, "Firm", "countersigner")], [_field("Firm signature", "signature", FIRM)], {}

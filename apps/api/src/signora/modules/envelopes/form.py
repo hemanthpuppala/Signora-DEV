@@ -146,11 +146,26 @@ def from_recipient(field: FieldView) -> FromRecipient | None:
     return None
 
 
+SIGNING_PLACES = frozenset({"signature", "initials"})
+
+
+def signing_parties(fields: Sequence[FieldView]) -> set[uuid.UUID]:
+    """The parties that sign: those with a signature or initials place. A party with nowhere to sign
+    is never asked to sign (Phase 8): its fields are the sender's to fill. O(F)."""
+    return {f.party_id for f in fields if f.holds in SIGNING_PLACES and f.party_id is not None}
+
+
 def form_fields_of(fields: Sequence[FieldView]) -> list[FormField]:
     """Each field as sending and signing read it: what it holds, whose it is, its options, its
     condition and its places. O(F), with an index by key for conditions. A condition on a field
-    outside ``fields`` is dropped (it cannot be met)."""
+    outside ``fields`` is dropped (it cannot be met). A field of a party with nowhere to sign is the
+    sender's: filled in before sending, required as the template says."""
     id_of_key = {field.key: field.id for field in fields}
+    signing = signing_parties(fields)
+
+    def theirs(field: FieldView) -> bool:
+        return field.filled_by == "role" and field.party_id in signing
+
     return [
         FormField(
             id=field.id,
@@ -158,9 +173,9 @@ def form_fields_of(fields: Sequence[FieldView]) -> list[FormField]:
             holds=field.holds,
             holds_label=field.holds_label,
             format=field.format,
-            party_id=field.party_id if field.filled_by == "role" else None,
-            required=field.filled_by == "sender" and field.required,
-            from_recipient=from_recipient(field),
+            party_id=field.party_id if theirs(field) else None,
+            required=not theirs(field) and field.filled_by != "none" and field.required,
+            from_recipient=from_recipient(field) if theirs(field) else None,
             sensitive=field.sensitive,
             options=options_of(field) if field.holds == "choice" else [],
             places=places_of(field),
@@ -188,7 +203,8 @@ def build_form(
     settings: FormSettings,
 ) -> SendForm:
     """O(R + F): one pass over the parties and one over the fields, with an index by key."""
-    ordered = sorted(parties, key=lambda party: party.position)
+    signing = signing_parties(fields)
+    ordered = [p for p in sorted(parties, key=lambda party: party.position) if p.id in signing]
 
     signers = [
         FormSigner(

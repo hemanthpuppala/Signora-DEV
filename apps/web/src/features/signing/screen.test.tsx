@@ -315,3 +315,29 @@ describe("what others signed", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("with nothing to sign or fill", () => {
+  it("asks for a review and approval, not a signature", async () => {
+    const nothing = { ...DOCUMENT, fields: DOCUMENT.fields.filter((f) => !f.mine) };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        const path = new URL((input as Request).url).pathname;
+        if (path.endsWith("/document")) return reply(200, nothing);
+        if (path.endsWith("/signature")) return reply(200, { adopted: [], saved: [], fonts: [] });
+        return reply(204, null);
+      }),
+    );
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SigningScreen state={{ ...STATE, kind: "countersigner" }} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("By selecting Approve, I confirm I've reviewed this document and approve it.")).toBeTruthy();
+    expect(screen.getByLabelText("I've reviewed this document")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Your fields" })).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});

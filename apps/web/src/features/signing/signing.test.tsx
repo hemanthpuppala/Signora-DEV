@@ -137,7 +137,7 @@ describe("the signer's page", () => {
     await user.click(screen.getByLabelText("I agree to use electronic records and signatures."));
     await user.click(proceed);
 
-    expect(await screen.findByRole("button", { name: "Sign and submit" })).toBeTruthy(); // the document
+    expect(await screen.findByRole("button", { name: "Approve" })).toBeTruthy(); // the document (nothing to fill)
 
   });
 

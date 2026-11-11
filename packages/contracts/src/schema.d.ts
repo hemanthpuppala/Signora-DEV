@@ -3360,10 +3360,16 @@ export interface components {
         };
         /** WaitingPage */
         WaitingPage: {
+            /** Done */
+            done: number;
             /** Items */
             items: components["schemas"]["Waiting"][];
             /** Next Cursor */
             next_cursor: string | null;
+            /** Total */
+            total: number;
+            /** Waiting */
+            waiting: number;
         };
         /** WorkspaceView */
         WorkspaceView: {
@@ -6721,6 +6727,7 @@ export interface operations {
             query?: {
                 state?: "waiting" | "done";
                 cursor?: string | null;
+                q?: string | null;
             };
             header?: never;
             path?: never;
