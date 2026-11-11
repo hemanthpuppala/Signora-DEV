@@ -288,3 +288,37 @@ def test_an_envelope_shows_its_document_after_the_document_is_archived(
         log_in(theirs, viewer.email)
         assert theirs.get(path).status_code == 403
     assert owner.get(f"{ENVELOPES}/{uuid.uuid4()}/document").status_code == 404
+
+
+def test_a_corrected_email_another_party_has_is_one_person_on_two_parties(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+) -> None:
+    """A send refuses the same email on two parties until the sender confirms one person signs as
+    both. Correcting a signer's email had no such check: the firm's countersigner's address was
+    taken for the client with nobody having confirmed it. A copy's address is not a party's."""
+    _, envelope = sent_envelope(owner, run, detect, company)
+    signer, firm, copy = envelope["recipients"]
+    url = f"{ENVELOPES}/{envelope['id']}/recipients"
+
+    asked = owner.patch(
+        f"{url}/{signer['id']}", json={"email": firm["email"]}, headers=csrf_headers(owner)
+    )
+    assert (asked.status_code, asked.json()["code"]) == (409, "same-person")
+    assert firm["email"] in asked.json()["detail"]
+    unchanged = owner.get(f"{ENVELOPES}/{envelope['id']}").json()["recipients"][0]
+    assert unchanged["email"] == signer["email"]
+
+    confirmed = owner.patch(
+        f"{url}/{signer['id']}",
+        json={"email": firm["email"], "confirm_same_person": True},
+        headers=csrf_headers(owner),
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["recipients"][0]["email"] == firm["email"]
+    # Someone who only receives a copy may be anyone, a party's own address included.
+    assert owner.patch(
+        f"{url}/{copy['id']}", json={"email": firm["email"]}, headers=csrf_headers(owner)
+    ).is_success

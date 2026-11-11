@@ -2088,6 +2088,11 @@ export interface components {
         };
         /** RecipientChange */
         RecipientChange: {
+            /**
+             * Confirm Same Person
+             * @default false
+             */
+            confirm_same_person: boolean;
             /** Email */
             email?: string | null;
             /** Name */

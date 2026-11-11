@@ -422,10 +422,12 @@ def change_recipient(
     recipient_id: uuid.UUID,
     email: str | None,
     name: str | None,
+    confirm_same_person: bool = False,
 ) -> None:
     """Correct a signer's or a copy's email (their old link stops working and a new one is
     emailed) or, before they open it, their name. A countersigner is a colleague: their account
-    has their email."""
+    has their email. A signer's new email that another party of the envelope already has is one
+    person on two parties, refused as a send refuses it until the sender confirms it."""
     session = uow.session
     envelope = _open(session, actor, envelope_id)
     recipient = _one(session, envelope_id, recipient_id)
@@ -452,6 +454,16 @@ def change_recipient(
     email_changed = new_email != recipient.email
     if not email_changed and new_name == recipient.name:
         return
+    if email_changed and recipient.kind == "signer" and not confirm_same_person:
+        shared = session.execute(
+            text(
+                "SELECT 1 FROM envelope_recipients WHERE envelope_id = :e AND id <> :r "
+                "AND kind IN ('signer', 'countersigner') AND email = :email LIMIT 1"
+            ),
+            {"e": envelope_id, "r": recipient_id, "email": new_email},
+        ).first()
+        if shared is not None:
+            raise SamePerson(new_email)
     live = recipient.kind == "signer" and recipient.status in LIVE
     link_version = recipient.link_version + 1 if email_changed and live else recipient.link_version
     session.execute(

@@ -81,6 +81,8 @@ class RecipientChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
     email: str | None = Field(default=None, max_length=254)
     name: str | None = Field(default=None, max_length=120)
+    # As a send: one person on two parties (the same email twice) once the sender confirms it.
+    confirm_same_person: bool = False
 
 
 class SigningLink(BaseModel):
@@ -171,6 +173,7 @@ def change_recipient(
             recipient_id=recipient_id,
             email=body.email,
             name=body.name,
+            confirm_same_person=body.confirm_same_person,
         )
         return service.get_envelope(uow.session, actor, envelope_id)
 

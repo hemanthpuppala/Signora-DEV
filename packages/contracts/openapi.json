@@ -2852,6 +2852,11 @@
       "RecipientChange": {
         "additionalProperties": false,
         "properties": {
+          "confirm_same_person": {
+            "default": false,
+            "title": "Confirm Same Person",
+            "type": "boolean"
+          },
           "email": {
             "anyOf": [
               {

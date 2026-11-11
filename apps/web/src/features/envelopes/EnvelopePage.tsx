@@ -439,22 +439,25 @@ function ChangeRecipient({
   const [email, setEmail] = useState(recipient.email);
   const [name, setName] = useState(recipient.name);
   const change = useMutation({
-    mutationFn: () =>
+    // ``samePerson``: the sender confirmed that one person signs as two parties (as a send asks).
+    mutationFn: (samePerson: boolean) =>
       unwrap(
         api.PATCH("/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}", {
           params: { path: { envelope_id: envelopeId, recipient_id: recipient.id } },
           body: {
             ...(email.trim() !== recipient.email ? { email: email.trim() } : {}),
             ...(name.trim() !== recipient.name ? { name: name.trim() } : {}),
+            confirm_same_person: samePerson,
           },
         }),
       ),
     onSuccess: (updated) => onDone(updated),
   });
   const errors = fieldErrors(change.error);
+  const samePerson = change.error instanceof ApiError && change.error.code === "same-person" ? (change.error.detail ?? email.trim()) : null;
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    change.mutate();
+    change.mutate(false);
   };
   return (
     <form className={styles.change} onSubmit={submit} aria-label={`Change ${recipient.name}`}>
@@ -463,7 +466,21 @@ function ChangeRecipient({
         <TextField label="Email" type="email" maxLength={254} value={email} error={errors.email} onChange={(event) => setEmail(event.target.value)} />
       </div>
       <SmallText>A new email changes their link: the one they were sent stops working.</SmallText>
-      {change.error && !Object.keys(errors).length ? <Notice tone="warning">{formError(change.error)}</Notice> : null}
+      {samePerson !== null ? (
+        <Notice
+          tone="warning"
+          title="One person on two parties"
+          action={
+            <Button compact loading={change.isPending} loadingLabel="Saving…" onClick={() => change.mutate(true)}>
+              Change anyway
+            </Button>
+          }
+        >
+          {`${samePerson} is on another party. Change anyway if one person signs as both.`}
+        </Notice>
+      ) : change.error && !Object.keys(errors).length ? (
+        <Notice tone="warning">{formError(change.error)}</Notice>
+      ) : null}
       <div className={styles.inline}>
         <Button type="submit" variant="quiet" compact loading={change.isPending} loadingLabel="Saving…">
           Save

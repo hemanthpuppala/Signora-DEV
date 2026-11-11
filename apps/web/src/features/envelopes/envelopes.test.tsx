@@ -125,7 +125,12 @@ describe("envelopes", () => {
       if (route.endsWith("/recipients/r-maya/remind")) return reply(200, { reminded: 1 });
       if (route.endsWith("/remind")) return reply(200, { reminded: 2 });
       if (route.endsWith("/cancel")) return reply(200, { ...envelope, status: "cancelled", cancelled_at: "2026-11-10T10:00:00Z" });
-      if (request.method === "PATCH") return reply(200, { ...envelope, recipients: [recipient("r-maya", { email: "maya.chen@example.org" })] });
+      if (request.method === "PATCH") {
+        const asked = body as { email?: string; confirm_same_person?: boolean } | undefined;
+        if (asked?.email === "rosa@firm.example" && !asked.confirm_same_person)
+          return reply(409, { type: "x", title: "The same email is on two parties. Send anyway if one person signs as both", status: 409, code: "same-person", detail: "rosa@firm.example" });
+        return reply(200, { ...envelope, recipients: [recipient("r-maya", { email: asked?.email ?? "maya.chen@example.org" })] });
+      }
       return reply(404, {});
     });
   });
@@ -189,7 +194,7 @@ describe("envelopes", () => {
     await user.clear(email);
     await user.type(email, "maya.chen@example.org");
     await user.click(within(form).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(sentTo("/recipients/r-maya")[0]?.body).toEqual({ email: "maya.chen@example.org" }));
+    await waitFor(() => expect(sentTo("/recipients/r-maya")[0]?.body).toEqual({ email: "maya.chen@example.org", confirm_same_person: false }));
 
     await user.click(screen.getByRole("button", { name: "Remind now" }));
     expect(await screen.findByText("Reminded 2 people")).toBeTruthy();
@@ -213,7 +218,23 @@ describe("envelopes", () => {
     await user.clear(email);
     await user.type(email, "records@firm.example");
     await user.click(within(form).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(sentTo("/recipients/r-records")[0]?.body).toEqual({ email: "records@firm.example" }));
+    await waitFor(() => expect(sentTo("/recipients/r-records")[0]?.body).toEqual({ email: "records@firm.example", confirm_same_person: false }));
+  });
+
+  it("asks before giving a signer an email another party has, as a send does", async () => {
+    wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
+    const user = userEvent.setup();
+    const rows = within(await screen.findByRole("list", { name: "Signers" })).getAllByRole("listitem");
+    await user.click(within(rows[0] as HTMLElement).getByRole("button", { name: "Change Maya Chen's email" }));
+    const form = screen.getByRole("form", { name: "Change Maya Chen" });
+    const email = within(form).getByLabelText("Email");
+    await user.clear(email);
+    await user.type(email, "rosa@firm.example"); // the firm's countersigner
+    await user.click(within(form).getByRole("button", { name: "Save" }));
+
+    expect(await within(form).findByText("rosa@firm.example is on another party. Change anyway if one person signs as both.")).toBeTruthy();
+    await user.click(within(form).getByRole("button", { name: "Change anyway" }));
+    await waitFor(() => expect(sentTo("/recipients/r-maya").at(-1)?.body).toEqual({ email: "rosa@firm.example", confirm_same_person: true }));
   });
 
   it("says when the document can't be shown, and offers to ask again, instead of a blank pane", async () => {
