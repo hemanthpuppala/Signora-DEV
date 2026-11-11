@@ -157,17 +157,31 @@ def _space(reading: Reading, document: pymupdf.Document) -> DocumentSpace:
     return DocumentSpace(document, places)
 
 
-def _extra_problem(space: DocumentSpace, extra: dict[str, Any]) -> str | None:
+def _party_places(answer: dict[str, Any], reading: Reading, filled_by: str, page: int) -> list[Box]:
+    """The places on a page of the found fields the answer gives to ``filled_by``: what decides
+    which printing of an extra field's words is that party's (F10). One reading for the check
+    and for placing, so the repair round is asked about exactly what placing will refuse. O(F)."""
+    theirs = {item["id"] for item in answer["fields"] if item["filled_by"] == filled_by}
+    return [
+        placement.rect
+        for found in reading.asked
+        if found.id in theirs
+        for placement in found.placements
+        if placement.page == page
+    ]
+
+
+def _extra_problem(space: DocumentSpace, extra: dict[str, Any], near: list[Box]) -> str | None:
     """Why an extra field cannot be placed from its words, in words; None when it can."""
     words, number = extra["anchor_text"][:ANCHOR_MAX], extra["page"]
     page = space.page(number)
-    hits = page.find(words) if page is not None and not _unsafe(words) else []
-    if not hits:
+    if page is None or _unsafe(words) or not page.find(words):
         return f"its words are not on page {number}"
-    if all(page is not None and page.room_after(hit) is None for hit in hits):
+    if space.locate_after(number, words, near) is None:
         return (
-            f"there is no free space after {words!r} on page {number}: give the words printed "
-            "right before the blank"
+            f"there is no free space after {words!r} on page {number} where the other fields of "
+            f"{extra['filled_by']} are: give the words printed right before the blank, and check "
+            "who fills it (a value already printed is not a blank)"
         )
     return None
 
@@ -223,7 +237,8 @@ def check(answer: dict[str, Any], reading: Reading, document: pymupdf.Document) 
     problems += [f"{m}: in {n} checkbox groups" for m, n in in_groups.items() if n > 1]
     space = _space(reading, document)
     for extra in answer["extra_fields"]:
-        if (problem := _extra_problem(space, extra)) is not None:
+        near = _party_places(answer, reading, extra["filled_by"], extra["page"])
+        if (problem := _extra_problem(space, extra, near)) is not None:
             problems.append(f"extra field {extra['label']!r}: {problem}")
     meta = answer["document"]
     if meta:
@@ -371,19 +386,13 @@ def derive(
         items[found.id] = entry
 
     # Extra fields (F10): each goes in the free space after the words printed before it, at the
-    # printing of those words nearest the same party's other places on its page.
+    # printing of those words nearest the same party's other places on its page, or nowhere.
     space = _space(reading, document)
     for number, extra in enumerate(answer["extra_fields"], start=1):
         holds = extra["holds"] if extra["holds"] not in ("checkbox", "choice") else "text"
         filled_by = _who_fills(holds, extra["filled_by"], listed)
-        why = _extra_problem(space, extra)
-        near = [
-            place.rect
-            for item in items.values()
-            if item.filled_by == filled_by
-            for place in item.placements
-            if place.page == extra["page"]
-        ]
+        near = _party_places(answer, reading, extra["filled_by"], extra["page"])
+        why = _extra_problem(space, extra, near)
         rect = (
             None
             if why is not None

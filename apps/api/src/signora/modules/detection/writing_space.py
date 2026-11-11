@@ -94,33 +94,47 @@ class PageSpace:
         return (x0, min(top, y0), x1, y1)
 
     def room_after(self, label: Box) -> Box | None:
-        """The free space after a label: on its row, from just after it to the next word or field
-        (or the text's right edge); else on the row below, from the label's left edge. One text
-        line tall, at least ``MIN_WIDTH`` wide; None when neither row has that much."""
+        """The free space after a label, one text line tall and at least ``MIN_WIDTH`` wide; None
+        when there is none.
+
+        - Something printed after the label on its row (a value, the rest of a sentence, another
+          column): the blank can only be between them.
+        - Nothing after it (the label ends its line): the rest of the line, or, when that is too
+          short, the line below, from the label's left edge.
+        """
         if not self._upright:
             return None
         x0, y0, x1, y1 = label
         start = x1 + LABEL_GAP
-        on_row = self._free_from(start, (start, y0, self._right, y1), row=label)
-        if on_row is not None:
-            return on_row
-        below = y1 + CLEARANCE
-        return self._free_from(x0, (x0, below, self._right, below + (y1 - y0)), row=None)
+        after = self._first_after(start, y0, y1, row=label)
+        if after is not None:
+            return (
+                (start, y0, after - CLEARANCE, y1)
+                if after - CLEARANCE - start >= MIN_WIDTH
+                else None
+            )
+        if self._right - start >= MIN_WIDTH:
+            return (start, y0, self._right, y1)
+        top, bottom = y1 + CLEARANCE, y1 + CLEARANCE + (y1 - y0)
+        below = self._first_after(x0, top, bottom, row=None)
+        end = below - CLEARANCE if below is not None else self._right
+        return (x0, top, end, bottom) if end - x0 >= MIN_WIDTH else None
 
-    def _free_from(self, start: float, band: Box, row: Box | None) -> Box | None:
-        """The band from ``start`` up to the first thing in it; None when something covers
-        ``start`` or less than ``MIN_WIDTH`` is left. ``row``: only what shares that row counts
-        (a word on the line above or below that merely touches the band does not)."""
-        _, y0, right, y1 = band
-        end = right
-        for other, _ in self._taken.near(y0, y1):
-            in_band = same_row(other, row) if row is not None else other[1] < y1 and y0 < other[3]
-            if not in_band or other[2] <= start:
-                continue
-            if other[0] <= start:
-                return None  # something sits where the box would begin
-            end = min(end, other[0] - CLEARANCE)
-        return (start, y0, end, y1) if end - start >= MIN_WIDTH else None
+    def _first_after(
+        self, start: float, top: float, bottom: float, row: Box | None
+    ) -> float | None:
+        """Where the first word or field after ``start`` begins in the band, ``start`` itself when
+        one covers it, None when the band is clear to the right. ``row``: only what shares that
+        row counts (a word of the line above or below that merely touches the band does not)."""
+        first: float | None = None
+        for other, _ in self._taken.near(top, bottom):
+            in_band = (
+                same_row(other, row) if row is not None else other[1] < bottom and top < other[3]
+            )
+            if in_band and other[2] > start:
+                begins = max(other[0], start)
+                first = begins if first is None else min(first, begins)
+        return first
 
 
 class DocumentSpace:
@@ -140,21 +154,29 @@ class DocumentSpace:
             self._pages[number] = PageSpace(page, self._places.get(number, []))
         return self._pages[number]
 
-    def place_after(self, number: int, words: str, near: Sequence[Box]) -> Box | None:
-        """Where a blank given by the words before it goes: after the printing of those words
-        that has room after it, the one closest to ``near`` (the same party's other places on
-        the page; the first in reading order without any). The place is then taken. O(H·N) for H
-        printings and N nearby places."""
+    def locate_after(self, number: int, words: str, near: Sequence[Box]) -> Box | None:
+        """Where a blank given by the words before it goes, without taking it. The printing of
+        the words is chosen first: the one closest to ``near`` (the party's own places on the
+        page), and the blank is the room after that printing or nothing. The room after another
+        printing is never taken instead: it belongs to whoever's places are near it (a label
+        printed in two signature columns). With no ``near`` on the page, the first printing in
+        reading order with room after it. O(H·N) for H printings and N nearby places."""
         space = self.page(number)
         if space is None:
             return None
-        candidates = [room for hit in space.find(words) if (room := space.room_after(hit))]
-        if not candidates:
-            return None
+        hits = space.find(words)
         if near:
-            candidates.sort(key=lambda room: min(_distance(room, other) for other in near))
-        space.take(candidates[0])
-        return candidates[0]
+            nearest = min(hits, key=lambda hit: min(_distance(hit, o) for o in near), default=None)
+            return space.room_after(nearest) if nearest is not None else None
+        return next((room for hit in hits if (room := space.room_after(hit))), None)
+
+    def place_after(self, number: int, words: str, near: Sequence[Box]) -> Box | None:
+        """``locate_after``, and the place is then taken: nothing placed later may overlap it."""
+        room = self.locate_after(number, words, near)
+        page = self.page(number)
+        if room is not None and page is not None:
+            page.take(room)
+        return room
 
 
 def _distance(a: Box, b: Box) -> float:

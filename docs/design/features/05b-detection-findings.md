@@ -277,17 +277,23 @@ to), not only the layout.
    used in the description and in the search.
 2. **One model of free space** (`writing_space.py`, shared with F2): `PageSpace` holds a page's visible words and its
    fields' places; F2 asks it for the room above a line, F10 for the room after a label:
-   - on the label's row, from 3 pt after it (`LABEL_GAP`) to the next visible word or field less 2 pt
-     (`CLEARANCE`), or to the text's right edge (the furthest word, or the left margin mirrored on a page of short
-     labels);
-   - when the row has less than 60 pt free (`MIN_WIDTH`, room for a date at 10 pt), on the row below the label, from
-     its left edge, when that row is free;
+   - **something printed after the label on its row** (a value such as "Dr. Carolyn Bruder", the rest of a sentence,
+     another column): the blank can only be between them, from 3 pt after the label (`LABEL_GAP`) to 2 pt before
+     that text (`CLEARANCE`); with less than 60 pt there (`MIN_WIDTH`, room for a date at 10 pt), there is no blank.
+     Printed text after a label means its value is given, never that the blank moved;
+   - **nothing after it (the label ends its line)**: the rest of the line up to the text's right edge (the furthest
+     word, or the left margin mirrored on a page of short labels); when that is under 60 pt, the line below, from the
+     label's left edge, when it is free;
    - one text line tall; invisible words (spaces, zero-width characters) leave the space free.
-3. **Which printing of the words**: among the printings with room after them, the one closest to the same party's
-   other places on the page; the first in reading order when it has none there. The place is then taken, so a second
-   field cannot land on it.
-4. **No room**: `check` reports it to the repair round ("there is no free space after 'X' on page N: give the words
-   printed right before the blank"); if it remains, the field is dropped with a note rather than written over the text.
+3. **Which printing of the words: the party's own, or none.** The printing is chosen first, the one closest to the
+   same party's found fields on the page (`_party_places`, from the answer); the blank is the room after that printing
+   or nothing. The room after another printing is never taken instead: in a signature block printed in two columns,
+   it belongs to the other party. With none of the party's fields on the page, the first printing in reading order
+   with room. The place is then taken, so a second field cannot land on it.
+4. **No room**: `check` reports it to the repair round with the same choice of printing ("there is no free space after
+   'NAME:' on page 14 where the other fields of ul_lafayette are: give the words printed right before the blank, and
+   check who fills it (a value already printed is not a blank)"); if it remains, the field is dropped with a note
+   rather than written over the text or into another party's column.
 5. The review note reads "placed after the words printed before it: check its position".
 
 Order in `derive`: found fields, then extra fields are placed (taking their space), then signatures and initials grow
@@ -295,8 +301,13 @@ Order in `derive`: found fields, then extra fields are placed (taking their spac
 
 **Tests:** in `test_writing_space.py`: after its label on its row, starting `LABEL_GAP` after it, at least
 `MIN_WIDTH` wide; of two printings of "NAME:" in a two-column signature block, each party's lands in its own column
-and the left one stops before the right column; a full row puts it on the row below; no room is a problem for the
-repair round, then dropped with a note; an extra signature after "By:" is placed and then grows. `test_derive`'s extra
+and the left one stops before the right column; a label ending its line at the right edge puts the blank on the line
+below; a value printed after the label is never skipped for the line below; no room is a problem for the repair
+round, then dropped with a note; an extra signature after "By:" is placed and then grows; **a field the AI wrongly
+gives to a column whose value is already printed, listed first, is a problem for the repair round and is dropped,
+and the other party keeps its own column** (on the pushed `dd0e7c6` it took the left column and pushed the real field
+out; the test fails there). On D7 the same wrong fields for UL Lafayette's printed name and title are refused and the
+other party's name and title keep their place. `test_derive`'s extra
 field test now asserts the place starts after its words (it was the words before).
 
 **On D7** (the drawn-line experiment, now with this code and a new AI call: 16,493 tokens in, 2,790 out, 23.8 s, no

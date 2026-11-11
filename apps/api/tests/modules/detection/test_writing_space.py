@@ -215,14 +215,30 @@ def test_of_two_printings_of_its_label_it_takes_the_one_by_its_partys_other_plac
     assert left_box[2] <= right.x0 - CLEARANCE  # never runs into the other column
 
 
-def test_when_its_row_is_full_it_goes_on_the_row_below_the_label() -> None:
-    data = _flat([(72, 100, PARAGRAPH), (72, 160, "Address: (street, city and postal code)")])
-    (label,) = _words(data, "Address:")
+def test_a_label_that_ends_its_line_with_no_room_left_has_its_blank_on_the_line_below() -> None:
+    """The words right before the blank end the line, too close to the edge for a box: the blank
+    is on the line below, from the label's left edge."""
+    line = "Address of the party receiving the information:"
+    edge = 72 + pymupdf.get_text_length(PARAGRAPH, fontsize=11)  # the text's right edge
+    data = _flat(
+        [(72, 100, PARAGRAPH), (edge - pymupdf.get_text_length(line, fontsize=11), 160, line)]
+    )
+    words = "receiving the information:"
+    (label,) = _words(data, words)
     result = _with_extras(
-        data, [{"anchor_text": "Address:", "filled_by": "party_1", "label": "Address"}], []
+        data, [{"anchor_text": words, "filled_by": "party_1", "label": "Address"}], []
     )
     x0, y0, _, _ = _extra(result, "Address")
     assert x0 == pytest.approx(label.x0, abs=0.1) and y0 >= label.y1
+
+
+def test_words_printed_after_a_label_are_never_skipped_for_the_line_below() -> None:
+    """A value printed after the label means the label's blank is filled, not that it moved."""
+    data = _flat([(72, 100, PARAGRAPH), (72, 160, "NAME: Dr. Carolyn Bruder")])
+    result = _with_extras(
+        data, [{"anchor_text": "NAME:", "filled_by": "party_1", "label": "Name"}], []
+    )
+    assert result.fields == [] and any("'Name' dropped" in note for note in result.notes)
 
 
 def test_with_no_free_space_after_its_words_it_is_a_problem_then_dropped() -> None:
@@ -262,3 +278,52 @@ def test_a_signature_found_by_the_ai_is_placed_after_its_label_then_given_room_t
     x0, y0, _, y1 = _extra(result, "Sign")
     assert x0 > label.x1 and y1 == pytest.approx(label.y1, abs=0.1)
     assert y1 - y0 > label.y1 - label.y0  # taller than its row: room to sign
+
+
+def test_a_field_never_takes_another_partys_column_when_its_own_is_already_filled_in() -> None:
+    """The right column's NAME is printed ("Dr. Carolyn Bruder"). A field the AI wrongly gives it,
+    even listed first, is a problem for the repair round and is dropped; it never takes the left
+    column's free space, which stays the left party's."""
+    data = _flat(
+        [
+            (72, 100, PARAGRAPH),
+            (72, 140, "By: " + "_" * 20),
+            (324, 140, "By: " + "_" * 20),
+            (72, 160, "NAME:"),
+            (324, 160, "NAME: Dr. Carolyn Bruder"),
+        ]
+    )
+    left, _ = sorted(_words(data, "NAME:"), key=lambda r: r.x0)
+    reading = read_document(data)
+    answer: dict[str, Any] = {
+        "roles": [{"slug": "party_1", "kind": "signer"}, {"slug": "party_2", "kind": "signer"}],
+        "fields": [
+            {
+                "id": found.id,
+                "holds": "signature",
+                "format": None,
+                "filled_by": "party_1" if found.placements[0].rect[0] < 300 else "party_2",
+                "label": f"Signature {n}",
+                "must_fill": True,
+                "depends_on": None,
+            }
+            for n, found in enumerate(reading.asked)
+        ],
+        "checkbox_groups": [],
+        "extra_fields": [
+            {"page": 1, "holds": "full_name", "format": None, "must_fill": True, **extra}
+            for extra in [
+                {"anchor_text": "NAME:", "filled_by": "party_2", "label": "Wrong name"},
+                {"anchor_text": "NAME:", "filled_by": "party_1", "label": "Left name"},
+            ]
+        ],
+        "document": None,
+    }
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        problems = check(answer, reading, document)
+        result = derive(reading, answer, document, problems=problems, repaired=True)
+    assert [p for p in problems if "Wrong name" in p]  # the repair round is asked about it
+    assert all(f.label != "Wrong name" for f in result.fields)
+    assert any("'Wrong name' dropped" in note for note in result.notes)
+    left_box = _extra(result, "Left name")
+    assert left_box[0] > left.x1 and left_box[2] < 324  # the left party keeps its own column
