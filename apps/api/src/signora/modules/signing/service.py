@@ -113,6 +113,14 @@ class Signer:
     verified: bool
     digest: bytes  # the browser session's
 
+    @property
+    def caller(self) -> str:
+        """Who is asking, once checked: this browser session for a signer, the signed-in user for
+        a countersigner. Limits are counted against them, never against what a request names."""
+        if self.recipient.kind == "countersigner":
+            return f"user:{self.recipient.user_id}"
+        return f"session:{self.digest.hex()}"
+
 
 def signer(uow: UnitOfWork, cookie: str | None, recipient_id: uuid.UUID) -> Signer:
     """Check again, on every signer request, that this browser holds the person's grant for their

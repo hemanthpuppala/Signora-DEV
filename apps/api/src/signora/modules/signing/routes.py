@@ -210,9 +210,9 @@ class DraftSaved(BaseModel):
 def save_draft(
     recipient_id: uuid.UUID, field_id: uuid.UUID, body: DraftRequest, request: Request
 ) -> DraftSaved:
-    limits.by_session(request, "draft", str(recipient_id))
     with _db(request).unit_of_work() as uow:
         who = service.acting(uow, request, recipient_id)
+        limits.by_caller(request, "draft", who.caller, recipient_id)
         service.require_ready(uow, who, to_change=True)
         return DraftSaved(value=drafts.save_draft(uow, who, field_id, body.value))
 
@@ -224,9 +224,9 @@ def save_draft(
     responses=_DOCUMENT,
 )
 def clear_draft(recipient_id: uuid.UUID, field_id: uuid.UUID, request: Request) -> None:
-    limits.by_session(request, "draft", str(recipient_id))
     with _db(request).unit_of_work() as uow:
         who = service.acting(uow, request, recipient_id)
+        limits.by_caller(request, "draft", who.caller, recipient_id)
         service.require_ready(uow, who, to_change=True)
         drafts.clear_draft(uow, who, field_id)
 
@@ -316,11 +316,11 @@ def sign_and_submit(
     request: Request,
     guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
 ) -> JSONResponse:
-    limits.by_session(request, "act", str(recipient_id))
     with _db(request).unit_of_work() as uow:
         if (replay := guard.begin(uow)) is not None:
             return replay
         who = service.acting(uow, request, recipient_id)
+        limits.by_caller(request, "act", who.caller, recipient_id)
         service.require_ready(uow, who)
         done = submit.submit(uow, who)
         return guard.finish(uow, status.HTTP_200_OK, done.model_dump(mode="json"))
@@ -348,7 +348,6 @@ def decline_to_sign(
     request: Request,
     guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
 ) -> JSONResponse:
-    limits.by_session(request, "act", str(recipient_id))
     reason = body.reason.strip()
     if not reason:
         raise ValidationFailed([FieldError("reason", "Tell them why")])
@@ -356,6 +355,7 @@ def decline_to_sign(
         if (replay := guard.begin(uow)) is not None:
             return replay
         who = service.acting(uow, request, recipient_id)
+        limits.by_caller(request, "act", who.caller, recipient_id)
         if who.recipient.require_email_code and not who.verified:
             raise VerifyFirst
         decline.decline(uow, who, reason)

@@ -1,13 +1,15 @@
 """Limits on the signer's routes (Phase 8 LLD §13), through the kernel's one rate limiter.
 
-Per address: opening links and trying codes. Per browser session (or signed-in countersigner):
-saving drafts, submitting and declining. The limits on a person's codes are kept in Postgres
-(``codes``), so they hold across restarts and API processes; these are in the limiter, correct
-for this deployment's single API process (Redis, behind the same protocol, for more).
+Per address: opening links and trying codes. Per person, counted only once the request is checked
+as theirs (their browser session, or a countersigner's sign-in): saving drafts, submitting and
+declining, so nobody else can spend a person's allowance. The limits on a person's codes are kept
+in Postgres (``codes``), so they hold across restarts and API processes; these are in the limiter,
+correct for this deployment's single API process (Redis, behind the same protocol, for more).
 """
 
 from __future__ import annotations
 
+import uuid
 from datetime import timedelta
 
 from fastapi import Request
@@ -19,8 +21,8 @@ MINUTE = timedelta(minutes=1)
 LIMITS = {
     "open": 20,  # a minute, per address
     "verify": 10,  # a minute, per address
-    "draft": 120,  # a minute, per session
-    "act": 10,  # submit and decline, a minute, per session
+    "draft": 120,  # a minute, per person
+    "act": 10,  # submit and decline, a minute, per person
 }
 
 
@@ -34,8 +36,9 @@ def by_address(request: Request, action: str) -> None:
     _hit(request, f"sign:{action}:ip:{address}", LIMITS[action])
 
 
-def by_session(request: Request, action: str, who: str) -> None:
-    _hit(request, f"sign:{action}:session:{who}", LIMITS[action])
+def by_caller(request: Request, action: str, caller: str, recipient_id: uuid.UUID) -> None:
+    """A checked caller's allowance for one person (``Signer.caller``)."""
+    _hit(request, f"sign:{action}:{caller}:{recipient_id}", LIMITS[action])
 
 
 def _hit(request: Request, key: str, limit: int) -> None:
