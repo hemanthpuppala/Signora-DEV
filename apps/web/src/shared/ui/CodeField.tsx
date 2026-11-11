@@ -72,7 +72,6 @@ export function CodeField({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
         />
-        <span className={styles.focusRing} aria-hidden="true" />
       </div>
       {error ? (
         <span id={errorId} className={fieldStyles.error} role="alert">

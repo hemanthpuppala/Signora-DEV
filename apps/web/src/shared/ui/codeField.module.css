@@ -35,10 +35,7 @@
   background: transparent;
 }
 
-.input:focus-visible + .focusRing {
-  position: absolute;
-  inset: -6px;
-  outline: 1px solid var(--ink);
-  outline-offset: 2px;
-  pointer-events: none;
+/* Focus shows on the box for the next digit: a firmer line, as the other fields' focus. */
+.cells:focus-within .cell[data-active="true"] {
+  border-bottom-width: 2px;
 }
