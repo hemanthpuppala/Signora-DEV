@@ -193,7 +193,11 @@ export function mountHeroFlux(root: HTMLElement, scope: Scope, reduced: boolean)
     swirls.push({ ...at, t: (performance.now() - started) / 1000, dir });
     if (swirls.length > 4) swirls.shift();
   });
-  scope.onResize(size);
+  scope.onResize(() => {
+    size();
+    // Resizing clears the canvas, and under reduced motion no loop is running to redraw it.
+    if (reduced) render(performance.now());
+  });
   size();
   scope.whenVisible(canvas, (nowVisible) => {
     visible = nowVisible;
