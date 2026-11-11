@@ -67,8 +67,13 @@ export function mountPhoneSigning(root: HTMLElement, scope: Scope, reduced: bool
     for (const digit of digits) digit.classList.toggle("has", digit.value !== "");
     openButton.disabled = codeValue().length !== digits.length;
   }
-  /** Spreads typed or pasted digits over the boxes, starting at `from`. */
+  function clearCodeError(): void {
+    codeError.textContent = "";
+    digitGroup.classList.remove("is-wrong");
+  }
+  /** Spreads pasted digits over the boxes, starting at `from`. */
   function fill(text: string, from: number): void {
+    clearCodeError();
     [...text].slice(0, digits.length - from).forEach((character, k) => {
       const box = digits[from + k];
       if (box) box.value = character;
@@ -81,13 +86,8 @@ export function mountPhoneSigning(root: HTMLElement, scope: Scope, reduced: bool
     const next = digits[i + 1];
     scope.on(digit, "input", () => {
       const value = digit.value.replace(/\D/g, "");
-      if (value.length > 1) {
-        fill(value, i);
-        return;
-      }
       digit.value = value;
-      codeError.textContent = "";
-      digitGroup.classList.remove("is-wrong");
+      clearCodeError();
       if (value) next?.focus();
       syncCode();
     });
@@ -302,9 +302,6 @@ export function mountPhoneSigning(root: HTMLElement, scope: Scope, reduced: bool
     reduced,
     watch: phone,
     resume: q<HTMLButtonElement>(root, "#phone-resume"),
-    onStart: () => {
-      hint.hidden = false;
-    },
     play: async (alive) => {
       reset();
       await scope.sleep(1100);
