@@ -155,6 +155,53 @@ describe("the signer's screen", () => {
   });
 });
 
+describe("Sign and submit", () => {
+  it("submits only once every draft is on the server, the one still being typed included", async () => {
+    const requests: string[] = [];
+    const held: (() => void)[] = []; // draft saves answered only when the test lets them
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        const request = input as Request;
+        const path = new URL(request.url).pathname;
+        requests.push(`${request.method} ${path}`);
+        if (path.endsWith("/document")) return reply(200, DOCUMENT);
+        if (path.endsWith("/signature") && request.method === "GET") return reply(200, { adopted: [ADOPTED], saved: [], fonts: [] });
+        if (path.includes("/drafts/")) {
+          const { value } = (await request.json()) as { value: string };
+          await new Promise<void>((resolve) => held.push(resolve));
+          requests.push(`saved ${path}`);
+          return reply(200, { value });
+        }
+        if (path.endsWith("/submit")) return reply(200, { signed_at: "2026-11-11T09:14:22Z", next: "done" });
+        return reply(204, null);
+      }),
+    );
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SigningScreen state={STATE} />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Client signature: sign here" })); // adopted: one tap
+    await user.type(await screen.findByLabelText("Client title (required)"), "Founder");
+    await user.click(screen.getByRole("button", { name: "Complete" }));
+    await user.click(screen.getByLabelText("I've reviewed this document and this is my signature"));
+
+    await user.click(screen.getByRole("button", { name: "Sign and submit" })); // before typing's 0.8 s pause
+
+    await vi.waitFor(() => expect(requests).toContain(`PUT /api/v1/sign/${RECIPIENT}/drafts/title`)); // saved now
+    expect(requests).not.toContain(`POST /api/v1/sign/${RECIPIENT}/submit`); // not while saves are on their way
+    expect((screen.getByRole("button", { name: "Signing…" }) as HTMLButtonElement).disabled).toBe(true);
+    for (const release of held.splice(0)) release();
+    await vi.waitFor(() => expect(requests).toContain(`POST /api/v1/sign/${RECIPIENT}/submit`));
+    const submitted = requests.indexOf(`POST /api/v1/sign/${RECIPIENT}/submit`);
+    expect(requests.indexOf(`saved /api/v1/sign/${RECIPIENT}/drafts/title`)).toBeLessThan(submitted);
+    expect(requests.indexOf(`saved /api/v1/sign/${RECIPIENT}/drafts/sig`)).toBeLessThan(submitted);
+    vi.unstubAllGlobals();
+  });
+});
+
 async function signThePlace(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Client signature: sign here" }));
   expect(await screen.findByRole("dialog", { name: "Your signature" })).toBeTruthy();

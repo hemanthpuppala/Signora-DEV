@@ -151,7 +151,12 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
   }
   // Adopting a signature or initials: then sign one place, every place, or none (a change).
   const [adopting, setAdopting] = useState<{ kind: Adopted["kind"]; then: SignerField | "all" | null } | null>(null);
-  const timers = useRef(new Map<string, number>());
+  // Drafts not yet on the server: those waiting for typing to stop, and saves on their way. A
+  // field's saves run one after another, so the last value given is the one kept.
+  const timers = useRef(new Map<string, { timer: number; save: () => void }>());
+  const saving = useRef(new Map<string, Promise<boolean>>());
+  const [flushing, setFlushing] = useState(false);
+  const submitting = flushing || submit.isPending;
   const submitRef = useRef<HTMLElement>(null);
   const confirmRef = useRef<HTMLInputElement>(null);
 
@@ -178,18 +183,53 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
       return next;
     });
     setErrors((was) => ({ ...was, [field.id]: "" }));
-    window.clearTimeout(timers.current.get(field.id));
+    const waiting = timers.current.get(field.id);
+    if (waiting) window.clearTimeout(waiting.timer);
+    timers.current.delete(field.id);
     const save = () => {
-      const call = value ? saveDraft(id, field.id, value).then((saved) => saved.value) : clearDraft(id, field.id).then(() => "");
-      call.then(
-        (stored) => {
-          if (stored !== value) setDrafts((was) => (was[field.id] === value ? { ...was, [field.id]: stored } : was));
-        },
-        (error: unknown) => setErrors((was) => ({ ...was, [field.id]: fieldErrors(error).value ?? formError(error) ?? "Not saved" })),
-      );
+      timers.current.delete(field.id);
+      const before = saving.current.get(field.id) ?? Promise.resolve(true);
+      const saved = before
+        .then(() => (value ? saveDraft(id, field.id, value).then((kept) => kept.value) : clearDraft(id, field.id).then(() => "")))
+        .then(
+          (stored) => {
+            if (stored !== value) setDrafts((was) => (was[field.id] === value ? { ...was, [field.id]: stored } : was));
+            return true;
+          },
+          (error: unknown) => {
+            setErrors((was) => ({ ...was, [field.id]: fieldErrors(error).value ?? formError(error) ?? "Not saved" }));
+            return false;
+          },
+        );
+      saving.current.set(field.id, saved);
+      void saved.then(() => {
+        if (saving.current.get(field.id) === saved) saving.current.delete(field.id);
+      });
     };
     if (now) save();
-    else timers.current.set(field.id, window.setTimeout(save, SAVE_AFTER_MS));
+    else timers.current.set(field.id, { timer: window.setTimeout(save, SAVE_AFTER_MS), save });
+  }
+
+  /** Every draft on the server before a submit reads them: the waiting ones saved now, and each
+   * save on its way finished. The fields whose last save was refused, in reading order. */
+  async function flushDrafts(): Promise<SignerField[]> {
+    for (const { timer, save } of [...timers.current.values()]) {
+      window.clearTimeout(timer);
+      save();
+    }
+    const fields = [...saving.current.keys()];
+    const results = await Promise.all([...saving.current.values()]);
+    const refused = new Set(fields.filter((_, i) => !results[i]));
+    return doc.fields.filter((field) => refused.has(field.id));
+  }
+
+  /** Sign and submit (or Approve): only once what the screen shows is what the server holds. */
+  async function signAndSubmit() {
+    setFlushing(true);
+    const [refused] = await flushDrafts();
+    setFlushing(false);
+    if (refused) pointAt(refused);
+    else submit.run(null);
   }
 
   /** A signature or initials place: signed by a tap once adopted; the first time, adopt it. */
@@ -344,8 +384,8 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
       <Checkbox ref={confirmRef} checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)}>
         {approving ? "I've reviewed this document" : "I've reviewed this document and this is my signature"}
       </Checkbox>
-      <Button disabled={missing !== null || submit.isPending} onClick={() => submit.run(null)}>
-        {submit.isPending ? (approving ? "Approving…" : "Signing…") : approving ? "Approve" : "Sign and submit"}
+      <Button disabled={missing !== null || submitting} onClick={() => void signAndSubmit()}>
+        {submitting ? (approving ? "Approving…" : "Signing…") : approving ? "Approve" : "Sign and submit"}
       </Button>
       {missing ? <p className={styles.missing}>{missing}</p> : null}
       {refusal && !Object.keys(fieldErrors(refusal)).length ? (
