@@ -320,7 +320,19 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
                         key={recipient.id}
                         leading={<Monogram name={recipient.name} />}
                         actions={
-                          open && LIVE.has(recipient.status) ? (
+                          // While the envelope is open: a signer's or a copy's email can be
+                          // corrected (a countersigner's is their account's); reminding and the
+                          // link are for whoever holds a link, so not for someone who only
+                          // receives a copy, nor a countersigner before their turn.
+                          !open ? null : !LIVE.has(recipient.status) ? (
+                            recipient.kind === "copy" ? (
+                              <ItemActions
+                                end={<IconButton icon="edit" label={`Change ${recipient.name}'s email`} onClick={() => setEditing(recipient.id)} />}
+                              >
+                                {null}
+                              </ItemActions>
+                            ) : null
+                          ) : (
                             <ItemActions
                               end={
                                 recipient.kind !== "countersigner" ? (
@@ -338,7 +350,7 @@ export function EnvelopePage({ departmentId, envelopeId }: { departmentId: strin
                                 </ItemAction>
                               ) : null}
                             </ItemActions>
-                          ) : null
+                          )
                         }
                       >
                         <ItemHead>

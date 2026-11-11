@@ -195,6 +195,27 @@ describe("envelopes", () => {
     expect(await screen.findByText("Reminded 2 people")).toBeTruthy();
   });
 
+  it("lets the address of someone who receives a copy be corrected, and offers them nothing else", async () => {
+    // They hold no link and are always waiting; with actions only for whoever holds a link, a
+    // mistyped copy address could not be put right, though the server takes the change.
+    (envelope.recipients as unknown[]).push(
+      recipient("r-records", { kind: "copy", party_id: null, party_label: null, name: "Records", email: "recrods@firm.example", status: "waiting", sent_at: null, delivery: null }),
+    );
+    wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
+    const user = userEvent.setup();
+    const row = within(await screen.findByRole("list", { name: "Receives a copy" })).getByRole("listitem");
+    expect(within(row).queryByRole("button", { name: "Remind" })).toBeNull();
+    expect(within(row).queryByRole("button", { name: "Copy link" })).toBeNull();
+
+    await user.click(within(row).getByRole("button", { name: "Change Records's email" }));
+    const form = screen.getByRole("form", { name: "Change Records" });
+    const email = within(form).getByLabelText("Email");
+    await user.clear(email);
+    await user.type(email, "records@firm.example");
+    await user.click(within(form).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(sentTo("/recipients/r-records")[0]?.body).toEqual({ email: "records@firm.example" }));
+  });
+
   it("says when the document can't be shown, and offers to ask again, instead of a blank pane", async () => {
     documentFails = true;
     wrap(<EnvelopePage departmentId="d-1" envelopeId="env-1" />);
