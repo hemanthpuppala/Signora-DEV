@@ -166,6 +166,14 @@ def test_the_sender_downloads_the_document_its_certificate_or_both(
     _countersign(owner, sent)
     _run_completion(committing_db, sent.id, LocalBlobStore(settings.blob_store.dir))
 
+    # The colleague who countersigned keeps their page: done, completed, and the copy to download.
+    firm = str(sent.recipient("countersigner")["id"])
+    assert owner.get(f"{SIGN}/{firm}").json()["next"] == "done"
+    done = owner.get(f"{SIGN}/{firm}/done").json()
+    assert (done["completed"], done["verified_by"]) == (True, "signora_sign_in")
+    mine = owner.get(f"{SIGN}/{firm}/completed", params={"part": "certificate"})
+    assert mine.status_code == 200 and mine.content.startswith(b"%PDF")
+
     pages: dict[str, int] = {}
     for part in ("document", "certificate", "combined"):
         answer = owner.get(f"{ENVELOPES}/{sent.id}/download", params={"part": part})

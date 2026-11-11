@@ -60,3 +60,5 @@ class DoneView(BaseModel):
     verified_by: VerifiedBy
     waiting_for: list[str]  # signers still to sign
     countersigning: str | None  # the company, while its countersigners have still to sign
+    completed: bool  # the signed copy is made: offered to a countersigner to download
+    approved: bool  # they had nowhere to sign: they reviewed and approved

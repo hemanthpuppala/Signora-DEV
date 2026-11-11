@@ -14,9 +14,10 @@ from signora.kernel.db import Database
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.kernel.http import attachment
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
+from signora.modules.envelopes import DownloadPart, read_completed
 from signora.modules.signing import decline, drafts, drawing, limits, service, signatures, submit
 from signora.modules.signing.document import SignerDocument
-from signora.modules.signing.errors import VerifyFirst
+from signora.modules.signing.errors import LinkClosed, VerifyFirst
 from signora.modules.signing.sessions import COOKIE
 from signora.modules.signing.views import CodeSentView, DoneView, Opened, SignerState
 from signora.modules.typesetting import FontView
@@ -383,6 +384,32 @@ def copy(recipient_id: uuid.UUID, request: Request) -> Response:
         service.require_ready(uow, who)
         pdf = drawing.signed_pdf(uow, store, who.recipient, viewer=who.recipient)
     name = f"{who.recipient.title} - signed by {who.recipient.name}.pdf"
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": attachment(name), "Cache-Control": "no-store"},
+    )
+
+
+@router.get(
+    "/{recipient_id}/completed",
+    summary="A completed envelope's signed copy, for the colleague who countersigned it",
+    response_class=Response,
+    responses={
+        **_DOCUMENT,
+        200: {"content": {"application/pdf": {}}},
+        409: {"description": "Not completed"},
+    },
+)
+def completed_copy(
+    recipient_id: uuid.UUID, request: Request, part: DownloadPart = "combined"
+) -> Response:
+    store: BlobStore = request.app.state.blob_store
+    with _db(request).unit_of_work() as uow:
+        who = service.acting(uow, request, recipient_id)
+        if who.recipient.kind != "countersigner":
+            raise LinkClosed  # a signer has theirs by email
+        pdf, name = read_completed(uow.session, store, who.recipient.envelope_id, part)
     return Response(
         pdf,
         media_type="application/pdf",

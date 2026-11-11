@@ -514,3 +514,27 @@
   position: absolute;
   pointer-events: none;
 }
+
+/* The completed copy: one primary download, the separate files quietly beside it. */
+.downloads {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.quietLink {
+  color: var(--t75);
+  font: 400 11px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 10px 0;
+}
+
+.quietLink:hover,
+.quietLink:focus-visible {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}

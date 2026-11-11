@@ -175,3 +175,7 @@ export function useDone(recipientId: string) {
 }
 
 export const copyUrl = (recipientId: string) => `/api/v1/sign/${recipientId}/copy.pdf`;
+
+/** A completed envelope's copy, for the colleague who countersigned it (Phase 8 §9.1). */
+export const completedUrl = (recipientId: string, part: "combined" | "document" | "certificate") =>
+  `/api/v1/sign/${recipientId}/completed?part=${part}`;

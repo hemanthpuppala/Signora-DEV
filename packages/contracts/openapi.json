@@ -1043,6 +1043,14 @@
       "DoneView": {
         "description": "The done screen (§9.1): when they signed, how they proved who they are, what is next.",
         "properties": {
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          },
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          },
           "countersigning": {
             "anyOf": [
               {
@@ -1080,7 +1088,9 @@
           "signed_at",
           "verified_by",
           "waiting_for",
-          "countersigning"
+          "countersigning",
+          "completed",
+          "approved"
         ],
         "title": "DoneView",
         "type": "object"
@@ -11595,6 +11605,107 @@
           }
         },
         "summary": "Email this person a code, or keep the live one",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/completed": {
+      "get": {
+        "operationId": "completed_copy_api_v1_sign__recipient_id__completed_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "part",
+            "required": false,
+            "schema": {
+              "default": "combined",
+              "enum": [
+                "document",
+                "certificate",
+                "combined"
+              ],
+              "title": "Part",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {}
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "403": {
+            "description": "The code or consent comes first"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "409": {
+            "description": "Not completed"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A completed envelope's signed copy, for the colleague who countersigned it",
         "tags": [
           "signing"
         ]

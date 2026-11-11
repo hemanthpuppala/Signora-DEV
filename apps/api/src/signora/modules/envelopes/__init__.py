@@ -33,12 +33,14 @@ from signora.modules.envelopes.recipients import (
 )
 from signora.modules.envelopes.routes import router
 from signora.modules.envelopes.sending import asked, fits, name_part, written_in
+from signora.modules.envelopes.service import DownloadPart, read_completed
 from signora.modules.envelopes.store import count_sends
 
 __all__ = [
     "Condition",
     "Contacts",
     "Declined",
+    "DownloadPart",
     "FormField",
     "GivenValue",
     "Option",
@@ -57,6 +59,7 @@ __all__ = [
     "moment_in_words",
     "name_part",
     "people",
+    "read_completed",
     "recipient_for_signing",
     "record_declined",
     "record_opened",

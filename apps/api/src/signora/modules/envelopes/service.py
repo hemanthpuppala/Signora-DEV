@@ -636,10 +636,18 @@ def completed_copy(
 ) -> tuple[bytes, str]:
     """A completed envelope's signed document, its certificate, or both in one file, with the
     file's name; for whoever may see the envelope."""
-    view = get_envelope(session, actor, envelope_id)
+    get_envelope(session, actor, envelope_id)
+    return read_completed(session, store, envelope_id, part)
+
+
+def read_completed(
+    session: Session, store: BlobStore, envelope_id: uuid.UUID, part: DownloadPart
+) -> tuple[bytes, str]:
+    """The completed files and their name, for a caller that has already checked who may read them
+    (the envelope page, a countersigner's own page)."""
     row = session.execute(
         text(
-            "SELECT workspace_id, signed_blob, certificate_blob FROM envelopes "
+            "SELECT workspace_id, title, signed_blob, certificate_blob FROM envelopes "
             "WHERE id = :e AND status = 'completed'"
         ),
         {"e": envelope_id},
@@ -652,7 +660,7 @@ def completed_copy(
             return source.read()
 
     if part == "document":
-        return read(row.signed_blob), f"{view.title}.pdf"
+        return read(row.signed_blob), f"{row.title}.pdf"
     if part == "certificate":
-        return read(row.certificate_blob), f"{view.title} - certificate of completion.pdf"
-    return combine(read(row.signed_blob), read(row.certificate_blob)), f"{view.title} - signed.pdf"
+        return read(row.certificate_blob), f"{row.title} - certificate of completion.pdf"
+    return combine(read(row.signed_blob), read(row.certificate_blob)), f"{row.title} - signed.pdf"

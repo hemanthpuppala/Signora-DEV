@@ -141,7 +141,12 @@ def acting(uow: UnitOfWork, request: Request, recipient_id: uuid.UUID) -> Signer
     if recipient is None or recipient.kind != "countersigner":
         return signer(uow, request.cookies.get(COOKIE), recipient_id)
     actor = current_actor(request)  # 401 when signed out; 403 without the CSRF token
-    if actor.user_id != recipient.user_id or not recipient.envelope_open:
+    if actor.user_id != recipient.user_id:
+        raise LinkClosed
+    # A completed envelope stays open to the colleague who countersigned it, to read and download
+    # (§9.1); nothing in it can change, as they have signed.
+    completed = recipient.envelope_status == "completed" and recipient.status == "signed"
+    if not recipient.envelope_open and not completed:
         raise LinkClosed
     if recipient.envelope_status != "signed" and recipient.status != "signed":
         raise NotTheirTurn
@@ -282,6 +287,13 @@ def done(uow: UnitOfWork, who: Signer) -> DoneView:
         {"e": recipient.envelope_id},
     ).all()
     countersigning = any(r.kind == "countersigner" and r.status != "signed" for r in rows)
+    approved = not uow.session.execute(
+        text(
+            "SELECT EXISTS (SELECT 1 FROM version_fields WHERE version_id = :v AND role_id = :p "
+            "AND holds IN ('signature', 'initials'))"
+        ),
+        {"v": recipient.version_id, "p": recipient.party_id},
+    ).scalar_one()
     verified: VerifiedBy = (
         "signora_sign_in"
         if recipient.kind == "countersigner"
@@ -294,4 +306,6 @@ def done(uow: UnitOfWork, who: Signer) -> DoneView:
         verified_by=verified,
         waiting_for=[r.name for r in rows if r.kind == "signer" and r.status != "signed"],
         countersigning=recipient.company if countersigning else None,
+        completed=recipient.envelope_status == "completed",
+        approved=approved,
     )

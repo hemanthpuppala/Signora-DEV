@@ -4,7 +4,8 @@ import Link from "next/link";
 
 import { AuthPanel, BodyText, FactList, LinkButton, SmallText } from "@/shared/ui";
 
-import { copyUrl, useDone, type SignerState } from "./api";
+import { completedUrl, copyUrl, useDone, type SignerState } from "./api";
+import styles from "./signing.module.css";
 import { SignerProblem } from "./SignerNotices";
 
 const VERIFIED: Record<string, (email: string) => string> = {
@@ -37,24 +38,55 @@ export function DoneScreen({ state }: { state: SignerState }) {
   const view = done.data;
   const first = state.name.split(" ")[0] ?? state.name;
   const countersigner = state.kind === "countersigner";
+  const act = view.approved ? "Approved" : countersigner ? "Countersigned" : "Signed";
+  const facts = (
+    <FactList
+      label="Your signing"
+      facts={[
+        { term: `${act} at`, value: signedAt(view.signed_at) },
+        { term: "Verified by", value: (VERIFIED[view.verified_by] ?? VERIFIED.email_link)?.(state.email_masked) ?? "" },
+      ]}
+    />
+  );
+  const back = countersigner ? (
+    <BodyText>
+      <Link href="/countersign">Back to To countersign</Link>
+    </BodyText>
+  ) : null;
+
+  if (view.completed && countersigner) {
+    // Everyone has signed: the signed copy to keep, one primary action and two quiet ones.
+    return (
+      <AuthPanel eyebrow={`${state.company} · ${act}`} heading="Completed.">
+        <BodyText>Everyone has signed {state.document_name}. Everyone was emailed the signed copy.</BodyText>
+        {facts}
+        <div className={styles.downloads}>
+          <LinkButton href={completedUrl(state.recipient_id, "combined")} download>
+            Download signed copy
+          </LinkButton>
+          <SmallText>The signed document and its certificate of completion, in one PDF.</SmallText>
+          <div className={styles.quiet}>
+            <a className={styles.quietLink} href={completedUrl(state.recipient_id, "document")} download>
+              Document only
+            </a>
+            <a className={styles.quietLink} href={completedUrl(state.recipient_id, "certificate")} download>
+              Certificate only
+            </a>
+          </div>
+        </div>
+        {back}
+      </AuthPanel>
+    );
+  }
+
   return (
-    <AuthPanel eyebrow={`${state.company} · ${state.title}`} heading={countersigner ? "Countersigned." : `Signed. Thank you, ${first}.`}>
-      <FactList
-        label="Your signing"
-        facts={[
-          { term: "Signed at", value: signedAt(view.signed_at) },
-          { term: "Verified by", value: (VERIFIED[view.verified_by] ?? VERIFIED.email_link)?.(state.email_masked) ?? "" },
-        ]}
-      />
+    <AuthPanel eyebrow={`${state.company} · ${state.document_name}`} heading={countersigner ? `${act}.` : `Signed. Thank you, ${first}.`}>
+      {facts}
       <LinkButton href={copyUrl(state.recipient_id)} variant="quiet" download>
         Download a copy
       </LinkButton>
       <SmallText>{nextLine(view.waiting_for, view.countersigning)}</SmallText>
-      {countersigner ? (
-        <BodyText>
-          <Link href="/countersign">Back to To countersign</Link>
-        </BodyText>
-      ) : null}
+      {back}
     </AuthPanel>
   );
 }
