@@ -277,7 +277,10 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
   const dialogOpen = Boolean(adopting || editing || declining || reviewing);
   const pointing = current ? byId.get(current) : null;
   // Only on a computer, only at a field on the page, and never over a dialog.
-  const pointerOn = !compact && !dialogOpen && pointing && !ownValue(pointing, drafts) ? pointerLabel(pointing) : null;
+  const pointerOn =
+    !compact && !dialogOpen && pointing && !ownValue(pointing, drafts)
+      ? pointerLabel(pointing, Boolean(marks[pointing.holds]), compact)
+      : null;
 
   const missing =
     left.length > 0
@@ -441,23 +444,27 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
 
   return (
     <>
-      <TopBar />
+      <TopBar
+        home={null}
+        workspace={state.company}
+        aside={
+          <>
+            <span className={styles.headTitle}>{state.document_name}</span>
+            <span className={styles.count} aria-live="polite">{`${done} of ${mine.length} done`}</span>
+            <Button compact className={styles.solid} onClick={onGuide}>
+              {guideWords}
+            </Button>
+          </>
+        }
+      />
       <main className={styles.wide}>
         <ViewerLayout>
           <ViewerPane>{viewer}</ViewerPane>
           <DetailsPane>
-            <header className={styles.panelHead}>
-              <span className={styles.company}>{state.company}</span>
-              <h1 className={styles.panelTitle}>{state.document_name}</h1>
-              <span className={styles.from}>From {state.sender_name}</span>
-            </header>
-
             <section className={styles.panelBlock} aria-label="Your fields">
               <div className={styles.progressLine}>
-                <span aria-live="polite">{`${done} of ${mine.length} done`}</span>
-                <Button compact className={styles.solid} onClick={onGuide}>
-                  {guideWords}
-                </Button>
+                <span className={styles.blockTitle}>Your fields</span>
+                <span className={styles.from}>{`From ${state.sender_name}`}</span>
               </div>
               <div className={styles.track} aria-hidden="true">
                 <span style={{ width: `${mine.length ? (done / mine.length) * 100 : 100}%` }} />
@@ -654,7 +661,7 @@ function Overlay({
             filled && marks[field.holds] ? (
               <SignatureMark mark={marks[field.holds] as Mark} width={style.width} height={style.height} />
             ) : (
-              <span className={styles.sign}>{field.holds === "initials" ? "Initial" : "Sign"}</span>
+              <span className={styles.sign}>{signWords(field.holds, Boolean(marks[field.holds]), compact)}</span>
             )
           ) : null}
         </button>,
@@ -775,4 +782,15 @@ function positionOf(field: SignerField, order: readonly SignerField[]): string |
   const theirs = order.filter((one) => !one.locked);
   const at = theirs.indexOf(field);
   return at >= 0 ? `${at + 1} of ${theirs.length}` : null;
+}
+
+/**
+ * What a signature place's box says. Before a signature is adopted, clicking it opens the dialog to
+ * adopt one ("Sign"); after, one click signs the place, so it says so ("Click to sign"; on a touch
+ * screen, "Tap to sign").
+ */
+function signWords(holds: string, adopted: boolean, touch: boolean): string {
+  const noun = holds === "initials" ? "initial" : "sign";
+  if (!adopted) return holds === "initials" ? "Initial" : "Sign";
+  return `${touch ? "Tap" : "Click"} to ${noun}`;
 }

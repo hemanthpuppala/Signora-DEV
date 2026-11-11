@@ -498,3 +498,13 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* The bar on a computer: the template's name, how far along, and the next step, pinned. */
+.headTitle {
+  max-width: 36vw;
+  overflow: hidden;
+  font-family: var(--serif);
+  font-size: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

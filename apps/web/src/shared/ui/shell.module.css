@@ -40,11 +40,22 @@
   color: var(--ink);
 }
 
+/* "SIGNORA | Company": the company after a hairline (its logo, later, in the same place). */
 .workspace {
+  padding-left: 26px;
+  border-left: 1px solid var(--r25);
   font: 400 11px/1.4 var(--sans);
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--t55);
+}
+
+/* What a page puts on the right of the bar in place of a navigation. */
+.aside {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
 }
 
 .nav {

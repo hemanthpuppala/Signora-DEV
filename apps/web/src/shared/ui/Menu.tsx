@@ -10,7 +10,7 @@ import styles from "./menu.module.css";
 export type MenuItem = { label: string; onSelect: () => void; danger?: boolean };
 
 /**
- * A ⋯ button opening a short list of actions (the WAI-ARIA menu button): arrows move between them,
+ * A ⋮ button opening a short list of actions (the WAI-ARIA menu button): arrows move between them,
  * Enter chooses, Escape or a click away closes it and focus returns to the button. In the top
  * layer, beside the button, so nothing clips it.
  */
@@ -62,7 +62,7 @@ export function Menu({ label, items }: { label: string; items: readonly MenuItem
         aria-controls={open ? id : undefined}
         onClick={() => setOpen((was) => !was)}
       >
-        <span aria-hidden="true">⋯</span>
+        <span aria-hidden="true">⋮</span>
       </button>
       {open ? (
         <ul

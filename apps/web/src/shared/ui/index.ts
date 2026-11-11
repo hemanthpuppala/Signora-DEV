@@ -1,6 +1,6 @@
 /** Design-system components (single source of styling; backbone LLD §8.6). */
 export { ActionBar } from "./ActionBar";
-export { AppShell, TopBar, type AppShellProps, type NavItem } from "./AppShell";
+export { AppShell, TopBar, type AppShellProps, type NavItem, type TopBarProps } from "./AppShell";
 export { AuthPanel, type AuthPanelProps } from "./AuthPanel";
 export {
   Button,

@@ -20,16 +20,28 @@ export type AppShellProps = {
   children: ReactNode;
 };
 
-export function TopBar({ workspace, nav = [], actions }: Omit<AppShellProps, "children">) {
+export type TopBarProps = Omit<AppShellProps, "children" | "width"> & {
+  /** Where the logo leads; ``null``: nowhere (a signer has no console to go back to). */
+  home?: string | null;
+  /** On the right, instead of a navigation (a signer's screen: its name and next step). */
+  aside?: ReactNode;
+};
+
+export function TopBar({ workspace, nav = [], actions, home = "/", aside }: TopBarProps) {
   return (
     <header className={styles.topbar}>
       <div className={cx(styles.topbarInner, styles.wrap)}>
         <div className={styles.brand}>
-          <Link href="/" className={styles.logo}>
-            SIGNORA
-          </Link>
+          {home === null ? (
+            <span className={styles.logo}>SIGNORA</span>
+          ) : (
+            <Link href={home} className={styles.logo}>
+              SIGNORA
+            </Link>
+          )}
           {workspace ? <span className={styles.workspace}>{workspace}</span> : null}
         </div>
+        {aside ? <div className={styles.aside}>{aside}</div> : null}
         {nav.length || actions ? (
           <nav className={styles.nav} aria-label="Console">
             {nav.map((item) => (

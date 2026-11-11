@@ -70,5 +70,8 @@ describe("the guide", () => {
     expect(pointerLabel(field("s", { holds: "signature", label: "Client signature" }))).toBe("Sign here");
     expect(pointerLabel(field("i", { holds: "initials" }))).toBe("Initial here");
     expect(pointerLabel(field("t", { label: "Full name" }))).toBe("Fill Full name");
+    // Once a signature is adopted, one click signs: the pointer says so.
+    expect(pointerLabel(field("s", { holds: "signature" }), true)).toBe("Click to sign");
+    expect(pointerLabel(field("i", { holds: "initials" }), true, true)).toBe("Tap to initial");
   });
 });

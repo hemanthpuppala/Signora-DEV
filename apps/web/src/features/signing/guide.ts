@@ -62,9 +62,15 @@ export function guideStep(started: boolean, left: number): GuideStep {
   return started ? "next" : "start";
 }
 
-/** The pointer's words for a field. */
-export function pointerLabel(field: SignerField): string {
-  if (field.holds === "signature") return "Sign here";
-  if (field.holds === "initials") return "Initial here";
+/**
+ * The pointer's words for a field. A signature place says what clicking it does: before a
+ * signature is adopted it opens the dialog ("Sign here"); after, one click signs ("Click to sign").
+ */
+export function pointerLabel(field: SignerField, adopted = false, touch = false): string {
+  if (field.holds === "signature" || field.holds === "initials") {
+    const noun = field.holds === "initials" ? "initial" : "sign";
+    if (!adopted) return field.holds === "initials" ? "Initial here" : "Sign here";
+    return `${touch ? "Tap" : "Click"} to ${noun}`;
+  }
   return `Fill ${field.label}`;
 }
