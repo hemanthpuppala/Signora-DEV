@@ -348,3 +348,52 @@ def test_an_anchor_that_quotes_its_blank_is_placed_after_the_words_before_it() -
 
 def _end(text: str, x: float = 72) -> float:
     return x + pymupdf.get_text_length(text, fontsize=11)
+
+
+def test_a_form_field_after_the_label_is_that_blank_and_asks_the_ai_nothing() -> None:
+    """A total the PDF calculates sits after "Total: $": the AI listing it as a blank is not a
+    mistake it can fix with other words, so no repair round; the duplicate is dropped."""
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((72, 100), PARAGRAPH, fontsize=11)
+    page.insert_text((72, 160), "Total for the first year: $", fontsize=11)
+    widget = pymupdf.Widget()
+    widget.field_name, widget.field_type = "Total", pymupdf.PDF_WIDGET_TYPE_TEXT  # type: ignore[attr-defined]
+    widget.rect = pymupdf.Rect(_end("Total for the first year: $") + 2, 148, 300, 163)
+    page.add_widget(widget)
+    data = document.tobytes()
+    reading = read_document(data)
+    answer: dict[str, Any] = {
+        "roles": [{"slug": "party_1", "kind": "signer"}],
+        "fields": [
+            {
+                "id": found.id,
+                "holds": "currency",
+                "format": None,
+                "filled_by": "party_1",
+                "label": "Total",
+                "must_fill": True,
+                "depends_on": None,
+            }
+            for found in reading.asked
+        ],
+        "checkbox_groups": [],
+        "extra_fields": [
+            {
+                "page": 1,
+                "anchor_text": "Total for the first year: $",
+                "holds": "currency",
+                "format": None,
+                "filled_by": "party_1",
+                "label": "Total again",
+                "must_fill": True,
+            }
+        ],
+        "document": None,
+    }
+    with pymupdf.open(stream=data, filetype="pdf") as opened:
+        problems = check(answer, reading, opened)
+        result = derive(reading, answer, opened, problems=problems, repaired=False)
+    assert not any("Total again" in problem for problem in problems)
+    assert all(field.label != "Total again" for field in result.fields)
+    assert any("'Total again' dropped: a form field already sits" in n for n in result.notes)

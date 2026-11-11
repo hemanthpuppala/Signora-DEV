@@ -17,6 +17,7 @@
       "filled_by": "sender",
       "label": "Agreement date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -26,6 +27,7 @@
       "filled_by": "disclosing_party",
       "label": "Disclosing party name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -35,6 +37,7 @@
       "filled_by": "disclosing_party",
       "label": "Disclosing party mailing address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -44,6 +47,7 @@
       "filled_by": "receiving_party",
       "label": "Receiving party name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -53,6 +57,7 @@
       "filled_by": "receiving_party",
       "label": "Receiving party mailing address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -62,6 +67,7 @@
       "filled_by": "disclosing_party",
       "label": "Disclosing party signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -69,8 +75,9 @@
       "holds": "full_name",
       "format": null,
       "filled_by": "disclosing_party",
-      "label": "Disclosing party typed or printed name",
+      "label": "Disclosing party printed name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -80,6 +87,7 @@
       "filled_by": "disclosing_party",
       "label": "Disclosing party signing date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -89,6 +97,7 @@
       "filled_by": "receiving_party",
       "label": "Receiving party signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -96,8 +105,9 @@
       "holds": "full_name",
       "format": null,
       "filled_by": "receiving_party",
-      "label": "Receiving party typed or printed name",
+      "label": "Receiving party printed name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -107,6 +117,7 @@
       "filled_by": "receiving_party",
       "label": "Receiving party signing date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     }
   ],
@@ -114,6 +125,6 @@
   "extra_fields": [],
   "document": {
     "name": "Basic Non-Disclosure Agreement",
-    "description": "A non-disclosure agreement between a disclosing party and a receiving party. It covers confidential information, the receiving party’s obligations, and the duration of confidentiality. Both parties sign; neither countersigns."
+    "description": "A non-disclosure agreement between a disclosing party and a receiving party. It covers confidential information, permitted exclusions, confidentiality obligations and the duration of those obligations. Both parties sign; no countersignature is specified."
   }
 }

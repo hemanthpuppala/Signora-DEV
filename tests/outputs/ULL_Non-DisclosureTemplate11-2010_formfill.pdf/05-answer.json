@@ -6,7 +6,7 @@
     },
     {
       "slug": "ul_lafayette",
-      "kind": "countersigner"
+      "kind": "signer"
     }
   ],
   "fields": [
@@ -17,6 +17,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -24,8 +25,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -35,6 +37,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -44,6 +47,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": "f1",
       "depends_on": null
     },
     {
@@ -51,8 +55,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": "f2",
       "depends_on": null
     },
     {
@@ -62,6 +67,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
@@ -71,6 +77,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": "f1",
       "depends_on": null
     },
     {
@@ -78,8 +85,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": "f2",
       "depends_on": null
     },
     {
@@ -89,6 +97,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
@@ -98,6 +107,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": "f1",
       "depends_on": null
     },
     {
@@ -105,8 +115,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": "f2",
       "depends_on": null
     },
     {
@@ -116,6 +127,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
@@ -125,6 +137,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": "f1",
       "depends_on": null
     },
     {
@@ -132,8 +145,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": "f2",
       "depends_on": null
     },
     {
@@ -143,6 +157,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
@@ -152,6 +167,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": "f1",
       "depends_on": null
     },
     {
@@ -159,8 +175,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": "f2",
       "depends_on": null
     },
     {
@@ -170,6 +187,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
@@ -179,6 +197,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": "f1",
       "depends_on": null
     },
     {
@@ -186,8 +205,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": "f2",
       "depends_on": null
     },
     {
@@ -197,6 +217,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
@@ -206,6 +227,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": "f1",
       "depends_on": null
     },
     {
@@ -213,8 +235,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": "f2",
       "depends_on": null
     },
     {
@@ -224,6 +247,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
@@ -233,6 +257,7 @@
       "filled_by": "party_1",
       "label": "Other party legal name",
       "must_fill": true,
+      "same_as": "f1",
       "depends_on": null
     },
     {
@@ -240,8 +265,9 @@
       "holds": "text",
       "format": null,
       "filled_by": "party_1",
-      "label": "Other party entity type",
+      "label": "Other party type or legal form",
       "must_fill": true,
+      "same_as": "f2",
       "depends_on": null
     },
     {
@@ -251,6 +277,7 @@
       "filled_by": "party_1",
       "label": "Other party address",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
@@ -260,6 +287,7 @@
       "filled_by": "party_1",
       "label": "Other party signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -269,6 +297,7 @@
       "filled_by": "ul_lafayette",
       "label": "UL Lafayette signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -278,6 +307,7 @@
       "filled_by": "party_1",
       "label": "Other party signing date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -287,6 +317,7 @@
       "filled_by": "ul_lafayette",
       "label": "UL Lafayette signing date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     }
   ],
@@ -312,7 +343,7 @@
     }
   ],
   "document": {
-    "name": "UL Lafayette Non-Disclosure Agreement",
-    "description": "A non-disclosure agreement between UL Lafayette and an outside party. It covers disclosure and use of confidential information, confidentiality obligations, exceptions, and Louisiana law. The outside party signs first; UL Lafayette countersigns."
+    "name": "University of Louisiana at Lafayette Non-Disclosure Agreement",
+    "description": "A non-disclosure agreement between UL Lafayette and another party. It covers confidential information shared to evaluate a possible collaborative research arrangement and the parties’ confidentiality obligations. Both parties sign; neither is designated to countersign."
   }
 }

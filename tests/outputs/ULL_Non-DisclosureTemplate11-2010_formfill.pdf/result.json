@@ -9,8 +9,8 @@
     },
     {
       "slug": "ul_lafayette",
-      "kind": "countersigner",
-      "label": "Ul Lafayette",
+      "kind": "signer",
+      "label": "UL Lafayette",
       "position": 2
     }
   ],
@@ -167,8 +167,8 @@
       ]
     },
     {
-      "key": "party_1.other_party_entity_type",
-      "label": "Other party entity type",
+      "key": "party_1.other_party_type_or_legal_form",
+      "label": "Other party type or legal form",
       "holds": "text",
       "format": null,
       "filled_by": "role",
@@ -178,7 +178,15 @@
       "depends_on": null,
       "needs_review": null,
       "ids": [
-        "f2"
+        "f2",
+        "f5",
+        "f8",
+        "f11",
+        "f14",
+        "f17",
+        "f20",
+        "f23",
+        "f26"
       ],
       "placements": [
         {
@@ -188,6 +196,118 @@
             104.5,
             333.0,
             117.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 3,
+          "rect": [
+            205.0,
+            665.5,
+            230.0,
+            678.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            308.0,
+            265.5,
+            333.0,
+            278.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            308.0,
+            500.5,
+            333.0,
+            513.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            308.0,
+            113.5,
+            333.0,
+            126.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            308.0,
+            348.5,
+            333.0,
+            361.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 11,
+          "rect": [
+            205.0,
+            693.5,
+            230.0,
+            706.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            308.0,
+            293.5,
+            333.0,
+            306.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            308.0,
+            527.5,
+            333.0,
+            540.5
           ],
           "kind": "blank",
           "pdf_field": null,
@@ -209,7 +329,15 @@
       "depends_on": null,
       "needs_review": null,
       "ids": [
-        "f3"
+        "f3",
+        "f6",
+        "f9",
+        "f12",
+        "f15",
+        "f18",
+        "f21",
+        "f24",
+        "f27"
       ],
       "placements": [
         {
@@ -225,55 +353,7 @@
           "option_value": null,
           "option_text": null,
           "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.other_party_entity_type_2",
-      "label": "Other party entity type",
-      "holds": "text",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f5"
-      ],
-      "placements": [
-        {
-          "page": 3,
-          "rect": [
-            205.0,
-            665.5,
-            230.0,
-            678.5
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null,
-          "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.address_2",
-      "label": "Other party address",
-      "holds": "address",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f6"
-      ],
-      "placements": [
+        },
         {
           "page": 3,
           "rect": [
@@ -287,55 +367,7 @@
           "option_value": null,
           "option_text": null,
           "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.other_party_entity_type_3",
-      "label": "Other party entity type",
-      "holds": "text",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f8"
-      ],
-      "placements": [
-        {
-          "page": 4,
-          "rect": [
-            308.0,
-            265.5,
-            333.0,
-            278.5
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null,
-          "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.address_3",
-      "label": "Other party address",
-      "holds": "address",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f9"
-      ],
-      "placements": [
+        },
         {
           "page": 4,
           "rect": [
@@ -349,55 +381,7 @@
           "option_value": null,
           "option_text": null,
           "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.other_party_entity_type_4",
-      "label": "Other party entity type",
-      "holds": "text",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f11"
-      ],
-      "placements": [
-        {
-          "page": 4,
-          "rect": [
-            308.0,
-            500.5,
-            333.0,
-            513.5
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null,
-          "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.address_4",
-      "label": "Other party address",
-      "holds": "address",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f12"
-      ],
-      "placements": [
+        },
         {
           "page": 4,
           "rect": [
@@ -411,55 +395,7 @@
           "option_value": null,
           "option_text": null,
           "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.other_party_entity_type_5",
-      "label": "Other party entity type",
-      "holds": "text",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f14"
-      ],
-      "placements": [
-        {
-          "page": 5,
-          "rect": [
-            308.0,
-            113.5,
-            333.0,
-            126.5
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null,
-          "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.address_5",
-      "label": "Other party address",
-      "holds": "address",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f15"
-      ],
-      "placements": [
+        },
         {
           "page": 5,
           "rect": [
@@ -473,55 +409,7 @@
           "option_value": null,
           "option_text": null,
           "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.other_party_entity_type_6",
-      "label": "Other party entity type",
-      "holds": "text",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f17"
-      ],
-      "placements": [
-        {
-          "page": 5,
-          "rect": [
-            308.0,
-            348.5,
-            333.0,
-            361.5
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null,
-          "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.address_6",
-      "label": "Other party address",
-      "holds": "address",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f18"
-      ],
-      "placements": [
+        },
         {
           "page": 5,
           "rect": [
@@ -535,55 +423,7 @@
           "option_value": null,
           "option_text": null,
           "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.other_party_entity_type_7",
-      "label": "Other party entity type",
-      "holds": "text",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f20"
-      ],
-      "placements": [
-        {
-          "page": 11,
-          "rect": [
-            205.0,
-            693.5,
-            230.0,
-            706.5
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null,
-          "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.address_7",
-      "label": "Other party address",
-      "holds": "address",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f21"
-      ],
-      "placements": [
+        },
         {
           "page": 11,
           "rect": [
@@ -597,55 +437,7 @@
           "option_value": null,
           "option_text": null,
           "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.other_party_entity_type_8",
-      "label": "Other party entity type",
-      "holds": "text",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f23"
-      ],
-      "placements": [
-        {
-          "page": 12,
-          "rect": [
-            308.0,
-            293.5,
-            333.0,
-            306.5
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null,
-          "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.address_8",
-      "label": "Other party address",
-      "holds": "address",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f24"
-      ],
-      "placements": [
+        },
         {
           "page": 12,
           "rect": [
@@ -659,55 +451,7 @@
           "option_value": null,
           "option_text": null,
           "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.other_party_entity_type_9",
-      "label": "Other party entity type",
-      "holds": "text",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f26"
-      ],
-      "placements": [
-        {
-          "page": 12,
-          "rect": [
-            308.0,
-            527.5,
-            333.0,
-            540.5
-          ],
-          "kind": "blank",
-          "pdf_field": null,
-          "option_value": null,
-          "option_text": null,
-          "options": null
-        }
-      ]
-    },
-    {
-      "key": "party_1.address_9",
-      "label": "Other party address",
-      "holds": "address",
-      "format": null,
-      "filled_by": "role",
-      "role": "party_1",
-      "required": true,
-      "sensitive": false,
-      "depends_on": null,
-      "needs_review": null,
-      "ids": [
-        "f27"
-      ],
-      "placements": [
+        },
         {
           "page": 12,
           "rect": [
@@ -909,13 +653,13 @@
   ],
   "not_asked": [],
   "document": {
-    "name": "UL Lafayette Non-Disclosure Agreement",
-    "description": "A non-disclosure agreement between UL Lafayette and an outside party. It covers disclosure and use of confidential information, confidentiality obligations, exceptions, and Louisiana law. The outside party signs first; UL Lafayette countersigns."
+    "name": "University of Louisiana at Lafayette Non-Disclosure Agreement",
+    "description": "A non-disclosure agreement between UL Lafayette and another party. It covers confidential information shared to evaluate a possible collaborative research arrangement and the parties’ confidentiality obligations. Both parties sign; neither is designated to countersign."
   },
   "flags": {
     "no_fields": false,
     "addressed_to_ai": false,
-    "repaired": false,
+    "repaired": true,
     "xfa": false,
     "already_signed": false,
     "name_dropped": false

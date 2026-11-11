@@ -1,26 +1,12 @@
 [
   {
-    "request_id": "chatcmpl-EiEEq0vqmqvqdI9LqY2p37x96875a",
+    "request_id": "chatcmpl-Ej0i4iytBKiBJXNo03c2fyEx5LG83",
     "model": "gpt-6-luna",
-    "latency_s": 40.83,
-    "input_tokens": 10127,
-    "cached_tokens": 0,
-    "output_tokens": 5561,
-    "reasoning_tokens": 1898,
-    "problems": [
-      "the description has 308 characters (at most 300)"
-    ]
-  },
-  {
-    "request_id": "chatcmpl-EiEFVH7EaxbZFNLMHUvmkLIGuiAif",
-    "model": "gpt-6-luna",
-    "latency_s": 24.96,
-    "input_tokens": 12372,
-    "cached_tokens": 10124,
-    "output_tokens": 3271,
-    "reasoning_tokens": 1045,
-    "problems": [
-      "the description has 304 characters (at most 300)"
-    ]
+    "latency_s": 67.97,
+    "input_tokens": 10795,
+    "cached_tokens": 10792,
+    "output_tokens": 6655,
+    "reasoning_tokens": 1721,
+    "problems": []
   }
 ]

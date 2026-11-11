@@ -88,3 +88,34 @@ def test_a_partys_label_is_as_the_document_prints_it(slug: str, printed: str, la
     """Mixed-case printings starting with a capital are how the document names a party; headings
     in capitals and words inside sentences are not. Without either, the slug's words."""
     assert role_label(slug, printed) == label
+
+
+@pytest.mark.parametrize(
+    ("description", "kept"),
+    [
+        pytest.param("One sentence. " * 10, "One sentence. " * 10, id="within-the-limit"),
+        pytest.param(
+            "A mutual agreement between two parties. " * 8 + "It ends here.",
+            ("A mutual agreement between two parties. " * 7).strip(),
+            id="cut-after-the-last-whole-sentence",
+        ),
+        pytest.param("x" * 320, None, id="no-sentence-fits"),
+        pytest.param("See https://example.com for details.", None, id="a-link"),
+    ],
+)
+def test_a_long_description_keeps_its_whole_sentences(description: str, kept: str | None) -> None:
+    data = _form()
+    reading = read_document(data)
+    answer: dict[str, Any] = {
+        "roles": [{"slug": "client", "kind": "signer"}],
+        "fields": [],
+        "checkbox_groups": [],
+        "extra_fields": [],
+        "document": {"name": "Agreement", "description": description},
+    }
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        result = derive(reading, answer, document, problems=[], repaired=True)
+    assert result.document is not None
+    assert result.document.description == (kept.strip() if kept else None)
+    assert len(result.document.description or "") <= 300
+    assert result.flags.name_dropped is (kept is None)

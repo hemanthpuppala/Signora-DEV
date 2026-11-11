@@ -183,6 +183,17 @@ def answer_model(field_ids: list[str]) -> type[BaseModel]:
         filled_by=(str, Field(description=FILLED_BY_HELP)),
         label=(str, Field(description=LABEL_HELP)),
         must_fill=(bool, Field(description=MUST_FILL_HELP)),
+        same_as=(
+            field_id | None,
+            Field(
+                description=(
+                    "The id of an earlier field that asks for exactly this value: the same blank "
+                    "in a sentence printed again, a party's address restated. The same party fills "
+                    "both and they hold the same kind of value. null when the value can differ, "
+                    "even if the kind is the same (a notice address and a billing address)."
+                )
+            ),
+        ),
         depends_on=(
             dependency | None,
             Field(

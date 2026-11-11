@@ -2,15 +2,15 @@
   "fields_from": "blanks",
   "roles": [
     {
-      "slug": "recipient",
+      "slug": "company",
       "kind": "signer",
-      "label": "Recipient",
+      "label": "Company",
       "position": 1
     },
     {
-      "slug": "company",
-      "kind": "countersigner",
-      "label": "Company",
+      "slug": "recipient",
+      "kind": "signer",
+      "label": "Recipient",
       "position": 2
     }
   ],
@@ -109,12 +109,12 @@
       ]
     },
     {
-      "key": "agreement.company_legal_name",
+      "key": "company.party_name",
       "label": "Company legal name",
       "holds": "party_name",
       "format": null,
-      "filled_by": "sender",
-      "role": null,
+      "filled_by": "role",
+      "role": "company",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -140,12 +140,12 @@
       ]
     },
     {
-      "key": "agreement.company_street_address",
+      "key": "company.address",
       "label": "Company street address",
       "holds": "address",
       "format": null,
-      "filled_by": "sender",
-      "role": null,
+      "filled_by": "role",
+      "role": "company",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -171,12 +171,12 @@
       ]
     },
     {
-      "key": "agreement.company_city",
+      "key": "company.city",
       "label": "Company city",
       "holds": "city",
       "format": null,
-      "filled_by": "sender",
-      "role": null,
+      "filled_by": "role",
+      "role": "company",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -202,12 +202,12 @@
       ]
     },
     {
-      "key": "agreement.company_state",
+      "key": "company.state",
       "label": "Company state",
       "holds": "state",
       "format": null,
-      "filled_by": "sender",
-      "role": null,
+      "filled_by": "role",
+      "role": "company",
       "required": true,
       "sensitive": false,
       "depends_on": null,
@@ -406,7 +406,7 @@
           "page": 2,
           "rect": [
             43.3,
-            265.7,
+            243.10000000000002,
             243.6,
             279.1
           ],
@@ -451,7 +451,7 @@
     },
     {
       "key": "company.full_name",
-      "label": "Company representative printed name",
+      "label": "Company representative print name",
       "holds": "full_name",
       "format": null,
       "filled_by": "role",
@@ -499,7 +499,7 @@
           "page": 2,
           "rect": [
             43.3,
-            472.8,
+            450.2,
             243.6,
             486.2
           ],
@@ -544,7 +544,7 @@
     },
     {
       "key": "recipient.full_name",
-      "label": "Recipient printed name",
+      "label": "Recipient print name",
       "holds": "full_name",
       "format": null,
       "filled_by": "role",
@@ -577,7 +577,7 @@
   "not_asked": [],
   "document": {
     "name": "Unilateral Non-Disclosure Agreement",
-    "description": "A unilateral non-disclosure agreement between a Company and a Recipient. It covers confidential information, the Recipient’s nondisclosure and nonuse obligations, survival, and governing law. The Recipient signs first and the Company countersigns."
+    "description": "A unilateral non-disclosure agreement between a Company and a Recipient. It covers confidential information, nondisclosure and nonuse obligations, survival, and governing law. Both parties sign; no countersignature is specified."
   },
   "flags": {
     "no_fields": false,

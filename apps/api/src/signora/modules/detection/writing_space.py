@@ -62,7 +62,9 @@ class PageSpace:
     def __init__(self, page: pymupdf.Page, places: Iterable[Box]) -> None:
         self._page = page
         words = [displayed(page, word[:4]) for word in page.get_text("words") if visible(word[4])]
-        self._taken: RowIndex[None] = RowIndex((box, None) for box in [*words, *places])
+        fields = list(places)
+        self._taken: RowIndex[None] = RowIndex((box, None) for box in [*words, *fields])
+        self._fields: RowIndex[None] = RowIndex((box, None) for box in fields)
         self._upright = _reads_upright(page)
         # The text's right edge: a box after a label runs to it at most, never into the margin.
         # The furthest word, or the left margin mirrored when the page's text is short (a form of
@@ -74,6 +76,16 @@ class PageSpace:
     def take(self, box: Box) -> None:
         """A place now given to a field: nothing placed later may overlap it."""
         self._taken.add(box, None)
+        self._fields.add(box, None)
+
+    def field_after(self, label: Box) -> bool:
+        """Whether a field already sits right after a label on its row (where its blank would
+        begin): the blank is that field, not a new one."""
+        start = label[2] + LABEL_GAP
+        return any(
+            same_row(other, label) and other[2] > start and other[0] <= start + MIN_WIDTH
+            for other, _ in self._fields.near(label[1], label[3])
+        )
 
     def find(self, words: str) -> list[Box]:
         """Every place the words are printed on the page, as displayed, in reading order."""
@@ -166,9 +178,23 @@ class DocumentSpace:
             return None
         hits = space.find(words)
         if near:
-            nearest = min(hits, key=lambda hit: min(_distance(hit, o) for o in near), default=None)
+            nearest = self._nearest(hits, near)
             return space.room_after(nearest) if nearest is not None else None
         return next((room for hit in hits if (room := space.room_after(hit))), None)
+
+    def field_after(self, number: int, words: str, near: Sequence[Box]) -> bool:
+        """Whether a field already sits after the party's printing of the words (the one
+        ``locate_after`` would choose; with no ``near``, any printing)."""
+        space = self.page(number)
+        if space is None:
+            return False
+        hits = space.find(words)
+        chosen = [self._nearest(hits, near)] if near else hits
+        return any(hit is not None and space.field_after(hit) for hit in chosen)
+
+    @staticmethod
+    def _nearest(hits: Sequence[Box], near: Sequence[Box]) -> Box | None:
+        return min(hits, key=lambda hit: min(_distance(hit, o) for o in near), default=None)
 
     def place_after(self, number: int, words: str, near: Sequence[Box]) -> Box | None:
         """``locate_after``, and the place is then taken: nothing placed later may overlap it."""

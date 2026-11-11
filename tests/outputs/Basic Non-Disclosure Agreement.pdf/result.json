@@ -189,7 +189,7 @@
           "page": 2,
           "rect": [
             125.3,
-            464.9,
+            452.2,
             449.0,
             477.2
           ],
@@ -203,7 +203,7 @@
     },
     {
       "key": "disclosing_party.full_name",
-      "label": "Disclosing party typed or printed name",
+      "label": "Disclosing party printed name",
       "holds": "full_name",
       "format": null,
       "filled_by": "role",
@@ -282,7 +282,7 @@
           "page": 2,
           "rect": [
             125.3,
-            546.0,
+            533.2,
             449.0,
             558.2
           ],
@@ -296,7 +296,7 @@
     },
     {
       "key": "receiving_party.full_name",
-      "label": "Receiving party typed or printed name",
+      "label": "Receiving party printed name",
       "holds": "full_name",
       "format": null,
       "filled_by": "role",
@@ -360,7 +360,7 @@
   "not_asked": [],
   "document": {
     "name": "Basic Non-Disclosure Agreement",
-    "description": "A non-disclosure agreement between a disclosing party and a receiving party. It covers confidential information, the receiving party’s obligations, and the duration of confidentiality. Both parties sign; neither countersigns."
+    "description": "A non-disclosure agreement between a disclosing party and a receiving party. It covers confidential information, permitted exclusions, confidentiality obligations and the duration of those obligations. Both parties sign; no countersignature is specified."
   },
   "flags": {
     "no_fields": false,

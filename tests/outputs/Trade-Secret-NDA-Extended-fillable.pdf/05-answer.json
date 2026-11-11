@@ -17,329 +17,411 @@
     {
       "id": "f1",
       "holds": "party_name",
-      "filled_by": "company",
+      "format": "Month D, YYYY",
+      "filled_by": "sender",
       "label": "Company legal name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f2",
       "holds": "address",
-      "filled_by": "company",
+      "format": "Month D, YYYY",
+      "filled_by": "sender",
       "label": "Company mailing address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f3",
       "holds": "party_name",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient legal name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f4",
       "holds": "address",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient mailing address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f5",
       "holds": "date",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
       "label": "Effective date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f6",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 1",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f7",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 1",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f8",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 2",
       "must_fill": true,
+      "same_as": "f6",
       "depends_on": null
     },
     {
       "id": "f9",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 2",
       "must_fill": true,
+      "same_as": "f7",
       "depends_on": null
     },
     {
       "id": "f10",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 3",
       "must_fill": true,
+      "same_as": "f6",
       "depends_on": null
     },
     {
       "id": "f11",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 3",
       "must_fill": true,
+      "same_as": "f7",
       "depends_on": null
     },
     {
       "id": "f12",
-      "holds": "state",
+      "holds": "text",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
       "label": "Governing law state",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f13",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 4",
       "must_fill": true,
+      "same_as": "f6",
       "depends_on": null
     },
     {
       "id": "f14",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 4",
       "must_fill": true,
+      "same_as": "f7",
       "depends_on": null
     },
     {
       "id": "f15",
       "holds": "text",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
       "label": "Permitted purpose",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f16",
-      "holds": "currency",
+      "holds": "amount_in_words",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
-      "label": "Consideration amount in dollars",
+      "label": "Consideration amount in words",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f17",
-      "holds": "text",
+      "holds": "currency",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
-      "label": "Additional consideration detail",
+      "label": "Consideration amount in figures",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f18",
       "holds": "number",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
       "label": "Non-solicitation period in months",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f19",
       "holds": "email",
-      "filled_by": "company",
-      "label": "Company notices email",
+      "format": "Month D, YYYY",
+      "filled_by": "sender",
+      "label": "Company notice email address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f20",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 5",
       "must_fill": true,
+      "same_as": "f6",
       "depends_on": null
     },
     {
       "id": "f21",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 5",
       "must_fill": true,
+      "same_as": "f7",
       "depends_on": null
     },
     {
       "id": "f22",
       "holds": "signature",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f23",
       "holds": "date_signed",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient signing date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f24",
       "holds": "full_name",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient signer's printed name",
+      "label": "Recipient printed name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f25",
       "holds": "signature",
+      "format": "Month D, YYYY",
       "filled_by": "company",
       "label": "Company signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f26",
       "holds": "date_signed",
+      "format": "Month D, YYYY",
       "filled_by": "company",
       "label": "Company signing date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f27",
       "holds": "full_name",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company signer's printed name",
+      "label": "Company representative printed name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f28",
       "holds": "signature",
+      "format": "Month D, YYYY",
       "filled_by": "witness",
       "label": "Witness signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f29",
       "holds": "date_signed",
+      "format": "Month D, YYYY",
       "filled_by": "witness",
       "label": "Witness signing date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f30",
       "holds": "full_name",
+      "format": "Month D, YYYY",
       "filled_by": "witness",
       "label": "Witness printed name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f31",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 6",
       "must_fill": true,
+      "same_as": "f6",
       "depends_on": null
     },
     {
       "id": "f32",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 6",
       "must_fill": true,
+      "same_as": "f7",
       "depends_on": null
     },
     {
       "id": "f33",
       "holds": "checkbox",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient is an individual",
+      "label": "Recipient type: individual",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f34",
       "holds": "checkbox",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient is a business entity",
+      "label": "Recipient type: business entity",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f35",
       "holds": "party_name",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient legal name",
+      "label": "Recipient legal name in Exhibit A",
       "must_fill": true,
+      "same_as": "f3",
       "depends_on": null
     },
     {
       "id": "f36",
       "holds": "address",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient street address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f37",
       "holds": "city",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient city",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f38",
       "holds": "state",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient state",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f39",
       "holds": "postal_code",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient ZIP code",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f40",
       "holds": "country",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient country",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f41",
       "holds": "date_of_birth",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient date of birth",
       "must_fill": true,
+      "same_as": null,
       "depends_on": {
         "id": "f33",
         "option": "checked"
@@ -348,33 +430,41 @@
     {
       "id": "f42",
       "holds": "tax_id",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Recipient taxpayer identification number",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f43",
       "holds": "email",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient email",
+      "label": "Recipient email address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f44",
       "holds": "phone",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient phone",
-      "must_fill": true,
+      "label": "Recipient phone number",
+      "must_fill": false,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f45",
       "holds": "full_name",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Business entity contact person's name",
+      "label": "Recipient business contact person",
       "must_fill": true,
+      "same_as": null,
       "depends_on": {
         "id": "f34",
         "option": "checked"
@@ -383,9 +473,11 @@
     {
       "id": "f46",
       "holds": "title",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Business entity contact person's title",
+      "label": "Recipient business contact title",
       "must_fill": false,
+      "same_as": null,
       "depends_on": {
         "id": "f34",
         "option": "checked"
@@ -394,57 +486,71 @@
     {
       "id": "f47",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 7",
       "must_fill": true,
+      "same_as": "f6",
       "depends_on": null
     },
     {
       "id": "f48",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 7",
       "must_fill": true,
+      "same_as": "f7",
       "depends_on": null
     },
     {
       "id": "f49",
       "holds": "currency",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
       "label": "Signing fee",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f50",
       "holds": "currency",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
       "label": "Annual confidentiality fee",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f52",
       "holds": "checkbox",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
-      "label": "Payment by bank transfer",
+      "label": "Payment method: bank transfer",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f53",
       "holds": "checkbox",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
-      "label": "Payment by check",
+      "label": "Payment method: check",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f54",
       "holds": "text",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Bank name",
+      "label": "Recipient bank name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": {
         "id": "f52",
         "option": "checked"
@@ -453,9 +559,11 @@
     {
       "id": "f55",
       "holds": "bank_account",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Bank account number",
+      "label": "Recipient bank account number",
       "must_fill": true,
+      "same_as": null,
       "depends_on": {
         "id": "f52",
         "option": "checked"
@@ -464,9 +572,11 @@
     {
       "id": "f56",
       "holds": "bank_account",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Bank routing number",
+      "label": "Recipient bank routing number",
       "must_fill": true,
+      "same_as": null,
       "depends_on": {
         "id": "f52",
         "option": "checked"
@@ -475,73 +585,91 @@
     {
       "id": "f57",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 8",
       "must_fill": true,
+      "same_as": "f6",
       "depends_on": null
     },
     {
       "id": "f58",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 8",
       "must_fill": true,
+      "same_as": "f7",
       "depends_on": null
     },
     {
       "id": "f59",
       "holds": "checkbox",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Acknowledgement of receipt and reading of Company Information Security Policy",
+      "label": "Acknowledgment of receipt and reading of Company Information Security Policy",
       "must_fill": false,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f60",
       "holds": "checkbox",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
       "label": "Consent to receive notices by email",
       "must_fill": false,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f61",
       "holds": "checkbox",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Acknowledgement of disclosure of prior knowledge of the Subject Matter",
+      "label": "Disclosure of prior knowledge of the Subject Matter",
       "must_fill": false,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f62",
       "holds": "signature",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient acknowledgement signature",
+      "label": "Recipient acknowledgment signature",
       "must_fill": true,
+      "same_as": "f22",
       "depends_on": null
     },
     {
       "id": "f63",
       "holds": "date_signed",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient acknowledgement signing date",
+      "label": "Recipient acknowledgment signing date",
       "must_fill": true,
+      "same_as": "f23",
       "depends_on": null
     },
     {
       "id": "f64",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "recipient",
-      "label": "Recipient initials",
+      "label": "Recipient initials, page 9",
       "must_fill": true,
+      "same_as": "f6",
       "depends_on": null
     },
     {
       "id": "f65",
       "holds": "initials",
+      "format": "Month D, YYYY",
       "filled_by": "company",
-      "label": "Company initials",
+      "label": "Company initials, page 9",
       "must_fill": true,
+      "same_as": "f7",
       "depends_on": null
     }
   ],
@@ -564,8 +692,9 @@
   "extra_fields": [
     {
       "page": 8,
-      "anchor_text": "Total for the first year: $______________",
+      "anchor_text": "Total for the first year:",
       "holds": "currency",
+      "format": "Month D, YYYY",
       "filled_by": "sender",
       "label": "Total for the first year",
       "must_fill": true
@@ -573,6 +702,6 @@
   ],
   "document": {
     "name": "Trade Secret Non-Disclosure Agreement",
-    "description": "A unilateral trade-secret non-disclosure agreement between Company and Recipient. It covers confidential information, permitted use, confidentiality and non-solicitation duties, security, fees, notices and recipient acknowledgements. Recipient signs first; Company countersigns, and a witness also signs."
+    "description": "A trade-secret nondisclosure agreement between Company and Recipient. It covers permitted use, confidentiality, fees, non-solicitation, security, notices, payment details and acknowledgements. Recipient signs with a witness, and Company countersigns."
   }
 }

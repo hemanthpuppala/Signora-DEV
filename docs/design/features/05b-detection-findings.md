@@ -456,6 +456,37 @@ shared values are. The fixed `SHARED` list stays as the default when the AI says
   is refused and kept separate with a note.
 - Corpus: D7 gives one address and one kind of entity, 9 places each.
 
+### F11 — Built, with two fixes the real runs showed
+
+**Fix (built):** each answered field carries `same_as` (`schema.FieldAnswer`): "the id of an earlier field that asks
+for exactly this value: the same blank in a sentence printed again, a party's address restated … null when the value
+can differ (a notice address and a billing address)"; the prompt's reading step 5 says the same. `check` refuses a mark
+to itself, to another party's field, or to another kind of value, or between marks (a choice): a problem for the repair
+round. `derive` joins the marks that hold with a union-find, the group's earliest field giving the key, so a repeated
+value is one field with every place, as shared values are; a mark that does not hold is kept apart with a note. An
+answer without `same_as` (stored before) derives as before. The strict schema requires the key, so the test fakes of
+the AI give it.
+
+**Tests (`test_same_value.py`, 7):** the schema asks for it; an address in three printings of one sentence is one field
+in three places; without `same_as`, separate as before; a mark to another party, another kind or itself is a problem
+and never merged; marks that loop are one value once.
+
+**With the real AI** (four documents, the product's pipeline): D7 25 fields → **9** (its kind of entity and address
+each one field in 9 places); D1 and D2 no marks, unchanged; the 44-field trade-secret NDA marked 17 repeats, all
+right (a party's initials on each page, the legal name in an exhibit: values already shared, so the AI and the rule
+agree), none across parties or between values that can differ.
+
+**Two fixes the runs showed:**
+- **A description a little over the limit was thrown away** (302 and 304 characters for 300, in 2 of 8 runs; one not
+  mended by the repair round, so the document lost its description; F6 made it visible). A model counts characters
+  loosely: the description is now **cut after its last whole sentence within the limit** (`derive._fit`), and dropped
+  only when no sentence fits or it holds a link. `name_dropped` is set only when it is dropped.
+- **A repair round that could never succeed**: on the fillable trade-secret NDA, the AI lists the total the PDF
+  calculates ("Total for the first year: $____") as a blank in every run (it is not shown to the AI as a field), and
+  the repair round asked it to find other words, twice. A form field sitting right after the label is that blank: not
+  a problem for the AI any more, the duplicate is dropped with a note (`PageSpace.field_after`). The document went from
+  two calls (~94 s, ~24,600 tokens in) to one (no problems). Text printed after a label still goes to the repair round.
+
 ### F9 — The test corpus lacks the shapes found here, and has no pass mark (high)
 
 Every document in the corpus before this testing typed its blanks as underscores, so the reader's narrowest rule
@@ -510,5 +541,5 @@ merged only when F9's marks are met (task 13).
 | 9 | F7: addressed-to-AI search covers every untrusted string | done | `derive._document_text`; `test_flags_and_labels.py` |
 | 10 | F8: design doc §3.2–3.3, tests README, effort default | done | `05-detection.md` §3.2, §3.3, §3.6; `run_pipeline` request file; effort default `low` in code |
 | 11 | F10: extra fields placed in the space after their anchor | done | `schema.ExtraField.anchor_text` contract; `writing_space.PageSpace.room_after`, `DocumentSpace.place_after`; 5 tests in `test_writing_space.py`, `test_derive` updated; D7 rerun (F10 above) |
-| 12 | F11: the AI marks repeated fields that are one value; merged by key | todo | — |
-| 13 | Re-run the corpus (D1–D7, twins, traps), meet F9's pass marks, update `tests/outputs/SCORES.md` | todo | — |
+| 12 | F11: the AI marks repeated fields that are one value; merged by key | done | `schema.same_as`, `derive._same_values`; `test_same_value.py`; four real runs (F11 above) |
+| 13 | Re-run the corpus (D1–D7, twins, traps), meet F9's pass marks, update `tests/outputs/SCORES.md` | done (read stage), partial (AI) | `read_counts.py --check` 18 of 18; real runs of D1, D2, D7, the trade-secret NDA; `score.py` against confirmed answers is the owner's step |

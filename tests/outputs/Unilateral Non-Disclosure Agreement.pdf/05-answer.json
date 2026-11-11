@@ -1,12 +1,12 @@
 {
   "roles": [
     {
-      "slug": "recipient",
+      "slug": "company",
       "kind": "signer"
     },
     {
-      "slug": "company",
-      "kind": "countersigner"
+      "slug": "recipient",
+      "kind": "signer"
     }
   ],
   "fields": [
@@ -17,6 +17,7 @@
       "filled_by": "sender",
       "label": "Agreement date: day",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -26,6 +27,7 @@
       "filled_by": "sender",
       "label": "Agreement date: month",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -35,42 +37,47 @@
       "filled_by": "sender",
       "label": "Agreement date: year",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f4",
       "holds": "party_name",
       "format": null,
-      "filled_by": "sender",
+      "filled_by": "company",
       "label": "Company legal name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f5",
       "holds": "address",
       "format": null,
-      "filled_by": "sender",
+      "filled_by": "company",
       "label": "Company street address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f6",
       "holds": "city",
       "format": null,
-      "filled_by": "sender",
+      "filled_by": "company",
       "label": "Company city",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
       "id": "f7",
       "holds": "state",
       "format": null,
-      "filled_by": "sender",
+      "filled_by": "company",
       "label": "Company state",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -80,6 +87,7 @@
       "filled_by": "recipient",
       "label": "Recipient legal name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -89,6 +97,7 @@
       "filled_by": "recipient",
       "label": "Recipient street address",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -98,6 +107,7 @@
       "filled_by": "recipient",
       "label": "Recipient city",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -107,6 +117,7 @@
       "filled_by": "recipient",
       "label": "Recipient state",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -116,6 +127,7 @@
       "filled_by": "sender",
       "label": "Governing law: state",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -125,6 +137,7 @@
       "filled_by": "company",
       "label": "Company representative signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -134,6 +147,7 @@
       "filled_by": "company",
       "label": "Company signature date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -141,8 +155,9 @@
       "holds": "full_name",
       "format": null,
       "filled_by": "company",
-      "label": "Company representative printed name",
+      "label": "Company representative print name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -152,6 +167,7 @@
       "filled_by": "recipient",
       "label": "Recipient signature",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -161,6 +177,7 @@
       "filled_by": "recipient",
       "label": "Recipient signature date",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     },
     {
@@ -168,8 +185,9 @@
       "holds": "full_name",
       "format": null,
       "filled_by": "recipient",
-      "label": "Recipient printed name",
+      "label": "Recipient print name",
       "must_fill": true,
+      "same_as": null,
       "depends_on": null
     }
   ],
@@ -177,6 +195,6 @@
   "extra_fields": [],
   "document": {
     "name": "Unilateral Non-Disclosure Agreement",
-    "description": "A unilateral non-disclosure agreement between a Company and a Recipient. It covers confidential information, the Recipient’s nondisclosure and nonuse obligations, survival, and governing law. The Recipient signs first and the Company countersigns."
+    "description": "A unilateral non-disclosure agreement between a Company and a Recipient. It covers confidential information, nondisclosure and nonuse obligations, survival, and governing law. Both parties sign; no countersignature is specified."
   }
 }

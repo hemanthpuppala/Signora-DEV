@@ -1,6 +1,6 @@
 # Basic Non-Disclosure Agreement.pdf: field detection
 
-**Basic Non-Disclosure Agreement**: A non-disclosure agreement between a disclosing party and a receiving party. It covers confidential information, the receiving party’s obligations, and the duration of confidentiality. Both parties sign; neither countersigns.
+**Basic Non-Disclosure Agreement**: A non-disclosure agreement between a disclosing party and a receiving party. It covers confidential information, permitted exclusions, confidentiality obligations and the duration of those obligations. Both parties sign; no countersignature is specified.
 
 Uploader instructions: (none) · fields from: blanks
 
@@ -9,10 +9,10 @@ Uploader instructions: (none) · fields from: blanks
 | | |
 |---|---|
 | model, effort | `gpt-6-luna`, medium |
-| read stage | 46 ms |
-| AI latency | **11.2 s** over 1 call(s) |
-| input tokens | 5266 (cached 0) |
-| output tokens | 1061 (reasoning 247) |
+| read stage | 72 ms |
+| AI latency | **14.3 s** over 1 call(s) |
+| input tokens | 5501 (cached 0) |
+| output tokens | 1402 (reasoning 512) |
 | problems left | none |
 | flags | none |
 
@@ -31,10 +31,10 @@ Uploader instructions: (none) · fields from: blanks
 | `receiving_party.party_name` | Receiving party name | party_name | Receiving Party | yes | — | 1 | f4 |  |
 | `receiving_party.address` | Receiving party mailing address | address | Receiving Party | yes | — | 1 | f5 |  |
 | `disclosing_party.signature` | Disclosing party signature | signature | Disclosing Party | yes | — | 1 | f6 |  |
-| `disclosing_party.full_name` | Disclosing party typed or printed name | full_name | Disclosing Party | yes | — | 1 | f7 |  |
+| `disclosing_party.full_name` | Disclosing party printed name | full_name | Disclosing Party | yes | — | 1 | f7 |  |
 | `disclosing_party.date_signed` | Disclosing party signing date | date_signed | Disclosing Party | yes | — | 1 | f8 |  |
 | `receiving_party.signature` | Receiving party signature | signature | Receiving Party | yes | — | 1 | f9 |  |
-| `receiving_party.full_name` | Receiving party typed or printed name | full_name | Receiving Party | yes | — | 1 | f10 |  |
+| `receiving_party.full_name` | Receiving party printed name | full_name | Receiving Party | yes | — | 1 | f10 |  |
 | `receiving_party.date_signed` | Receiving party signing date | date_signed | Receiving Party | yes | — | 1 | f11 |  |
 
 ## Not asked

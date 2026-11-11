@@ -126,6 +126,20 @@ class Result(_Model):
     notes: list[str]
 
 
+def _fit(text: str, limit: int) -> str:
+    """Text within ``limit`` characters: as it is, else cut after its last whole sentence that
+    fits (a description of two or three sentences keeps the ones it can), else nothing. A model
+    counts characters loosely: 302 for at most 300 was seen twice in eight runs."""
+    if len(text) <= limit:
+        return text
+    head = text[:limit]
+    ends = [head.rfind(mark) for mark in (". ", "! ", "? ")] + [
+        limit - 1 if head[-1:] in ".!?" else -1
+    ]
+    end = max(ends)
+    return head[: end + 1].strip() if end > 0 else ""
+
+
 def role_label(slug: str, text: str = "") -> str:
     """A party's label as the document prints it: the most common printing of the slug's words
     that starts with a capital and is not all capitals ("UL Lafayette", "Disclosing Party"), so
@@ -213,11 +227,31 @@ def _extra_problem(space: DocumentSpace, extra: dict[str, Any], near: list[Box])
     if page is None or _unsafe(words) or not page.find(words):
         return f"its words are not on page {number}"
     if space.locate_after(number, words, near) is None:
+        if space.field_after(number, words, near):
+            return None  # a form field is that blank already: nothing for the AI to fix
         return (
             f"there is no free space after {words!r} on page {number} where the other fields of "
             f"{extra['filled_by']} are: give the words printed right before the blank, and check "
             "who fills it (a value already printed is not a blank)"
         )
+    return None
+
+
+def _not_the_same(item: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> str | None:
+    """Why a field's ``same_as`` cannot hold (F11), in words; None when it can or is not given.
+    The same value is one party's (or the sender's) and one kind, never a mark (a choice)."""
+    same = item.get("same_as")
+    if not same:
+        return None
+    if same == item["id"]:
+        return "marked the same value as itself"
+    target = by_id.get(same)
+    if target is None:
+        return f"marked the same value as {same}, which is not a field"
+    if target["filled_by"] != item["filled_by"]:
+        return f"marked the same value as {same}, but not the same party's"
+    if target["holds"] != item["holds"] or item["holds"] in ("checkbox", "choice"):
+        return f"marked the same value as {same}, but not the same kind of value"
     return None
 
 
@@ -245,6 +279,10 @@ def check(answer: dict[str, Any], reading: Reading, document: pymupdf.Document) 
             problems.append(f"{name}: a {item['holds']} must be given by a party")
         if _unsafe(item["label"]):
             problems.append(f"{name}: the label has a link or markup")
+    by_id = {item["id"]: item for item in answer["fields"]}
+    for item in answer["fields"]:
+        if (why := _not_the_same(item, by_id)) is not None:
+            problems.append(f"{item['id']}: {why}")
     for item in answer["fields"]:
         found = asked.get(item["id"])
         if found and item["holds"] not in ALLOWED.get(found.kind, frozenset()):
@@ -316,6 +354,7 @@ class _Item:
         self.group: int | None = None  # the checkbox group it is one option of, by number
         self.group_label: str | None = None
         self.depends: tuple[str, str, Literal["layout", "ai"]] | None = None
+        self.same: _Item | None = None  # the earliest field of the value it is one place of (F11)
 
 
 def _placements(found: FoundField) -> list[PlacementOut]:
@@ -440,6 +479,7 @@ def derive(
             None if why is not None else space.place_after(extra["page"], _label_words(extra), near)
         )
         if rect is None:
+            why = why or "a form field already sits after its words: that field is the blank"
             notes.append(f"extra field {extra['label']!r} dropped: {why}")
             continue
         items[f"x{number}"] = _Item(
@@ -457,6 +497,7 @@ def derive(
         )
 
     _room_to_sign(items, space)
+    _same_values(answer, items, notes)
 
     # Checkbox groups: one choice, its options the checkboxes (§4.3). Each group is its own
     # choice, by number: two groups may well share a label ("Yes or no" asked twice).
@@ -495,8 +536,8 @@ def derive(
         description = meta["description"].strip()
         if _unsafe(name) or not 1 <= len(name) <= NAME_MAX:
             name, name_dropped = "", True
-        if _unsafe(description) or len(description) > DESCRIPTION_MAX:
-            description, name_dropped = "", True
+        description = "" if _unsafe(description) else _fit(description, DESCRIPTION_MAX)
+        name_dropped = name_dropped or (not description and bool(meta["description"].strip()))
         document_out = DocumentOut(name=name or None, description=description or None)
     return Result(
         fields_from=reading.fields_from,
@@ -536,6 +577,43 @@ def _room_to_sign(items: dict[str, _Item], space: DocumentSpace) -> None:
                 )
 
 
+def _same_values(answer: dict[str, Any], items: dict[str, _Item], notes: list[str]) -> None:
+    """Fields the AI marks as one value (F11) become one key: each mark that holds (the same
+    party's, the same kind, as stored) joins its two fields; a group's earliest field gives the
+    key. A mark that does not hold is kept apart, with a note. Union-find, near-linear: O(F)."""
+    parent: dict[str, str] = {}
+
+    def root(field_id: str) -> str:
+        while parent.get(field_id, field_id) != field_id:
+            parent[field_id] = parent.get(parent[field_id], parent[field_id])
+            field_id = parent[field_id]
+        return field_id
+
+    by_id = {item["id"]: item for item in answer["fields"]}
+    for item in answer["fields"]:
+        same = item.get("same_as")
+        if not same:
+            continue
+        why = _not_the_same(item, by_id)
+        mine, theirs = items.get(item["id"]), items.get(same)
+        if why is None and mine and theirs:
+            stored_apart = (mine.filled_by, mine.holds) != (theirs.filled_by, theirs.holds)
+            why = "not the same once checked" if stored_apart else None
+        if why is not None or mine is None or theirs is None:
+            notes.append(f"{item['id']}: kept apart from {same}: not the same value ({why})")
+            continue
+        parent[root(item["id"])] = root(same)
+    groups: dict[str, list[_Item]] = {}
+    for field_id in parent:
+        groups.setdefault(root(field_id), []).append(items[field_id])
+    for field_id, members in groups.items():
+        everyone = {id(item): item for item in [items[field_id], *members]}.values()
+        first = min(everyone, key=lambda item: item.order)
+        for item in everyone:
+            if item is not first:
+                item.same = first
+
+
 def _owner(item: _Item) -> tuple[str, str | None]:
     """(``filled_by`` as stored, the role's slug)."""
     if item.filled_by in ("sender", "none"):
@@ -558,7 +636,9 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
     for item in ordered:
         _, role = _owner(item)
         owner = role or "agreement"
-        if item.group is not None:
+        if item.same is not None:  # one value with an earlier field (F11): its key
+            key_of[id(item)] = key_of[id(item.same)]
+        elif item.group is not None:
             if item.group not in groups:
                 words = name_words(item.group_label or "choice", role)
                 groups[item.group] = unique(f"{owner}.{words}", taken)
