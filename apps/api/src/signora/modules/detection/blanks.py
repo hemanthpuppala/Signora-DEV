@@ -1,7 +1,8 @@
-"""Blanks marked in a document's text (LLD §2.4): underscores, placeholders, checkbox glyphs.
+"""Blanks marked on a document's page (LLD §2.4): underscores, placeholders, checkbox glyphs, and
+lines drawn as graphics (findings F1, ``drawn_lines``).
 
 A Word file converted to PDF, or a printed agreement, has no form fields, but its blanks are marked
-in its text. Each becomes a field with its exact position. In a fillable PDF, only the blanks no
+on its pages. Each becomes a field with its exact position. In a fillable PDF, only the blanks no
 form field covers are added (§2.2). Blanks marked by nothing are the AI's ``extra_fields``.
 """
 
@@ -11,6 +12,7 @@ import re
 
 import pymupdf
 
+from signora.modules.detection.drawn_lines import drawn_blanks
 from signora.modules.detection.geometry import (
     TEXT_MAX,
     Box,
@@ -150,13 +152,18 @@ def find_blanks(
         runs = [box for box in _runs(page) if free(box)]
         holders = [item for item in _placeholders(page) if free(item[0])]
         glyphs = [box for box in _glyphs(page) if free(box)]
-        if not (runs or holders or glyphs):
+        # Lines drawn as graphics (F1): not under a form field or a blank found in the text.
+        marked = [*(covered or {}).get(number, []), *runs, *(h[0] for h in holders), *glyphs]
+        lines = drawn_blanks(page, marked)
+        if not (runs or holders or glyphs or lines):
             continue
         refs: list[tuple[str, FieldKind, Box]] = [
             *[(f"blank:{number}:r{i}", "blank", box) for i, box in enumerate(runs)],
             *[(f"blank:{number}:p{i}", "blank", box) for i, (box, _, _) in enumerate(holders)],
             *[(f"blank:{number}:c{i}", "checkbox", box) for i, box in enumerate(glyphs)],
+            *[(f"blank:{number}:l{i}", "blank", box) for i, box in enumerate(lines)],
         ]
+        drawn = {f"blank:{number}:l{i}" for i in range(len(lines))}
         text = PageText(
             page,
             [Marked(ref, None, box) for ref, _, box in refs],
@@ -187,6 +194,7 @@ def find_blanks(
                     label_below=cut(text.below(box), TEXT_MAX) if kind == "blank" else None,
                     value=holder[1] if holder else None,
                     sample_value=holder is not None,
+                    drawn=ref in drawn,
                 )
             )
     return found

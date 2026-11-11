@@ -60,6 +60,7 @@ class FoundField(_Model):
     text_inside: str | None = None  # words drawn in its box (often its own appearance)
     value: str | None = None
     sample_value: bool = False  # a bracketed value a template ships with ("[Fill in state]")
+    drawn: bool = False  # a blank from a line drawn as a graphic, not marked in the text (F1)
     options: list[str] = []  # dropdown and list choices; a radio group's option values
     required: bool = False
     read_only: bool = False

@@ -332,6 +332,11 @@ def derive(
     items: dict[str, _Item] = {}
     for found in reading.asked:
         item = answered.get(found.id)
+        if found.drawn and item is not None and item["filled_by"] == "none":
+            # A drawn line is the least certain mark (F1): the AI read it in its sentence and
+            # says nobody fills it, so it is decoration, not a field.
+            notes.append(f"{found.id}: a drawn line nobody fills: not kept as a field")
+            continue
         if item is None:
             review = ["not assigned to anyone"]  # rather than "answered 0 times"
             holds, filled_by, label, required = (

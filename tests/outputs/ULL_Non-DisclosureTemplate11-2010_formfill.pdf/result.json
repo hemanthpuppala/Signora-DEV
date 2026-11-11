@@ -1,0 +1,924 @@
+{
+  "fields_from": "blanks",
+  "roles": [
+    {
+      "slug": "party_1",
+      "kind": "signer",
+      "label": "Party 1",
+      "position": 1
+    },
+    {
+      "slug": "ul_lafayette",
+      "kind": "countersigner",
+      "label": "Ul Lafayette",
+      "position": 2
+    }
+  ],
+  "fields": [
+    {
+      "key": "party_1.party_name",
+      "label": "Other party legal name",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f1",
+        "f4",
+        "f7",
+        "f10",
+        "f13",
+        "f16",
+        "f19",
+        "f22",
+        "f25"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            267.0,
+            104.5,
+            292.0,
+            117.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 3,
+          "rect": [
+            159.0,
+            665.5,
+            184.0,
+            678.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            267.0,
+            265.5,
+            292.0,
+            278.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            267.0,
+            500.5,
+            292.0,
+            513.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            267.0,
+            113.5,
+            292.0,
+            126.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            267.0,
+            348.5,
+            292.0,
+            361.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 11,
+          "rect": [
+            159.0,
+            693.5,
+            184.0,
+            706.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            267.0,
+            293.5,
+            292.0,
+            306.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            267.0,
+            527.5,
+            292.0,
+            540.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f2"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            308.0,
+            104.5,
+            333.0,
+            117.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f3"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            423.0,
+            104.5,
+            448.0,
+            117.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type_2",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f5"
+      ],
+      "placements": [
+        {
+          "page": 3,
+          "rect": [
+            205.0,
+            665.5,
+            230.0,
+            678.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address_2",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f6"
+      ],
+      "placements": [
+        {
+          "page": 3,
+          "rect": [
+            331.0,
+            665.5,
+            356.0,
+            678.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type_3",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f8"
+      ],
+      "placements": [
+        {
+          "page": 4,
+          "rect": [
+            308.0,
+            265.5,
+            333.0,
+            278.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address_3",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f9"
+      ],
+      "placements": [
+        {
+          "page": 4,
+          "rect": [
+            423.0,
+            265.5,
+            448.0,
+            278.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type_4",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f11"
+      ],
+      "placements": [
+        {
+          "page": 4,
+          "rect": [
+            308.0,
+            500.5,
+            333.0,
+            513.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address_4",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f12"
+      ],
+      "placements": [
+        {
+          "page": 4,
+          "rect": [
+            423.0,
+            500.5,
+            448.0,
+            513.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type_5",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f14"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            308.0,
+            113.5,
+            333.0,
+            126.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address_5",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f15"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            423.0,
+            113.5,
+            448.0,
+            126.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type_6",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f17"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            308.0,
+            348.5,
+            333.0,
+            361.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address_6",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f18"
+      ],
+      "placements": [
+        {
+          "page": 5,
+          "rect": [
+            423.0,
+            348.5,
+            448.0,
+            361.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type_7",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f20"
+      ],
+      "placements": [
+        {
+          "page": 11,
+          "rect": [
+            205.0,
+            693.5,
+            230.0,
+            706.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address_7",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f21"
+      ],
+      "placements": [
+        {
+          "page": 11,
+          "rect": [
+            331.0,
+            693.5,
+            356.0,
+            706.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type_8",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f23"
+      ],
+      "placements": [
+        {
+          "page": 12,
+          "rect": [
+            308.0,
+            293.5,
+            333.0,
+            306.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address_8",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f24"
+      ],
+      "placements": [
+        {
+          "page": 12,
+          "rect": [
+            423.0,
+            293.5,
+            448.0,
+            306.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.other_party_entity_type_9",
+      "label": "Other party entity type",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f26"
+      ],
+      "placements": [
+        {
+          "page": 12,
+          "rect": [
+            308.0,
+            527.5,
+            333.0,
+            540.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address_9",
+      "label": "Other party address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f27"
+      ],
+      "placements": [
+        {
+          "page": 12,
+          "rect": [
+            423.0,
+            527.5,
+            448.0,
+            540.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.signature",
+      "label": "Other party signature",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f28"
+      ],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            92.0,
+            629.5,
+            252.0,
+            665.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "ul_lafayette.signature",
+      "label": "UL Lafayette signature",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "role",
+      "role": "ul_lafayette",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f29"
+      ],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            360.0,
+            629.5,
+            504.0,
+            665.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.full_name",
+      "label": "Other party signer's printed name",
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": "placed after the words printed before it: check its position",
+      "ids": [],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            113.7,
+            665.9,
+            322.0,
+            679.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.title",
+      "label": "Other party signer's title",
+      "holds": "title",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": "placed after the words printed before it: check its position",
+      "ids": [],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            111.7,
+            679.7,
+            322.0,
+            692.9
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.date_signed",
+      "label": "Other party signing date",
+      "holds": "date_signed",
+      "format": "Month D, YYYY",
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f30"
+      ],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            115.0,
+            693.5,
+            252.0,
+            706.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "ul_lafayette.date_signed",
+      "label": "UL Lafayette signing date",
+      "holds": "date_signed",
+      "format": "Month D, YYYY",
+      "filled_by": "role",
+      "role": "ul_lafayette",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f31"
+      ],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            370.0,
+            693.5,
+            504.0,
+            706.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    }
+  ],
+  "not_asked": [],
+  "document": {
+    "name": "UL Lafayette Non-Disclosure Agreement",
+    "description": "A non-disclosure agreement between UL Lafayette and an outside party. It covers disclosure and use of confidential information, confidentiality obligations, exceptions, and Louisiana law. The outside party signs first; UL Lafayette countersigns."
+  },
+  "flags": {
+    "no_fields": false,
+    "addressed_to_ai": false,
+    "repaired": false,
+    "xfa": false,
+    "already_signed": false,
+    "name_dropped": false
+  },
+  "notes": []
+}

@@ -91,27 +91,40 @@ on D1 and D7:
 | visible words | D1 p. 1 "Disclosing", "Receiving" | an underlined word (emphasis, a link) | no |
 | typed underscores | D1 p. 2 | the same blank, already found from the text | no (not doubled) |
 
-**Proposed fix:** a fourth kind of mark in `blanks.py`, beside underscores, placeholders and checkbox glyphs:
+**Fix (built):** `detection/drawn_lines.py`, a fourth kind of mark beside underscores, placeholders and checkbox
+glyphs, called from `blanks.find_blanks`; each blank it gives carries `drawn` (`reading.FoundField`).
 
-1. **Candidates**: from `page.get_drawings()`, stroked horizontal lines and filled rectangles at most 2 pt tall and at
-   least 20 pt wide.
-2. **Only the empty stretches**: the words on the text row just above the line, within its span, are found through
-   the existing `RowIndex`; a word counts when its centre lies over the line, and a word made only of whitespace,
-   zero-width characters (`U+200B`–`U+200D`, `U+2060`, `U+FEFF`) or soft hyphens counts as empty. The line is cut where
-   visible words sit, and each remaining stretch of at least 20 pt is a candidate, so one underline drawn under
-   "Name:␣␣␣␣␣" yields the stretch after the label.
+1. **Candidates**: from `page.get_drawings()`, stroked horizontal segments, rectangles and quads at most 2 pt tall
+   (`THICKNESS_MAX`). **Pieces of one line are joined first** (on one row, at most 1.5 pt apart, `JOIN_GAP`) and the
+   line is judged whole: a table's row rule is often drawn once per column, and each half alone looks like a short
+   empty line (seen on the fillable Mutual NDA, where 8 row rules came back as blanks before the join). At least
+   20 pt long (`LENGTH_MIN`).
+2. **Only the empty stretches, character by character**: the visible characters on the text row above the line (12 pt,
+   `TEXT_ABOVE`), from `rawdict`, through a `RowIndex`. A character is empty when it draws nothing (spaces, zero-width
+   characters, soft hyphens: `writing_space.visible`, the one definition F2 and F10 use). **By character, not by
+   word**: a word processor's underlined gap followed by a comma is one "word" ("␣␣␣␣␣,") whose box spans the line;
+   judged by word, D7's gaps were refused (seen while testing). The line is cut where visible characters sit and each
+   remaining stretch of at least 20 pt is a blank, so one underline under "Name:␣␣␣␣␣" gives the stretch after the
+   label and an underlined word gives nothing.
 3. **Not a blank**:
-   - under a form field or under a blank already found from the text (typed underscores);
-   - a table border: its ends meet vertical lines;
-   - a rule: wider than 80 % of the page's text width, or in the top or bottom margin at the same position on every
-     page (a header or footer rule).
-4. **Merged and sized** as underscore runs are: pieces on one row closer than 6 pt are one blank; the box is the line
-   with the text line above it (F2 then grows signatures and initials).
+   - wider than 80 % of the text's width (`FULL_WIDTH`): a separator or a table's row rule;
+   - an end meets a vertical line (`TOUCH`, 2 pt): a table's or a box's border;
+   - **in the top or bottom tenth of the page (`MARGIN`) with no label printed to its left on its row**
+     (`LABEL_REACH`, 72 pt): a header or footer rule. This replaces "at the same place on every page", which missed
+     a rule on one page (TC-843's line under its title) and would have refused what should be kept: "Initials: ____"
+     in every page's footer;
+   - under a form field or a blank already found in the text (more than half its length overlapped).
+4. **Merged and sized** as underscore runs are: stretches on one row closer than 6 pt are one blank; the box is the
+   line with the text row above it (F2 then grows signatures and initials).
 5. **Labels and layout** by the same `PageText` code as other blanks; the layout text shows `⟦fN⟧` where the spaces
    were.
+6. **Backstop**: a drawn blank the AI answers as filled by **nobody** is not kept as a field, with a note in the
+   proposal (`derive`): a drawn line is the least certain mark, and the AI has read it in its sentence. A typed blank
+   keeps its treatment.
 
-Nothing after the read stage changes. A version read before the fix is detected again from the document page (Find
-fields again, §1.3) while it is not approved.
+Cost: one pass over a page's drawings (sorted to join pieces) and one over its characters, then a row index:
+O(D log D + C) a page. Nothing after the read stage changes. A version read before the fix is detected again from the
+document page (Find fields again, §1.3) while it is not approved.
 
 **Edge cases and how each is treated:**
 
@@ -121,25 +134,41 @@ fields again, §1.3) while it is not approved.
 | underlined words: headings, links, defined terms | not a blank: visible words above |
 | a line under typed underscores | not doubled (step 3) |
 | header and footer rules, section separators | not a blank (step 3) |
-| ruled tables | not a blank (step 3) |
-| a form-style table whose empty cell has only a bottom line | a blank, flagged "check its position": often a real place to fill |
+| initials or a signature line in a footer, with its label | a blank (step 3: labelled) |
+| ruled tables, a table's row rules drawn per column | not a blank (steps 1 and 3) |
+| captioned boxes: a ruled cell with a small caption (PRINT NAME, CITY on a government form) | not found: the cell's lines are borders; a different shape, recorded under topic 8 |
 | dotted or dashed lines (`........`, `- - -`) | not covered: dot leaders in contents tables would be false blanks; left to topic 8 |
 | boxes drawn as rectangles (a drawn `□`, comb boxes) | not covered: a separate mark, recorded for later |
 | lines inside an image, scanned pages | not covered: scans are blocked as needing OCR (Phase 4) |
 | white or hidden text above a line | accepted risk |
 
 **Backstops for a wrong candidate:** the AI reads every marker in its sentence; a drawn-line blank the AI says
-**nobody fills** is dropped with a note in the proposal rather than stored as a field (a typed blank keeps today's
-treatment); every result is reviewed and approved by a person before it can be sent.
+**nobody fills** is not kept (step 6); every result is reviewed and approved by a person before it can be sent.
 
-**Test cases:**
-- Unit (generated PDF): underlined spaces after "Name:", "Date:" and under a "Signature" heading (found); an
-  underline over "Name:␣␣␣␣" (one blank, after the label); underlined words and a link (none); a line under typed
-  underscores (not doubled); a ruled table (none); a full-width rule and a footer rule on every page (none); a line
-  under a form field (none); spaces made of `U+200B` and `U+00A0` (found); a drawn-line blank the AI says nobody fills
-  (dropped, noted).
-- Corpus: D7 finds its 31 lines; D3f and D4f find every place their fillable twin has (33 and 26, less the buttons);
-  D1 still finds exactly 11 (its underlined words and doubled line are not blanks).
+**Tests (`tests/modules/detection/test_drawn_lines.py`, 13):** underlined spaces after a label (found, labelled by
+it); a thin filled bar (found); no-break spaces on the line (found); one underline under a label and its spaces (the
+stretch after the label); an underlined word (none); a line under typed underscores (not found twice); a separator,
+whole and drawn in two pieces (none); a ruled table (none); an unlabelled footer rule (none) and footer initials
+(found); a line under a form field (none); a turned page (placed as shown); a drawn line the AI says nobody fills (not
+kept) and one a party fills (kept). The 9 that expect a blank fail on the reader before F1; the 4 that expect none
+guard against finding too much.
+
+**On every real document** (read stage, before → after):
+
+| Document | Before | After | |
+|---|---|---|---|
+| D7 UL Lafayette NDA | 0 (`none`) | **31**, all drawn | every line on the page |
+| D1 Basic NDA, D2 Unilateral NDA, the Financial NDA | 11, 18, 11 | 11, 18, 11 | underlined words and the line under typed signatures refused |
+| Mutual NDA (fillable) | 22 | 22 | its table's row rules, drawn per column, refused |
+| D3f REG 135, D4f TC-843 (flat) | 6, 6 | 6, 6 | no wrong field from their table borders or title rule; their places are captioned boxes (topic 8) |
+| D6f contractor agreement (flat), the other fillable forms | unchanged | unchanged | |
+
+**D7 through the product's own pipeline** (`run_pipeline.py`, F1, F2 and F10 together; one AI call, 26.4 s, 16,493
+tokens in of which 16,490 cached, 3,240 out, no problems): the other party signs, UL Lafayette countersigns; the name
+"UL Lafayette Non-Disclosure Agreement" and a correct description; the party's name in 9 places; signatures 36 pt
+tall; the printed name and title placed after their labels in the other party's column; UL Lafayette's printed name
+and title not asked. Left: the entity type and address asked 9 times each (F11), and the role label "Ul Lafayette"
+(a label built from the slug capitalises each word; an acronym loses its capitals).
 
 ### F2 — Signature boxes on flat documents are one text line tall (high)
 
@@ -359,7 +388,8 @@ measured on; the corpus must hold the documents that would fool them, and a chan
    | Measure (`score.py`) | Mark |
    |---|---|
    | `extra` on the trap documents that hold no blank | 0 |
-   | `found` on the trap documents that hold blanks, D3f, D4f, D7 | every marked place (unmarked ones are topic 8) |
+   | `found` on the trap documents that hold blanks and D7 | every marked place (unmarked ones are topic 8) |
+   | `extra` on D3f and D4f (ruled government forms) | 0: their places are captioned boxes, counted under topic 8 |
    | `found` and `extra` on the documents scored before | unchanged |
    | the other measures (`holds`, `filled by`, `required`, `shared`, `roles`) on the documents scored before | no drop beyond the run-to-run variance two clean runs show |
 
@@ -382,7 +412,7 @@ merged only when F9's marks are met (task 13).
 | 2 | F9: flattening tool, generated trap documents, D1–D7 and twins in the corpus, drafted expected answers, pass marks in `score.py` | todo | — |
 | 3 | F5: left labels end at the neighbouring field; caption above wins | todo | — |
 | 4 | F3: label above for lone lines reaches the heading | todo | — |
-| 5 | F1: drawn lines and thin bars as blanks | todo | — |
+| 5 | F1: drawn lines and thin bars as blanks | done | `detection/drawn_lines.py`; 13 tests in `test_drawn_lines.py` (9 fail before it); every real document recounted; D7 through the real pipeline (F1 above) |
 | 6 | F2: signature and initials boxes grow into the space above the line | done | `detection/writing_space.py`; 7 tests in `test_writing_space.py` (4 fail without it); D1 and D2 re-derived (F2 above) |
 | 7 | F4: field issues reach `needs_review` | todo | — |
 | 8 | F6: `name_dropped` shown | todo | — |
