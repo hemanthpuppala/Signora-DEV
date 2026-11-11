@@ -85,6 +85,9 @@ LABEL_HELP = (
 )
 
 
+ANCHOR_MAX = 80  # characters of an extra field's anchor words: what the AI copies, what we search
+
+
 class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -115,8 +118,10 @@ class ExtraField(Strict):
     page: int = Field(description="The page number the blank is on (1-based).")
     anchor_text: str = Field(
         description=(
-            "The exact words around the blank, copied from the document (at most 80 characters), "
-            "so the blank can be found on the page."
+            "The words printed immediately before the blank, on the same line: its label, such "
+            "as 'NAME:' or 'Date of birth:'. Copied exactly from the document, at most "
+            f"{ANCHOR_MAX} characters. The blank is the empty space right after these words; when "
+            "it is on the line below its label, the label's words."
         )
     )
     holds: Holds = Field(description=HOLDS_HELP)

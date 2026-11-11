@@ -1,22 +1,30 @@
-"""Room to sign on a line (findings F2): a signature or initials on a blank line takes the writing
-space above it; a form field's box and every other value keep their size."""
+"""Free space to write in (findings F2, F10): a signature or initials on a blank line takes the
+writing space above it, a form field's box and every other value keeping their size; a blank the AI
+found where the page marks nothing goes in the free space after the words printed before it."""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 import pymupdf
 import pytest
 
-from signora.modules.detection.derive import derive
+from signora.modules.detection.derive import Result, check, derive
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.read import read_document
-from signora.modules.detection.writing_space import CLEARANCE, SIGN_HEIGHT, visible
+from signora.modules.detection.writing_space import (
+    CLEARANCE,
+    LABEL_GAP,
+    MIN_WIDTH,
+    SIGN_HEIGHT,
+    visible,
+)
 
 LINE = "_" * 30
 
 
-def _flat(texts: list[tuple[float, float, str]], rotation: int = 0) -> bytes:
+def _flat(texts: Sequence[tuple[float, float, str]], rotation: int = 0) -> bytes:
     """A flat page with text at (x, baseline y): blanks are typed underscores."""
     document = pymupdf.open()
     page = document.new_page()
@@ -124,3 +132,133 @@ def test_spaces_and_invisible_characters_leave_the_space_free() -> None:
     assert not visible("\u00ad\u2002\u2002\u200b")
     assert not visible("   ")
     assert visible("Signature")
+
+
+# --- F10: a blank the page marks nothing goes after the words printed before it ------------------
+
+PARAGRAPH = "The parties have executed this Agreement as of the dates written below, in two copies."
+
+
+def _with_extras(data: bytes, extras: list[dict[str, Any]], holds: list[str]) -> Result:
+    """The found blanks answered in reading order as ``holds`` says (left column: party_1, right:
+    party_2), and ``extras`` as the AI's extra fields; each extra's other keys default."""
+    reading = read_document(data)
+    fields = [
+        {
+            "id": found.id,
+            "holds": holds[n],
+            "format": None,
+            "filled_by": "party_1" if found.placements[0].rect[0] < 300 else "party_2",
+            "label": f"Field {n + 1}",
+            "must_fill": True,
+            "depends_on": None,
+        }
+        for n, found in enumerate(reading.asked)
+    ]
+    answer: dict[str, Any] = {
+        "roles": [{"slug": "party_1", "kind": "signer"}, {"slug": "party_2", "kind": "signer"}],
+        "fields": fields,
+        "checkbox_groups": [],
+        "extra_fields": [
+            {"page": 1, "holds": "full_name", "format": None, "must_fill": True, **extra}
+            for extra in extras
+        ],
+        "document": None,
+    }
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        return derive(reading, answer, document, problems=[], repaired=False)
+
+
+def _words(data: bytes, text: str) -> list[pymupdf.Rect]:
+    return pymupdf.open(stream=data, filetype="pdf")[0].search_for(text)
+
+
+def _extra(result: Result, label: str) -> Box:
+    return next(f for f in result.fields if f.label == label).placements[0].rect
+
+
+def test_an_extra_field_goes_in_the_space_after_its_label_on_its_row() -> None:
+    data = _flat([(72, 100, PARAGRAPH), (72, 160, "NAME:")])
+    (label,) = _words(data, "NAME:")
+    result = _with_extras(
+        data, [{"anchor_text": "NAME:", "filled_by": "party_1", "label": "Name"}], []
+    )
+    x0, y0, x1, y1 = _extra(result, "Name")
+    assert x0 == pytest.approx(label.x1 + LABEL_GAP, abs=0.1)  # just after the label, not on it
+    assert (y0, y1) == pytest.approx((label.y0, label.y1), abs=0.1)  # on its row, one line tall
+    assert x1 - x0 >= MIN_WIDTH
+
+
+def test_of_two_printings_of_its_label_it_takes_the_one_by_its_partys_other_places() -> None:
+    """A signature block in two columns, each with "NAME:": each party's name lands in its own
+    column, and the left one stops before the right column's label."""
+    data = _flat(
+        [
+            (72, 100, PARAGRAPH),
+            (72, 140, "By: " + "_" * 20),
+            (324, 140, "By: " + "_" * 20),
+            (72, 160, "NAME:"),
+            (324, 160, "NAME:"),
+        ]
+    )
+    left, right = sorted(_words(data, "NAME:"), key=lambda r: r.x0)
+    result = _with_extras(
+        data,
+        [
+            {"anchor_text": "NAME:", "filled_by": "party_2", "label": "Right name"},
+            {"anchor_text": "NAME:", "filled_by": "party_1", "label": "Left name"},
+        ],
+        ["signature", "signature"],
+    )
+    right_box, left_box = _extra(result, "Right name"), _extra(result, "Left name")
+    assert right_box[0] > right.x1 and left_box[0] > left.x1
+    assert left_box[2] <= right.x0 - CLEARANCE  # never runs into the other column
+
+
+def test_when_its_row_is_full_it_goes_on_the_row_below_the_label() -> None:
+    data = _flat([(72, 100, PARAGRAPH), (72, 160, "Address: (street, city and postal code)")])
+    (label,) = _words(data, "Address:")
+    result = _with_extras(
+        data, [{"anchor_text": "Address:", "filled_by": "party_1", "label": "Address"}], []
+    )
+    x0, y0, _, _ = _extra(result, "Address")
+    assert x0 == pytest.approx(label.x0, abs=0.1) and y0 >= label.y1
+
+
+def test_with_no_free_space_after_its_words_it_is_a_problem_then_dropped() -> None:
+    """The repair round asks for the words right before the blank; if they still have no room,
+    the field is dropped with a note rather than written over the text."""
+    data = _flat(
+        [(72, 100, PARAGRAPH), (72, 112, "Each copy is an original, signed on the dates below.")]
+    )
+    extras = [{"anchor_text": "The parties", "filled_by": "party_1", "label": "Name"}]
+    reading = read_document(data)
+    answer: dict[str, Any] = {
+        "roles": [{"slug": "party_1", "kind": "signer"}],
+        "fields": [],
+        "checkbox_groups": [],
+        "extra_fields": [
+            {"page": 1, "holds": "full_name", "format": None, "must_fill": True, **extras[0]}
+        ],
+        "document": None,
+    }
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        problems = check(answer, reading, document)
+        result = derive(reading, answer, document, problems=problems, repaired=True)
+    assert any("no free space after 'The parties'" in problem for problem in problems)
+    assert result.fields == [] and any("'Name' dropped" in note for note in result.notes)
+
+
+def test_a_signature_found_by_the_ai_is_placed_after_its_label_then_given_room_to_sign() -> None:
+    """One model of free space for both: the extra signature is placed after "By:", then grows
+    into the space above its row like any signature on a line."""
+    data = _flat([(72, 100, PARAGRAPH), (72, 160, "By:")])
+    (label,) = _words(data, "By:")
+    result = _with_extras(
+        data,
+        [{"anchor_text": "By:", "filled_by": "party_1", "label": "Sign", "holds": "signature"}],
+        [],
+    )
+    x0, y0, _, y1 = _extra(result, "Sign")
+    assert x0 > label.x1 and y1 == pytest.approx(label.y1, abs=0.1)
+    assert y1 - y0 > label.y1 - label.y0  # taller than its row: room to sign

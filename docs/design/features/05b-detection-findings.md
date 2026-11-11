@@ -264,18 +264,48 @@ to), not only the layout.
 **Seen in:** D7 run: `party_1.full_name` at `[72.0, 665.9, 110.7, 679.1]` and `party_1.title` at
 `[72.0, 679.7, 108.7, 692.9]`, exactly the words "NAME:" and "TITLE:"; the value would be drawn over the label.
 
-**Cause:** `derive._anchor` returns the box of the first `search_for(anchor_text)` hit and uses it as the field's
-place. The anchor says where to look, not where to write. It also takes the first hit on the page, so with two
-"NAME:" on page 14 the left one won only by order.
+**Cause:** two parts.
+1. **The contract was ambiguous.** The schema asked for "the exact words around the blank", which says nothing about
+   where the blank is relative to them (before, after, between); no placing rule can be exact from that.
+2. **The words were used as the place.** `derive._anchor` returned the box of the first `search_for` hit: the anchor
+   says where to look, not where to write. Taking the first hit, with two "NAME:" on page 14, the left one won only
+   by order.
 
-**Proposed fix:** the place is the free space after the anchor on its row (from the anchor's right edge to the next
-word, field or column gap, at least ~60 pt), or under it when the row is full; among several hits, the one nearest the
-fields of the same party (or ask the AI for the occurrence number). Still flagged "check its position".
+**Fix (built):**
+1. **Contract**: `anchor_text` is now "the words printed immediately before the blank, on the same line: its label"
+   (`schema.ExtraField`); the blank is the empty space right after them. The limit is one constant, `ANCHOR_MAX` (80),
+   used in the description and in the search.
+2. **One model of free space** (`writing_space.py`, shared with F2): `PageSpace` holds a page's visible words and its
+   fields' places; F2 asks it for the room above a line, F10 for the room after a label:
+   - on the label's row, from 3 pt after it (`LABEL_GAP`) to the next visible word or field less 2 pt
+     (`CLEARANCE`), or to the text's right edge (the furthest word, or the left margin mirrored on a page of short
+     labels);
+   - when the row has less than 60 pt free (`MIN_WIDTH`, room for a date at 10 pt), on the row below the label, from
+     its left edge, when that row is free;
+   - one text line tall; invisible words (spaces, zero-width characters) leave the space free.
+3. **Which printing of the words**: among the printings with room after them, the one closest to the same party's
+   other places on the page; the first in reading order when it has none there. The place is then taken, so a second
+   field cannot land on it.
+4. **No room**: `check` reports it to the repair round ("there is no free space after 'X' on page N: give the words
+   printed right before the blank"); if it remains, the field is dropped with a note rather than written over the text.
+5. The review note reads "placed after the words printed before it: check its position".
 
-**Test cases:**
-- Unit: anchor "NAME:" with free space to its right gives a box starting after the colon, same row; two "NAME:" on a
-  page, the field of the left column's party lands in the left column.
-- Corpus: D7 printed name and title boxes start right of their labels.
+Order in `derive`: found fields, then extra fields are placed (taking their space), then signatures and initials grow
+(F2), so a signature the AI found after "By:" is placed after its label and then given room to sign.
+
+**Tests:** in `test_writing_space.py`: after its label on its row, starting `LABEL_GAP` after it, at least
+`MIN_WIDTH` wide; of two printings of "NAME:" in a two-column signature block, each party's lands in its own column
+and the left one stops before the right column; a full row puts it on the row below; no room is a problem for the
+repair round, then dropped with a note; an extra signature after "By:" is placed and then grows. `test_derive`'s extra
+field test now asserts the place starts after its words (it was the words before).
+
+**On D7** (the drawn-line experiment, now with this code and a new AI call: 16,493 tokens in, 2,790 out, 23.8 s, no
+problems): the AI gave "NAME:" and "TITLE:"; the name is placed at `[113.7, 665.9, 322.0, 679.1]` and the title at
+`[111.7, 679.7, 322.0, 692.9]`: after their labels, in the left column, stopping before the right column's "NAME:".
+
+**For Phase 8 (signing):** a typed signature is drawn at 0.7 × its box's height without fitting its width
+(`SignatureMark`); with F2's taller boxes a long name in a narrow box runs past it. Typed marks should take the
+smaller of that size and the size that fits the box's width, as drawn marks already do.
 
 ### F11 — A non-shared value repeated in many places becomes many values (medium)
 
@@ -347,6 +377,6 @@ merged only when F9's marks are met (task 13).
 | 8 | F6: `name_dropped` shown | todo | — |
 | 9 | F7: addressed-to-AI search covers every untrusted string | todo | — |
 | 10 | F8: design doc §3.2–3.3, tests README, effort default | todo | — |
-| 11 | F10: extra fields placed in the space after their anchor | todo | — |
+| 11 | F10: extra fields placed in the space after their anchor | done | `schema.ExtraField.anchor_text` contract; `writing_space.PageSpace.room_after`, `DocumentSpace.place_after`; 5 tests in `test_writing_space.py`, `test_derive` updated; D7 rerun (F10 above) |
 | 12 | F11: the AI marks repeated fields that are one value; merged by key | todo | — |
 | 13 | Re-run the corpus (D1–D7, twins, traps), meet F9's pass marks, update `tests/outputs/SCORES.md` | todo | — |

@@ -19,8 +19,8 @@ from pydantic import BaseModel, ConfigDict
 
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
-from signora.modules.detection.schema import ALLOWED
-from signora.modules.detection.writing_space import GROWS, PageSpace
+from signora.modules.detection.schema import ALLOWED, ANCHOR_MAX
+from signora.modules.detection.writing_space import GROWS, DocumentSpace
 from signora.modules.review.formats import format_for
 from signora.modules.review.keys import name_words, unique
 from signora.modules.review.values import LABEL_MAX, OWN, PARTY_VALUES, SENSITIVE, SHARED
@@ -148,16 +148,28 @@ def layout_dependencies(reading: Reading) -> dict[str, tuple[str, str]]:
     return found
 
 
-def _anchor(document: pymupdf.Document, page: int, words: str) -> Box | None:
-    if not 1 <= page <= document.page_count:
-        return None
-    found = document.load_page(page - 1)
-    hits = found.search_for(words[:80])
+def _space(reading: Reading, document: pymupdf.Document) -> DocumentSpace:
+    """The document's free space, around every place the read stage found."""
+    places: dict[int, list[Box]] = {}
+    for found in reading.fields:
+        for placement in found.placements:
+            places.setdefault(placement.page, []).append(placement.rect)
+    return DocumentSpace(document, places)
+
+
+def _extra_problem(space: DocumentSpace, extra: dict[str, Any]) -> str | None:
+    """Why an extra field cannot be placed from its words, in words; None when it can."""
+    words, number = extra["anchor_text"][:ANCHOR_MAX], extra["page"]
+    page = space.page(number)
+    hits = page.find(words) if page is not None and not _unsafe(words) else []
     if not hits:
-        return None
-    shown = hits[0] * found.rotation_matrix
-    shown.normalize()
-    return (round(shown.x0, 1), round(shown.y0, 1), round(shown.x1, 1), round(shown.y1, 1))
+        return f"its words are not on page {number}"
+    if all(page is not None and page.room_after(hit) is None for hit in hits):
+        return (
+            f"there is no free space after {words!r} on page {number}: give the words printed "
+            "right before the blank"
+        )
+    return None
 
 
 def check(answer: dict[str, Any], reading: Reading, document: pymupdf.Document) -> list[str]:
@@ -209,14 +221,10 @@ def check(answer: dict[str, Any], reading: Reading, document: pymupdf.Document) 
                     f"checkbox group {group['label']!r}: {member} is a {asked[member].kind}"
                 )
     problems += [f"{m}: in {n} checkbox groups" for m, n in in_groups.items() if n > 1]
+    space = _space(reading, document)
     for extra in answer["extra_fields"]:
-        if (
-            _unsafe(extra["anchor_text"])
-            or _anchor(document, extra["page"], extra["anchor_text"]) is None
-        ):
-            problems.append(
-                f"extra field {extra['label']!r}: its words are not on page {extra['page']}"
-            )
+        if (problem := _extra_problem(space, extra)) is not None:
+            problems.append(f"extra field {extra['label']!r}: {problem}")
     meta = answer["document"]
     if meta:
         if not 1 <= len(meta["name"].strip()) <= NAME_MAX:
@@ -362,33 +370,43 @@ def derive(
                 entry.depends = (item["depends_on"]["id"], item["depends_on"]["option"], "ai")
         items[found.id] = entry
 
+    # Extra fields (F10): each goes in the free space after the words printed before it, at the
+    # printing of those words nearest the same party's other places on its page.
+    space = _space(reading, document)
     for number, extra in enumerate(answer["extra_fields"], start=1):
+        holds = extra["holds"] if extra["holds"] not in ("checkbox", "choice") else "text"
+        filled_by = _who_fills(holds, extra["filled_by"], listed)
+        why = _extra_problem(space, extra)
+        near = [
+            place.rect
+            for item in items.values()
+            if item.filled_by == filled_by
+            for place in item.placements
+            if place.page == extra["page"]
+        ]
         rect = (
             None
-            if _unsafe(extra["anchor_text"])
-            else _anchor(document, extra["page"], extra["anchor_text"])
+            if why is not None
+            else space.place_after(extra["page"], extra["anchor_text"][:ANCHOR_MAX], near)
         )
         if rect is None:
-            notes.append(
-                f"extra field {extra['label']!r} dropped: its words are not on page {extra['page']}"
-            )
+            notes.append(f"extra field {extra['label']!r} dropped: {why}")
             continue
-        holds = extra["holds"] if extra["holds"] not in ("checkbox", "choice") else "text"
         items[f"x{number}"] = _Item(
             ids=[],
             label=extra["label"][:LABEL_MAX]
             if not _unsafe(extra["label"])
             else extra["anchor_text"][:LABEL_MAX],
             holds=holds,
-            filled_by=_who_fills(holds, extra["filled_by"], listed),
+            filled_by=filled_by,
             required=extra["must_fill"],
             placements=[PlacementOut(page=extra["page"], rect=rect, kind="blank")],
             order=(extra["page"], rect[1], rect[0]),
-            review=["placed from the words around it: check its position"],
+            review=["placed after the words printed before it: check its position"],
             format=extra.get("format"),
         )
 
-    _room_to_sign(items, reading, document)
+    _room_to_sign(items, space)
 
     # Checkbox groups: one choice, its options the checkboxes (§4.3). Each group is its own
     # choice, by number: two groups may well share a label ("Yes or no" asked twice).
@@ -452,37 +470,20 @@ def derive(
     )
 
 
-def _room_to_sign(items: dict[str, _Item], reading: Reading, document: pymupdf.Document) -> None:
+def _room_to_sign(items: dict[str, _Item], space: DocumentSpace) -> None:
     """A signature or initials on a blank line takes the writing space above the line (findings
-    F2); a form field's box stays as its author drew it. The space is measured against the
-    original places of every field, so one grown box never limits another. O(P + W) for the
-    pages that hold such a line: P places, W words."""
-    signing = [
-        (item, index)
-        for item in items.values()
-        if item.holds in GROWS
-        for index, place in enumerate(item.placements)
-        if place.kind == "blank"
-    ]
-    if not signing:
-        return
-    places: dict[int, list[Box]] = {}
-    for found in reading.fields:
-        for placement in found.placements:
-            places.setdefault(placement.page, []).append(placement.rect)
+    F2); a form field's box stays as its author drew it. The space holds every field's original
+    place (and the extra fields' places once taken), so one grown box never limits another.
+    O(W + P) per page that holds such a line, for W words and P places."""
     for item in items.values():
-        if not item.ids:  # an extra field: its place is not in the reading
-            for place in item.placements:
-                places.setdefault(place.page, []).append(place.rect)
-    spaces: dict[int, PageSpace] = {}
-    for item, index in signing:
-        place = item.placements[index]
-        if place.page not in spaces:
-            page = document.load_page(place.page - 1)
-            spaces[place.page] = PageSpace(page, places.get(place.page, []))
-        item.placements[index] = place.model_copy(
-            update={"rect": spaces[place.page].room_above(place.rect)}
-        )
+        if item.holds not in GROWS:
+            continue
+        for index, place in enumerate(item.placements):
+            page = space.page(place.page) if place.kind == "blank" else None
+            if page is not None:
+                item.placements[index] = place.model_copy(
+                    update={"rect": page.room_above(place.rect)}
+                )
 
 
 def _owner(item: _Item) -> tuple[str, str | None]:
