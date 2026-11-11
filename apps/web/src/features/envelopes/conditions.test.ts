@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import vectors from "../../../../../packages/contracts/vectors/conditions.json";
+
 import { askedFields } from "./conditions";
 
 const A = { id: "a", depends_on: { field_id: "b", option: "checked" } };
@@ -20,5 +22,13 @@ describe("which fields are asked", () => {
     const x = { id: "x", depends_on: { field_id: "y", option: "checked" } };
     const y = { id: "y", depends_on: { field_id: "x", option: "checked" } };
     expect([...askedFields([orphan, x, y, C], { gone: "true", x: "true", y: "true" })]).toEqual(["c"]);
+  });
+});
+
+describe("which fields are asked (the server runs the same examples)", () => {
+  // The rule is written on both sides: the modal shows and hides fields as they are filled in,
+  // and the server judges the send. These examples keep the two the same.
+  it.each(vectors.cases)("$name", ({ fields, values, asked }) => {
+    expect([...askedFields(fields, values as Record<string, string>)].sort()).toEqual([...asked].sort());
   });
 });

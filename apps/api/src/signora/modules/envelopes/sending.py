@@ -131,7 +131,9 @@ def asked(fields: Iterable[FormField], values: Mapping[uuid.UUID, str]) -> set[u
     """The fields that are asked, given these values. A field under a condition is asked only when
     the field it depends on is itself asked and holds that option (a checkbox: ticked), so a value
     left in a field that is no longer asked never keeps what depends on it. Each chain is walked
-    once, whatever order the fields come in: O(F)."""
+    once, whatever order the fields come in: O(F). The send modal keeps the same rule to show and
+    hide fields as they are filled in (the web's ``conditions.askedFields``; both run
+    packages/contracts/vectors/conditions.json)."""
     by_id = {item.id: item for item in fields}
     known: dict[uuid.UUID, bool] = {}
     for start in by_id.values():

@@ -6,6 +6,7 @@ import json
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -291,3 +292,35 @@ def test_a_value_too_long_for_its_box_is_refused() -> None:
     assert [(e.field, e.message) for e in refused.value.field_errors] == [
         (f"fields.{YEAR}", "Too long for its box")
     ]
+
+
+CONDITIONS = json.loads(
+    (Path(__file__).parents[5] / "packages/contracts/vectors/conditions.json").read_text()
+)["cases"]
+
+
+@pytest.mark.parametrize("case", CONDITIONS, ids=lambda c: c["name"])
+def test_which_fields_are_asked(case: dict[str, Any]) -> None:
+    """The examples the send modal runs too (conditions.askedFields): the rule is written on both
+    sides, since the modal shows and hides fields as they are filled in, and these keep the two
+    the same. The server's is the one that counts: a send is judged by it."""
+    ids = {name: uuid.uuid5(uuid.NAMESPACE_OID, name) for name in case["values"]}
+    for item in case["fields"]:
+        for name in (item["id"], (item["depends_on"] or {}).get("field_id")):
+            if name:
+                ids.setdefault(name, uuid.uuid5(uuid.NAMESPACE_OID, name))
+    fields = [
+        field(
+            ids[item["id"]],
+            "text",
+            depends_on=Condition(
+                field_id=ids[item["depends_on"]["field_id"]], option=item["depends_on"]["option"]
+            )
+            if item["depends_on"]
+            else None,
+        )
+        for item in case["fields"]
+    ]
+    values = {ids[name]: value for name, value in case["values"].items()}
+
+    assert asked(fields, values) == {ids[name] for name in case["asked"]}

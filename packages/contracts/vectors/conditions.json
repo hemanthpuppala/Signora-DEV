@@ -1,0 +1,71 @@
+{
+  "about": "Which fields are asked, given the values so far. A field under a condition is asked only when the field it depends on is itself asked and holds that option (a checkbox: ticked, sent as \"true\"). Hand-written; run by the API's tests (envelopes.sending.asked) and the web's (conditions.askedFields), so the send shows and sends exactly what the server keeps.",
+  "cases": [
+    {
+      "name": "a field with no condition is always asked",
+      "fields": [{ "id": "a", "depends_on": null }],
+      "values": {},
+      "asked": ["a"]
+    },
+    {
+      "name": "a choice's option met",
+      "fields": [{ "id": "plan", "depends_on": null }, { "id": "card", "depends_on": { "field_id": "plan", "option": "Gold" } }],
+      "values": { "plan": "Gold" },
+      "asked": ["card", "plan"]
+    },
+    {
+      "name": "another option chosen",
+      "fields": [{ "id": "plan", "depends_on": null }, { "id": "card", "depends_on": { "field_id": "plan", "option": "Gold" } }],
+      "values": { "plan": "Silver", "card": "left over" },
+      "asked": ["plan"]
+    },
+    {
+      "name": "a checkbox ticked",
+      "fields": [{ "id": "tick", "depends_on": null }, { "id": "note", "depends_on": { "field_id": "tick", "option": "checked" } }],
+      "values": { "tick": "true" },
+      "asked": ["note", "tick"]
+    },
+    {
+      "name": "a checkbox left",
+      "fields": [{ "id": "tick", "depends_on": null }, { "id": "note", "depends_on": { "field_id": "tick", "option": "checked" } }],
+      "values": {},
+      "asked": ["tick"]
+    },
+    {
+      "name": "a chain, the fields listed child first: a value left in a hidden field keeps nothing",
+      "fields": [
+        { "id": "a", "depends_on": { "field_id": "b", "option": "checked" } },
+        { "id": "b", "depends_on": { "field_id": "c", "option": "Gold" } },
+        { "id": "c", "depends_on": null }
+      ],
+      "values": { "a": "left over", "b": "true", "c": "Silver" },
+      "asked": ["c"]
+    },
+    {
+      "name": "the same chain met all the way",
+      "fields": [
+        { "id": "a", "depends_on": { "field_id": "b", "option": "checked" } },
+        { "id": "b", "depends_on": { "field_id": "c", "option": "Gold" } },
+        { "id": "c", "depends_on": null }
+      ],
+      "values": { "b": "true", "c": "Gold" },
+      "asked": ["a", "b", "c"]
+    },
+    {
+      "name": "a condition on a field that is not in the form",
+      "fields": [{ "id": "o", "depends_on": { "field_id": "gone", "option": "checked" } }],
+      "values": { "gone": "true" },
+      "asked": []
+    },
+    {
+      "name": "conditions that loop ask nothing",
+      "fields": [
+        { "id": "x", "depends_on": { "field_id": "y", "option": "checked" } },
+        { "id": "y", "depends_on": { "field_id": "x", "option": "checked" } },
+        { "id": "z", "depends_on": null }
+      ],
+      "values": { "x": "true", "y": "true" },
+      "asked": ["z"]
+    }
+  ]
+}

@@ -3,7 +3,8 @@ import type { FormField } from "./api";
 type Conditioned = Pick<FormField, "id" | "depends_on">;
 
 /**
- * The fields that are asked, given these values (the server's envelopes.sending.asked). A field
+ * The fields that are asked, given these values (the server's envelopes.sending.asked; the two
+ * run the same examples, packages/contracts/vectors/conditions.json). A field
  * under a condition is asked only when the field it depends on is itself asked and holds that
  * option (a checkbox: ticked), so a value left in a field that is no longer shown never keeps what
  * depends on it. Each chain is walked once, whatever order the fields come in: O(F).
