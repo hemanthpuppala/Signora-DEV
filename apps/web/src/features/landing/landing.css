@@ -60,7 +60,7 @@ body:has(.signora-landing) { background: #0e0e0d; }
   :focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
   .ink :focus-visible { outline-color: var(--on-ink); }
   a { color: inherit; text-decoration: none; }
-  .foot a:hover, .sheet-panel a:hover { color: inherit; }
+  .foot-links a:hover, .sheet-panel a:hover { color: inherit; }
   button { font: inherit; color: inherit; }
   h1, h2, h3, p { margin: 0; }
   h1, h2, h3 { font-weight: inherit; text-wrap: wrap; }
@@ -142,7 +142,7 @@ body:has(.signora-landing) { background: #0e0e0d; }
   .top {
     position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 50;
     display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: stretch; min-height: 60px;
-    background: rgb(var(--paper-rgb) / 0.82); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    background: rgb(var(--paper-rgb) / 0.82); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
     border: 1px solid var(--ink);
     animation: lp-drop 700ms var(--ease) both;
   }
@@ -179,7 +179,7 @@ body:has(.signora-landing) { background: #0e0e0d; }
   .stage { position: relative; height: max(580px, calc(100svh - 98px)); background: var(--block); overflow: hidden; }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: pan-y; }
   .stage-scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 64%; background: linear-gradient(to top, rgba(11, 11, 11, 0.9) 8%, rgba(11, 11, 11, 0.55) 46%, rgba(11, 11, 11, 0)); pointer-events: none; }
-  .glass { background: rgba(11, 11, 11, 0.5); border: 1px solid rgba(243, 243, 241, 0.16); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); color: var(--on-ink); }
+  .glass { background: rgba(11, 11, 11, 0.5); border: 1px solid rgba(243, 243, 241, 0.16); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); color: var(--on-ink); }
   .stage-copy { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 28px 56px; align-items: end; padding: clamp(28px, 4vw, 60px) var(--pad-x); pointer-events: none; }
   .stage-copy > * { pointer-events: auto; }
   .stage-side { display: flex; flex-direction: column; gap: 22px; }
@@ -501,11 +501,17 @@ body:has(.signora-landing) { background: #0e0e0d; }
   .join-kin { font-size: clamp(72px, 12vw, 220px); line-height: 0.8; letter-spacing: -0.04em; padding: clamp(56px, 8vw, 128px) var(--pad-x) clamp(40px, 5vw, 72px); }
   .band { position: relative; height: clamp(110px, 12vw, 180px); }
   .band canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .foot { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); border: 1px solid var(--ink); }
-  .foot > * { padding: 22px var(--pad-x); border-right: 1px solid var(--rule); display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 13px; }
-  .foot > *:last-child { border-right: 0; justify-content: space-between; color: var(--muted); }
-  .foot a { width: fit-content; background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size 260ms var(--ease); }
-  .foot a:hover { background-size: 100% 1px; }
+  /* Footer: the brand, the section links, then one base line. The ways in are the header's and the
+     closing section's job, so they are not repeated here. */
+  .foot { display: flex; flex-wrap: wrap; border: 1px solid var(--ink); }
+  .foot > * { flex: 1 1 260px; padding: 28px var(--pad-x); border-right: 1px solid var(--rule); display: flex; flex-direction: column; gap: 14px; min-width: 0; font-size: 13px; }
+  .foot > *:nth-last-child(2) { border-right: 0; }
+  .foot-label { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .foot-links { display: grid; grid-template-columns: repeat(2, max-content); gap: 10px 44px; }
+  @media (max-width: 700px) { .foot > * { border-right: 0; } .foot > * + * { border-top: 1px solid var(--rule); } }
+  .foot-base { flex: 1 0 100%; flex-direction: row; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; padding-block: 16px; border-right: 0; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; }
+  .foot-links a { width: fit-content; background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size 260ms var(--ease); }
+  .foot-links a:hover { background-size: 100% 1px; }
 
   /* Scroll reveal: CSS scroll-driven; everything stays visible where unsupported */
   @supports (animation-timeline: view()) {
@@ -630,7 +636,6 @@ body:has(.signora-landing) { background: #0e0e0d; }
   .row-center { display: flex; align-items: center; }
   .foot-name { font-size: 26px; font-weight: 500; }
   .foot-note { color: var(--muted); }
-  .foot-nav { gap: 10px; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }

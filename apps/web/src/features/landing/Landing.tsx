@@ -51,7 +51,7 @@ function FieldNote({ label }: { label: string }) {
 export function Landing({ signedIn, className }: LandingProps) {
   const primary = signedIn
     ? { href: CONSOLE_HOME, label: "Open workspace" }
-    : { href: "/signup", label: "Request access" };
+    : { href: "/signup", label: "Sign up" };
   const [clientName, matter, effectiveDate, clientSignature] = FIELD_NAMES;
 
   return (
@@ -651,7 +651,7 @@ export function Landing({ signedIn, className }: LandingProps) {
           <section className="sec ink" id="join" aria-labelledby="join-h">
             <div className="strip">
               <span>§07 — Join</span>
-              <span>Early access</span>
+              <span>Get started</span>
             </div>
             <h2 className="display join-kin" id="join-h" aria-label="Send it. Signed.">
               <span data-drift="-140">Send it.</span>
@@ -662,8 +662,9 @@ export function Landing({ signedIn, className }: LandingProps) {
             <div className="row">
               <div>
                 <p className="lead soft">
-                  Signora is opening to professional services firms one at a time. Request access and we&apos;ll set
-                  up your firm&apos;s workspace and first envelope with you.
+                  {signedIn
+                    ? "Your workspace is ready. Upload a template and send your next envelope."
+                    : "Create your firm's workspace, upload a template, and send your first envelope."}
                 </p>
               </div>
               <div className="row-center">
@@ -688,14 +689,17 @@ export function Landing({ signedIn, className }: LandingProps) {
             <span className="display foot-name">Signora</span>
             <span className="foot-note">E-signature for professional services firms</span>
           </div>
-          <nav aria-label="Footer" className="foot-nav">
-            {SECTIONS.map((section) => (
-              <a key={section.id} href={`#${section.id}`}>
-                {section.label}
-              </a>
-            ))}
+          <nav aria-label="Footer">
+            <small className="foot-label">Explore</small>
+            <div className="foot-links">
+              {SECTIONS.map((section) => (
+                <a key={section.id} href={`#${section.id}`}>
+                  {section.label}
+                </a>
+              ))}
+            </div>
           </nav>
-          <div>
+          <div className="foot-base">
             <span>PDF · DOCX</span>
             <span>© 2026 Signora</span>
           </div>

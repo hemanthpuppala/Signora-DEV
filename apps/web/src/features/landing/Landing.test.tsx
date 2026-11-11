@@ -12,15 +12,17 @@ const hrefs = (name: string) =>
 describe("Landing", () => {
   it("offers sign-up and log-in to a visitor without a session", () => {
     render(<Landing signedIn={false} />);
-    expect(hrefs("Request access")).toEqual(["/signup", "/signup", "/signup"]);
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+    // Header, hero and closing section; the footer does not repeat them.
+    expect(hrefs("Sign up")).toEqual(["/signup", "/signup", "/signup"]);
+    // The header (the phone menu's copy is hidden until opened, so not counted).
+    expect(hrefs("Sign in")).toEqual(["/login"]);
     expect(screen.queryByRole("link", { name: "Open workspace" })).toBeNull();
   });
 
   it("opens the workspace for a signed-in visitor, and offers no sign-in", () => {
     render(<Landing signedIn />);
     expect(hrefs("Open workspace")).toEqual(["/departments", "/departments", "/departments"]);
-    expect(screen.queryByRole("link", { name: "Request access" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sign up" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
   });
 
