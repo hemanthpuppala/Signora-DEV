@@ -51,6 +51,10 @@ const FORM = {
       default: { user_id: "u-rosa", name: "Rosa Hale", email: "rosa@firm.example" },
     },
   ],
+  colleagues: [
+    { user_id: "u-rosa", name: "Rosa Hale", email: "rosa@firm.example" },
+    { user_id: "u-leo", name: "Leo Park", email: "leo@firm.example" },
+  ],
   fields: [
     field("f-name", "Client name", "full_name", { party_id: "p-client", from_recipient: "name" }),
     field("f-email", "Client email", "email", { party_id: "p-client", from_recipient: "email" }),
@@ -72,10 +76,6 @@ const FORM = {
 const DOCUMENTS: SendableDocument[] = [
   { id: "doc-1", name: "Mutual NDA", kind: "pdf", page_count: 2, current_version: { id: "v-2", number: 2 } },
   { id: "doc-2", name: "Draft letter", kind: "docx", page_count: 1, current_version: null },
-];
-const COLLEAGUES = [
-  { id: "u-rosa", name: "Rosa Hale", email: "rosa@firm.example" },
-  { id: "u-leo", name: "Leo Park", email: "leo@firm.example" },
 ];
 
 function reply(status: number, body: unknown) {
@@ -113,7 +113,7 @@ describe("the send", () => {
     const onClose = vi.fn();
     render(
       <QueryClientProvider client={makeQueryClient()}>
-        <SendModal documents={DOCUMENTS} colleagues={COLLEAGUES} onClose={onClose} onSent={onSent} {...props} />
+        <SendModal documents={DOCUMENTS} onClose={onClose} onSent={onSent} {...props} />
       </QueryClientProvider>,
     );
     return { onSent, onClose };

@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
-from tests.modules.documents.conftest import log_in
+from tests.modules.documents.conftest import csrf_headers, log_in
 from tests.modules.envelopes.conftest import make_countersigner, sendable
 from tests.modules.identity_access.conftest import Account
 from tests.modules.review.test_save import DOCUMENTS, _in_review
@@ -99,3 +99,38 @@ def test_read_only_members_cannot_send(
         log_in(theirs, viewer.email)
         response = theirs.get(f"{DOCUMENTS}/{doc.document_id}/versions/{doc.version_id}/send-form")
     assert response.status_code == 403
+
+
+def test_the_form_carries_who_may_countersign_for_anyone_who_may_send(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    make_client: Callable[..., TestClient],
+    add_member: Callable[..., Account],
+) -> None:
+    """The send's countersigner list came from the members directory, which needs a permission
+    of its own. Someone who may send through a grant in one department does not hold it: their
+    list was empty, and on a template with a countersigner and no default they could not send.
+    Whoever may send is given who may countersign with the form (any active member, Phase 3
+    §4.2)."""
+    doc = sendable(owner, run, detect)
+    granted = add_member(company, role="read")
+    gone = add_member(company, role="read")
+    owner.put(
+        f"/api/v1/departments/{doc.department_id}/grants",
+        json={"user_ids": [str(granted.user_id)]},
+        headers=csrf_headers(owner),
+    ).raise_for_status()
+    owner.delete(f"/api/v1/members/{gone.user_id}", headers=csrf_headers(owner)).raise_for_status()
+
+    with make_client() as theirs:
+        log_in(theirs, granted.email)
+        assert theirs.get("/api/v1/members/directory").status_code == 403  # not theirs to list
+        form = theirs.get(f"{DOCUMENTS}/{doc.document_id}/versions/{doc.version_id}/send-form")
+        assert form.status_code == 200, form.text
+
+    people = {c["user_id"]: (c["name"], c["email"]) for c in form.json()["colleagues"]}
+    assert str(company.user_id) in people and str(granted.user_id) in people
+    assert str(gone.user_id) not in people  # active members only
+    assert [c["name"] for c in form.json()["colleagues"]] == sorted(n for n, _ in people.values())

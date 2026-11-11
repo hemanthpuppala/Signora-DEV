@@ -46,7 +46,6 @@ export type SendableDocument = {
   page_count: number | null;
   current_version: { id: string; number: number } | null;
 };
-export type Colleague = { id: string; name: string; email: string };
 type Person = { name: string; email: string };
 type Copy = Person & { key: string };
 
@@ -81,19 +80,18 @@ function stepOf(path: string, form: SendForm): number {
 /**
  * Sending, as a modal in five steps (Phase 7 §2): pick a document, give what you want to prefill
  * (optional, but the fields only you can fill), confirm the signers (proposed from what you typed)
- * and who receives a copy, the countersigners (the department's by default), then review the
+ * and who receives a copy, the countersigners (the department's by default, chosen from the
+ * colleagues the form lists), then review the
  * document with the values in place and send. Errors from the server name the field and take the
  * modal to its step. Closing with anything filled asks first.
  */
 export function SendModal({
   documents,
-  colleagues,
   initialDocumentId,
   onClose,
   onSent,
 }: {
   documents: readonly SendableDocument[];
-  colleagues: readonly Colleague[];
   initialDocumentId?: string | undefined;
   onClose: () => void;
   onSent: (envelope: Envelope) => void;
@@ -117,6 +115,8 @@ export function SendModal({
   const [left, setLeft] = useState<ReadonlySet<string>>(new Set()); // boxes typed in and left
 
   const data = form.data;
+  // Who may countersign comes with the form: whoever may send can choose one.
+  const colleagues = data?.colleagues ?? [];
   // What is asked follows the values: a field under a condition shows only while it is met.
   const isAsked = useMemo(() => askedFields(data?.fields ?? [], values), [data, values]);
   const asked = (f: FormField) => isAsked.has(f.id);
@@ -191,7 +191,7 @@ export function SendModal({
     if (signer) return signer;
     const firm = data?.countersigners.find((c) => c.party_id === partyId);
     const userId = firm ? countersignerOf(partyId, firm.default?.user_id) : "";
-    const colleague = colleagues.find((c) => c.id === userId);
+    const colleague = colleagues.find((c) => c.user_id === userId);
     return colleague ? { name: colleague.name, email: colleague.email } : undefined;
   };
 
@@ -486,12 +486,12 @@ export function SendModal({
             ) : null}
             {data.countersigners.map((party, index) => {
               const chosen = countersignerOf(party.party_id, party.default?.user_id);
-              const person = colleagues.find((c) => c.id === chosen);
+              const person = colleagues.find((c) => c.user_id === chosen);
               return (
                 <div key={party.party_id} className={styles.person}>
                   <Select
                     label={`Countersigner ${index + 1} · ${party.label}`}
-                    options={colleagues.map((c) => ({ value: c.id, label: `${c.name} · ${c.email}` }))}
+                    options={colleagues.map((c) => ({ value: c.user_id, label: `${c.name} · ${c.email}` }))}
                     value={chosen || null}
                     placeholder="Choose a colleague"
                     onChange={(value) => setCountersigners((current) => ({ ...current, [party.party_id]: value }))}
@@ -581,7 +581,7 @@ export function SendModal({
                   <li key={s.party_id}>{`Signer ${i + 1}: ${signers[s.party_id]?.name ?? ""} · ${signers[s.party_id]?.email ?? ""}`}</li>
                 ))}
                 {data.countersigners.map((c, i) => {
-                  const person = colleagues.find((p) => p.id === countersignerOf(c.party_id, c.default?.user_id));
+                  const person = colleagues.find((p) => p.user_id === countersignerOf(c.party_id, c.default?.user_id));
                   return <li key={c.party_id}>{`Countersigner ${i + 1}: ${person?.name ?? ""}`}</li>;
                 })}
                 {copies.map((copy) => (

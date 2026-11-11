@@ -3235,6 +3235,13 @@
       },
       "SendForm": {
         "properties": {
+          "colleagues": {
+            "items": {
+              "$ref": "#/components/schemas/signora__modules__envelopes__form__Colleague"
+            },
+            "title": "Colleagues",
+            "type": "array"
+          },
           "countersigners": {
             "items": {
               "$ref": "#/components/schemas/FormCountersigner"
@@ -3299,6 +3306,7 @@
           "pages",
           "signers",
           "countersigners",
+          "colleagues",
           "fields",
           "settings",
           "font",

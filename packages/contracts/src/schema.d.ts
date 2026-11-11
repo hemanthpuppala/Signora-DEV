@@ -2216,6 +2216,8 @@ export interface components {
         };
         /** SendForm */
         SendForm: {
+            /** Colleagues */
+            colleagues: components["schemas"]["signora__modules__envelopes__form__Colleague"][];
             /** Countersigners */
             countersigners: components["schemas"]["FormCountersigner"][];
             /**

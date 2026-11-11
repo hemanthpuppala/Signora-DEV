@@ -102,6 +102,9 @@ class SendForm(BaseModel):
     pages: list[PageSize]  # the document's pages as displayed, for the review step
     signers: list[FormSigner]
     countersigners: list[FormCountersigner]
+    # Who may be chosen to countersign: the company's active members, by name. Given with the
+    # form, so whoever may send can choose one (the members directory has a permission of its own).
+    colleagues: list[Colleague]
     fields: list[FormField]
     settings: FormSettings
     font: FontView  # what values are drawn in, and how they fit (Phase 7b)
@@ -153,6 +156,7 @@ def build_form(
     parties: Sequence[RoleView],
     fields: Sequence[FieldView],
     countersigners: Sequence[Colleague],
+    colleagues: Sequence[Colleague],
     settings: FormSettings,
 ) -> SendForm:
     """O(R + F): one pass over the parties and one over the fields, with an index by key."""
@@ -209,6 +213,7 @@ def build_form(
         pages=[PageSize(width=width, height=height) for width, height in pages],
         signers=signers,
         countersigners=countersigning,
+        colleagues=list(colleagues),
         fields=form_fields,
         settings=settings,
         font=font_view(DEFAULT_FONT),

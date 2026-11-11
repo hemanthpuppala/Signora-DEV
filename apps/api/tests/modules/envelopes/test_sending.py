@@ -63,6 +63,7 @@ FORM = SendForm(
         )
     ],
     countersigners=[],
+    colleagues=[],
     fields=[
         field(
             PLAN,

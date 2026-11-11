@@ -3,7 +3,6 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { useDirectory } from "@/features/departments/api";
 import { useDocuments } from "@/features/documents/api";
 import { DocumentPage } from "@/features/documents/DocumentPage";
 import { SendModal } from "@/features/envelopes/SendModal";
@@ -15,7 +14,6 @@ export default function DocumentRoute() {
   const router = useRouter();
   const [sending, setSending] = useState(false);
   const documents = useDocuments(id);
-  const directory = useDirectory();
   return (
     <ConsoleShell width="full">
       {() => (
@@ -24,7 +22,6 @@ export default function DocumentRoute() {
           {sending && documents.data ? (
             <SendModal
               documents={documents.data}
-              colleagues={directory.data ?? []}
               initialDocumentId={documentId}
               onClose={() => setSending(false)}
               onSent={(envelope) => router.push(`/departments/${id}/envelopes/${envelope.id}`)}

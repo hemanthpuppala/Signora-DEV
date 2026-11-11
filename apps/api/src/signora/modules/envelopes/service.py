@@ -55,7 +55,7 @@ def _sendable(
         raise VersionNotApproved
     parties, fields = read_set(session, version_id)
     department = get_department(session, actor.workspace_id, version.department_id)
-    colleagues = [
+    defaults = [
         Colleague(user_id=person.id, name=person.name, email=person.email)
         for person in list_countersigners(session, actor.workspace_id, version.department_id)
     ]
@@ -67,7 +67,8 @@ def _sendable(
         pages=version.pages,
         parties=parties,
         fields=fields,
-        countersigners=colleagues,
+        countersigners=defaults,
+        colleagues=list(_colleagues(session, actor.workspace_id).values()),
         settings=FormSettings(
             require_email_code=True,  # on by default (Phase 3 §5.1)
             reminder_interval_hours=department.reminder_interval_hours,
@@ -83,15 +84,17 @@ def _sendable(
 
 
 def _colleagues(
-    session: Session, workspace_id: uuid.UUID, user_ids: Iterable[uuid.UUID]
+    session: Session, workspace_id: uuid.UUID, user_ids: Iterable[uuid.UUID] | None = None
 ) -> dict[uuid.UUID, Colleague]:
-    """Active members of the company among ``user_ids`` (anyone may countersign, Phase 3 §4.2)."""
+    """Who may countersign: the company's active members (anyone may, Phase 3 §4.2), by name; all
+    of them, or those among ``user_ids``. The one definition: the send form offers them, and a
+    send checks its countersigners against them."""
     rows = session.execute(
         text(
-            "SELECT id, name, email FROM users WHERE workspace_id = :w AND id = ANY(:ids) "
-            "AND deactivated_at IS NULL"
+            "SELECT id, name, email FROM users WHERE workspace_id = :w AND deactivated_at IS NULL "
+            "AND (CAST(:ids AS uuid[]) IS NULL OR id = ANY(:ids)) ORDER BY name, id"
         ),
-        {"w": workspace_id, "ids": list(user_ids)},
+        {"w": workspace_id, "ids": list(user_ids) if user_ids is not None else None},
     )
     return {row.id: Colleague(user_id=row.id, name=row.name, email=row.email) for row in rows}
 
