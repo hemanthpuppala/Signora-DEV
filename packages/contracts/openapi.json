@@ -3997,6 +3997,14 @@
             },
             "title": "Parties",
             "type": "array"
+          },
+          "signatures": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Adopted"
+            },
+            "title": "Signatures",
+            "type": "array"
           }
         },
         "required": [

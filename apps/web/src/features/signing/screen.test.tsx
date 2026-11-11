@@ -49,6 +49,7 @@ const DOCUMENT = {
   ],
   font: { id: "liberation-sans", family: "Liberation Sans", url: "/api/v1/fonts/liberation-sans" },
   fit: { min_size: 6, max_size: 12, baseline: 0.25, padding: 2 },
+  signatures: [],
 };
 
 const ADOPTED = { kind: "signature", method: "drawn", text: null, font: null, strokes: [[[100, 200], [600, 250]]], signature_id: "0123456789abcdef" };
@@ -280,6 +281,37 @@ describe("on a small screen", () => {
     await user.click(within(dialog).getByRole("button", { name: "Save and next" }));
 
     expect(await screen.findByRole("dialog", { name: "Your signature" })).toBeTruthy(); // the next: sign
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("what others signed", () => {
+  it("draws an earlier signature and its signing date where they were signed", async () => {
+    const theirs = {
+      ...DOCUMENT,
+      fields: [
+        field("sig-client", "Client signature", { holds: "signature", mine: false, required: false, value: "signature:0123456789abcdef", places: place(60, 500) }),
+        field("date-client", "Client signing date", { holds: "date_signed", mine: false, required: false, value: "2026-11-11", format: "Month D, YYYY", places: place(300, 500) }),
+      ],
+      signatures: [{ kind: "signature", method: "drawn", text: null, font: null, strokes: [[[100, 200], [600, 250]]], signature_id: "0123456789abcdef" }],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        const path = new URL((input as Request).url).pathname;
+        if (path.endsWith("/document")) return reply(200, theirs);
+        if (path.endsWith("/signature")) return reply(200, { adopted: [], saved: [], fonts: [] });
+        return reply(204, null);
+      }),
+    );
+    const { container } = render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SigningScreen state={{ ...STATE, kind: "countersigner" }} />
+      </QueryClientProvider>,
+    );
+
+    await vi.waitFor(() => expect(container.querySelector("polyline")).not.toBeNull()); // the client's signature
+    expect(container.textContent).toContain("November 11, 2026"); // and the day they signed
     vi.unstubAllGlobals();
   });
 });

@@ -2824,6 +2824,11 @@ export interface components {
             pages: components["schemas"]["PageSize"][];
             /** Parties */
             parties: components["schemas"]["SignerParty"][];
+            /**
+             * Signatures
+             * @default []
+             */
+            signatures: components["schemas"]["Adopted"][];
         };
         /** SignerField */
         SignerField: {

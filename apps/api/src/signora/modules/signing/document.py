@@ -24,6 +24,7 @@ from signora.modules.envelopes import (
 )
 from signora.modules.review import FieldView, RoleView
 from signora.modules.review.values import SENSITIVE, ManualHolds
+from signora.modules.signing.signatures import Adopted
 from signora.modules.typesetting import FIT_RULE, FitRule, FontView, font_view
 
 Hidden = Literal["private", "countersigner"]
@@ -61,6 +62,9 @@ class SignerDocument(BaseModel):
     fields: list[SignerField]
     font: FontView
     fit: FitRule
+    # What the signature values this person sees (``signature:{id}``) were signed with, by ID:
+    # earlier signers' for a signer, every signer's for a countersigner (§4.2).
+    signatures: list[Adopted] = []
 
 
 def _private(item: FormField) -> bool:

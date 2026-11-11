@@ -23,6 +23,10 @@ Rect = tuple[float, float, float, float]  # PDF points on the page as displayed
 
 PAD_WIDTH, PAD_HEIGHT = 1000, 400  # a drawn signature's own box (signing.signatures)
 FRAME_MIN_HEIGHT = 24.0  # a box shorter than this gets the signature without its frame
+# A signature is at least this tall, standing on its line: a box found on a signature line is
+# often only the line's own height, and a signature squeezed into it cannot be read. The web
+# draws it the same way (shared/document/SignatureMark: SIGNATURE_MIN_HEIGHT).
+SIGNATURE_MIN_HEIGHT = 36.0
 INK = (0.1, 0.1, 0.1)
 QUIET = (0.45, 0.45, 0.45)
 FRAME = (0.2, 0.35, 0.6)
@@ -158,9 +162,16 @@ def _frame(page: _Page, rect: Rect, signature_id: str, initials: bool) -> None:
     page.text(x0 + 6, y1 - 3, signature_id.upper(), small, "liberation-sans", QUIET)
 
 
+def signature_box(rect: Rect) -> Rect:
+    """Where a signature goes: its box, grown upwards from its line to the least readable height."""
+    x0, y0, x1, y1 = rect
+    return (x0, min(y0, y1 - SIGNATURE_MIN_HEIGHT), x1, y1)
+
+
 def _typed(page: _Page, item: TypedSignature) -> None:
-    framed = item.rect[3] - item.rect[1] >= FRAME_MIN_HEIGHT
-    inner = _inner(item.rect, framed)
+    rect = signature_box(item.rect)
+    framed = rect[3] - rect[1] >= FRAME_MIN_HEIGHT
+    inner = _inner(rect, framed)
     size = (inner[3] - inner[1]) * 0.85
     fitted = fitted_size(item.text, inner, size, item.font) or size
     page.text(
@@ -171,12 +182,13 @@ def _typed(page: _Page, item: TypedSignature) -> None:
         item.font,
     )
     if framed:
-        _frame(page, item.rect, item.signature_id, item.initials)
+        _frame(page, rect, item.signature_id, item.initials)
 
 
 def _drawn(page: _Page, item: DrawnSignature) -> None:
-    framed = item.rect[3] - item.rect[1] >= FRAME_MIN_HEIGHT
-    x0, y0, x1, y1 = _inner(item.rect, framed)
+    rect = signature_box(item.rect)
+    framed = rect[3] - rect[1] >= FRAME_MIN_HEIGHT
+    x0, y0, x1, y1 = _inner(rect, framed)
     scale = min((x1 - x0) / PAD_WIDTH, (y1 - y0) / PAD_HEIGHT)
     dx = x0 + ((x1 - x0) - PAD_WIDTH * scale) / 2
     dy = y0 + ((y1 - y0) - PAD_HEIGHT * scale) / 2
@@ -187,7 +199,7 @@ def _drawn(page: _Page, item: DrawnSignature) -> None:
             points.append((points[0][0] + 0.2, points[0][1]))
         page.polyline(points, width)
     if framed:
-        _frame(page, item.rect, item.signature_id, item.initials)
+        _frame(page, rect, item.signature_id, item.initials)
 
 
 def _flatten(doc: pymupdf.Document) -> None:

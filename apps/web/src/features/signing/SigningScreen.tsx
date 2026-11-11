@@ -82,6 +82,17 @@ function stillMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
+/**
+ * Where a signature sits: its box grown upwards from its line to the least readable height, as the
+ * signed PDF draws it (rendering.draw.SIGNATURE_MIN_HEIGHT, 36 points).
+ */
+const SIGNATURE_MIN_HEIGHT = 36;
+function signatureStyle(place: Place, scale: number) {
+  const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = place.rect;
+  const top = Math.min(y0, y1 - SIGNATURE_MIN_HEIGHT);
+  return { left: x0 * scale, top: top * scale, width: (x1 - x0) * scale, height: (y1 - top) * scale };
+}
+
 /** Where a place sits over its page, in CSS pixels. */
 function boxStyle(place: Place, scale: number) {
   const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = place.rect;
@@ -561,6 +572,12 @@ function Overlay({
 }) {
   const shown: Shown[] = [];
   const boxes: React.ReactNode[] = [];
+  const signedBy = new Map(
+    doc.signatures.flatMap((one) => {
+      const mark = markOf(one);
+      return mark ? [[one.signature_id, mark] as const] : [];
+    }),
+  );
   for (const field of doc.fields) {
     if (!asked.has(field.id)) continue;
     const here = field.places.filter((place) => place.page === page);
@@ -568,18 +585,29 @@ function Overlay({
     const own = field.mine && !field.locked;
     const value = field.mine ? ownValue(field, drafts) : (field.value ?? "");
     const typedHere = own && !compact && IN_PLACE.has(field.holds);
-    if (value && !SIGNS.has(field.holds) && field.holds !== SIGNING_DATE) {
+    // A signing date is drawn once it is given (at a submit); one still to come says so below.
+    if (value && !SIGNS.has(field.holds)) {
       // Drawn as the signed PDF draws it, except in a box being typed into.
       const drawn = typedHere ? field.places.filter((place) => place !== field.places[0]) : field.places;
       shown.push({ places: drawn, holds: field.holds, value, format: field.format });
     }
     here.forEach((place, index) => {
       const key = `${field.id}-${index}`;
-      const style = boxStyle(place, scale);
+      const style = SIGNS.has(field.holds) ? signatureStyle(place, scale) : boxStyle(place, scale);
       const first = place === field.places[0];
       const marker = first ? { "data-field": field.id } : {};
       const filled = Boolean(value);
       const label = `${field.label}${field.required ? " (required)" : ""}`;
+      const signedWith = SIGNS.has(field.holds) && value ? signedBy.get(value.split(":")[1] ?? "") : undefined;
+      if (signedWith && (!field.mine || field.locked)) {
+        // Someone's submitted signature (theirs, or the person's own after they signed).
+        boxes.push(
+          <span key={key} className={styles.signed} style={style}>
+            <SignatureMark mark={signedWith} width={style.width} height={style.height} />
+          </span>,
+        );
+        return;
+      }
       if (!field.mine) {
         if (field.hidden || (!value && field.party_id)) {
           const party = doc.parties.find((p) => p.id === field.party_id);
@@ -771,10 +799,17 @@ function Beside({ field, onCancel, actions, children }: { field: SignerField; on
 function marksOf(adopted: readonly Adopted[]): Partial<Record<string, Mark>> {
   const marks: Partial<Record<string, Mark>> = {};
   for (const one of adopted) {
-    if (one.method === "drawn" && one.strokes) marks[one.kind] = { method: "drawn", strokes: one.strokes as [number, number][][] };
-    else if (one.method === "typed" && one.text && one.font) marks[one.kind] = { method: "typed", text: one.text, font: one.font };
+    const mark = markOf(one);
+    if (mark) marks[one.kind] = mark;
   }
   return marks;
+}
+
+/** An adopted signature as the page draws it. */
+function markOf(one: Pick<Adopted, "method" | "text" | "font" | "strokes">): Mark | undefined {
+  if (one.method === "drawn" && one.strokes) return { method: "drawn", strokes: one.strokes as [number, number][][] };
+  if (one.method === "typed" && one.text && one.font) return { method: "typed", text: one.text, font: one.font };
+  return undefined;
 }
 
 /** "2 of 5": a field's place among those the person fills (given ones aside), or null. */

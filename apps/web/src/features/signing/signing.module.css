@@ -508,3 +508,9 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* Someone's submitted signature over the page: drawn, not a control. */
+.signed {
+  position: absolute;
+  pointer-events: none;
+}

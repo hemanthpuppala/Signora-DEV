@@ -110,3 +110,19 @@ def test_a_hundred_page_agreement_renders_in_under_three_seconds() -> None:
 
     assert elapsed < 3.0, f"{elapsed:.2f} s"
     assert _open(signed).page_count == 100
+
+
+def test_a_signature_on_a_bare_line_stands_tall_enough_to_read() -> None:
+    line = (300, 677, 466, 690)  # 13 points: a signature line found as its own height
+    signed = _open(
+        render(
+            _pdf(),
+            [DrawnSignature(1, line, [[(100, 200), (900, 220)]], "0123456789abcdef")],
+            envelope_id=ENVELOPE,
+        )
+    )
+
+    page = signed[0]
+    tops = [rect.y0 for d in page.get_drawings() for rect in [d["rect"]]]
+    assert min(tops) < 690 - 30  # the signature rises well above the line
+    assert "Signed by:" in page.get_text()  # and has room for its frame

@@ -192,3 +192,21 @@ def save_for(uow: UnitOfWork, user_id: uuid.UUID, recipient_id: uuid.UUID) -> No
         ),
         {"u": user_id, "r": recipient_id},
     )
+
+
+def signed_in_envelope(uow: UnitOfWork, envelope_id: uuid.UUID) -> dict[str, Adopted]:
+    """The signatures and initials people of an envelope have signed with, by Signature ID: what a
+    value ``signature:{id}`` names (Phase 8 §4.2, §6.3.1)."""
+    rows = uow.session.execute(
+        text(
+            "SELECT s.kind, s.method, s.text, s.font, s.strokes, s.sha256 "
+            "FROM signing_signatures s JOIN envelope_recipients r ON r.id = s.recipient_id "
+            "WHERE r.envelope_id = :e AND r.status = 'signed'"
+        ),
+        {"e": envelope_id},
+    )
+    marks = (
+        _view(row.kind, row.method, row.text, row.font, row.strokes, bytes(row.sha256))
+        for row in rows
+    )
+    return {mark.signature_id: mark for mark in marks}

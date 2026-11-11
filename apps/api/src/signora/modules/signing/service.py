@@ -22,7 +22,7 @@ from signora.modules.envelopes import (
 from signora.modules.envelopes.links import link_key, read_token
 from signora.modules.identity_access import current_actor, hash_token
 from signora.modules.review import read_set
-from signora.modules.signing import codes, consent, sessions
+from signora.modules.signing import codes, consent, sessions, signatures
 from signora.modules.signing.document import SignerDocument, build_view
 from signora.modules.signing.domain import mask_email, next_step
 from signora.modules.signing.errors import (
@@ -234,7 +234,7 @@ def document(uow: UnitOfWork, who: Signer) -> SignerDocument:
     """Every field with what this person may see of it (§4.2). O(F + P + V)."""
     version = version_of(uow, who)
     parties, fields = read_set(uow.session, who.recipient.version_id)
-    return build_view(
+    view = build_view(
         viewer=who.recipient,
         pages=version.pages,
         parties=parties,
@@ -242,6 +242,15 @@ def document(uow: UnitOfWork, who: Signer) -> SignerDocument:
         values=envelope_values(uow.session, who.recipient.envelope_id),
         drafts=read_drafts(uow, who.recipient.id),
     )
+    seen = {
+        field.value.partition(":")[2]
+        for field in view.fields
+        if field.value and field.holds in ("signature", "initials")
+    }
+    if seen:
+        signed = signatures.signed_in_envelope(uow, who.recipient.envelope_id)
+        view.signatures = [signed[one] for one in sorted(seen) if one in signed]
+    return view
 
 
 def mark_viewed(uow: UnitOfWork, who: Signer) -> None:

@@ -54,6 +54,7 @@ const EMPTY_DOCUMENT = {
   pages: [{ width: 612, height: 792 }],
   parties: [],
   fields: [],
+  signatures: [],
   font: { id: "liberation-sans", family: "Liberation Sans", url: "/api/v1/fonts/liberation-sans" },
   fit: { min_size: 6, max_size: 12, baseline: 0.25, padding: 2 },
 };
