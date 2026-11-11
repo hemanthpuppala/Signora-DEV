@@ -323,7 +323,10 @@ def check(answer: dict[str, Any], reading: Reading, document: pymupdf.Document) 
     if meta:
         if not 1 <= len(meta["name"].strip()) <= NAME_MAX:
             problems.append(f"the name has {len(meta['name'])} characters (1-{NAME_MAX})")
-        if len(meta["description"]) > DESCRIPTION_MAX:
+        # Over the limit, a description is cut after its last whole sentence that fits (_fit);
+        # only one with no such sentence is worth another call.
+        description = meta["description"].strip()
+        if len(description) > DESCRIPTION_MAX and not _fit(description, DESCRIPTION_MAX):
             problems.append(
                 f"the description has {len(meta['description'])} characters "
                 f"(at most {DESCRIPTION_MAX})"
