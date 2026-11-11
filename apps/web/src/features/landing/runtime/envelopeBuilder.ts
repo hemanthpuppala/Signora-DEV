@@ -22,7 +22,8 @@ function formatSize(bytes: number): string {
   if (bytes < 1048576) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
-const extensionOf = (name: string) => (name.split(".").pop() ?? "").toLowerCase();
+/** The part after the last dot, in lower case; empty for a name without one. */
+const extensionOf = (name: string) => (name.includes(".") ? (name.split(".").pop() ?? "").toLowerCase() : "");
 const withoutExtension = (name: string) => name.replace(/\.(pdf|docx)$/i, "");
 
 function tickIcon(): SVGSVGElement {
@@ -120,7 +121,8 @@ export function mountEnvelopeBuilder(
     const extension = extensionOf(next.name);
     if (!ACCEPTED.includes(extension)) {
       clearFile();
-      fileErrorSlot.textContent = `Signora takes PDF or DOCX files. "${next.name}" is a .${extension} file.`;
+      const kind = extension ? `is a .${extension} file` : "has no file type";
+      fileErrorSlot.textContent = `Signora takes PDF or DOCX files. "${next.name}" ${kind}.`;
       return;
     }
     fileErrorSlot.textContent = "";
