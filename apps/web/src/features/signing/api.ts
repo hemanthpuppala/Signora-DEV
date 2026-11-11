@@ -91,3 +91,36 @@ export const markViewed = (recipientId: string) =>
   );
 
 export const pdfUrl = (recipientId: string) => `/api/v1/sign/${recipientId}/pdf`;
+
+/** As the API answers it (a stroke's points are plain lists there). */
+export type Adopted = NonNullable<ReturnType<typeof useSignature>["data"]>["adopted"][number];
+export type SignatureIn = components["schemas"]["SignatureIn"];
+export const signatureKey = (recipientId: string) => ["signer", recipientId, "signature"] as const;
+
+export function useSignature(recipientId: string) {
+  return useQuery({
+    queryKey: signatureKey(recipientId),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/sign/{recipient_id}/signature", {
+          params: { path: { recipient_id: recipientId } },
+        }),
+      ),
+    retry: false,
+  });
+}
+
+export const adoptSignature = (recipientId: string, kind: Adopted["kind"], body: SignatureIn) =>
+  unwrap(
+    api.PUT("/api/v1/sign/{recipient_id}/signature/{kind}", {
+      params: { path: { recipient_id: recipientId, kind } },
+      body,
+    }),
+  );
+
+export const applyToAll = (recipientId: string, kind: Adopted["kind"]) =>
+  unwrap(
+    api.POST("/api/v1/sign/{recipient_id}/apply-all/{kind}", {
+      params: { path: { recipient_id: recipientId, kind } },
+    }),
+  );

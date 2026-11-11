@@ -11,10 +11,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import Database
-from signora.modules.signing import drafts, service
+from signora.modules.signing import drafts, service, signatures
 from signora.modules.signing.document import SignerDocument
 from signora.modules.signing.sessions import COOKIE
 from signora.modules.signing.views import CodeSentView, Opened, SignerState
+from signora.modules.typesetting import FontView
 
 router = APIRouter(prefix="/api/v1/sign", tags=["signing"])
 
@@ -231,3 +232,56 @@ def viewed(recipient_id: uuid.UUID, request: Request) -> None:
     with _db(request).unit_of_work() as uow:
         who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
         service.mark_viewed(uow, who)
+
+
+class SignatureState(BaseModel):
+    adopted: list[signatures.Adopted]  # this person's, for this envelope
+    fonts: list[FontView]  # the handwriting styles a typed signature may take
+
+
+class Placed(BaseModel):
+    placed: int
+
+
+@router.get(
+    "/{recipient_id}/signature",
+    summary="This person's adopted signature and initials, and the styles to type one in",
+    responses=_DOCUMENT,
+)
+def signature(recipient_id: uuid.UUID, request: Request, response: Response) -> SignatureState:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        service.require_ready(uow, who)
+        found = signatures.adopted(uow, who.recipient.id)
+    _no_store(response)
+    return SignatureState(adopted=list(found.values()), fonts=signatures.signature_fonts())
+
+
+@router.put(
+    "/{recipient_id}/signature/{kind}",
+    summary="Adopt (or change) this person's signature or initials for this envelope",
+    responses={
+        **_DOCUMENT,
+        409: {"description": "Already signed"},
+        422: {"description": "Why it is not a signature"},
+    },
+)
+def adopt(
+    recipient_id: uuid.UUID, kind: signatures.Kind, body: signatures.SignatureIn, request: Request
+) -> signatures.Adopted:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        service.require_ready(uow, who, to_change=True)
+        return signatures.adopt(uow, who.recipient.id, who.recipient.workspace_id, kind, body)
+
+
+@router.post(
+    "/{recipient_id}/apply-all/{kind}",
+    summary="Sign every one of this person's places of a kind with their adopted one",
+    responses={**_DOCUMENT, 409: {"description": "Nothing adopted yet, or already signed"}},
+)
+def apply_all(recipient_id: uuid.UUID, kind: signatures.Kind, request: Request) -> Placed:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        service.require_ready(uow, who, to_change=True)
+        return Placed(placed=drafts.apply_all(uow, who, kind))

@@ -732,6 +732,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fonts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The fonts offered for a use: filled values, or typed signatures */
+        get: operations["list_fonts_api_v1_fonts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/fonts/{font_id}": {
         parameters: {
             query?: never;
@@ -1024,6 +1041,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign/{recipient_id}/apply-all/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign every one of this person's places of a kind with their adopted one */
+        post: operations["apply_all_api_v1_sign__recipient_id__apply_all__kind__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sign/{recipient_id}/code": {
         parameters: {
             query?: never;
@@ -1103,6 +1137,40 @@ export interface paths {
         /** The document's pages (values are drawn over them, never in them) */
         get: operations["pdf_api_v1_sign__recipient_id__pdf_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sign/{recipient_id}/signature": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This person's adopted signature and initials, and the styles to type one in */
+        get: operations["signature_api_v1_sign__recipient_id__signature_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sign/{recipient_id}/signature/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Adopt (or change) this person's signature or initials for this envelope */
+        put: operations["adopt_api_v1_sign__recipient_id__signature__kind__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1195,6 +1263,32 @@ export interface components {
              * Format: uuid
              */
             upload_id: string;
+        };
+        /**
+         * Adopted
+         * @description An adopted signature as the page draws it and the certificate names it.
+         */
+        Adopted: {
+            font: components["schemas"]["FontView"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signature" | "initials";
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "typed" | "drawn";
+            /** Signature Id */
+            signature_id: string;
+            /** Strokes */
+            strokes: [
+                number,
+                number
+            ][][] | null;
+            /** Text */
+            text: string | null;
         };
         /** Approval */
         Approval: {
@@ -2245,6 +2339,11 @@ export interface components {
                 number
             ];
         };
+        /** Placed */
+        Placed: {
+            /** Placed */
+            placed: number;
+        };
         /** PlacementView */
         PlacementView: {
             /** Id */
@@ -2530,6 +2629,30 @@ export interface components {
             notify_emails?: string[] | null;
             /** Reminder Interval Hours */
             reminder_interval_hours?: number | null;
+        };
+        /** SignatureIn */
+        SignatureIn: {
+            /** Font */
+            font?: string | null;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "typed" | "drawn";
+            /** Strokes */
+            strokes?: [
+                number,
+                number
+            ][][] | null;
+            /** Text */
+            text?: string | null;
+        };
+        /** SignatureState */
+        SignatureState: {
+            /** Adopted */
+            adopted: components["schemas"]["Adopted"][];
+            /** Fonts */
+            fonts: components["schemas"]["FontView"][];
         };
         /** SignerDocument */
         SignerDocument: {
@@ -5667,6 +5790,58 @@ export interface operations {
             };
         };
     };
+    list_fonts_api_v1_fonts_get: {
+        parameters: {
+            query?: {
+                use?: "text" | "signature";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FontView"][];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     font_file_api_v1_fonts__font_id__get: {
         parameters: {
             query?: never;
@@ -6733,6 +6908,87 @@ export interface operations {
             };
         };
     };
+    apply_all_api_v1_sign__recipient_id__apply_all__kind__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+                kind: "signature" | "initials";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Placed"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing adopted yet, or already signed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     send_code_api_v1_sign__recipient_id__code_post: {
         parameters: {
             query?: never;
@@ -7148,6 +7404,161 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    signature_api_v1_sign__recipient_id__signature_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignatureState"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    adopt_api_v1_sign__recipient_id__signature__kind__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+                kind: "signature" | "initials";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignatureIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Adopted"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The code or consent comes first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already signed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Why it is not a signature */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Client error (problem details) */
             "4XX": {

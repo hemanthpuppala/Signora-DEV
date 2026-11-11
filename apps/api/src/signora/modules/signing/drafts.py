@@ -14,11 +14,13 @@ from signora.modules.envelopes import FormField, asked, envelope_values, fits, f
 from signora.modules.identity_access import normalize_email
 from signora.modules.review import read_set
 from signora.modules.review.formats import InvalidValueError, check_value
-from signora.modules.signing.document import build_view
-from signora.modules.signing.errors import FieldLocked, FieldNotAsked, NotYours
+from signora.modules.signing import signatures
+from signora.modules.signing.document import SIGNS, build_view
+from signora.modules.signing.errors import AdoptFirst, FieldLocked, FieldNotAsked, NotYours
 from signora.modules.signing.service import Signer, read_drafts
 
 Values = dict[uuid.UUID, str]
+SIGNED = "signed"  # a signature or initials place's value once tapped
 
 
 def _merged(uow: UnitOfWork, who: Signer) -> tuple[list[FormField], Values, set[uuid.UUID]]:
@@ -68,6 +70,8 @@ def save_draft(uow: UnitOfWork, who: Signer, field_id: uuid.UUID, raw: str) -> s
     the value as stored. O(F + P + V)."""
     items, merged, locked = _merged(uow, who)
     item = _mine(who, items, field_id, locked)
+    if item.holds in SIGNS:
+        return _tap(uow, who, item, raw, items, merged)
     try:
         value = check_value(
             item.holds,
@@ -82,6 +86,12 @@ def save_draft(uow: UnitOfWork, who: Signer, field_id: uuid.UUID, raw: str) -> s
     merged[field_id] = value
     if field_id not in asked(items, merged):
         raise FieldNotAsked
+    _keep(uow, who, field_id, value)
+    _drop_unasked(uow, who, items, merged)
+    return value
+
+
+def _keep(uow: UnitOfWork, who: Signer, field_id: uuid.UUID, value: str) -> None:
     uow.session.execute(
         text(
             """
@@ -99,8 +109,38 @@ def save_draft(uow: UnitOfWork, who: Signer, field_id: uuid.UUID, raw: str) -> s
             "value": value,
         },
     )
-    _drop_unasked(uow, who, items, merged)
-    return value
+
+
+def _tap(
+    uow: UnitOfWork, who: Signer, item: FormField, raw: str, items: list[FormField], merged: Values
+) -> str:
+    """A signature or initials place signed by a tap (§5.3): its value is ``signed``; what is
+    signed with is the person's adopted one of that kind."""
+    if raw != SIGNED:
+        raise ValidationFailed([FieldError("value", "Sign with your adopted signature")])
+    if item.holds not in signatures.adopted(uow, who.recipient.id):
+        raise AdoptFirst
+    if item.id not in asked(items, merged):
+        raise FieldNotAsked
+    _keep(uow, who, item.id, SIGNED)
+    return SIGNED
+
+
+def apply_all(uow: UnitOfWork, who: Signer, kind: str) -> int:
+    """Sign every one of the person's asked places of this kind at once (§5.3). Returns how many
+    places it signed."""
+    if kind not in signatures.adopted(uow, who.recipient.id):
+        raise AdoptFirst
+    items, merged, _ = _merged(uow, who)
+    now_asked = asked(items, merged)
+    places = [
+        item.id
+        for item in items
+        if item.holds == kind and item.party_id == who.recipient.party_id and item.id in now_asked
+    ]
+    for field_id in places:
+        _keep(uow, who, field_id, SIGNED)
+    return len(places)
 
 
 def clear_draft(uow: UnitOfWork, who: Signer, field_id: uuid.UUID) -> None:

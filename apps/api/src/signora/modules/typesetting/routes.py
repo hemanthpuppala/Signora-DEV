@@ -6,9 +6,15 @@ from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
 from signora.kernel.errors import NotFound
-from signora.modules.typesetting.fonts import UnknownFontError, font_path
+from signora.modules.typesetting.fonts import FontUse, UnknownFontError, font_path, fonts_for
+from signora.modules.typesetting.views import FontView, font_view
 
 router = APIRouter(prefix="/api/v1", tags=["typesetting"])
+
+
+@router.get("/fonts", summary="The fonts offered for a use: filled values, or typed signatures")
+def list_fonts(use: FontUse = "text") -> list[FontView]:
+    return [font_view(entry.id) for entry in fonts_for(use)]
 
 
 @router.get(

@@ -9,20 +9,30 @@ import { typeset, useFontReady } from "@/shared/document/typeset";
 import { ValuesOverlay, type Shown } from "@/shared/document/ValuesOverlay";
 import { useTopLayer } from "@/shared/lib/topLayer";
 import { useAnchored } from "@/shared/lib/useAnchored";
-import { Button, Checkbox, Dialog, GuidePointer, Notice, PdfViewer, TextButton } from "@/shared/ui";
+import { Button, Checkbox, Dialog, GuidePointer, PdfViewer, TextButton } from "@/shared/ui";
+
+import { useQueryClient } from "@tanstack/react-query";
+
+import { SignatureMark, type Mark } from "@/shared/document/SignatureMark";
 
 import {
+  adoptSignature,
+  applyToAll,
   clearDraft,
   markViewed,
   pdfUrl,
   saveDraft,
+  signatureKey,
+  useSignature,
   useSignerDocument,
+  type Adopted,
   type SignerDocument,
   type SignerField,
   type SignerState,
 } from "./api";
 import { allValues, firstPlace, guided, guideStep, ownValue, pointerLabel, remaining, SIGNING_DATE, SIGNS } from "./guide";
 import styles from "./signing.module.css";
+import { SignatureDialog } from "./SignatureDialog";
 import { SignerProblem } from "./SignerNotices";
 
 type Place = SignerField["places"][number];
@@ -85,6 +95,11 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
   const [confirmed, setConfirmed] = useState(false);
   const [later, setLater] = useState(false);
   const [atConfirm, setAtConfirm] = useState(false); // the guide points at the Submit block's box
+  const queryClient = useQueryClient();
+  const signature = useSignature(id);
+  const marks = useMemo(() => marksOf(signature.data?.adopted ?? []), [signature.data]);
+  // Adopting a signature or initials: then sign one place, every place, or none (a change).
+  const [adopting, setAdopting] = useState<{ kind: Adopted["kind"]; then: SignerField | "all" | null } | null>(null);
   const timers = useRef(new Map<string, number>());
   const submitRef = useRef<HTMLElement>(null);
   const confirmRef = useRef<HTMLInputElement>(null);
@@ -126,6 +141,41 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
     else timers.current.set(field.id, window.setTimeout(save, SAVE_AFTER_MS));
   }
 
+  /** A signature or initials place: signed by a tap once adopted; the first time, adopt it. */
+  function sign(field: SignerField) {
+    const kind = field.holds as Adopted["kind"];
+    setCurrent(field.id);
+    if (marks[kind]) commit(field, ownValue(field, drafts) ? "" : "signed", true);
+    else setAdopting({ kind, then: field });
+  }
+
+  async function signAll(kind: Adopted["kind"]) {
+    if (!marks[kind]) {
+      setAdopting({ kind, then: "all" });
+      return;
+    }
+    await applyToAll(id, kind);
+    setDrafts((was) => {
+      const next = { ...was };
+      for (const field of doc.fields) if (field.mine && field.holds === kind && asked.has(field.id)) next[field.id] = "signed";
+      return next;
+    });
+  }
+
+  async function adopted(kind: Adopted["kind"], then: SignerField | "all" | null, body: Parameters<typeof adoptSignature>[2]) {
+    await adoptSignature(id, kind, body);
+    await queryClient.invalidateQueries({ queryKey: signatureKey(id) });
+    setAdopting(null);
+    if (then === "all") await applyToAll(id, kind).then(() =>
+      setDrafts((was) => {
+        const next = { ...was };
+        for (const field of doc.fields) if (field.mine && field.holds === kind && asked.has(field.id)) next[field.id] = "signed";
+        return next;
+      }),
+    );
+    else if (then) commit(then, "signed", true);
+  }
+
   /** Point at a field: scroll it into view, ring it, and (on a phone) open its sheet. */
   function guideTo(field: SignerField) {
     const place = firstPlace(field);
@@ -135,6 +185,7 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
     setCurrent(field.id);
     setFocus({ page: place.page, rect: [...place.rect] as [number, number, number, number], token: Date.now() });
     if (phone && !SIGNS.has(field.holds)) setEditing(field.id);
+    if (SIGNS.has(field.holds) && !marks[field.holds as Adopted["kind"]]) setAdopting({ kind: field.holds as Adopted["kind"], then: field });
   }
 
   function onGuide() {
@@ -200,6 +251,14 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
         {step !== "complete" || !confirmed ? (
           <Button onClick={onGuide}>{step === "start" ? "Start" : step === "next" ? "Next" : "Complete"}</Button>
         ) : null}
+        {(["signature", "initials"] as const).map((kind) =>
+          doc.fields.filter((field) => field.mine && field.holds === kind && asked.has(field.id)).length > 1 ? (
+            <TextButton key={kind} onClick={() => void signAll(kind)}>
+              {kind === "signature" ? "Sign all" : "Initial all"}
+            </TextButton>
+          ) : null,
+        )}
+        {marks.signature ? <TextButton onClick={() => setAdopting({ kind: "signature", then: null })}>Change signature</TextButton> : null}
         <TextButton onClick={() => setLater(true)}>Finish later</TextButton>
       </header>
 
@@ -221,7 +280,12 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
             current={current}
             onType={(field, value) => commit(field, value)}
             onSet={(field, value) => commit(field, value, true)}
+            marks={marks}
             onOpen={(field) => {
+              if (SIGNS.has(field.holds)) {
+                sign(field);
+                return;
+              }
               setCurrent(field.id);
               setEditing(field.id);
             }}
@@ -243,6 +307,17 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
       </section>
 
       {pointerOn && target ? <GuidePointer target={target} label={pointerOn} /> : null}
+
+      {adopting ? (
+        <SignatureDialog
+          kind={adopting.kind}
+          name={state.name}
+          fonts={signature.data?.fonts ?? []}
+          phone={phone}
+          onClose={() => setAdopting(null)}
+          onAdopt={(body) => adopted(adopting.kind, adopting.then, body)}
+        />
+      ) : null}
 
       {editingField ? (
         <Editor
@@ -272,6 +347,7 @@ function Overlay({
   fontReady,
   errors,
   current,
+  marks,
   onType,
   onSet,
   onOpen,
@@ -286,6 +362,7 @@ function Overlay({
   fontReady: boolean;
   errors: Record<string, string>;
   current: string | null;
+  marks: Partial<Record<string, Mark>>;
   onType: (field: SignerField, value: string) => void;
   onSet: (field: SignerField, value: string) => void;
   onOpen: (field: SignerField) => void;
@@ -389,7 +466,13 @@ function Overlay({
           onClick={() => onOpen(field)}
           {...marker}
         >
-          {SIGNS.has(field.holds) ? <span className={styles.sign}>{field.holds === "initials" ? "Initial" : "Sign"}</span> : null}
+          {SIGNS.has(field.holds) ? (
+            filled && marks[field.holds] ? (
+              <SignatureMark mark={marks[field.holds] as Mark} width={style.width} height={style.height} />
+            ) : (
+              <span className={styles.sign}>{field.holds === "initials" ? "Initial" : "Sign"}</span>
+            )
+          ) : null}
         </button>,
       );
     });
@@ -428,10 +511,10 @@ function Editor({
       <TextButton onClick={onCancel}>Cancel</TextButton>
     </>
   );
-  if (phone || SIGNS.has(field.holds)) {
+  if (phone) {
     return (
-      <Dialog title={`Enter ${field.label}`} placement={phone ? "bottom" : "center"} onClose={onCancel} actions={actions}>
-        {SIGNS.has(field.holds) ? <Notice tone="info">Signing comes with your signature, next.</Notice> : input}
+      <Dialog title={`Enter ${field.label}`} placement="bottom" onClose={onCancel} actions={actions}>
+        {input}
       </Dialog>
     );
   }
@@ -463,4 +546,14 @@ function Beside({ field, onCancel, actions, children }: { field: SignerField; on
       <div className={styles.besideActions}>{actions}</div>
     </div>
   );
+}
+
+/** The person's adopted signature and initials as the page draws them. */
+function marksOf(adopted: readonly Adopted[]): Partial<Record<string, Mark>> {
+  const marks: Partial<Record<string, Mark>> = {};
+  for (const one of adopted) {
+    if (one.method === "drawn" && one.strokes) marks[one.kind] = { method: "drawn", strokes: one.strokes as [number, number][][] };
+    else if (one.method === "typed" && one.text && one.font) marks[one.kind] = { method: "typed", text: one.text, font: one.font };
+  }
+  return marks;
 }

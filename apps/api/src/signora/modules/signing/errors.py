@@ -82,3 +82,8 @@ class FieldLocked(Conflict):
 class FieldNotAsked(Conflict):
     code = "field-not-asked"
     title = "This field isn't asked with your other answers"
+
+
+class AdoptFirst(Conflict):
+    code = "adopt-first"
+    title = "Adopt your signature first"

@@ -67,6 +67,89 @@
         "title": "AddVersion",
         "type": "object"
       },
+      "Adopted": {
+        "description": "An adopted signature as the page draws it and the certificate names it.",
+        "properties": {
+          "font": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FontView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "signature",
+              "initials"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "typed",
+              "drawn"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "signature_id": {
+            "title": "Signature Id",
+            "type": "string"
+          },
+          "strokes": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strokes"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "kind",
+          "method",
+          "text",
+          "font",
+          "strokes",
+          "signature_id"
+        ],
+        "title": "Adopted",
+        "type": "object"
+      },
       "Approval": {
         "properties": {
           "at": {
@@ -2801,6 +2884,19 @@
         "title": "PlaceIn",
         "type": "object"
       },
+      "Placed": {
+        "properties": {
+          "placed": {
+            "title": "Placed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "placed"
+        ],
+        "title": "Placed",
+        "type": "object"
+      },
       "PlacementView": {
         "properties": {
           "id": {
@@ -3659,6 +3755,100 @@
           }
         },
         "title": "SettingsInput",
+        "type": "object"
+      },
+      "SignatureIn": {
+        "additionalProperties": false,
+        "properties": {
+          "font": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font"
+          },
+          "method": {
+            "enum": [
+              "typed",
+              "drawn"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "strokes": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  "type": "array"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strokes"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "title": "SignatureIn",
+        "type": "object"
+      },
+      "SignatureState": {
+        "properties": {
+          "adopted": {
+            "items": {
+              "$ref": "#/components/schemas/Adopted"
+            },
+            "title": "Adopted",
+            "type": "array"
+          },
+          "fonts": {
+            "items": {
+              "$ref": "#/components/schemas/FontView"
+            },
+            "title": "Fonts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "adopted",
+          "fonts"
+        ],
+        "title": "SignatureState",
         "type": "object"
       },
       "SignerDocument": {
@@ -9080,6 +9270,92 @@
         ]
       }
     },
+    "/api/v1/fonts": {
+      "get": {
+        "operationId": "list_fonts_api_v1_fonts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "use",
+            "required": false,
+            "schema": {
+              "default": "text",
+              "enum": [
+                "text",
+                "signature"
+              ],
+              "title": "Use",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FontView"
+                  },
+                  "title": "Response List Fonts Api V1 Fonts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The fonts offered for a use: filled values, or typed signatures",
+        "tags": [
+          "typesetting"
+        ]
+      }
+    },
     "/api/v1/fonts/{font_id}": {
       "get": {
         "operationId": "font_file_api_v1_fonts__font_id__get",
@@ -10552,6 +10828,109 @@
         ]
       }
     },
+    "/api/v1/sign/{recipient_id}/apply-all/{kind}": {
+      "post": {
+        "operationId": "apply_all_api_v1_sign__recipient_id__apply_all__kind__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "signature",
+                "initials"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Placed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "403": {
+            "description": "The code or consent comes first"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "409": {
+            "description": "Nothing adopted yet, or already signed"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Sign every one of this person's places of a kind with their adopted one",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
     "/api/v1/sign/{recipient_id}/code": {
       "post": {
         "operationId": "send_code_api_v1_sign__recipient_id__code_post",
@@ -11088,6 +11467,194 @@
           }
         },
         "summary": "The document's pages (values are drawn over them, never in them)",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/signature": {
+      "get": {
+        "operationId": "signature_api_v1_sign__recipient_id__signature_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignatureState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "403": {
+            "description": "The code or consent comes first"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "This person's adopted signature and initials, and the styles to type one in",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/signature/{kind}": {
+      "put": {
+        "operationId": "adopt_api_v1_sign__recipient_id__signature__kind__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "signature",
+                "initials"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignatureIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Adopted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "403": {
+            "description": "The code or consent comes first"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "409": {
+            "description": "Already signed"
+          },
+          "422": {
+            "description": "Why it is not a signature"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Adopt (or change) this person's signature or initials for this envelope",
         "tags": [
           "signing"
         ]

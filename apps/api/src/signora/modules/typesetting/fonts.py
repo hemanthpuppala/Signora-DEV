@@ -11,10 +11,13 @@ from dataclasses import dataclass
 from functools import cache
 from importlib.resources import files
 from pathlib import Path
+from typing import Literal
 
 import pymupdf
 
 from signora.modules.typesetting.mupdf import MUPDF_LOCK
+
+FontUse = Literal["text", "signature"]
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,7 @@ class Font:
     family: str  # the name the browser gives it (FontFace) and the PDF embeds
     file: str  # in fonts/
     licence: str  # in fonts/, shipped beside the file
+    use: FontUse = "text"  # a filled value's, or a typed signature's (Phase 8 §5.2)
 
 
 # Liberation Sans: SIL Open Font License 1.1, and Arial's widths, the commonest agreement font.
@@ -67,3 +71,17 @@ def text_width(text: str, font_id: str, size: float = 1.0) -> float:
     kerning (as the PDF draws it). O(len(text)); safe from any thread."""
     with MUPDF_LOCK:
         return float(metrics(font_id).text_length(text, fontsize=size))
+
+
+def fonts_for(use: FontUse) -> list[Font]:
+    """The fonts offered for a use, in the list's order. Adding one is its file, its licence and
+    one entry in ``FONTS``."""
+    return [entry for entry in FONTS if entry.use == use]
+
+
+def has_glyphs(font_id: str, text: str) -> bool:
+    """Whether the font draws every letter of ``text`` (spaces aside): a typed signature is never
+    offered in a font that would draw a box for a letter of the name. O(len(text))."""
+    with MUPDF_LOCK:
+        face = metrics(font_id)
+        return all(face.has_glyph(ord(char)) for char in text if not char.isspace())

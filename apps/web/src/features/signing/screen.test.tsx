@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,11 +44,14 @@ const DOCUMENT = {
     field("name", "Client printed name", { holds: "full_name", value: "Maya Chen", locked: true, places: place(60, 60) }),
     field("title", "Client title", { places: place(60, 100) }),
     field("phone", "Client phone", { holds: "phone", required: false, places: place(60, 140) }),
+    field("sig", "Client signature", { holds: "signature", places: place(60, 500) }),
     field("firm", "Firm signature", { holds: "signature", mine: false, required: false, party_id: "p-firm", hidden: "countersigner", places: place(300, 600) }),
   ],
   font: { id: "liberation-sans", family: "Liberation Sans", url: "/api/v1/fonts/liberation-sans" },
   fit: { min_size: 6, max_size: 12, baseline: 0.25, padding: 2 },
 };
+
+const ADOPTED = { kind: "signature", method: "drawn", text: null, font: null, strokes: [[[100, 200], [600, 250]]], signature_id: "0123456789abcdef" };
 
 const STATE = {
   recipient_id: RECIPIENT,
@@ -70,6 +73,7 @@ function reply(status: number, body: unknown) {
 describe("the signer's screen", () => {
   const fetchMock = vi.fn<typeof fetch>();
   const requests: string[] = [];
+  let adopted = false;
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockImplementation(async (input) => {
@@ -77,6 +81,11 @@ describe("the signer's screen", () => {
       const path = new URL(request.url).pathname;
       requests.push(`${request.method} ${path}`);
       if (path.endsWith("/document")) return reply(200, DOCUMENT);
+      if (path.endsWith("/signature") && request.method === "GET") return reply(200, { adopted: adopted ? [ADOPTED] : [], fonts: [] });
+      if (path.endsWith("/signature/signature")) {
+        adopted = true;
+        return reply(200, ADOPTED);
+      }
       if (path.includes("/drafts/")) return reply(200, { value: ((await request.json()) as { value: string }).value });
       return reply(204, null);
     });
@@ -85,6 +94,7 @@ describe("the signer's screen", () => {
     vi.unstubAllGlobals();
     fetchMock.mockReset();
     requests.length = 0;
+    adopted = false;
   });
 
   function show() {
@@ -98,7 +108,7 @@ describe("the signer's screen", () => {
   it("counts what is left, and holds Sign and submit until it is done and confirmed", async () => {
     show();
 
-    expect(await screen.findAllByText("1 field left")).toHaveLength(2); // in the bar, and under Submit
+    expect(await screen.findAllByText("2 fields left")).toHaveLength(2); // in the bar, and under Submit
     expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
     const submit = screen.getByRole("button", { name: "Sign and submit" }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
@@ -124,9 +134,60 @@ describe("the signer's screen", () => {
     await user.type(box, "Founder");
 
     await vi.waitFor(() => expect(requests).toContain(`PUT /api/v1/sign/${RECIPIENT}/drafts/title`), { timeout: 2000 });
+    await signThePlace(user);
     expect(screen.getByRole("button", { name: "Complete" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Complete" }));
     await user.click(screen.getByLabelText("I've reviewed this document and this is my signature"));
     expect((screen.getByRole("button", { name: "Sign and submit" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+async function signThePlace(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Client signature: sign here" }));
+  expect(await screen.findByRole("dialog", { name: "Your signature" })).toBeTruthy();
+  const pad = screen.getByRole("img", { name: "Draw your signature" });
+  pad.getBoundingClientRect = () => ({ left: 0, top: 0, width: 500, height: 200, right: 500, bottom: 200, x: 0, y: 0, toJSON: () => ({}) });
+  fireEvent.pointerDown(pad, { clientX: 50, clientY: 100, pointerId: 1 });
+  fireEvent.pointerMove(pad, { clientX: 300, clientY: 120, pointerId: 1 });
+  fireEvent.pointerUp(pad, { clientX: 300, clientY: 120, pointerId: 1 });
+  await user.click(screen.getByRole("button", { name: "Adopt and sign" }));
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Your signature" })).toBeNull());
+}
+
+describe("signing a place", () => {
+  it("adopts a drawing the first time, then signs the place with it", async () => {
+    const calls: { method: string; path: string; body: unknown }[] = [];
+    let adoptedOnce = false;
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const request = input as Request;
+      const path = new URL(request.url).pathname;
+      const body = request.method === "GET" ? null : await request.text().then((t) => (t ? JSON.parse(t) : null));
+      calls.push({ method: request.method, path, body });
+      if (path.endsWith("/document")) return reply(200, DOCUMENT);
+      if (path.endsWith("/signature") && request.method === "GET") return reply(200, { adopted: adoptedOnce ? [ADOPTED] : [], fonts: [] });
+      if (path.endsWith("/signature/signature")) {
+        adoptedOnce = true;
+        return reply(200, ADOPTED);
+      }
+      if (path.includes("/drafts/")) return reply(200, { value: (body as { value: string }).value });
+      return reply(204, null);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SigningScreen state={STATE} />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: "Client signature: sign here" });
+
+    await signThePlace(user);
+
+    const adopt = calls.find((c) => c.path.endsWith("/signature/signature"));
+    expect(adopt?.method).toBe("PUT");
+    expect((adopt?.body as { method: string }).method).toBe("drawn");
+    expect(((adopt?.body as { strokes: number[][][] }).strokes[0] ?? []).length).toBeGreaterThan(1);
+    await vi.waitFor(() => expect(calls.some((c) => c.path.endsWith("/drafts/sig") && (c.body as { value: string }).value === "signed")).toBe(true));
+    vi.unstubAllGlobals();
   });
 });
