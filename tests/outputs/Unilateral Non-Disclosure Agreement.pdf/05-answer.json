@@ -1,0 +1,182 @@
+{
+  "roles": [
+    {
+      "slug": "recipient",
+      "kind": "signer"
+    },
+    {
+      "slug": "company",
+      "kind": "countersigner"
+    }
+  ],
+  "fields": [
+    {
+      "id": "f1",
+      "holds": "day",
+      "format": "Dth",
+      "filled_by": "sender",
+      "label": "Agreement date: day",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f2",
+      "holds": "month",
+      "format": "Month",
+      "filled_by": "sender",
+      "label": "Agreement date: month",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f3",
+      "holds": "year",
+      "format": "YY",
+      "filled_by": "sender",
+      "label": "Agreement date: year",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f4",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "sender",
+      "label": "Company legal name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f5",
+      "holds": "address",
+      "format": null,
+      "filled_by": "sender",
+      "label": "Company street address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f6",
+      "holds": "city",
+      "format": null,
+      "filled_by": "sender",
+      "label": "Company city",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f7",
+      "holds": "state",
+      "format": null,
+      "filled_by": "sender",
+      "label": "Company state",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f8",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "recipient",
+      "label": "Recipient legal name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f9",
+      "holds": "address",
+      "format": null,
+      "filled_by": "recipient",
+      "label": "Recipient street address",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f10",
+      "holds": "city",
+      "format": null,
+      "filled_by": "recipient",
+      "label": "Recipient city",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f11",
+      "holds": "state",
+      "format": null,
+      "filled_by": "recipient",
+      "label": "Recipient state",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f12",
+      "holds": "state",
+      "format": null,
+      "filled_by": "sender",
+      "label": "Governing law: state",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f13",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "company",
+      "label": "Company representative signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f14",
+      "holds": "date_signed",
+      "format": "Month D, YYYY",
+      "filled_by": "company",
+      "label": "Company signature date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f15",
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "company",
+      "label": "Company representative printed name",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f16",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "recipient",
+      "label": "Recipient signature",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f17",
+      "holds": "date_signed",
+      "format": "Month D, YYYY",
+      "filled_by": "recipient",
+      "label": "Recipient signature date",
+      "must_fill": true,
+      "depends_on": null
+    },
+    {
+      "id": "f18",
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "recipient",
+      "label": "Recipient printed name",
+      "must_fill": true,
+      "depends_on": null
+    }
+  ],
+  "checkbox_groups": [],
+  "extra_fields": [],
+  "document": {
+    "name": "Unilateral Non-Disclosure Agreement",
+    "description": "A unilateral non-disclosure agreement between a Company and a Recipient. It covers confidential information, the Recipient’s nondisclosure and nonuse obligations, survival, and governing law. The Recipient signs first and the Company countersigns."
+  }
+}
