@@ -10,6 +10,7 @@ from sqlalchemy import Engine
 from signora.kernel.config import Settings as AppConfig
 from signora.kernel.config import load_settings
 from signora.kernel.health import Check, CheckFailedError, core_checks, run_checks
+from tests.conftest import TEST_DATABASE
 
 
 def _ok() -> None:
@@ -74,7 +75,7 @@ def test_real_core_checks_pass_against_running_services(engine: Engine) -> None:
     """Integration: test database, migrations, blob dir and Gotenberg (needs `make up`)."""
     settings: AppConfig = load_settings()
     test_settings = settings.model_copy(
-        update={"db": settings.db.model_copy(update={"name": "signora_test"})}
+        update={"db": settings.db.model_copy(update={"name": TEST_DATABASE})}
     )
 
     readiness = run_checks(core_checks(test_settings, engine))

@@ -29,6 +29,7 @@ from signora.modules.audit.domain import (
     check_data,
     compute_hash,
 )
+from tests.conftest import TEST_DATABASE
 
 USER = Actor("user", uuid.uuid4(), "Hemanth Puppala <hp@example.com>")
 
@@ -303,7 +304,7 @@ def test_hash_covers_every_field() -> None:
 def test_cli_verify_reports_and_sets_exit_code(committing_db: Database) -> None:
     chain = new_chain()
     record_many(committing_db, chain, 2)
-    environment = {**os.environ, "POSTGRES_DB": "signora_test"}
+    environment = {**os.environ, "POSTGRES_DB": TEST_DATABASE}
     command = [sys.executable, "-m", "signora.entrypoints.cli", "audit", "verify"]
 
     ok = subprocess.run(
