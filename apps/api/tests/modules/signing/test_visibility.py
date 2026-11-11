@@ -28,6 +28,7 @@ VIEWER = SignerRecipient(
     expired=False,
     require_email_code=True,
     title="NDA",
+    document_name="NDA",
     time_zone="UTC",
     font="liberation-sans",
     company="Hale & Ward LLP",

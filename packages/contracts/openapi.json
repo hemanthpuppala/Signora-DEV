@@ -4249,6 +4249,10 @@
           "disclosure": {
             "$ref": "#/components/schemas/Disclosure"
           },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
           "email_masked": {
             "title": "Email Masked",
             "type": "string"
@@ -4311,6 +4315,7 @@
           "name",
           "email_masked",
           "title",
+          "document_name",
           "company",
           "sender_name",
           "sender_email",

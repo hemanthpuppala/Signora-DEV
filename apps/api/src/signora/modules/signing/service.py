@@ -156,6 +156,7 @@ def state(uow: UnitOfWork, who: Signer) -> SignerState:
         name=recipient.name,
         email_masked=mask_email(recipient.email),
         title=recipient.title,
+        document_name=recipient.document_name,
         company=recipient.company,
         sender_name=recipient.sender_name,
         sender_email=recipient.sender_email,

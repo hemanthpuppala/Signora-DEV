@@ -34,6 +34,7 @@ const SIGNER = {
   name: "Maya Chen",
   email_masked: "m•••@example.com",
   title: "Mutual NDA · Maya Chen",
+  document_name: "Mutual NDA",
   company: "Hale & Ward LLP",
   sender_name: "Rosa Hale",
   sender_email: "rosa@haleward.example",

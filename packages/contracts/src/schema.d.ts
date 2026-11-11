@@ -2892,6 +2892,8 @@ export interface components {
             /** Company */
             company: string;
             disclosure: components["schemas"]["Disclosure"];
+            /** Document Name */
+            document_name: string;
             /** Email Masked */
             email_masked: string;
             /**

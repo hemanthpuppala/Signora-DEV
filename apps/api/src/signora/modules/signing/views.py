@@ -35,6 +35,7 @@ class SignerState(BaseModel):
     name: str
     email_masked: str
     title: str
+    document_name: str  # what the screen shows: the envelope's title may end in the signer's name
     company: str
     sender_name: str
     sender_email: str

@@ -1,0 +1,58 @@
+/* A ⋯ menu: a few quiet actions out of the way (Phase 8 §4.1). */
+.trigger {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.trigger:hover,
+.trigger[aria-expanded="true"] {
+  border-color: var(--r25);
+}
+
+.trigger:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.list {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 6px 0;
+  min-width: 200px;
+  list-style: none;
+  border: 1px solid var(--r25);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 18px;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  font: 300 15px/1.2 var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.danger {
+  color: var(--st-declined);
+}

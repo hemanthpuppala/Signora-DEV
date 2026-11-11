@@ -36,6 +36,7 @@ class SignerRecipient:
     expired: bool  # now is at or past the envelope's expiry
     require_email_code: bool
     title: str
+    document_name: str  # the template's name, as the signer's screen shows it
     time_zone: str
     font: str
     company: str
@@ -56,12 +57,14 @@ def recipient_for_signing(session: Session, recipient_id: uuid.UUID) -> SignerRe
                    r.status, r.name, r.email, r.user_id, r.link_version,
                    r.revoked_at IS NOT NULL AS revoked,
                    r.signed_at, e.status AS envelope_status, e.expires_at <= now() AS expired,
-                   e.require_email_code, e.title, e.time_zone, e.font, w.name AS company,
+                   e.require_email_code, e.title, d.name AS document_name, e.time_zone, e.font,
+                   w.name AS company,
                    u.name AS sender_name, u.email AS sender_email
             FROM envelope_recipients r
             JOIN envelopes e ON e.id = r.envelope_id
             JOIN workspaces w ON w.id = r.workspace_id
             JOIN users u ON u.id = e.sent_by
+            JOIN documents d ON d.id = e.document_id
             WHERE r.id = :r
             """
         ),

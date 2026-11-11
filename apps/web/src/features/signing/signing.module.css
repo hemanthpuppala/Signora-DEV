@@ -203,34 +203,23 @@
 /* --- a small screen ---------------------------------------------------------------------------- */
 .compact {
   min-height: 100dvh;
-  padding-bottom: calc(76px + env(safe-area-inset-bottom));
   background: var(--bg);
-  --pdf-viewer-height: calc(100dvh - 76px - 72px - 44px);
+  --pdf-viewer-height: calc(100dvh - 56px - 44px);
 }
 
+/* One row, pinned: the template's name, the next step, and ⋯ in the corner. */
 .compactHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  padding: 12px var(--gutter);
-  border-bottom: 1px solid var(--r25);
-}
-
-.dock {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  position: sticky;
+  top: 0;
   z-index: 5;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px var(--gutter) max(12px, env(safe-area-inset-bottom));
+  min-height: 56px;
+  padding: 8px 8px 8px var(--gutter);
   background: var(--surface);
-  border-top: 1px solid var(--r25);
+  border-bottom: 1px solid var(--r25);
 }
 
 .review {
@@ -487,4 +476,25 @@
 .rowMeta {
   font-size: 13px;
   color: var(--t60);
+}
+
+/* The guide's button: the one filled button on the screen, so the next step is unmissable. */
+.solid {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.solid:hover:not(:disabled) {
+  background: var(--t75);
+  border-color: var(--t75);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

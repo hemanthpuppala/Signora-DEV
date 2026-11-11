@@ -16,11 +16,13 @@ import {
   DetailsPane,
   Dialog,
   GuidePointer,
+  Menu,
   PdfViewer,
   TextButton,
   TopBar,
   ViewerLayout,
   ViewerPane,
+  type MenuItem,
 } from "@/shared/ui";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -411,26 +413,27 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
     </>
   );
 
+  const more: MenuItem[] = [
+    ...(marks.signature ? [{ label: "Change signature", onSelect: () => setAdopting({ kind: "signature", then: null }) }] : []),
+    { label: "Finish later", onSelect: () => setLater(true) },
+    { label: "Decline", onSelect: () => setDeclining(true), danger: true },
+  ];
+
   if (compact) {
+    // One slim row: the template, the one thing to do next, and the rest behind ⋯.
     return (
       <div className={styles.compact}>
         <header className={styles.compactHead}>
-          <div className={styles.titles}>
-            <span className={styles.company}>{state.company}</span>
-            <span className={styles.title}>{state.title}</span>
-          </div>
-          <div className={styles.quiet}>
-            <TextButton onClick={() => setLater(true)}>Finish later</TextButton>
-            <TextButton onClick={() => setDeclining(true)}>Decline</TextButton>
-          </div>
+          <span className={styles.title}>{state.document_name}</span>
+          <Button compact className={styles.solid} onClick={onGuide}>
+            {guideWords}
+          </Button>
+          <Menu label="More" items={more} />
         </header>
+        <span className={styles.visuallyHidden} aria-live="polite">
+          {left.length > 0 ? `${left.length} ${left.length === 1 ? "field" : "fields"} left` : "Every field is filled"}
+        </span>
         {viewer}
-        <nav className={styles.dock} aria-label="Signing">
-          <span className={styles.count} aria-live="polite">
-            {left.length > 0 ? `${left.length} ${left.length === 1 ? "field" : "fields"} left` : "All filled"}
-          </span>
-          <Button onClick={onGuide}>{guideWords}</Button>
-        </nav>
         {dialogs}
       </div>
     );
@@ -445,14 +448,14 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
           <DetailsPane>
             <header className={styles.panelHead}>
               <span className={styles.company}>{state.company}</span>
-              <h1 className={styles.panelTitle}>{state.title}</h1>
+              <h1 className={styles.panelTitle}>{state.document_name}</h1>
               <span className={styles.from}>From {state.sender_name}</span>
             </header>
 
             <section className={styles.panelBlock} aria-label="Your fields">
               <div className={styles.progressLine}>
                 <span aria-live="polite">{`${done} of ${mine.length} done`}</span>
-                <Button compact onClick={onGuide}>
+                <Button compact className={styles.solid} onClick={onGuide}>
                   {guideWords}
                 </Button>
               </div>

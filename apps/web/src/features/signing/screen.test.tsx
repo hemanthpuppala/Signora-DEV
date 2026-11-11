@@ -59,6 +59,7 @@ const STATE = {
   name: "Maya Chen",
   email_masked: "m•••@example.com",
   title: "Mutual NDA · Maya Chen",
+  document_name: "Mutual NDA",
   company: "Hale & Ward LLP",
   sender_name: "Rosa Hale",
   sender_email: "rosa@haleward.example",
@@ -266,7 +267,12 @@ describe("on a small screen", () => {
     );
     const user = userEvent.setup();
 
-    expect(await screen.findByText("2 fields left")).toBeTruthy(); // in the dock
+    expect(await screen.findByText("Mutual NDA")).toBeTruthy(); // the template's name, not the title
+    expect(screen.queryByText("Mutual NDA · Maya Chen")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "More" })); // ⋯ holds the rest
+    expect(screen.getByRole("menuitem", { name: "Finish later" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Decline" })).toBeTruthy();
+    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Start" }));
     const dialog = await screen.findByRole("dialog", { name: "Client title" });
     expect(within(dialog).getByText("Field 1 of 2")).toBeTruthy();

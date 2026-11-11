@@ -30,6 +30,7 @@ export {
 export { Calendar, DatePicker, dateInWords, type DatePickerProps } from "./DatePicker";
 export { Dialog } from "./Dialog";
 export { GuidePointer } from "./GuidePointer";
+export { Menu, type MenuItem } from "./Menu";
 export { StepDialog } from "./StepDialog";
 export { Dropzone } from "./Dropzone";
 export { ExpandableList, ExpandableRow } from "./Expandable";
