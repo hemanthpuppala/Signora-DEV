@@ -287,7 +287,7 @@ allowed_importers = ["signora.modules.signing", "signora.models", "signora.handl
 [[tool.importlinter.contracts]]
 name = "Public interface only: rendering internals are imported only by rendering"
 type = "protected"
-protected_modules = ["signora.modules.rendering.draw"]
+protected_modules = ["signora.modules.rendering.certificate", "signora.modules.rendering.draw"]
 allowed_importers = ["signora.modules.rendering"]
 
 [[tool.importlinter.contracts]]

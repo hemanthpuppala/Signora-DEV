@@ -5,6 +5,7 @@ its callers.
 Public interface — other modules import only from here.
 """
 
+from signora.modules.rendering.certificate import Certificate, Copy, Signature, Signed, certificate
 from signora.modules.rendering.draw import (
     DrawnSignature,
     Item,
@@ -14,4 +15,16 @@ from signora.modules.rendering.draw import (
     render,
 )
 
-__all__ = ["DrawnSignature", "Item", "Mark", "Text", "TypedSignature", "render"]
+__all__ = [
+    "Certificate",
+    "Copy",
+    "DrawnSignature",
+    "Item",
+    "Mark",
+    "Signature",
+    "Signed",
+    "Text",
+    "TypedSignature",
+    "certificate",
+    "render",
+]
