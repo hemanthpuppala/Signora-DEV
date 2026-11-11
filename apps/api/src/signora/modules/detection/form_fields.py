@@ -20,7 +20,7 @@ from signora.modules.detection.geometry import (
     same_row,
     union,
 )
-from signora.modules.detection.page_text import Marked, PageText, pages
+from signora.modules.detection.page_text import FAR_ABOVE, Marked, PageText, pages
 from signora.modules.detection.reading import FieldKind, FoundField, PageInfo, Placement
 from signora.modules.review.values import OPTION_MAX
 
@@ -217,11 +217,14 @@ def read_form(document: pymupdf.Document) -> FormRead:
                 label_above=cut(text.above(box), TEXT_MAX),
                 label_below=cut(text.below(box), TEXT_MAX) if kind == "signature" else None,
                 text_inside=cut(text.within(position), TEXT_MAX),
+                caption=cut(text.caption(position, box), TEXT_MAX),
                 value=cut(current, TEXT_MAX),
                 sample_value=bool(current and SAMPLE_VALUE.match(current)),
                 required=bool(flags & REQUIRED),
                 read_only=bool(flags & READ_ONLY),
             )
+            if not found.label:
+                found.label_above = cut(text.above(box, reach=FAR_ABOVE), TEXT_MAX)
             if kind == "text":
                 found.multiline = bool(flags & MULTILINE)
                 found.max_length = widget.text_maxlen or None

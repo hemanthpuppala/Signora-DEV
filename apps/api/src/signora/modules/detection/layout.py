@@ -10,9 +10,8 @@ from __future__ import annotations
 
 import pymupdf
 
-from signora.modules.detection.blanks import split_at_runs
 from signora.modules.detection.geometry import Box, RowIndex, center, unrotated
-from signora.modules.detection.page_text import pages
+from signora.modules.detection.page_text import pages, split_at_runs
 from signora.modules.detection.reading import Reading
 from signora.modules.detection.untrusted import clean
 

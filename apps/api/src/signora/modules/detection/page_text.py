@@ -7,7 +7,8 @@ it is in the page's unrotated space, where both the text layer and the widgets l
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+import re
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 
 import pymupdf
@@ -29,8 +30,36 @@ def pages(document: pymupdf.Document) -> Iterator[tuple[int, pymupdf.Page]]:
 
 
 LABEL_GAP = 18.0  # a label above or below a field sits within this many points of it
+FAR_ABOVE = 48.0  # a heading over a lone line ("Print Name" two rows up) sits within this many
+CAPTION_SHARE = 0.45  # a form cell's caption sits in this top share of the field's own box
+TOUCH = 2.0  # points a caption's box may overlap the field it sits on (tight form layouts)
+UNDERSCORES = re.compile(r"_{3,}")  # a typed blank: three or more underscores
+# Leading characters that are not part of a label: stray marks, bullets, dashes before the words.
+LEAD = re.compile(r"^[^\w(\[\"\u201c\u2018'$#\u00a7]+")
 ROW_TOLERANCE = 4.0  # words whose centres are this close vertically are on one row
 LEFT_COLUMNS = 40.0  # left labels are grouped into columns this wide, then read top to bottom
+
+
+def _share(box: Box, text: str, start: int, end: int) -> Box:
+    """The part of a word's box that characters ``start:end`` take: their share of its width."""
+    x0, y0, x1, y1 = box
+    width = (x1 - x0) / max(len(text), 1)
+    return (x0 + width * start, y0, x0 + width * end, y1)
+
+
+def split_at_runs(text: str, box: Box) -> list[tuple[str, Box, bool]]:
+    """A word cut where its underscore runs are: each piece with its box and whether it is a run.
+    "20____" gives "20" (words printed before a blank) and the run; a word with no run is itself."""
+    pieces: list[tuple[str, Box, bool]] = []
+    at = 0
+    for match in UNDERSCORES.finditer(text):
+        if match.start() > at:
+            pieces.append((text[at : match.start()], _share(box, text, at, match.start()), False))
+        pieces.append((match.group(), _share(box, text, match.start(), match.end()), True))
+        at = match.end()
+    if at < len(text):
+        pieces.append((text[at:], _share(box, text, at, len(text)), False))
+    return pieces
 
 
 @dataclass(frozen=True)
@@ -59,7 +88,7 @@ class PageText:
         covered = RowIndex(
             [(item.box, index) for index, item in enumerate(marked)] + [(box, -1) for box in hidden]
         )
-        self._inside: dict[int, list[str]] = {}
+        self._inside: dict[int, list[Line]] = {}
         free: list[Line] = []
         words: list[Line] = []
         segment: list[Line] = []
@@ -76,29 +105,47 @@ class PageText:
                 free.append(Line(" ".join(w.text for w in segment), box))
                 segment.clear()
 
-        for x0, y0, x1, y1, text, block, line, _ in page.get_text("words"):
-            word = Line(text, (x0, y0, x1, y1))
+        for x0, y0, x1, y1, whole, block, line, _ in page.get_text("words"):
             if (block, line) != current:
                 close()
                 current = (block, line)
-            holders = [index for _, index in covered.holding(center(word.box))]
-            if holders:
-                close()
-                for index in holders:
-                    if index >= 0:
-                        self._inside.setdefault(index, []).append(text)
-                continue
-            segment.append(word)
-            words.append(word)
+            # A word may hold a typed blank and words printed with it ("20____", "____,"): each
+            # part is its own word, so the printed part stays page text (the year blank's "20").
+            for text, part, _ in split_at_runs(whole, (x0, y0, x1, y1)):
+                self._add(Line(text, part), covered, segment, words, close)
         close()
         self._free = RowIndex((line.box, line) for line in free)
         self._words = RowIndex((word.box, word) for word in words)
 
+    def _add(
+        self,
+        word: Line,
+        covered: RowIndex[int],
+        segment: list[Line],
+        words: list[Line],
+        close: Callable[[], None],
+    ) -> None:
+        """One word: inside a field's box (its own appearance), or page text on the line."""
+        holders = [index for _, index in covered.holding(center(word.box))]
+        if holders:
+            close()
+            for index in holders:
+                if index >= 0:
+                    self._inside.setdefault(index, []).append(word)
+            return
+        segment.append(word)
+        words.append(word)
+
     def left(self, box: Box) -> str | None:
         """Every line of the label cell to the left: lines that end left of the field and whose
         middle lies within its height (a heading and its caption; a row heading and the words
-        leading up to the field). Otherwise the nearest line on the same row."""
-        candidates = [line for _, line in self._free.near(box[1] - 3, box[3] + 3)]
+        leading up to the field). Otherwise the nearest line on the same row. Only what is printed
+        after the nearest other field on the row: text before that field is that field's label
+        ("Name: ____ Date: ____" gives the second "Date:", not "Name: · Date:")."""
+        after = self._previous_edge(box)
+        candidates = [
+            line for _, line in self._free.near(box[1] - 3, box[3] + 3) if line.box[0] >= after - 1
+        ]
         band = [
             line
             for line in candidates
@@ -108,17 +155,55 @@ class PageText:
             row = [
                 line for line in candidates if line.box[2] <= box[0] + 2 and same_row(line.box, box)
             ]
-            return max(row, key=lambda line: line.box[2]).text if row else None
+            if row:
+                return _label(max(row, key=lambda line: line.box[2]).text)
+            # No words of its own after the previous field: a cell of a table's row takes the
+            # row's heading, the label of the row's first field ("Print Name" for each party).
+            first = self._first_on_row(box)
+            return self.left(first) if first is not None else None
         band.sort(key=lambda line: (round(line.box[0] / LEFT_COLUMNS), line.box[1]))
-        return " · ".join(line.text for line in band)
+        return _label(" · ".join(line.text for line in band))
 
-    def above(self, box: Box) -> str | None:
+    def _first_on_row(self, box: Box) -> Box | None:
+        """The leftmost other field on the field's row that lies left of it, if any."""
+        before = [
+            other
+            for other, _ in self._marked.near(box[1], box[3])
+            if other != box and same_row(other, box) and other[2] <= box[0] + 2
+        ]
+        return min(before, key=lambda other: other[0], default=None)
+
+    def _previous_edge(self, box: Box) -> float:
+        """Where the nearest other field to the left on its row ends (else the page's edge)."""
+        edges = [
+            other[2]
+            for other, _ in self._marked.near(box[1], box[3])
+            if other != box and same_row(other, box) and other[2] <= box[0] + 2
+        ]
+        return max(edges, default=float("-inf"))
+
+    def above(self, box: Box, reach: float = LABEL_GAP) -> str | None:
+        """The nearest line over the field within ``reach``, overlapping it horizontally: its
+        middle above the field's top edge (a form's caption may overlap the field's top). Never
+        past another field between them: that line is the other field's."""
         over = [
             line
-            for _, line in self._free.near(box[1] - LABEL_GAP, box[1])
-            if 0 <= box[1] - line.box[3] <= LABEL_GAP and overlaps_horizontally(line.box, box)
+            for _, line in self._free.near(box[1] - reach, box[1])
+            if center(line.box)[1] <= box[1]
+            and box[1] - line.box[3] <= reach
+            and overlaps_horizontally(line.box, box)
         ]
-        return max(over, key=lambda line: line.box[3]).text if over else None
+        if not over:
+            return None
+        nearest = max(over, key=lambda line: line.box[3])
+        between = any(
+            other != box
+            and nearest.box[3] - TOUCH <= other[1]
+            and other[3] <= box[1] + TOUCH
+            and overlaps_horizontally(other, box)
+            for other, _ in self._marked.near(nearest.box[3], box[1])
+        )
+        return None if between else _label(nearest.text)
 
     def below(self, box: Box) -> str | None:
         under = [
@@ -126,11 +211,18 @@ class PageText:
             for _, line in self._free.near(box[3], box[3] + LABEL_GAP)
             if 0 <= line.box[1] - box[3] <= LABEL_GAP and overlaps_horizontally(line.box, box)
         ]
-        return min(under, key=lambda line: line.box[1]).text if under else None
+        return _label(min(under, key=lambda line: line.box[1]).text) if under else None
 
     def within(self, index: int) -> str | None:
         """The words drawn inside the field's box (usually its own appearance)."""
-        return " ".join(self._inside.get(index, [])) or None
+        return " ".join(word.text for word in self._inside.get(index, [])) or None
+
+    def caption(self, index: int, box: Box) -> str | None:
+        """Words printed in the top part of a form field's own box: the caption of a form's cell
+        ("Year", "Make/Manufacturer" in the cell's corner, the box drawn over the whole cell)."""
+        top = box[1] + (box[3] - box[1]) * CAPTION_SHARE
+        words = [word for word in self._inside.get(index, []) if center(word.box)[1] <= top]
+        return _label(" ".join(word.text for word in words)) if words else None
 
     def compose(self, region: Box, skip: str) -> str | None:
         """The words in a region in reading order, with every other field in it written as
@@ -155,3 +247,8 @@ class PageText:
             else:
                 rows.append([token])
         return " ".join(text for row in rows for text, _ in sorted(row, key=lambda t: t[1][0]))
+
+
+def _label(text: str) -> str | None:
+    """A label without the stray marks before its words; None when nothing is left."""
+    return LEAD.sub("", text).strip() or None

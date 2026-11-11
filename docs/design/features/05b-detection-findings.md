@@ -277,6 +277,46 @@ not part of a word.
   second blank.
 - Corpus: D5's Model box labelled "Model", D1 f8 "Date:".
 
+### F3, F4, F5 — Built together (labels)
+
+**Tested first**: a battery of 20 generated label cases, run against the code before the change: **7 wrong** (two
+blanks on a row, three blanks in a sentence, captions over a row of boxes, two headings rows above lone lines, two
+columns of "Name:", a stray mark before a label). Then every real document's labels diffed before and after.
+
+**Fix (built), in `page_text.py` and the two readers:**
+- **F5, a left label is the words after the nearest other field on its row** (`PageText._previous_edge`): text
+  before that field is that field's label. A field with no words of its own there, a cell of a table's row, takes
+  the row's heading: the label of the row's first field (`_first_on_row`), so each party's "Print Name" cell is
+  "Print Name". Stray marks before a label's words are dropped (`LEAD`: "` Section 1:" is "Section 1:").
+- **A line is above a field when its middle is above the field's top edge**, however much the two touch: a
+  government form's caption overlaps its field's top by 2.6 pt (Florida 82050). A caption printed inside the top of
+  a form field's own box is its `caption` (`CAPTION_SHARE`, the top 45 %), and names it before anything outside it.
+- **F3, a heading rows above a lone line**: a field with no label left, above or below looks up to 48 pt
+  (`FAR_ABOVE`), never past another field between them and never over a left label.
+- **The words of a blank and words printed with it are split** (`page_text.split_at_runs`, moved there as the one
+  home the readers and the layout share): "20____" keeps "20" as page text, the year blank's label.
+- **F4**: a field nothing names (no words on the page and the AI's label refused) is flagged "nothing on the page
+  names it: check what it asks"; a box with no size or outside the page is flagged too. A field the AI names is not.
+
+**Tests (`test_labels.py`, 16):** the battery's cases, a caption overlapping its field's top and one inside its
+cell, a lone line under another field taking no label from past it, and F4's flag with and without the AI's label.
+
+**On the real documents** (labels before → after, no field lost a label it should keep):
+
+| Document | Before | After |
+|---|---|---|
+| Florida 82050 | "Year · Make/Manufacturer · Body Type · Model" | "Year", "Make/Manufacturer", "Body Type", "Model", "Color" |
+| Utah TC-843 | "`Section 1: Vehicle Information", "Year · Make" | "Year", "Make", "Model", "Body type" |
+| Trade-secret NDA initials (fillable) | "Recipient's Initials: · Company's Initials:" | "Company's Initials:" |
+| Basic NDA, contractor agreement | "Typed or Printed Name: · Date:", "Travel · Materials · Food" | "Date:", "Food" |
+| Unilateral NDA | 12 of 18 named | 15 of 18: the signature headings and "Print Name" (F3) |
+| UL Lafayette NDA | 0 of 31 named | 31 of 31 |
+| Mutual NDA | 22 of 22 | 22 of 22 (each party's cell by its row heading) |
+
+One field changed from a misleading label to none: the Unilateral NDA's address blank at the start of a wrapped line
+had the agreement's opening sentence; the only text above it is past another blank. Every saved AI answer derives to
+the same meaning as before.
+
 ### F6 — The dropped-name flag is not shown (low)
 
 **Cause:** `derive.Flags.name_dropped` is stored in `version_reviews.flags`, but the fields endpoint's `Flags`
@@ -430,11 +470,11 @@ merged only when F9's marks are met (task 13).
 |---|---|---|---|
 | 1 | Record findings and test cases | done | this document |
 | 2 | F9: flattening tool, generated trap documents, D1–D7 and twins in the corpus, drafted expected answers, pass marks in `score.py` | todo | — |
-| 3 | F5: left labels end at the neighbouring field; caption above wins | todo | — |
-| 4 | F3: label above for lone lines reaches the heading | todo | — |
+| 3 | F5: left labels end at the neighbouring field; caption above wins | done | `page_text.left`, `_previous_edge`, `_first_on_row`, captions; `test_labels.py`; real documents diffed (F3–F5 above) |
+| 4 | F3: label above for lone lines reaches the heading | done | `PageText.above` with `FAR_ABOVE`; `test_labels.py` (F3–F5 above) |
 | 5 | F1: drawn lines and thin bars as blanks | done | `detection/drawn_lines.py`; 13 tests in `test_drawn_lines.py` (9 fail before it); every real document recounted; D7 through the real pipeline (F1 above) |
 | 6 | F2: signature and initials boxes grow into the space above the line | done | `detection/writing_space.py`; 7 tests in `test_writing_space.py` (4 fail without it); D1 and D2 re-derived (F2 above) |
-| 7 | F4: field issues reach `needs_review` | todo | — |
+| 7 | F4: field issues reach `needs_review` | done | `derive`: nothing names it, its box; `test_labels.py` (F3–F5 above) |
 | 8 | F6: `name_dropped` shown | todo | — |
 | 9 | F7: addressed-to-AI search covers every untrusted string | todo | — |
 | 10 | F8: design doc §3.2–3.3, tests README, effort default | todo | — |

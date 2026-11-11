@@ -17,8 +17,8 @@ from typing import Any, Literal
 import pymupdf
 from pydantic import BaseModel, ConfigDict
 
-from signora.modules.detection.blanks import UNDERSCORES
 from signora.modules.detection.geometry import Box
+from signora.modules.detection.page_text import UNDERSCORES
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
 from signora.modules.detection.schema import ALLOWED, ANCHOR_MAX
 from signora.modules.detection.writing_space import GROWS, DocumentSpace
@@ -366,6 +366,9 @@ def derive(
             filled_by = _who_fills(holds, filled_by, listed)
             if _unsafe(label):
                 label = found.label or found.id
+        if label == found.id:  # nothing names it: neither the page nor the AI (F4)
+            review.append("nothing on the page names it: check what it asks")
+        review += [issue for issue in found.issues if issue.startswith("page ")]  # its box (F4)
         first = found.placements[0]
         entry = _Item(
             ids=[found.id],

@@ -54,6 +54,7 @@ class FoundField(_Model):
     pdf_field: str | None = None
     placements: list[Placement]
     tooltip: str | None = None  # the form author's own description (/TU)
+    caption: str | None = None  # words printed in the top of a form field's own box (a cell's)
     label_left: str | None = None
     label_above: str | None = None
     label_below: str | None = None
@@ -85,7 +86,9 @@ class FoundField(_Model):
 
     @property
     def label(self) -> str | None:
-        return self.tooltip or self.label_left or self.label_above or self.label_below
+        return (
+            self.tooltip or self.caption or self.label_left or self.label_above or self.label_below
+        )
 
 
 class PageInfo(_Model):
