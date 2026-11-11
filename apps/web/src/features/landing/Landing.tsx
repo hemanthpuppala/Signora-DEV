@@ -59,7 +59,7 @@ export function Landing({ signedIn, className }: LandingProps) {
       <div className="page">
         <header className="top">
           <a className="top-brand" href="#top" aria-label="Signora, back to top">
-            <SignatureLogo />
+            <SignatureLogo repeatSeconds={90} />
           </a>
           <nav className="top-links" aria-label="Sections" id="top-links">
             {SECTIONS.map((section) => (

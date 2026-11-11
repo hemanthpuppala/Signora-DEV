@@ -5,7 +5,6 @@ import { LOGO, SIG } from "./penPaths";
 
 /** The part of the pen-path drawing the logo shows: the letterforms plus room for the quill. */
 const VIEW = { x: 19.25, y: -43.15, w: 304, h: 250 };
-const REST_MS = 30_000;
 const TAU = Math.PI * 2;
 const VANE = ["#ffffff", "#e4e4e4", "#8e8e8e"] as const;
 
@@ -21,18 +20,24 @@ const QUILL = {
 
 /**
  * When the signing last finished, anywhere in this tab. The logo is on every page; a page opened
- * while the logo is resting shows it at rest instead of signing again on each navigation.
+ * after it has signed shows it at rest instead of signing again on each navigation.
  */
 let lastFinished = Number.NEGATIVE_INFINITY;
 
 /**
- * The Signora logo on a canvas: a quill writes "Signora" along the recorded pen path, rests in the
- * logo pose, and writes it again after `REST_MS`. Under reduced motion it shows the finished logo.
+ * The Signora logo on a canvas: a quill writes "Signora" along the recorded pen path and rests in
+ * the logo pose. It signs once per tab; with `repeatMs` it signs again after resting that long.
+ * Under reduced motion it shows the finished logo.
  *
  * The ink takes the canvas's CSS `color`; the gaps in the quill take its `--signature-paper`
  * (the colour behind the logo).
  */
-export function mountLogoSigning(canvas: HTMLCanvasElement, scope: Scope, reduced: boolean): void {
+export function mountLogoSigning(
+  canvas: HTMLCanvasElement,
+  scope: Scope,
+  reduced: boolean,
+  repeatMs?: number,
+): void {
   // Ink accumulates on a second canvas, so each frame stamps only the new dots.
   const inkCanvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -164,7 +169,7 @@ export function mountLogoSigning(canvas: HTMLCanvasElement, scope: Scope, reduce
       } else {
         frame = 0;
         lastFinished = performance.now();
-        rest = scope.timeout(play, REST_MS);
+        if (repeatMs) rest = scope.timeout(play, repeatMs);
       }
     };
     frame = scope.frame(tick);
@@ -179,10 +184,11 @@ export function mountLogoSigning(canvas: HTMLCanvasElement, scope: Scope, reduce
 
   size();
   const sinceFinished = performance.now() - lastFinished;
-  if (reduced || sinceFinished < REST_MS) {
+  const resting = repeatMs ? sinceFinished < repeatMs : Number.isFinite(lastFinished);
+  if (reduced || resting) {
     lastTime = LOGO.end;
     redraw();
-    if (!reduced) rest = scope.timeout(play, REST_MS - sinceFinished);
+    if (!reduced && repeatMs) rest = scope.timeout(play, repeatMs - sinceFinished);
   } else {
     scope.timeout(play, 500);
   }

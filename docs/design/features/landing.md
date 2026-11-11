@@ -126,8 +126,9 @@ recorded data from the brand animation and is kept as data.
 - `Landing({ signedIn, className })`: the page.
 - `mountLanding(root): () => void`: starts every controller; the return value stops them.
 - `SignatureLogo({ className })` (shared): the signing logo on a canvas. Its ink is the CSS `color`;
-  the gaps in the quill take `--signature-paper`. It signs, rests 30 s and signs again; a page
-  opened while it rests shows it at rest, so moving between pages does not replay it.
+  the gaps in the quill take `--signature-paper`. It signs once per tab and then rests, so moving between pages
+  does not replay it. With `repeatSeconds` it signs again after resting that long; only the landing
+  page sets it (90 s).
 - `createAutoplay({ scope, reduced, watch, play, resume?, onStart?, onStop? })` returns
   `{ isOn(), takeOver(), restart() }`. `play(alive)` is one pass; it resolves `false` when cut short.
 - `mountPhoneSigning(...)` returns `{ setEnvelope(envelope | null), focusCode() }`, which the
