@@ -113,7 +113,9 @@ describe("the signer's screen", () => {
   it("counts what is left, and holds Sign and submit until it is done and confirmed", async () => {
     show();
 
-    expect(await screen.findAllByText("2 fields left")).toHaveLength(2); // in the bar, and under Submit
+    expect(await screen.findByText("1 of 4 done")).toBeTruthy(); // their name was given before sending
+    expect(screen.getByText("2 fields left")).toBeTruthy(); // under Sign and submit
+    expect(screen.getByRole("button", { name: /Client title/ })).toBeTruthy(); // the panel's list of fields
     expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
     const submit = screen.getByRole("button", { name: "Sign and submit" }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
@@ -234,6 +236,44 @@ describe("declining", () => {
 
     expect(await screen.findByText("You declined to sign.")).toBeTruthy();
     expect(sent).toEqual([{ reason: "The fee is wrong" }]);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("on a small screen", () => {
+  it("leads with one button: a dialog per field, Save and next, then signing", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        const request = input as Request;
+        const path = new URL(request.url).pathname;
+        if (path.endsWith("/document")) return reply(200, DOCUMENT);
+        if (path.endsWith("/signature")) return reply(200, { adopted: [], saved: [], fonts: [] });
+        if (path.includes("/drafts/")) return reply(200, { value: ((await request.json()) as { value: string }).value });
+        return reply(204, null);
+      }),
+    );
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SigningScreen state={STATE} />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("2 fields left")).toBeTruthy(); // in the dock
+    await user.click(screen.getByRole("button", { name: "Start" }));
+    const dialog = await screen.findByRole("dialog", { name: "Client title" });
+    expect(within(dialog).getByText("Field 1 of 2")).toBeTruthy();
+    await user.type(within(dialog).getByLabelText(/Client title/), "Founder");
+    await user.click(within(dialog).getByRole("button", { name: "Save and next" }));
+
+    expect(await screen.findByRole("dialog", { name: "Your signature" })).toBeTruthy(); // the next: sign
     vi.unstubAllGlobals();
   });
 });

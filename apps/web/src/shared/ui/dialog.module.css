@@ -32,26 +32,34 @@
   align-items: center;
 }
 
-/* A sheet along the bottom of a phone's screen: full width, rising into place. */
-.sheet {
-  width: 100%;
-  max-width: 100%;
-  margin: auto 0 0;
-  padding: 24px 16px max(24px, env(safe-area-inset-bottom));
-  border-width: 1px 0 0;
-  max-height: 85dvh;
+/* Small screens: the same dialog, inset from the edges, its body scrolling when tall, its actions
+   always in reach. It rises a little into place, unless the person asks for less motion. */
+.dialog {
+  max-height: calc(100dvh - 32px);
   overflow: auto;
 }
 
+@media (max-width: 559px) {
+  .dialog {
+    width: calc(100vw - 32px);
+    padding: 24px 20px;
+  }
+
+  .actions {
+    flex-direction: row-reverse;
+    justify-content: space-between;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .sheet[open] {
-    animation: rise 200ms ease-out;
+  .dialog[open] {
+    animation: rise 180ms ease-out;
   }
 }
 
 @keyframes rise {
   from {
-    transform: translateY(24px);
+    transform: translateY(12px);
     opacity: 0;
   }
 }

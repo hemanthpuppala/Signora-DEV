@@ -1,33 +1,13 @@
-/* The signer's screen (Phase 8 §4): a pinned bar, the document, then the Submit block. */
-.screen {
-  min-height: 100dvh;
-  background: var(--bg);
-  --pdf-viewer-height: calc(100dvh - 120px);
-}
-
+/* The signer's screen (Phase 8 §4). A computer: the document on the left, a panel on the right
+   (the template page's own layout). A small screen: one column, a dock along the bottom, a dialog
+   per field. */
 .loading {
-  padding: 32px 16px;
+  padding: 32px var(--gutter);
   color: var(--t60);
 }
 
-.bar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  padding: 10px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--r25);
-}
-
-.titles {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1 1 200px;
+.wide {
+  padding: 16px var(--gutter) 0;
 }
 
 .company {
@@ -35,6 +15,12 @@
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--t55);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .title {
@@ -48,6 +34,297 @@
 .count {
   font: 400 12px/1 var(--mono);
   color: var(--t75);
+}
+
+.quiet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+}
+
+/* --- the panel ------------------------------------------------------------------------------- */
+.panelHead {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1.15;
+}
+
+.from {
+  font-size: 13px;
+  color: var(--t60);
+}
+
+.panelBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.blockTitle {
+  font: 400 10px/1.4 var(--sans);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.progressLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font: 400 13px/1.4 var(--sans);
+  color: var(--t75);
+}
+
+.track {
+  height: 2px;
+  background: var(--r25);
+}
+
+.track > span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transition: width 200ms ease-out;
+}
+
+.fieldList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--sep);
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--sep);
+  color: var(--ink);
+  font: 300 14px/1.3 var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.fieldRow:hover,
+.fieldRow:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.fieldRowCurrent {
+  background: var(--surface-2);
+}
+
+.fieldLabel {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fieldNote {
+  font-size: 12px;
+  color: var(--t55);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border: 1px solid var(--r40);
+  border-radius: 50%;
+}
+
+.tick {
+  color: var(--st-signed);
+  font-size: 13px;
+}
+
+/* A signature is always shown on paper, as it sits on the page. */
+.signatureTile {
+  display: grid;
+  place-items: center;
+  min-height: 80px;
+  background: var(--paper);
+}
+
+.tileEmpty {
+  font-size: 12px;
+  color: var(--paper-quiet);
+}
+
+.statement {
+  margin: 0;
+  color: var(--t75);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.missing {
+  margin: 0;
+  color: var(--t60);
+  font-size: 13px;
+}
+
+/* Complete: the Submit block asks for the box, firmly but quietly. */
+.attention {
+  outline: 1px solid var(--st-sent);
+  outline-offset: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .attention {
+    animation: attend 1.6s ease-out 1;
+  }
+}
+
+@keyframes attend {
+  from {
+    outline-color: transparent;
+    outline-offset: 20px;
+  }
+}
+
+/* --- a small screen ---------------------------------------------------------------------------- */
+.compact {
+  min-height: 100dvh;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  --pdf-viewer-height: calc(100dvh - 76px - 72px - 44px);
+}
+
+.compactHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px var(--gutter);
+  border-bottom: 1px solid var(--r25);
+}
+
+.dock {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px var(--gutter) max(12px, env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--r25);
+}
+
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.position {
+  display: block;
+  margin-bottom: 12px;
+  font: 400 10px/1.4 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.editorForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* --- adopting a signature ------------------------------------------------------------------------ */
+.adopt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: min(440px, calc(100vw - 72px));
+}
+
+.switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--r25);
+}
+
+.switchOption {
+  min-height: 40px;
+  background: transparent;
+  border: 0;
+  color: var(--t75);
+  font: 400 11px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.switchOption[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.switchOption:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.styles {
+  display: grid;
+  gap: 8px;
+}
+
+.styleCard {
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  padding: 4px;
+  background: var(--paper);
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.styleCard[aria-checked="true"] {
+  border-color: var(--st-sent);
+}
+
+.styleCard:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.drawing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.agree {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--t60);
 }
 
 /* A box over the page. */
@@ -136,28 +413,6 @@
   color: var(--paper-quiet);
   white-space: nowrap;
   overflow: hidden;
-}
-
-.submit {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 640px;
-  margin: 32px auto 64px;
-  padding: 0 16px;
-}
-
-.statement {
-  margin: 0;
-  color: var(--t75);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.missing {
-  margin: 0;
-  color: var(--t60);
-  font-size: 13px;
 }
 
 .beside {

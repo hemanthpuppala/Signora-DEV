@@ -27,3 +27,6 @@ class IntersectionObserverStub {
   }
 }
 globalThis.IntersectionObserver ??= IntersectionObserverStub as unknown as typeof IntersectionObserver;
+
+// jsdom does not scroll (every supported browser does): the viewer moving to a field calls this.
+Element.prototype.scrollTo ??= function scrollTo() {};
