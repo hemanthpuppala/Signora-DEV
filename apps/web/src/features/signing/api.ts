@@ -1,0 +1,25 @@
+import { useQuery } from "@tanstack/react-query";
+
+import type { components } from "@signora/contracts";
+
+import { api, unwrap } from "@/shared/api/client";
+
+export type Opened = components["schemas"]["Opened"];
+export type SignerState = components["schemas"]["SignerState"];
+
+/** Exchange the emailed link's token for this browser's signing session (Phase 8 §1.1.1). */
+export const openLink = (token: string) =>
+  unwrap(api.POST("/api/v1/sign/open", { body: { token } }));
+
+export const signerKey = (recipientId: string) => ["signer", recipientId] as const;
+
+export function useSigner(recipientId: string) {
+  return useQuery({
+    queryKey: signerKey(recipientId),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/sign/{recipient_id}", { params: { path: { recipient_id: recipientId } } }),
+      ),
+    retry: false, // a closed link or an ended session is an answer, not a failure to retry
+  });
+}

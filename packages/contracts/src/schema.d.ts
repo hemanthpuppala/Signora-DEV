@@ -990,6 +990,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange a signing link's token for this browser's signing session */
+        post: operations["open_link_api_v1_sign_open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sign/{recipient_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who is signing, what, and their next step */
+        get: operations["signer_state_api_v1_sign__recipient_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace": {
         parameters: {
             query?: never;
@@ -1901,6 +1935,24 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** OpenRequest */
+        OpenRequest: {
+            /** Token */
+            token: string;
+        };
+        /** Opened */
+        Opened: {
+            /**
+             * Next
+             * @enum {string}
+             */
+            next: "verify" | "consent" | "sign" | "done";
+            /**
+             * Recipient Id
+             * Format: uuid
+             */
+            recipient_id: string;
+        };
         /** Option */
         Option: {
             /** Text */
@@ -2316,6 +2368,33 @@ export interface components {
              * Format: uuid
              */
             party_id: string;
+        };
+        /** SignerState */
+        SignerState: {
+            /** Company */
+            company: string;
+            /** Email Masked */
+            email_masked: string;
+            /** Name */
+            name: string;
+            /**
+             * Next
+             * @enum {string}
+             */
+            next: "verify" | "consent" | "sign" | "done";
+            /**
+             * Recipient Id
+             * Format: uuid
+             */
+            recipient_id: string;
+            /** Sender Email */
+            sender_email: string;
+            /** Sender Name */
+            sender_name: string;
+            /** Signed At */
+            signed_at: string | null;
+            /** Title */
+            title: string;
         };
         /** SigningLink */
         SigningLink: {
@@ -6253,6 +6332,133 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RoleDetailView"][];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    open_link_api_v1_sign_open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Opened"];
+                };
+            };
+            /** @description The link cannot be used (closed, replaced or not genuine) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    signer_state_api_v1_sign__recipient_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignerState"];
+                };
+            };
+            /** @description No live signing session for this person in this browser */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is no longer open */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {

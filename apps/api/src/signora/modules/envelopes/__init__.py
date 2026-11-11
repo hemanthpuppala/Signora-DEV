@@ -3,7 +3,18 @@
 Public interface — other modules import only from here.
 """
 
+from signora.modules.envelopes.recipients import (
+    SignerRecipient,
+    recipient_for_signing,
+    record_opened,
+)
 from signora.modules.envelopes.routes import router
 from signora.modules.envelopes.store import count_sends
 
-__all__ = ["count_sends", "router"]
+__all__ = [
+    "SignerRecipient",
+    "count_sends",
+    "recipient_for_signing",
+    "record_opened",
+    "router",
+]

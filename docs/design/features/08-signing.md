@@ -60,8 +60,9 @@ who sees what (Phase 7 §3).
 5. **"Opened" is recorded once.** The first accepted open sets the recipient's `opened_at` and status `opened`, and the
    envelope's status to `opened` while it is `sent` (statuses only move forward, Phase 7 §1.1). One timeline entry,
    however often the link is opened. "Viewed" is recorded when the document is first shown (topic 4).
-6. **A closed link shows one calm page**: "This request is no longer open. Nothing more is needed from you." with the
-   sender's name and email for questions. It never says why (completed, cancelled, expired, declined, replaced): the
+6. **A closed link shows one calm page**: "This request is no longer open. Nothing more is needed from you." It
+   names nobody (no company, no sender), because the answer must be the same for a link that is not genuine. It never
+   says why (completed, cancelled, expired, declined, replaced): the
    link may be in someone else's hands. A token that is not genuine gets the same page, the same response and the
    same status code, so a guess learns nothing.
 7. **Someone who has already signed** opens normally (a session, then the email code, topic 2) and lands on their done
@@ -1001,7 +1002,7 @@ the design system: `DatePicker`, `BottomSheet`, `GuidePointer`, `SignaturePad`, 
 |---|---|---|---|
 | 8.1 | This design (§1–§17) | done | this document |
 | 8.2 | Migration 0025, models, triggers | done | `0025_signing.py`; `signing/models.py`, envelopes and notifications models; recipients gain `(id, workspace_id)` and `(id, workspace_id, version_id)` keys for the signing tables (foreign keys to recipients named by hand, under Postgres's 63 characters); import contracts for `signing`. Tests: `test_tables.py` (11: consent insert only, a signature frozen once signed, a signature's shape, a decline recorded, completed files set together once, attachments), the schema test, the downgrade and upgrade round trip. The envelopes functions `signing` calls come with the tasks that call them |
-| 8.3 | Opening a link, sessions, grants; `/s` and `/sign` pages; the closed page | todo | — |
+| 8.3 | Opening a link, sessions, grants; `/s` and `/sign` pages; the closed page | done | `signing/` (`sessions.py`: cookie `__Host-signora_sign`, 30 min idle from `.env`, 12 h at most, grants that a newer link version replaces with its verification; `service.py`: `open_link`, `signer` (checked on every request), `state`; `domain.py`: `mask_email`, `next_step`; `errors.py`: `link-closed`, `session-ended`); `envelopes.recipients` (`recipient_for_signing`, `record_opened`); identity exports its token helpers (one definition); `signing.opened` on the envelope's audit chain. Web: `/s/[token]` (one exchange per token, then `/sign/{id}`), `/sign/[recipientId]`, the closed and session-ended screens, both routes noindex and no-referrer (Caddy already keeps tokens out of its access log). Tests: `test_open.py` (7: a session and opened once, no code means consent next, five unusable links answer alike, an open page closes at expiry, a corrected email, two people in one browser, idle end), `signing.test.tsx` (4) |
 | 8.4 | The email code | todo | — |
 | 8.5 | Consent | todo | — |
 | 8.6 | The document view, drafts, viewed (API) | todo | — |

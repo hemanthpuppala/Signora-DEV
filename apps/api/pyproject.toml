@@ -242,6 +242,7 @@ type = "protected"
 protected_modules = [
     "signora.modules.envelopes.form",
     "signora.modules.envelopes.models",
+    "signora.modules.envelopes.recipients",
     "signora.modules.envelopes.routes",
     "signora.modules.envelopes.service",
 ]
@@ -261,7 +262,14 @@ forbidden_modules = ["signora.modules.envelopes"]
 [[tool.importlinter.contracts]]
 name = "Public interface only: signing internals are imported only by signing and composition roots"
 type = "protected"
-protected_modules = ["signora.modules.signing.models"]
+protected_modules = [
+    "signora.modules.signing.errors",
+    "signora.modules.signing.models",
+    "signora.modules.signing.routes",
+    "signora.modules.signing.service",
+    "signora.modules.signing.sessions",
+    "signora.modules.signing.views",
+]
 allowed_importers = ["signora.modules.signing", "signora.models", "signora.handlers"]
 
 [[tool.importlinter.contracts]]
@@ -333,5 +341,7 @@ source_modules = [
     "signora.modules.review.formats",
     # Signing links: made and read from a key, never stored.
     "signora.modules.envelopes.links",
+    # A signer's masked email and next step.
+    "signora.modules.signing.domain",
 ]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "psycopg", "alembic"]

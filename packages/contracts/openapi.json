@@ -2320,6 +2320,47 @@
         "title": "NameRequest",
         "type": "object"
       },
+      "OpenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "OpenRequest",
+        "type": "object"
+      },
+      "Opened": {
+        "properties": {
+          "next": {
+            "enum": [
+              "verify",
+              "consent",
+              "sign",
+              "done"
+            ],
+            "title": "Next",
+            "type": "string"
+          },
+          "recipient_id": {
+            "format": "uuid",
+            "title": "Recipient Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_id",
+          "next"
+        ],
+        "title": "Opened",
+        "type": "object"
+      },
       "Option": {
         "properties": {
           "text": {
@@ -3522,6 +3563,74 @@
           "email"
         ],
         "title": "SignerIn",
+        "type": "object"
+      },
+      "SignerState": {
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "email_masked": {
+            "title": "Email Masked",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "next": {
+            "enum": [
+              "verify",
+              "consent",
+              "sign",
+              "done"
+            ],
+            "title": "Next",
+            "type": "string"
+          },
+          "recipient_id": {
+            "format": "uuid",
+            "title": "Recipient Id",
+            "type": "string"
+          },
+          "sender_email": {
+            "title": "Sender Email",
+            "type": "string"
+          },
+          "sender_name": {
+            "title": "Sender Name",
+            "type": "string"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_id",
+          "name",
+          "email_masked",
+          "title",
+          "company",
+          "sender_name",
+          "sender_email",
+          "next",
+          "signed_at"
+        ],
+        "title": "SignerState",
         "type": "object"
       },
       "SigningLink": {
@@ -9891,6 +10000,169 @@
         "summary": "The workspace's roles",
         "tags": [
           "members"
+        ]
+      }
+    },
+    "/api/v1/sign/open": {
+      "post": {
+        "operationId": "open_link_api_v1_sign_open_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Opened"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "The link cannot be used (closed, replaced or not genuine)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Exchange a signing link's token for this browser's signing session",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}": {
+      "get": {
+        "operationId": "signer_state_api_v1_sign__recipient_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignerState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No live signing session for this person in this browser"
+          },
+          "404": {
+            "description": "The request is no longer open"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Who is signing, what, and their next step",
+        "tags": [
+          "signing"
         ]
       }
     },
