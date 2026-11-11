@@ -206,12 +206,14 @@ def test_verification_belongs_to_one_browser(
         assert phone.get(f"{SIGN}/{signer}").json()["next"] == "verify"
 
 
-def test_a_corrected_email_ends_the_code(
+def test_a_corrected_email_ends_the_code_and_starts_its_own_limits(
     sent: Sent, browser: TestClient, owner: TestClient, committing_db: Database
 ) -> None:
     signer = _opened(browser, sent)
-    _code(browser, signer)
-    (code,) = _codes(committing_db, signer)
+    for _ in range(5):  # the old address uses up its hour, the last code just sent
+        _age_code(committing_db, signer, "61 seconds")
+        assert _code(browser, signer, again=True).status_code == 200
+    code = _codes(committing_db, signer)[-1]
     corrected = owner.patch(
         f"/api/v1/envelopes/{sent.id}/recipients/{signer}",
         json={"email": f"maya-{uuid.uuid4().hex[:8]}@example.org"},
@@ -221,6 +223,9 @@ def test_a_corrected_email_ends_the_code(
     assert open_link(browser, token_for(signer, version=2)).json()["next"] == "verify"
 
     assert _verify(browser, signer, code).status_code == 410
+    new = _code(browser, signer)  # no wait, no hourly limit carried over
+    assert new.status_code == 200, new.text
+    assert len(_codes(committing_db, signer)) == 1  # sent to the corrected address
 
 
 def test_no_code_when_the_envelope_asks_for_none(

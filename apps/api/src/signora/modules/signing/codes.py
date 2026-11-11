@@ -91,6 +91,9 @@ def send_code(uow: UnitOfWork, recipient: SignerRecipient, *, again: bool) -> Co
         raise CodeNotRequired  # a countersigner's sign-in is their proof (§7.1.2)
     row = _row(uow, recipient.id)
     now = row.now if row is not None else _now(uow)
+    if row is not None and row.link_version != recipient.link_version:
+        # A corrected email: the wait and the hourly count were the old address's, not this one's.
+        row = None
     masked = mask_email(recipient.email)
     if row is not None and _live(row, recipient, now) and not again:
         return CodeSent(row.sent_at, masked, _seconds(row.sent_at + RESEND_AFTER - now))
