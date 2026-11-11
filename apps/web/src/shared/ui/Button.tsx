@@ -4,6 +4,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "@/shared/lib/cx";
 
 import styles from "./button.module.css";
+import { Tooltip } from "./Tooltip";
 import { Icon, type IconName } from "./Icon";
 
 export type ButtonVariant = "primary" | "quiet" | "destructive";
@@ -95,8 +96,8 @@ export function LinkButton({
 
 
 /**
- * A page's own action in its head: an icon and its words, small and quiet; on a phone the icon
- * alone, the words still naming it for assistive technology. A link with ``href``.
+ * A page's own action in its head: its icon in a small square, its words in a tooltip and naming
+ * it for assistive technology. A link with ``href``.
  */
 export function HeadAction({
   icon,
@@ -126,13 +127,17 @@ export function HeadAction({
       <span className={styles.headActionLabel}>{label}</span>
     </>
   );
-  return href ? (
-    <Link href={href} className={className}>
-      {content}
-    </Link>
-  ) : (
-    <button type="button" className={className} onClick={onClick} disabled={disabled}>
-      {content}
-    </button>
+  return (
+    <Tooltip label={label}>
+      {href ? (
+        <Link href={href} className={className}>
+          {content}
+        </Link>
+      ) : (
+        <button type="button" className={className} onClick={onClick} disabled={disabled}>
+          {content}
+        </button>
+      )}
+    </Tooltip>
   );
 }

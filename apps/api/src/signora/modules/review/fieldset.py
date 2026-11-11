@@ -55,6 +55,8 @@ class FieldIn(_In):
     label: str = Field(min_length=1, max_length=LABEL_MAX)
     holds: ManualHolds
     holds_label: str | None = Field(default=None, min_length=1, max_length=60)  # Other's text
+    # How a date or a part of one is written (7c); none: the type's default
+    format: str | None = Field(default=None, max_length=20)
     filled_by: FilledBy
     party_id: uuid.UUID | None = None
     required: bool

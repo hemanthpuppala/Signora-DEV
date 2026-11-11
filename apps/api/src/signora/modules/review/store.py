@@ -23,6 +23,7 @@ from signora.modules.review.editing import (
     option_text_of,
     unchanged,
 )
+from signora.modules.review.formats import format_for
 from signora.modules.review.metrics import BaselinePlace, Metrics
 from signora.modules.review.proposal import Proposal
 from signora.modules.review.views import (
@@ -90,6 +91,7 @@ def replace_fields(
             "key": field.key,
             "label": field.label,
             "holds": field.holds,
+            "format": format_for(field.holds, field.format),
             "filled_by": field.filled_by,
             "role_id": str(party_ids[field.party]) if field.party in party_ids else None,
             "required": field.required,
@@ -103,11 +105,12 @@ def replace_fields(
         for row in session.execute(
             text(
                 "INSERT INTO version_fields (workspace_id, version_id, key, label, holds, "
-                "filled_by, role_id, required, sensitive, needs_review, origin) "
-                "SELECT :w, :v, f.key, f.label, f.holds, f.filled_by, f.role_id, f.required, "
-                "f.sensitive, f.needs_review, 'detected' FROM jsonb_to_recordset(CAST(:fields AS "
-                "jsonb)) AS f(key text, label text, holds text, filled_by text, role_id uuid, "
-                "required boolean, sensitive boolean, needs_review text) RETURNING id, key"
+                "format, filled_by, role_id, required, sensitive, needs_review, origin) "
+                "SELECT :w, :v, f.key, f.label, f.holds, f.format, f.filled_by, f.role_id, "
+                "f.required, f.sensitive, f.needs_review, 'detected' FROM "
+                "jsonb_to_recordset(CAST(:fields AS jsonb)) AS f(key text, label text, "
+                "holds text, format text, filled_by text, role_id uuid, required boolean, "
+                "sensitive boolean, needs_review text) RETURNING id, key"
             ),
             {"w": workspace_id, "v": version_id, "fields": json.dumps(fields)},
         )
@@ -183,7 +186,8 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
     fields: dict[uuid.UUID, dict[str, Any]] = {}
     for row in session.execute(
         text(
-            "SELECT f.id, f.key, f.label, f.holds, f.holds_label, f.filled_by, r.slug AS role, "
+            "SELECT f.id, f.key, f.label, f.holds, f.holds_label, f.format, f.filled_by, "
+            "r.slug AS role, "
             "f.role_id, f.required, f.sensitive, d.key AS depends_key, f.depends_on_option, "
             "f.needs_review, f.origin "
             "FROM version_fields f LEFT JOIN version_roles r ON r.id = f.role_id "
@@ -198,6 +202,7 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
             "label": row.label,
             "holds": row.holds,
             "holds_label": row.holds_label,
+            "format": format_for(row.holds, row.format),
             "filled_by": row.filled_by,
             "role": row.role,
             "party_id": row.role_id,
@@ -212,8 +217,10 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
         }
     for row in session.execute(
         text(
-            "SELECT id, field_id, page, x0, y0, x1, y1, kind, option_value, option_text, options "
-            "FROM field_placements WHERE version_id = :v ORDER BY page, y0, x0"
+            "SELECT p.id, p.field_id, p.page, p.x0, p.y0, p.x1, p.y1, p.kind, p.option_value, "
+            "p.option_text, p.options, s.size AS text_size FROM field_placements p "
+            "LEFT JOIN placement_text_sizes s ON s.placement_id = p.id "
+            "WHERE p.version_id = :v ORDER BY p.page, p.y0, p.x0"
         ),
         {"v": version_id},
     ):
@@ -226,6 +233,7 @@ def read_set(session: Session, version_id: uuid.UUID) -> tuple[list[RoleView], l
                 option_value=row.option_value,
                 option_text=option_words(row.option_text),
                 options=row.options,
+                text_size=row.text_size,
             )
         )
     views = sorted(
@@ -387,6 +395,7 @@ def read_stored(session: Session, version_id: uuid.UUID) -> Stored:
             label=row.label,
             holds=row.holds,
             holds_label=row.holds_label,
+            format=format_for(row.holds, row.format),
             filled_by=row.filled_by,
             party_id=row.role_id,
             required=row.required,
@@ -399,8 +408,8 @@ def read_stored(session: Session, version_id: uuid.UUID) -> Stored:
         )
         for row in session.execute(
             text(
-                "SELECT id, label, holds, holds_label, filled_by, role_id, required, sensitive, "
-                "depends_on_field_id, depends_on_option, needs_review, origin "
+                "SELECT id, label, holds, holds_label, format, filled_by, role_id, required, "
+                "sensitive, depends_on_field_id, depends_on_option, needs_review, origin "
                 "FROM version_fields WHERE version_id = :v"
             ),
             {"v": version_id},
@@ -484,6 +493,7 @@ def write_set(
                 "label": item.label.strip(),
                 "holds": item.holds,
                 "holds_label": item.holds_label,
+                "format": format_for(item.holds, item.format),
                 "filled_by": item.filled_by,
                 "role_id": str(item.party_id) if item.party_id else None,
                 "required": item.required,
@@ -497,12 +507,12 @@ def write_set(
     session.execute(
         text(
             "INSERT INTO version_fields (id, workspace_id, version_id, key, label, holds, "
-            "holds_label, filled_by, role_id, required, sensitive, needs_review, origin) "
-            "SELECT f.id, :w, :v, f.key, f.label, f.holds, f.holds_label, f.filled_by, f.role_id, "
-            "f.required, f.sensitive, f.needs_review, f.origin FROM jsonb_to_recordset(CAST(:rows "
-            "AS jsonb)) AS f(id uuid, key text, label text, holds text, holds_label text, "
-            "filled_by text, role_id uuid, required boolean, sensitive boolean, needs_review text, "
-            "origin text)"
+            "holds_label, format, filled_by, role_id, required, sensitive, needs_review, origin) "
+            "SELECT f.id, :w, :v, f.key, f.label, f.holds, f.holds_label, f.format, f.filled_by, "
+            "f.role_id, f.required, f.sensitive, f.needs_review, f.origin FROM "
+            "jsonb_to_recordset(CAST(:rows AS jsonb)) AS f(id uuid, key text, label text, "
+            "holds text, holds_label text, format text, filled_by text, role_id uuid, "
+            "required boolean, sensitive boolean, needs_review text, origin text)"
         ),
         {"w": workspace_id, "v": version_id, "rows": json.dumps(rows)},
     )

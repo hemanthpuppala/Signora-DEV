@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import ValidationFailed
 from signora.modules.documents import (
@@ -40,6 +41,7 @@ from signora.modules.review.store import (
     record_approval,
     write_set,
 )
+from signora.modules.review.text_sizes import measure_if_readable
 
 
 @dataclass(frozen=True)
@@ -113,6 +115,7 @@ def approve(
     document_id: uuid.UUID,
     version_id: uuid.UUID,
     approval: ApproveRequest,
+    blobs: BlobStore,
 ) -> None:
     """Approve a version in review (§1.3): the revision the page shows, with the warnings the person
     saw. The warnings are recorded as accepted, never a block (§2.1); the metrics compare the set
@@ -155,6 +158,10 @@ def approve(
         flags_accepted=flags_accepted,
         accepted=accepted,
     )
+    if version.pdf is not None:
+        # The text size beside each place, for drawing values (7b). A file that cannot be read
+        # leaves the fallback rule in place and never refuses the approval.
+        measure_if_readable(session, blobs, version_id, version.pdf)
     approve_version(
         uow,
         actor=actor,

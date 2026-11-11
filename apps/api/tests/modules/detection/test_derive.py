@@ -25,6 +25,7 @@ def _field(id_: str, holds: str, filled_by: str, label: str, **extra: Any) -> di
     return {
         "id": id_,
         "holds": holds,
+        "format": extra.pop("format", None),
         "filled_by": filled_by,
         "label": label,
         "must_fill": extra.pop("must_fill", True),
@@ -117,7 +118,7 @@ def test_dependencies_that_loop_are_broken_and_flagged() -> None:
     on_consent = {"id": "f10", "option": "checked"}
     answer = _answer(
         [
-            _field("f10", "checkbox", "party_1", "Consent", depends_on=on_fee),
+            _field("f10", "checkbox", "sender", "Consent", depends_on=on_fee),
             _field("f11", "choice", "sender", "Fee basis", depends_on=on_consent),
         ]
     )
@@ -129,6 +130,34 @@ def test_dependencies_that_loop_are_broken_and_flagged() -> None:
     cut = fee if linked == [consent] else consent
     assert cut.needs_review is not None and "loop" in cut.needs_review
     assert linked[0].depends_on is not None and linked[0].depends_on.key == cut.key
+
+
+def test_a_condition_on_a_field_someone_else_fills_is_dropped_and_flagged() -> None:
+    """Whoever fills a field must be the one who answers what it depends on: the sender's fee
+    under a party's tick could never be asked of the sender in time. Review refuses such a
+    condition, so a proposal never carries one."""
+    reading, document = _open(forms.all_types())
+    answer = _answer(
+        [
+            _field("f10", "checkbox", "party_1", "Consent"),
+            _field(
+                "f11",
+                "choice",
+                "sender",
+                "Fee basis",
+                depends_on={"id": "f10", "option": "checked"},
+            ),
+            _field(
+                "f12", "text", "party_1", "Notes", depends_on={"id": "f10", "option": "checked"}
+            ),
+        ]
+    )
+    result = derive(reading, answer, document, problems=[], repaired=False)
+    by_label = {f.label: f for f in result.fields}
+    fee, notes = by_label["Fee basis"], by_label["Notes"]
+    assert fee.depends_on is None
+    assert fee.needs_review is not None and "someone else fills" in fee.needs_review
+    assert notes.depends_on is not None and notes.needs_review is None  # the same party: kept
 
 
 def test_every_check_finds_its_problem() -> None:
@@ -146,6 +175,7 @@ def test_every_check_finds_its_problem() -> None:
                 "page": 1,
                 "anchor_text": "Nowhere in this document",
                 "holds": "initials",
+                "format": None,
                 "filled_by": "party_1",
                 "label": "Initials",
                 "must_fill": True,
@@ -264,6 +294,7 @@ def test_an_extra_field_is_placed_from_its_words_and_one_not_found_is_dropped() 
                 "page": 1,
                 "anchor_text": "Continues until terminated.",
                 "holds": "initials",
+                "format": None,
                 "filled_by": "party_1",
                 "label": "Initials",
                 "must_fill": True,
@@ -272,6 +303,7 @@ def test_an_extra_field_is_placed_from_its_words_and_one_not_found_is_dropped() 
                 "page": 1,
                 "anchor_text": "Not in the document",
                 "holds": "text",
+                "format": None,
                 "filled_by": "sender",
                 "label": "Ghost",
                 "must_fill": False,
@@ -296,6 +328,7 @@ def test_an_extra_signature_is_a_partys_never_the_senders() -> None:
                 "page": 1,
                 "anchor_text": "Continues until terminated.",
                 "holds": "signature",
+                "format": None,
                 "filled_by": "sender",
                 "label": "Witness signature",
                 "must_fill": True,
@@ -471,3 +504,20 @@ def test_one_value_whose_places_disagree_on_their_condition_applies_always_and_i
     assert initials.needs_review == (
         "its places do not all apply under the same option; check when it applies"
     )
+
+
+def test_a_date_fields_format_is_kept_when_its_type_has_it_and_defaulted_when_not() -> None:
+    reading, document = _open(forms.nda_like())
+    ids = _ids(reading)
+
+    def proposed(holds: str, fmt: str | None) -> dict[str, str | None]:
+        answer = _nda_answer(reading)
+        answer["fields"][0] = _field(ids["Governing Law"], holds, "sender", "Year", format=fmt)
+        result = derive(reading, answer, document, problems=[], repaired=False)
+        return {f.label: f.format for f in result.fields}
+
+    assert proposed("year", "YY")["Year"] == "YY"  # a year after a printed "20"
+    assert proposed("year", "Month")["Year"] == "YYYY"  # a month's format: the year's default
+    assert proposed("date", None)["Year"] == "Month D, YYYY"  # none given: the default
+    assert proposed("text", "YY")["Year"] is None  # text has no formats
+    assert proposed("year", "YY")["MNDA term in years"] is None

@@ -395,6 +395,7 @@ def write_fields(session: Session, version: VersionForDetection, result: Result)
                     key=f.key,
                     label=f.label,
                     holds=f.holds,
+                    format=f.format,
                     filled_by=f.filled_by,
                     party=f.role,
                     required=f.required,

@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
 from signora.modules.detection.schema import ALLOWED
+from signora.modules.review.formats import format_for
 from signora.modules.review.keys import name_words, unique
 from signora.modules.review.values import LABEL_MAX, OWN, PARTY_VALUES, SENSITIVE, SHARED
 
@@ -80,6 +81,7 @@ class FieldOut(_Model):
     key: str
     label: str
     holds: str
+    format: str | None = None  # how a date or a part of one is written (7c)
     filled_by: Literal["role", "sender", "none"]
     role: str | None  # the role's slug when filled_by is "role"
     required: bool
@@ -242,6 +244,7 @@ class _Item:
         placements: list[PlacementOut],
         order: tuple[int, float, float],
         review: list[str],
+        format: str | None = None,
     ) -> None:
         self.ids, self.label, self.holds, self.filled_by = ids, label, holds, filled_by
         self.required, self.placements, self.order, self.review = (
@@ -250,6 +253,7 @@ class _Item:
             order,
             review,
         )
+        self.format = format_for(holds, format)  # the AI's, when its type has it (7c)
         self.group: int | None = None  # the checkbox group it is one option of, by number
         self.group_label: str | None = None
         self.depends: tuple[str, str, Literal["layout", "ai"]] | None = None
@@ -335,6 +339,7 @@ def derive(
             placements=_placements(found),
             order=(first.page, first.rect[1], first.rect[0]),
             review=review,
+            format=item.get("format") if item else None,
         )
         if found.id in layout:
             parent, option = layout[found.id]
@@ -379,6 +384,7 @@ def derive(
             placements=[PlacementOut(page=extra["page"], rect=rect, kind="blank")],
             order=(extra["page"], rect[1], rect[0]),
             review=["placed from the words around it: check its position"],
+            format=extra.get("format"),
         )
 
     # Checkbox groups: one choice, its options the checkboxes (§4.3). Each group is its own
@@ -508,6 +514,7 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
                 key=key,
                 label=item.group_label or item.label,
                 holds="choice" if item.group is not None else item.holds,
+                format=None if item.group is not None else item.format,
                 filled_by=filled_by,  # type: ignore[arg-type]
                 role=role,
                 required=item.required,
@@ -532,7 +539,21 @@ def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
             note = "its places do not all apply under the same option; check when it applies"
             existing.needs_review = "; ".join(filter(None, [existing.needs_review, note]))
     _break_loops(fields)
+    _keep_conditions_with_one_filler(fields)
     return list(fields.values())
+
+
+def _keep_conditions_with_one_filler(fields: dict[str, FieldOut]) -> None:
+    """A field applies under an option of a field the same person fills (review refuses any other:
+    whoever fills a field must be the one who answers what it depends on). Where the proposal
+    has two people, the condition is dropped and the field needs a look. O(F)."""
+    for field in fields.values():
+        parent = fields.get(field.depends_on.key) if field.depends_on is not None else None
+        if parent is None or (parent.filled_by, parent.role) == (field.filled_by, field.role):
+            continue
+        field.depends_on = None
+        note = "its condition was on a field someone else fills; check when it applies"
+        field.needs_review = "; ".join(filter(None, [field.needs_review, note]))
 
 
 def _break_loops(fields: dict[str, FieldOut]) -> None:

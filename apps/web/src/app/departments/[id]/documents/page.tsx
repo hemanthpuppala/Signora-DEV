@@ -22,7 +22,7 @@ export default function DepartmentDocumentsRoute() {
           documentCount={documents.data?.length}
           tabActions={(department) =>
             department.access === "edit" && department.status === "active" ? (
-              <HeadAction icon="upload" label="Upload document" href={`/departments/${id}/upload`} />
+              <HeadAction icon="upload" label="Upload template" href={`/departments/${id}/upload`} />
             ) : null
           }
         >

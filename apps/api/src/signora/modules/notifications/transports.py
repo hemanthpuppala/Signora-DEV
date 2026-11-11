@@ -41,6 +41,7 @@ class OutgoingEmail:
     text: str
     html: str
     message_id: str  # our id, used as the SMTP Message-ID and SendGrid custom argument
+    reply_to: str | None = None  # where a reply goes (a send's sender, Phase 7)
 
 
 class Transport(Protocol):
@@ -82,6 +83,7 @@ class SendGridTransport:
                 {"type": "text/html", "value": email.html},
             ],
             "custom_args": {"signora_message_id": email.message_id},
+            **({"reply_to": {"email": email.reply_to}} if email.reply_to else {}),
             "tracking_settings": {
                 "click_tracking": {"enable": False, "enable_text": False},
                 "open_tracking": {"enable": False},
@@ -134,6 +136,8 @@ class SmtpTransport:
         message["Date"] = formatdate(localtime=False, usegmt=True)
         message["Message-ID"] = make_msgid(idstring=email.message_id, domain=self._sender.domain)
         message["Auto-Submitted"] = "auto-generated"
+        if email.reply_to:
+            message["Reply-To"] = email.reply_to
         message.set_content(email.text)
         message.add_alternative(email.html, subtype="html")
         return message

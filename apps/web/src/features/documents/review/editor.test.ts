@@ -14,15 +14,18 @@ import {
   moveParty,
   newField,
   nextOptionName,
+  movePlace,
   nudge,
   onEveryPage,
   redo,
+  resize,
   conditionKey,
   conditionOf,
   joinsOnSave,
   mayHold,
   optionsOf,
   removeParty,
+  sameFiller,
   setOptionText,
   setRect,
   splitPlace,
@@ -63,6 +66,7 @@ const VIEW = {
       label: "Plan",
       holds: "choice",
       holds_label: null,
+      format: null,
       filled_by: "role",
       role: "client",
       party_id: "client",
@@ -82,6 +86,7 @@ const VIEW = {
       label: "Card",
       holds: "text",
       holds_label: null,
+      format: null,
       filled_by: "role",
       role: "client",
       party_id: "client",
@@ -151,6 +156,24 @@ describe("the review editor", () => {
     expect(draft.fields[1]?.places).toHaveLength(1);
     draft = deletePlace(draft, draft.fields[1]?.places[0]?.id ?? "");
     expect(draft.fields.map((f) => f.id)).not.toContain("card"); // its last place took the field
+  });
+
+  it("keeps a condition only between fields the same person fills", () => {
+    // Card (the client's) is asked when the client's Plan is Gold. Whoever fills a field must be
+    // the one who answers what it depends on.
+    const start = fromView(VIEW);
+    expect(sameFiller(start.fields[0]!, start.fields[1]!)).toBe(true);
+    // The field given to someone else: its condition goes.
+    expect(updateField(start, "card", { filled_by: "sender" }).fields[1]?.depends_on).toBeNull();
+    expect(updateField(start, "card", { filled_by: "role", party_id: "guarantor" }).fields[1]?.depends_on).toBeNull();
+    // The field it depends on given to someone else: the conditions on it go.
+    expect(updateField(start, "plan", { filled_by: "role", party_id: "guarantor" }).fields[1]?.depends_on).toBeNull();
+    // Any other change keeps it; so does moving both to another party together.
+    expect(updateField(start, "card", { required: false }).fields[1]?.depends_on).not.toBeNull();
+    expect(removeParty(start, "client", { kind: "move", to: "guarantor" }).fields[1]?.depends_on).not.toBeNull();
+    // One stored before the rule (the sender's Card under the client's Plan) is not kept.
+    const stored = { ...VIEW, fields: [VIEW.fields[0], { ...VIEW.fields[1], filled_by: "sender", role: null, party_id: null }] } as VersionFields;
+    expect(fromView(stored).fields[1]?.depends_on).toBeNull();
   });
 
   it("lets a place hold what its kind allows, and a grouped checkbox its choice", () => {
@@ -288,5 +311,84 @@ describe("the review editor", () => {
     const grouped = HOLD_GROUPS.flatMap((group) => group.holds);
     expect([...grouped].sort()).toEqual(Object.keys(HOLDS).sort());
     expect(new Set(grouped).size).toBe(grouped.length);
+  });
+});
+
+describe("a date field's format", () => {
+  it("is saved as chosen, and a change of type gives the new type its default", () => {
+    const year = newField("year", "Year", null, { page: 1, rect: [100, 100, 130, 114], option_value: null, option_text: null });
+    let draft: Draft = { parties: [], fields: [year] };
+    draft = updateField(draft, year.id, { format: "YY" });
+    expect(toFieldSet(draft, 0).fields[0]?.format).toBe("YY");
+
+    draft = updateField(draft, year.id, { holds: "month" });
+    expect(draft.fields[0]?.format).toBeNull(); // the month's default, from the server
+    draft = updateField(draft, year.id, { holds: "text" });
+    expect(toFieldSet(draft, 0).fields[0]?.format).toBeNull();
+  });
+});
+
+describe("making a place larger or smaller", () => {
+  it("scales it around its centre, never under the smallest box nor off its page", () => {
+    const field = newField("text", "Note", null, { page: 1, rect: [100, 100, 200, 120], option_value: null, option_text: null });
+    const placeId = field.places[0]?.id ?? "";
+    const draft: Draft = { parties: [], fields: [field] };
+    expect(resize(draft, placeId, 1.1, PAGES).fields[0]?.places[0]?.rect).toEqual([95, 99, 205, 121]);
+    let small = draft;
+    for (let i = 0; i < 40; i++) small = resize(small, placeId, 0.9, PAGES);
+    const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = small.fields[0]?.places[0]?.rect ?? [];
+    expect([x1 - x0, y1 - y0]).toEqual([8, 8]); // MIN_SIDE
+  });
+
+  it("comes back to its size when larger is followed by smaller", () => {
+    const field = newField("text", "Note", null, { page: 1, rect: [100, 100, 280, 122], option_value: null, option_text: null });
+    const placeId = field.places[0]?.id ?? "";
+    let draft: Draft = { parties: [], fields: [field] };
+    for (let i = 0; i < 5; i++) draft = resize(resize(draft, placeId, 1.1, PAGES), placeId, 1 / 1.1, PAGES);
+    expect(draft.fields[0]?.places[0]?.rect).toEqual([100, 100, 280, 122]);
+  });
+
+  it("is no edit when nothing changes: at the smallest size, at the page's edge", () => {
+    const tiny = newField("text", "Note", null, { page: 1, rect: [0, 100, 8, 108], option_value: null, option_text: null });
+    const placeId = tiny.places[0]?.id ?? "";
+    const draft: Draft = { parties: [], fields: [{ ...tiny, needs_review: "new" }] };
+    expect(resize(draft, placeId, 0.9, PAGES)).toBe(draft);
+    expect(nudge(draft, placeId, -2, 0, PAGES)).toBe(draft);
+    const history = apply(begin(draft), (d) => nudge(d, placeId, -2, 0, PAGES), `nudge:${placeId}`);
+    expect(unsaved(history)).toBe(0); // nothing to save, nothing to undo
+    expect(history.present.fields[0]?.needs_review).toBe("new"); // and its flag stays
+  });
+
+  it("undoes a run of moves and a run of resizes one at a time", () => {
+    const field = newField("text", "Note", null, { page: 1, rect: [100, 100, 200, 120], option_value: null, option_text: null });
+    const placeId = field.places[0]?.id ?? "";
+    let history = begin({ parties: [], fields: [field] });
+    for (let i = 0; i < 3; i++) history = apply(history, (d) => nudge(d, placeId, 2, 0, PAGES), `nudge:${placeId}`);
+    history = apply(history, (d) => resize(d, placeId, 1.1, PAGES), `resize:${placeId}`);
+    expect(unsaved(history)).toBe(2);
+    expect(undo(history).present.fields[0]?.places[0]?.rect).toEqual([106, 100, 206, 120]); // the moves stay
+  });
+});
+
+describe("moving a place to another page", () => {
+  const PAIR = [
+    { width: 595, height: 842 },
+    { width: 400, height: 300 },
+  ];
+  const field = newField("text", "Note", null, { page: 1, rect: [100, 700, 280, 722], option_value: null, option_text: null });
+  const placeId = field.places[0]?.id ?? "";
+  const draft: Draft = { parties: [], fields: [{ ...field, needs_review: "new" }] };
+
+  it("puts it on that page, its size kept, inside that page", () => {
+    const place = movePlace(draft, placeId, 2, [300, 290, 480, 312], PAIR).fields[0]?.places[0];
+    expect(place?.page).toBe(2);
+    expect(place?.rect).toEqual([220, 278, 400, 300]); // a smaller page: pulled in from its edges
+    expect(place?.kind).toBe("blank");
+  });
+
+  it("is an edit of the field, and none when it lands where it was or on no page", () => {
+    expect(movePlace(draft, placeId, 2, [10, 10, 190, 32], PAIR).fields[0]?.needs_review).toBeNull();
+    expect(movePlace(draft, placeId, 1, [100, 700, 280, 722], PAIR)).toBe(draft);
+    expect(movePlace(draft, placeId, 3, [10, 10, 190, 32], PAIR)).toBe(draft);
   });
 });

@@ -34,6 +34,7 @@ export function DepartmentPage({
   tab,
   documentCount,
   tabActions,
+  onAddEnvelope,
   children,
 }: {
   me: Me;
@@ -41,6 +42,8 @@ export function DepartmentPage({
   tab: DepartmentTab;
   documentCount?: number | undefined;
   tabActions?: (department: Department) => ReactNode;
+  /** Opens the send (Phase 7); the route owns it, as features never import each other. */
+  onAddEnvelope?: (() => void) | undefined;
   children: (department: Department) => ReactNode;
 }) {
   const queryClient = useQueryClient();
@@ -77,8 +80,9 @@ export function DepartmentPage({
         back={{ href: "/", label: "Departments" }}
         backActions={
           <>
-            {/* Sending envelopes arrives in Phase 6: the button is in place, not yet active. */}
-            {!archived ? <HeadAction icon="plus" label="Add envelope" disabled /> : null}
+            {!archived && onAddEnvelope && data.access === "edit" ? (
+              <HeadAction icon="send" label="New envelope" variant="primary" onClick={onAddEnvelope} />
+            ) : null}
             {manages && !archived ? (
               <HeadAction icon="settings" label="Settings" href={`/departments/${id}/settings`} />
             ) : null}
@@ -114,7 +118,7 @@ export function DepartmentPage({
           { href: `/departments/${id}`, label: "Envelopes", active: tab === "envelopes" },
           {
             href: `/departments/${id}/documents`,
-            label: documentCount === undefined ? "Documents" : `Documents · ${documentCount}`,
+            label: documentCount === undefined ? "Templates" : `Templates · ${documentCount}`,
             active: tab === "documents",
           },
         ]}

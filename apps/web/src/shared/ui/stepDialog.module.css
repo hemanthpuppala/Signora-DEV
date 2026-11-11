@@ -1,0 +1,232 @@
+/* A task in a few steps (StepDialog): wide, square, hairline, the steps on one line. */
+.dialog {
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--r25);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 28px 8px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--t60);
+  cursor: pointer;
+}
+
+.close:hover,
+.close:focus-visible {
+  border-color: var(--r25);
+  color: var(--ink);
+}
+
+/* The progress line: one track across the dialog, a stop per step, filled up to the current one. */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(var(--steps, 5), minmax(0, 1fr));
+  margin: 0;
+  padding: 18px 28px 22px;
+  border-bottom: 1px solid var(--sep);
+  list-style: none;
+}
+
+.step {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--t55);
+}
+
+/* The track from this stop to the next. */
+.step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 21px;
+  right: 12px;
+  height: 1px;
+  background: var(--r15);
+  transition: background-color 0.3s ease;
+}
+
+.done:not(:last-child)::after {
+  background: var(--r40);
+}
+
+.stepButton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.node {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--r40);
+  border-radius: 50%;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.number {
+  font: 400 10px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  color: var(--t30);
+}
+
+.label {
+  overflow: hidden;
+  font: 400 10px/1.3 var(--sans);
+  letter-spacing: 0.24em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.done {
+  color: var(--t75);
+}
+
+.doneText {
+  composes: visuallyHidden from "./display.module.css"; /* the filled stop, said aloud */
+}
+
+.done .node {
+  border-color: var(--t75);
+  background: var(--t75);
+}
+
+.stepButton:hover .label,
+.stepButton:focus-visible .label {
+  color: var(--ink);
+}
+
+.stepButton:hover .node,
+.stepButton:focus-visible .node {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.current {
+  color: var(--ink);
+}
+
+.current .node {
+  border-color: var(--ink);
+  background: var(--ink);
+  box-shadow: 0 0 0 4px var(--r15);
+}
+
+.current .number {
+  color: var(--t55);
+}
+
+/* On a phone the track keeps every stop, and only the current step is named. */
+@media (max-width: 559.98px) {
+  .step:not(.current) .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step::after,
+  .node,
+  .label {
+    transition: none;
+  }
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px;
+  animation: enter 0.2s ease-out;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body {
+    animation: none;
+  }
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 28px 24px;
+  border-top: 1px solid var(--sep);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}

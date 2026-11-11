@@ -10,6 +10,7 @@ from signora.modules.review.checks import ReviewWarning, warnings_for
 from signora.modules.review.proposal import Proposal, ProposedField, ProposedParty, ProposedPlace
 from signora.modules.review.routes import router
 from signora.modules.review.store import read_review, read_set, replace_fields
+from signora.modules.review.text_sizes import measure_unmeasured
 from signora.modules.review.views import (
     DependencyView,
     FieldView,
@@ -28,6 +29,7 @@ __all__ = [
     "ProposedPlace",
     "ReviewWarning",
     "RoleView",
+    "measure_unmeasured",
     "option_words",
     "read_review",
     "read_set",

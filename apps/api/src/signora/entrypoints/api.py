@@ -34,7 +34,15 @@ from signora.kernel.http import (
 from signora.kernel.jobs import registry
 from signora.kernel.logging import configure_logging
 from signora.kernel.ratelimit import create_rate_limiter
-from signora.modules import departments, detection, documents, identity_access, review
+from signora.modules import (
+    departments,
+    detection,
+    documents,
+    envelopes,
+    identity_access,
+    review,
+    typesetting,
+)
 
 API_PREFIX = "/api/v1"
 INTERNAL_PREFIX = "/internal"  # never forwarded by Caddy (LLD §7.3)
@@ -149,10 +157,13 @@ def create_app(
     app.include_router(documents.router)
     app.include_router(detection.router)
     app.include_router(review.router)
+    app.include_router(envelopes.router)
+    app.include_router(typesetting.router)
     # A removed member leaves every countersigner list and loses every department grant, in the
     # removal's own transaction.
     identity_access.on_member_removed(departments.drop_removed_member)
     identity_access.on_member_removed(departments.revoke_removed_member)
+    departments.provide_send_counts(envelopes.count_sends)
     return app
 
 

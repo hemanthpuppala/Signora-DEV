@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { cx } from "@/shared/lib/cx";
+
 import styles from "./documentCard.module.css";
 import { IconButton } from "./Tooltip";
 
@@ -21,6 +23,7 @@ export function DocumentGrid({ children, label }: { children: ReactNode; label: 
  */
 export function DocumentCard({
   href,
+  choose,
   kind,
   title,
   version,
@@ -29,7 +32,9 @@ export function DocumentCard({
   download,
   action = "Open",
 }: {
-  href: string;
+  /** Where the card leads; or ``choose`` instead, to pick it (the send's first step, Phase 7). */
+  href?: string | undefined;
+  choose?: { chosen: boolean; onChoose: () => void; disabled?: boolean } | undefined;
   /** The tag on the page: "PDF" or "DOC". */
   kind: string;
   title: string;
@@ -43,7 +48,7 @@ export function DocumentCard({
 }) {
   return (
     <li className={styles.item}>
-      <article className={styles.card}>
+      <article className={cx(styles.card, choose?.chosen && styles.chosen, choose?.disabled && styles.unavailable)}>
         <span className={styles.thumb} aria-hidden="true">
           <b>{kind}</b>
           <i />
@@ -55,9 +60,21 @@ export function DocumentCard({
         <span className={styles.main}>
           <span className={styles.top}>
             <span className={styles.title}>
-              <Link href={href} className={styles.name}>
-                {title}
-              </Link>
+              {choose ? (
+                <button
+                  type="button"
+                  className={cx(styles.name, styles.choose)}
+                  aria-pressed={choose.chosen}
+                  disabled={choose.disabled}
+                  onClick={choose.onChoose}
+                >
+                  {title}
+                </button>
+              ) : (
+                <Link href={href ?? "#"} className={styles.name}>
+                  {title}
+                </Link>
+              )}
               {version ? <span className={styles.version}>{version}</span> : null}
             </span>
             <span className={styles.status}>{status}</span>

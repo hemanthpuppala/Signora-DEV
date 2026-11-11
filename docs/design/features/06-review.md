@@ -122,7 +122,7 @@ jumps to its field). Approve opens a confirmation listing them, and approving re
 
 | Code | Warning |
 |---|---|
-| `no_signer` | No party signs |
+| `no_signer` | No party signs, or every party countersigns (countersigners sign after the signers, so a send would email nobody) |
 | `party_cannot_sign` | A signer or countersigner has no signature place |
 | `own_value_not_a_partys` | A signature, initials or signing date is filled by the sender or by nobody |
 | `needs_a_look` | Fields still flagged by detection (one warning with the count) |
@@ -144,6 +144,11 @@ left, and the approval's audit entry and metrics record them as accepted as dete
 - **Well-formed data** is checked when it is saved, not at approval: a Save whose condition points to a field or
   option that does not exist, whose place lies outside its page or is smaller than 8 pt, or whose name (or typed
   "Other") is empty is refused (`422`, naming the field). These are the shape of the data, not judgements about it.
+  So is a condition between fields that different people fill: whoever fills a field must be the one who answers
+  what it depends on (the sender, the same party, or nobody). The sender fills in before anyone signs, and a party
+  never sees another's answer in time, so nobody could say whether such a field is asked. The editor offers only
+  conditions the same person can answer and drops one when either field is given to someone else; detection drops
+  one from its proposal and flags the field. A version approved before this rule keeps its conditions (it is frozen).
 
 ## 3. Editing parties (owner decisions, 2026-11-09)
 
@@ -176,7 +181,7 @@ Choosing a field (in the list or by its box) opens its form in the panel:
   choice); boxes drawn by hand can be any type.
 - **Who fills**: a party, "Filled in before sending", "Not asked", or Other (a new party, §3).
 - **Required** or optional.
-- **Condition**: "only when ⟨choice⟩ is ⟨option⟩", picked from the choices and checkboxes that exist.
+- **Condition**: "only when ⟨choice⟩ is ⟨option⟩", picked from the choices and checkboxes the same person fills.
 - **Private**: automatic for tax number, bank account and date of birth; a toggle for an Other type.
 - **Delete**: the field and all its places.
 - **Shared values follow the type**: a field made Signature for a party that already has one becomes another place
@@ -210,7 +215,9 @@ Attachment (a file the signer uploads), stamp or seal, and calculated fields nee
   in the filter (else "Not asked"), and its form opens. Documents with nothing found are filled this way.
 - **Move and resize**: drag the box; drag its corner and edge handles. Boxes stay inside their page, at least 8 pt.
 - **Keyboard**: with a box selected, arrows nudge it 1 pt (10 with Shift) and Delete removes that place; the form
-  shows its position and size as numbers, so everything can be done without a mouse.
+  has a row of icons for the chosen place (move left, up, down, right by 2 pt; smaller, larger around its centre),
+  so a box can be placed without dragging (WCAG 2.5.7). A run of moves of one place is one undo step, and a run of
+  resizes is another; a move or resize that changes nothing (at the page's edge, at the smallest size) is no edit.
 - **More places for a field**: "Add a place", then click a page; for initials, "On every page" puts one at the same
   spot on each page.
 - **Split**: "Make separate field" turns a place into a field of its own.
@@ -218,9 +225,58 @@ Attachment (a file the signer uploads), stamp or seal, and calculated fields nee
 - **Choices**: a choice made by hand is a place per option, each with its words; a radio group from the PDF keeps its
   options, which can only be renamed.
 - **Undo and redo** (Ctrl+Z, Ctrl+Shift+Z) over the unsaved changes; Save makes them final and clears the history.
-- **Phones**: the panel's forms work; drawing, moving and resizing need a larger screen (a touch drag fights the
-  scroll and is too coarse), and the panel says so.
+- **Phones and tablets**: placing, moving and resizing work by finger as by mouse (§5.1).
 - **Coordinates**: PDF points of the page as displayed, as in Phase 5; zoom never changes the data.
+
+### 5.1 By finger, on narrow screens, and from page to page
+
+**Problem.** Editing on the page was a mouse's: on a touch screen or a narrow one the boxes could not be placed,
+moved or resized, a new field went to the middle of page 1, and on no screen could a box leave its page. A template
+of several pages could not be set up from a phone.
+
+**Requirements.**
+
+| # | Requirement | Verified by |
+|---|---|---|
+| FR-T1 | With a type chosen, a tap on a page places the field there at its type's size. A finger's drag while placing scrolls; its wobble draws nothing. A mouse clicks, or drags to draw, as before. | `review.test.tsx` |
+| FR-T2 | A finger's drag on the page scrolls it, on a box or not. A tap chooses a box; the chosen box, and only it, is moved by the next drag and resized by its corners. A mouse drags any box, as before. | `review.test.tsx` |
+| FR-T3 | A box dragged past its page lands on the page its middle is over (the nearest, when let go between two), at the spot it was let go, its size kept, inside that page. By mouse and by finger. | `drag.test.ts`, `editor.test.ts`, `review.test.tsx` |
+| FR-T4 | A drag held near the top or bottom of the pages scrolls them, faster the nearer the edge, and the box stays under the pointer. | `drag.test.ts`; by hand |
+| FR-T5 | Under a finger the chosen box takes a touch 12 px around itself, and each corner's handle has a 36 px target reaching away from the box, so the box stays free for moving. | by hand |
+| FR-T6 | Where the panel is under the document (under 960 px), a box chosen on the page keeps the person at the document: its name is pinned over the pages with "Details", which goes to its form. A field chosen in the list brings its row into view, as before. | `review.test.tsx` |
+| FR-T7 | Starting to place a field or a place brings the pages into view; the words say "Tap" where a finger is the pointer. | `review.test.tsx` |
+| FR-T8 | Under 960 px the pinned message (what a tap will do; the chosen box's name) is one line above the pages, never over them, its words cut with an ellipsis when they do not fit. Beside the document it stays over the top of the pages, as wide as its words. | by hand |
+| FR-T10 | A field's place actions are named icons in small named groups: Add (a place, on every page), Move, Size, and the chosen place's own (make separate field, remove). The groups sit side by side with a hairline between them where the form is wide enough and wrap where it is not, never a line for each action; on every screen. The section's "?" shows each icon by its name. | `review.test.tsx`; by hand |
+| FR-T9 | Under 960 px "Edit fields" is at the end of the panel's first title line, by what it edits; the bar over the document is kept for Save, Undo, Approve and Stop editing. | `review.test.tsx` |
+| NFR-T1 | A drag paints at the screen's rate: one state update a pointer move, no layout read but the page's own box; other pages are measured once, when a moved box is let go off its page. | code |
+| NFR-T2 | Targets under a finger meet WCAG 2.5.8 (24 px) and the platforms' own guidance where the box allows; every move and resize keeps its way without a drag (the form's icons, WCAG 2.5.7). | by hand |
+
+**Rules.**
+
+- One set of gestures, told apart by the pointer (`pointerType`), not by the screen: a laptop with a touch screen
+  gets both. Nothing is gated on width any more; "Place on the page" and "Add a place" are on every screen.
+- A finger never moves what it did not first choose. A drag that began on a box nobody chose is the reader scrolling;
+  taking it would make the document impossible to scroll where it is full of boxes.
+- A press is a drag once it has gone 3 px by mouse, 8 px by finger.
+- A box changes page only by being moved, never by being resized. Its kind and its option stay (the server's rule:
+  a box from the PDF keeps both); a move to another page is an ordinary edit of the field, one undo step.
+- A drag that ends on no page (cancelled by the system, the pointer lost) changes nothing.
+
+**Decision (ADR-R2): the page layer of the box's own page runs the whole drag.** The box stays in its page's layer
+and is drawn over the other pages while held; where it lands is worked out once, at the end, from the pages' places
+on screen. The alternative, one layer over all pages holding every box, would make each page's overlay depend on the
+whole document and repaint every box on each move; a box handed from one page's layer to the next mid-drag would
+lose the pointer it has captured. Consequence: `FieldBoxes` reads its sibling layers (`[data-layer="fields"]`, each
+naming its page) when a move ends off its page, and nothing else changes in the viewer.
+
+**Algorithms.** Landing page: the page whose top-to-bottom band holds the box's middle, else the nearest band, the
+box's own page on a tie: O(P) over the P pages, once per drag. Edge scrolling: each frame, a speed from the
+pointer's distance to the nearer edge (0 in the middle, up to 18 px a frame within 56 px of an edge): O(1) a frame.
+The box's position is the pointer's place measured against the page each time, so scrolling needs no bookkeeping.
+Both are pure functions in `review/drag.ts`.
+
+**Left out.** Pinch to zoom the document on its own (the browser's pinch zooms the whole screen, and the gestures
+work under it); a longer press to move a box that is not chosen.
 
 ## 6. Saving, concurrency and the API (owner decisions, 2026-11-09)
 
@@ -274,13 +330,13 @@ the shown version's state, and choosing a version in the list reviews that one. 
 - **Panel, overview**: "Who signs" (add, rename, reorder, remove); a **Things to check** box listing the warnings,
   each with "Show me"; the filters, search and list.
 - **Panel, a field**: choosing one swaps the overview for its form (label, type, who fills, required; "More": the
-  condition, private, position and size, "Make separate field"; the key is internal and never shown, owner decision 2026-11-09), its places stepper and Delete; "Done"
+  condition, private, "Make separate field"; the key is internal and never shown, owner decision 2026-11-09), its places stepper and Delete; "Done"
   returns.
 - **+ Add field** in the viewer's toolbar opens the palette (§5).
 - **Read-only people** see the same page with no controls.
 - **Leaving with unsaved changes**: our dialog ("Discard 3 unsaved changes?" with Keep editing and Discard); closing
   the tab, the browser's own prompt.
-- **Phones**: the forms work; drawing needs a larger screen (§5).
+- **Phones**: the panel is under the document; editing on the page works by finger (§5.1).
 
 ### 7.1 The review screen, revised after use (owner decisions, 2026-11-09)
 
@@ -303,7 +359,8 @@ click replace the panel with its form, and gave party warnings no way forward. R
   pages, high contrast, with Cancel (`PdfViewer notice`); the Add field row points there.
 - **A field's places** (owner decisions, 2026-11-09): chips ("1 · Page 1", a choice's own words), the chosen one
   filled, replacing the stepper; "Add a place" and "On every page" as quiet buttons with icons; the chosen place's
-  "Make separate field" and "Remove place" under them; the exact numbers folded under "Position and size". The key
+  "Make separate field" and "Remove place" under them; a row of icons that move and size it (no coordinates: points from the page's corner are the PDF's way to say
+  where a box is, not a person's). The key
   is never shown. Design system: `Button icon`, `Chip` / `ChipGroup` (also the list's filters), icons `close`,
   `pages`, `split`, `trash`; corners stay square (`--radius`), rounded chips remain an option.
 - **A "?" on each section** (owner decision, 2026-11-09): Things to check, Who signs, Fields, Versions and a field's
@@ -314,7 +371,7 @@ click replace the panel with its form, and gave party warnings no way forward. R
   the send form in Phase 7 (Phase 3 §5.1 and Phase 4 §1.1 updated).
 - **"+ Add field" is the first row of the field list**: it opens into a row with a Type dropdown (grouped, every
   type) and who fills it (the filtered party by default), then "Place on the page": click where it goes, or drag to
-  draw it. The viewer's toolbar says so while placing. On phones it is placed on page 1 and moved with the numbers.
+  draw it. The viewer's toolbar says so while placing. By finger it is a tap where it goes (§5.1).
 - **Parties read as text**: tone, name, how they sign, field count, and a pencil that turns that one row into its
   editor (name, kind, order, remove).
 - **Warnings carry their fix**: a field's warning has "Show me"; "has no place to sign" has "Add signature", which
@@ -616,7 +673,9 @@ approve, edit the approved version (the next version), approve it, and see curre
 | 6.12a | The review screen revised after use (§7.1) | done | `shared/ui`: `ActionBar`, `ExpandableList`/`ExpandableRow` (button named by the title, the facts its description; on `/dev/ui`; tests), the `chevron` icon, `--action-bar-height`; the side column's sections divided by hairlines; `ReviewActionBar` (state, things to check, unsaved changes; Approve, or Undo, Discard, Save; Edit fields); fields as rows that open in place (editable details for editors, text for readers); "+ Add field" the list's first row (Type dropdown, who fills, Place on the page; the viewer's toolbar says what a click does); parties as text with a pencil; "Add signature" on a party's warning; a version's fields stay on screen while it changes state (no blink). Tests: `review.test.tsx` (11), `document.test.tsx` (18), components (2) |
 | 6.13 | Harness rerun, deploy, live check, PR | in progress | Harness rerun on the 9 documents with `url` in the AI layer (2026-11-09, `tests/outputs/SCORES.md`): no document has a website, so `url` changed nothing. Against the unconfirmed drafts the scores moved by run-to-run variance only: the Mutual NDA template's parties came back "Party 1/2" instead of "First/Second Party" (the scorer matches parties by slug, so its who-fills score reads 1/11), and the Trade Secret firm's own name, address and email flip between the firm and the sender in the clean run as well as the hostile one. Two injection checks failed this run for that reason: the hostile PDF gave those three to the sender (the surge check allows two), and the hostile Word file made the firm a signer, the opposite of what the planted text asks; agreement with the clean runs is 92 % and 98 %, the flag and the name held. Kept as run, not rerun to pass. Deploy: `make up-app` (0018 applied to the dev database; 11 versions in review kept, current cleared). Live: stack and dev server answer, review endpoints require sign-in; the browser walkthrough is not done (the browser extension was not connected) |
 | 6.14 | Fixes from the pull request's review (high) | done | Ten findings verified against the code, none dropped. API: `ApproveRequest.accepted` is a set of codes (one code per warning from a page listing ten warnings was refused by the cap of nine; a version with many private values could not be approved); `store.lock_review` is the one locked read of the revision for Save and Approve (Save compared a missing row with −1 where the page reads 0); a PDF box keeps its `option_value` (422 `places[i].option_value`) and its option words survive the editor's "…" view (`editing.option_text_of`; every Save rewrote the stored words); a field's privacy is one of its attributes (`_field_attrs`: toggling Private on an Other type kept the flag and left the audit entry empty); `derive_version` reads the document and the source once and returns the version it wrote (four reads and permission checks per revision before). Web: arrow keys and Backspace in the shared Select (a combobox) no longer nudge or remove the chosen box (`ReviewLayout` `typing`); a new option of a choice is named after none it has (`nextOptionName`; "Option 3" twice after removing one); an Other party with no words is sent as "" and refused by name, like a field's empty Other type; the option words editor is one place edit (`setOptionText`, clearing the flag like every other); `ExpandableList` measures itself when its open row or its rows change (`open` prop), not on every keystroke; the Approve body sends each code once (the contract says `uniqueItems`). Tests, each failing without its fix: `test_approve` (1), `test_save` (2), `editor.test.ts` (2), `review.test.tsx` (1) |
-| 6.15 | Fixes from the second review of the pull request (§15) | done | §15, each with its test |
+| 6.15 | A place moves and resizes from icons, not coordinates (§5, §7.1), with the fixes from the pull request's review | done | `FieldForm.tsx` (the row of icons; moves share the arrow keys' undo step, resizes have their own; Smaller is the inverse of Larger); `editor.setRect` (a move or resize that changes nothing is no edit). Tests: `editor.test.ts`, `review.test.tsx` |
+| 6.16 | Editing on the page by finger, on narrow screens, and from page to page (§5.1) | done | `FieldBoxes.tsx` (`useBoxDrag`: the chosen box under a finger, edge scrolling, landing on another page; a tap places), `review/drag.ts` (pure: `landingPage`, `edgeSpeed`), `editor.movePlace`, `fields.module.css` (touch targets), `ReviewLayout.tsx` (no screen gate; the pinned name and "Details", and "Edit fields" in the panel, under 960 px), `PdfViewer` (`notice.reveal`; one line above the pages under 960 px). Tests: `drag.test.ts`, `editor.test.ts`, `review.test.tsx`; not yet tried on a real phone |
+| 6.17 | Fixes from the second review of the pull request (§15) | done | §15, each with its test |
 
 ## 15. Review of the pull request (2026-11-10)
 
@@ -630,7 +689,7 @@ test that fails on the code as it was, or over HTTP against the test database.
 | 15.3 | A condition on a dropdown's option was refused on Save: a dropdown is one place, so its options were kept nowhere in review and existed only in detection's reading of the PDF | The options are kept with the place (`field_placements.options`, migration `0018a`, which fills the places already stored from their version's reading, approved versions included). Detection hands them over; the fields view sends them; Save checks a condition against them (`editing.options_of`) and writes them back as stored, never from the request; the editor offers them (`editor.optionsOf`) | `test_detected_sets.py` (saved, an unknown option still refused, the migration's fill), `editor.test.ts` |
 | 15.4 | Unsaved edits were dropped, unsaid, when the fields moved on or one's own save came back | Optimistic concurrency kept in the editor, which is busy while a save is on its way (§1.6) | `review.test.tsx` (two tests) |
 | 15.5 | An approval took the document's row lock last, after the version's and the audit chain's, and the detection job's last step took it after writing the fields: either could deadlock with another change of the same document | One lock taken first by every writer (§1.6): `lifecycle.hold_document`, in `version_for_review(lock=True)` and in detection's store step | `test_approve.py` (a waiting approval and a waiting detection job hold nothing yet) |
-| 15.6 | A size starting with a digit under 8 could not be typed: each keystroke was clamped and written back | A size box shows what is typed while it has the focus | `review.test.tsx` |
+| 15.6 | A size starting with a digit under 8 could not be typed: each keystroke was clamped and written back | A size box shows what is typed while it has the focus. The size boxes then gave way to icons (6.15) | `review.test.tsx`, until the boxes went |
 | 15.7 | "Make separate field" on a value a party gives once was folded back on Save with no word | The rule stays (§3); the fields view names the shared values and the field's form says it will join the first, and what keeps it apart | `editor.test.ts` |
 | 15.8 | A refused save's errors were read against the draft as edited since, so they moved onto other fields | Read against the draft that was sent | `review.test.tsx` |
 | 15.9 | Two warnings about one field had one React key | The key includes the message | `review.test.tsx` |

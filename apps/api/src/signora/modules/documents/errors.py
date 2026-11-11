@@ -19,12 +19,12 @@ class ProtectedWordFile(DomainError):
 
 class DocumentNameTaken(Conflict):
     code = "document-name-taken"
-    title = "Another document in this department already has this name"
+    title = "Another template in this department already has this name"
 
 
 class DocumentArchived(Conflict):
     code = "document-archived"
-    title = "This document is archived. Restore it to make changes"
+    title = "This template is archived. Restore it to make changes"
 
 
 class DuplicateFile(Conflict):

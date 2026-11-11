@@ -101,16 +101,19 @@ def require_document(session: Session, actor: Actor, document_id: uuid.UUID, *, 
 class VersionForReview:
     """What review needs of a version (Phase 6 §6): its state, the size of each page as displayed
     (places are checked against it), and its name and description (a version made by editing takes
-    them)."""
+    them). Sending (Phase 7) also reads its document's name and department."""
 
     id: uuid.UUID
     workspace_id: uuid.UUID
     document_id: uuid.UUID
+    document_name: str
+    department_id: uuid.UUID
     version_no: int
     status: str
     pages: list[tuple[float, float]]  # (width, height) in PDF points, rotation applied
     name: str | None
     description: str | None
+    pdf: BlobRef | None  # the working copy the page shows; none until processed
 
 
 def hold_document(session: Session, document_id: uuid.UUID) -> None:
@@ -150,7 +153,8 @@ def version_for_review(
             raise DocumentArchived
     row = session.execute(
         text(
-            "SELECT id, workspace_id, document_id, version_no, status, pages, name, description "
+            "SELECT id, workspace_id, document_id, version_no, status, pages, name, description, "
+            "pdf_sha256, pdf_bytes "
             "FROM document_versions WHERE id = :v AND document_id = :d AND workspace_id = :w"
             + (" FOR UPDATE" if lock else "")
         ),
@@ -162,11 +166,16 @@ def version_for_review(
         id=row.id,
         workspace_id=row.workspace_id,
         document_id=row.document_id,
+        document_name=document.name,
+        department_id=document.department_id,
         version_no=row.version_no,
         status=row.status,
         pages=_page_sizes(row.pages),
         name=row.name,
         description=row.description,
+        pdf=BlobRef(row.workspace_id, row.pdf_sha256, row.pdf_bytes)
+        if row.pdf_sha256 is not None and row.pdf_bytes is not None
+        else None,
     )
 
 
@@ -198,8 +207,9 @@ def derive_version(
         raise DocumentArchived
     source = session.execute(
         text(
-            "SELECT workspace_id, version_no, status, name, description, pages, "
-            "derived_from_version_id FROM document_versions WHERE id = :id AND document_id = :d"
+            "SELECT workspace_id, version_no, status, name, description, pages, pdf_sha256, "
+            "pdf_bytes, derived_from_version_id FROM document_versions "
+            "WHERE id = :id AND document_id = :d"
         ),
         {"id": source_id, "d": document_id},
     ).one_or_none()
@@ -240,11 +250,16 @@ def derive_version(
         id=version_id,
         workspace_id=source.workspace_id,
         document_id=document_id,
+        document_name=document.name,
+        department_id=document.department_id,
         version_no=version_no,
         status="ready",
         pages=_page_sizes(source.pages),
         name=name,
         description=source.description,
+        pdf=BlobRef(source.workspace_id, source.pdf_sha256, source.pdf_bytes)
+        if source.pdf_sha256 is not None and source.pdf_bytes is not None
+        else None,  # the same working copy
     )
 
 

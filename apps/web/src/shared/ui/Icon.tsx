@@ -16,8 +16,58 @@ const SHAPES = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
+  // Arrows: move something that way.
+  up: <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" />,
+  down: <path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" />,
+  left: <path d="M19 12H5M10.5 6.5 5 12l5.5 5.5" />,
+  right: <path d="M5 12h14M13.5 6.5 19 12l-5.5 5.5" />,
   chevron: <path d="m9 6 6 6-6 6" />, // points right; turned to point down when open
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  // A bell: remind the people who still have to sign.
+  bell: (
+    <>
+      <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z" />
+      <path d="M10 20.5a2 2 0 0 0 4 0" />
+    </>
+  ),
+  // A circle struck through: cancel (withdraw) something sent.
+  cancel: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m6 6 12 12" />
+    </>
+  ),
+  // A tick: approve, done.
+  check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  // A tick in a box: save.
+  save: (
+    <>
+      <path d="M4.5 4.5h12l3 3v12h-15Z" />
+      <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+    </>
+  ),
+  // An arrow turning back: undo the last change.
+  undo: (
+    <>
+      <path d="M9 7.5 4.5 12 9 16.5" />
+      <path d="M4.5 12h10a5 5 0 0 1 0 10h-2" />
+    </>
+  ),
+  // A circle turning back: discard every unsaved change.
+  discard: (
+    <>
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
+      <path d="M4 4.5v3.5h3.5" />
+    </>
+  ),
+  // A paper plane: send for signature.
+  send: (
+    <>
+      <path d="M20.5 3.5 3.5 10.5l7 3 3 7Z" />
+      <path d="m10.5 13.5 10-10" />
+    </>
+  ),
   // Two sheets: something on every page.
   pages: (
     <>

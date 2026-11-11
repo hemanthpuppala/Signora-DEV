@@ -171,3 +171,25 @@
   text-transform: uppercase;
   color: var(--ink);
 }
+
+/* Picking a card (the send's first step): the name is a button; the chosen card is marked. */
+.choose {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.choose:disabled {
+  cursor: not-allowed;
+}
+
+.chosen {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.unavailable {
+  opacity: 0.55;
+}

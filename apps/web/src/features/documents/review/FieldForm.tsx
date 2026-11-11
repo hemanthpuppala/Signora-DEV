@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
-import { Button, Checkbox, InfoTip, Notice, Select, SmallText, TextField } from "@/shared/ui";
+import { Button, Checkbox, IconButton, InfoTip, Notice, Select, SmallText, TextField, type IconName } from "@/shared/ui";
 
-import { HOLD_GROUPS, HOLDS, whoFills } from "../fields";
+import { HOLDS, FORMAT_EXAMPLES, whoFills } from "../fields";
 import { PLACES_HELP } from "./help";
 import { PlaceChips } from "./PlaceChips";
 import type { PanelEditing } from "./useReview";
 import type { Selection } from "../FieldBoxes";
 import {
   addParty,
+  sameFiller,
   optionsOf,
   conditionKey,
   conditionOf,
@@ -20,16 +21,16 @@ import {
   onEveryPage,
   PRIVATE,
   setOptionText,
-  setRect,
   splitPlace,
   updateField,
   deletePlace,
+  nudge,
+  resize,
   type Draft,
   type DraftField,
   type Holds,
-  type Rect,
 } from "./editor";
-import { filler, fillerOptions } from "./AddField";
+import { filler, fillerOptions, typeOptions } from "./AddField";
 import { NewParty } from "./PartyList";
 import styles from "./review.module.css";
 
@@ -41,11 +42,12 @@ function fillerValue(field: DraftField): string {
   return field.filled_by === "sender" ? "sender" : "none";
 }
 
-/** Conditions on offer: what every other field may be asked about (``optionsOf``). */
+/** Conditions on offer: what every other field the same person fills may be asked about
+ * (``optionsOf``, ``sameFiller``). */
 function conditionOptions(field: DraftField, draft: Draft) {
   const options = [{ value: "", label: "Always asked" }];
   for (const other of draft.fields) {
-    if (other.id === field.id) continue;
+    if (other.id === field.id || !sameFiller(other, field)) continue;
     for (const { option, words } of optionsOf(other)) {
       options.push({ value: conditionKey({ field_id: other.id, option }), label: `When “${other.label}” is ${words}` });
     }
@@ -53,35 +55,37 @@ function conditionOptions(field: DraftField, draft: Draft) {
   return options;
 }
 
-/**
- * A number of the place, typed. While the box has the focus it shows what was typed: the place
- * takes each number as it stands (kept on its page and at its smallest size), but the box is not
- * rewritten under the person's hands, so "50" can be typed past its "5". Left, it shows the
- * place's own number again.
- */
-function NumberBox({ label, value, onNumber }: { label: string; value: number; onNumber: (number: number) => void }) {
-  const [typed, setTyped] = useState<string | null>(null);
+const STEP = 2; // points a click moves a place
+const GROW = 1.1; // a click on Larger; Smaller is its inverse, so the two undo each other
+// The chosen place's own controls, besides dragging it: four ways to move, smaller and larger.
+const MOVES: readonly { icon: IconName; label: string; by: readonly [number, number] }[] = [
+  { icon: "left", label: "Move left", by: [-STEP, 0] },
+  { icon: "up", label: "Move up", by: [0, -STEP] },
+  { icon: "down", label: "Move down", by: [0, STEP] },
+  { icon: "right", label: "Move right", by: [STEP, 0] },
+];
+const SIZES: readonly { icon: IconName; label: string; scale: number }[] = [
+  { icon: "minus", label: "Smaller", scale: 1 / GROW },
+  { icon: "plus", label: "Larger", scale: GROW },
+];
+
+/** A few icon buttons under one short name ("Move"), so icons alone are never a guess. */
+function ToolGroup({ name, label, children }: { name: string; label: string; children: ReactNode }) {
   return (
-    <TextField
-      label={label}
-      type="number"
-      step="1"
-      value={typed ?? String(value)}
-      onChange={(event) => {
-        const text = event.target.value;
-        setTyped(text);
-        if (text.trim() !== "" && Number.isFinite(Number(text))) onNumber(Number(text));
-      }}
-      onBlur={() => setTyped(null)}
-    />
+    <div className={styles.tool} role="group" aria-label={label}>
+      <span className={styles.toolName} aria-hidden="true">
+        {name}
+      </span>
+      <div className={styles.toolIcons}>{children}</div>
+    </div>
   );
 }
 
 /**
  * One field's form (Phase 6 §4, §5, §7.1), inside its open row in the list. Its type offers only
- * what every one of its boxes may hold (the server's rule, sent with the fields); position and
- * size are numbers, so a box can be placed without a mouse. Every change is one undo step; typing
- * in one box is one.
+ * what every one of its boxes may hold (the server's rule, sent with the fields); a row of icons
+ * moves and sizes the chosen place, so a box can be placed without dragging. Every change is one
+ * undo step; typing in one box is one, and so is a run of moves or a run of resizes of one place.
  */
 export function FieldForm({
   field,
@@ -106,11 +110,8 @@ export function FieldForm({
   const change = (patch: Parameters<typeof updateField>[2], merge?: string) =>
     edit((draft) => updateField(draft, field.id, patch), merge);
 
-  const allowed = HOLD_GROUPS.flatMap((group) =>
-    group.holds
-      .filter((holds) => field.places.every((place) => mayHold(editing.allowed, place, holds)))
-      .map((holds) => ({ value: holds, label: `${HOLDS[holds]} · ${group.label}` })),
-  );
+  const formats = editing.formats[field.holds] ?? [];
+  const allowed = typeOptions((holds) => field.places.every((place) => mayHold(editing.allowed, place, holds)));
   const fillers = [...fillerOptions(draft.parties), { value: NEW_PARTY, label: "Someone else…" }];
   const conditions = conditionOptions(field, draft);
   const joined = joinsOnSave(draft, field, editing.shared);
@@ -120,14 +121,6 @@ export function FieldForm({
   const setFiller = (value: string) => {
     if (value === NEW_PARTY) setNewParty(true);
     else change(filler(value));
-  };
-  const setNumber = (index: 0 | 1 | 2 | 3, number: number) => {
-    if (!current) return;
-    const [x0, y0, x1, y1] = current.rect;
-    const size: Rect = [x0, y0, x1 - x0, y1 - y0];
-    size[index] = number;
-    const rect: Rect = [size[0], size[1], size[0] + size[2], size[1] + size[3]];
-    edit((draft) => setRect(draft, current.id, rect, editing.pages, false), `rect:${current.id}`);
   };
 
   return (
@@ -146,6 +139,14 @@ export function FieldForm({
         onChange={(event) => change({ label: event.target.value }, `label:${field.id}`)}
       />
       <Select label="Type" options={allowed} value={field.holds} onChange={(value) => change({ holds: value as Holds })} />
+      {formats.length > 0 ? (
+        <Select
+          label="Written as"
+          options={formats.map((format) => ({ value: format, label: FORMAT_EXAMPLES[format] ?? format }))}
+          value={field.format ?? formats[0] ?? null}
+          onChange={(value) => change({ format: value })}
+        />
+      ) : null}
       {field.holds === "other" ? (
         <>
           <TextField
@@ -210,69 +211,67 @@ export function FieldForm({
           <InfoTip label="places">{PLACES_HELP}</InfoTip>
         </div>
         <PlaceChips places={field.places} place={place} onPlace={onPlace} choice={field.holds === "choice"} />
-        <div className={styles.toolRow}>
-          {editing.canDraw ? (
-            <Button variant="quiet" compact icon="plus" onClick={() => editing.onAddPlace(field.id)}>
-              Add a place
-            </Button>
+        {/* What can be done with the places, in named groups of named icons: side by side where
+            there is room, wrapping where there is not; never a line for each action. */}
+        <div className={styles.placeTools}>
+          <ToolGroup name="Add" label="Add places">
+            <IconButton icon="plus" label="Add a place" onClick={() => editing.onAddPlace(field.id)} />
+            {current && editing.pages.length > 1 ? (
+              <IconButton icon="pages" label="On every page" onClick={() => edit((draft) => onEveryPage(draft, current.id, editing.pages))} />
+            ) : null}
+          </ToolGroup>
+          {current ? (
+            // Dragging the box moves and sizes it; these do the same without a drag. Moves share
+            // the arrow keys' undo step; resizes have their own.
+            <>
+              <ToolGroup name="Move" label="Move this place">
+                {MOVES.map(({ icon, label, by }) => (
+                  <IconButton
+                    key={icon}
+                    icon={icon}
+                    label={label}
+                    onClick={() => edit((draft) => nudge(draft, current.id, by[0], by[1], editing.pages), `nudge:${current.id}`)}
+                  />
+                ))}
+              </ToolGroup>
+              <ToolGroup name="Size" label="Resize this place">
+                {SIZES.map(({ icon, label, scale }) => (
+                  <IconButton
+                    key={icon}
+                    icon={icon}
+                    label={label}
+                    onClick={() => edit((draft) => resize(draft, current.id, scale, editing.pages), `resize:${current.id}`)}
+                  />
+                ))}
+              </ToolGroup>
+            </>
           ) : null}
-          {current && editing.pages.length > 1 ? (
-            <Button variant="quiet" compact icon="pages" onClick={() => edit((draft) => onEveryPage(draft, current.id, editing.pages))}>
-              On every page
-            </Button>
+          {current && field.places.length > 1 ? (
+            <ToolGroup name={`Place ${place + 1}`} label={`Place ${place + 1}`}>
+              <IconButton
+                icon="split"
+                label="Make separate field"
+                onClick={() => {
+                  let made: string | null = null;
+                  edit((draft) => {
+                    const split = splitPlace(draft, current.id);
+                    made = split.fieldId;
+                    return split.draft;
+                  });
+                  if (made) onSelect({ kind: "field", id: made, place: 0 });
+                }}
+              />
+              <IconButton
+                icon="close"
+                label="Remove place"
+                onClick={() => {
+                  edit((draft) => deletePlace(draft, current.id));
+                  onPlace(Math.max(0, place - 1));
+                }}
+              />
+            </ToolGroup>
           ) : null}
         </div>
-        {current && field.places.length > 1 ? (
-          <div className={styles.toolRow} role="group" aria-label={`Place ${place + 1}`}>
-            <Button
-              variant="quiet"
-              compact
-              icon="split"
-              onClick={() => {
-                let made: string | null = null;
-                edit((draft) => {
-                  const split = splitPlace(draft, current.id);
-                  made = split.fieldId;
-                  return split.draft;
-                });
-                if (made) onSelect({ kind: "field", id: made, place: 0 });
-              }}
-            >
-              Make separate field
-            </Button>
-            <Button
-              variant="quiet"
-              compact
-              icon="close"
-              onClick={() => {
-                edit((draft) => deletePlace(draft, current.id));
-                onPlace(Math.max(0, place - 1));
-              }}
-            >
-              Remove place
-            </Button>
-          </div>
-        ) : null}
-        {current ? (
-          <details className={styles.more}>
-            <summary>{`Position and size · page ${current.page}`}</summary>
-            <div className={styles.numbers}>
-              {(["Left", "Top", "Width", "Height"] as const).map((name, index) => {
-                const [x0, y0, x1, y1] = current.rect;
-                const values = [x0, y0, x1 - x0, y1 - y0];
-                return (
-                  <NumberBox
-                    key={`${current.id}:${name}`}
-                    label={name}
-                    value={Math.round((values[index] ?? 0) * 100) / 100}
-                    onNumber={(number) => setNumber(index as 0 | 1 | 2 | 3, number)}
-                  />
-                );
-              })}
-            </div>
-            <SmallText>In points from the page&apos;s top left. Dragging the box on the document does the same.</SmallText>
-          </details>
-        ) : null}
       </section>
       <div className={styles.formEnd}>
         <Button variant="destructive" compact icon="trash" onClick={() => editing.onDeleteField(field.id)}>

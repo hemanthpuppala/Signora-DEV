@@ -44,18 +44,22 @@
   min-height: 0;
 }
 
-/* Pinned over the top of the pages, high contrast: what a click on them will do. */
+/* Pinned over the top of the pages, high contrast: what a click on them will do. As wide as its
+   words, up to the pages' width (centred by its margins: a box pushed in from the left by half
+   would be given only the other half to fit its words in, and wrap them). */
 .notice {
   position: absolute;
   z-index: 3;
   top: 16px;
-  left: 50%;
+  right: 16px;
+  left: 16px;
   display: flex;
   align-items: center;
   gap: 16px;
+  width: fit-content;
   max-width: calc(100% - 32px);
+  margin: 0 auto;
   padding: 10px 12px 10px 16px;
-  transform: translateX(-50%);
   background: var(--ink);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   color: var(--bg);
@@ -84,12 +88,36 @@
   outline-offset: 2px;
 }
 
+/* On a narrow screen: one line above the pages, never over them (it would hide the very place
+   being tapped); words too long for the line end in an ellipsis. */
+@media (max-width: 959.98px) {
+  .notice {
+    position: static;
+    flex: none;
+    justify-content: space-between;
+    gap: 12px;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 6px 8px 6px 12px;
+    box-shadow: none;
+  }
+
+  .notice > span {
+    overflow: hidden;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .pane {
   flex: 1 1 auto;
   min-height: 0;
   height: var(--pdf-viewer-height, min(78vh, 1100px));
   overflow: auto;
-  /* At its end, scrolling carries on to the page, unless the page pins the viewer (--pdf-overscroll). */
+  /* At its end, scrolling carries on to the page (inside to outside; never into another panel's
+     lists: shared/lib/scrollLatch). A page may still keep it to itself (--pdf-overscroll). */
   overscroll-behavior: var(--pdf-overscroll, auto);
   scrollbar-width: thin;
   scrollbar-color: var(--r25) transparent;

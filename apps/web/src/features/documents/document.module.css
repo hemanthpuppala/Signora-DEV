@@ -1,52 +1,3 @@
-/*
- * Document page: the document is the largest thing on it, details beside it (below on phones).
- * From laptop width the page uses the whole window: the viewer takes 3/5 and stays pinned, one
- * screen tall, with the PDF scrolling inside it; the page scrolls the details beside it.
- */
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--page-gap);
-  align-items: start;
-}
-
-/* A save is on its way (ReviewLayout): the pages and the fields take no input until it answers. */
-.layout[aria-busy="true"] {
-  cursor: progress;
-}
-
-@media (min-width: 960px) {
-  .layout {
-    grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
-    gap: 32px;
-  }
-
-  .layout > .main {
-    position: sticky;
-    top: calc(var(--topbar-height) + 16px);
-    height: calc(100dvh - var(--topbar-height) - 32px);
-    --pdf-frame-height: 100%;
-    --pdf-viewer-height: auto;
-    --pdf-overscroll: contain; /* pinned: scrolling the PDF never moves the details beside it */
-  }
-
-  .layout > .main > :last-child {
-    flex: 1 1 auto; /* the viewer takes what the notices above it leave */
-    min-height: 0;
-  }
-
-  /* Under a review's action bar (Phase 6 §7.1) the pinned viewer starts below the bar. */
-  .layout.underBar > .main {
-    top: calc(var(--topbar-height) + var(--action-bar-height) + 16px);
-    height: calc(100dvh - var(--topbar-height) - var(--action-bar-height) - 32px);
-  }
-}
-
-/* The side column's sections, divided by hairlines (Phase 6 §7.1). */
-.side > * + * {
-  padding-top: 24px;
-  border-top: 1px solid var(--sep);
-}
 
 /* The document's name with the version right after its last word, however the name wraps. */
 .titleLine {
@@ -63,19 +14,18 @@
   white-space: nowrap; /* V2 and its star stay together */
 }
 
+/* The version's state after its number, in the title's line (wrapping under it when narrow). */
+.titleState {
+  display: inline-flex;
+  margin-left: 16px;
+  vertical-align: middle;
+}
+
 /* The document's actions in the head: buttons 8px apart (HeadAction). */
 .headActions {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.main,
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-width: 0;
 }
 
 .caption {
@@ -88,83 +38,12 @@
   color: var(--t60);
 }
 
-.versions {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: 1px solid var(--sep);
-  background: var(--surface);
-}
-
-.version {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  border-top: 1px solid var(--sep);
-}
-
-.viewing {
-  box-shadow: inset 2px 0 0 var(--ink); /* the version on screen */
-}
-
 .filename {
   overflow: hidden;
   font-size: 13px;
   color: var(--t75);
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-/* A version's actions: one line under a rule, icons at the ends, small words between. */
-.versionActions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 8px -7px 0; /* the icon buttons' padding: their icons line up with the text above */
-  padding-top: 6px;
-  border-top: 1px solid var(--sep);
-  white-space: nowrap;
-}
-
-.actionEnd {
-  margin-left: auto;
-}
-
-.action {
-  padding: 2px 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 12px;
-  color: var(--t75);
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.action:hover {
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.action:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-
-.version:first-child {
-  border-top: 0;
-}
-
-.versionHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
 }
 
 .number {

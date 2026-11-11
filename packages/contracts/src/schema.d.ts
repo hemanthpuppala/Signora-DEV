@@ -243,6 +243,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/departments/{department_id}/envelopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A department's envelopes, newest first, 50 a page (next_cursor for more) */
+        get: operations["list_envelopes_api_v1_departments__department_id__envelopes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/departments/{department_id}/grants": {
         parameters: {
             query?: never;
@@ -362,6 +379,23 @@ export interface paths {
         put?: never;
         /** Make a ready version the one new sends use (repeat-safe) */
         post: operations["make_current_api_v1_documents__document_id__current_version_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/envelopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send an approved version to its parties (requires Idempotency-Key) */
+        post: operations["send_envelope_api_v1_documents__document_id__envelopes_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -528,6 +562,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/versions/{version_id}/send-form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What sending an approved version asks: details, signers, countersigners, settings */
+        get: operations["send_form_api_v1_documents__document_id__versions__version_id__send_form_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/versions/{version_id}/unlock": {
         parameters: {
             query?: never;
@@ -539,6 +590,159 @@ export interface paths {
         put?: never;
         /** Open a password-protected PDF with its password (never stored) */
         post: operations["unlock_version_api_v1_documents__document_id__versions__version_id__unlock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One envelope: recipients, values, timeline */
+        get: operations["get_envelope_api_v1_envelopes__envelope_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw a send: every link stops working (repeat-safe) */
+        post: operations["cancel_api_v1_envelopes__envelope_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The envelope's document as drawn: its pages and where each value goes */
+        get: operations["get_envelope_document_api_v1_envelopes__envelope_id__document_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Correct a person's email (a new link is emailed) or, before they open it, their name */
+        patch: operations["change_recipient_api_v1_envelopes__envelope_id__recipients__recipient_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A person's current signing link (Copy signing link); the copy is audited */
+        get: operations["signing_link_api_v1_envelopes__envelope_id__recipients__recipient_id__link_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remind one person who still has to sign (requires Idempotency-Key) */
+        post: operations["remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}/recipients/{recipient_id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email one person their link again, or retry a failed email (requires Idempotency-Key) */
+        post: operations["resend_api_v1_envelopes__envelope_id__recipients__recipient_id__resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/envelopes/{envelope_id}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remind everyone who still has to sign (requires Idempotency-Key) */
+        post: operations["remind_api_v1_envelopes__envelope_id__remind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fonts/{font_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A font's file (TrueType); public, and the same bytes for an id forever */
+        get: operations["font_file_api_v1_fonts__font_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -873,20 +1077,35 @@ export interface components {
              */
             role_id: string;
         };
-        /**
-         * Colleague
-         * @description A member as department lists show them: countersigners, and people edit access can go to.
-         */
-        Colleague: {
-            /** Email */
-            email: string;
+        /** Condition */
+        Condition: {
             /**
-             * Id
+             * Field Id
              * Format: uuid
              */
-            id: string;
+            field_id: string;
+            /** Option */
+            option: string;
+        };
+        /** CopyIn */
+        CopyIn: {
+            /** Email */
+            email: string;
             /** Name */
             name: string;
+        };
+        /** CountersignerIn */
+        CountersignerIn: {
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /** CountersignersInput */
         CountersignersInput: {
@@ -942,6 +1161,19 @@ export interface components {
              */
             upload_id: string;
         };
+        /**
+         * Delivery
+         * @description Their last email: queued, sent, or failed (with why).
+         */
+        Delivery: {
+            /** Error */
+            error: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "sent" | "failed";
+        };
         /** Department */
         Department: {
             /**
@@ -952,7 +1184,7 @@ export interface components {
             /** Archived At */
             archived_at: string | null;
             /** Countersigners */
-            countersigners: components["schemas"]["Colleague"][];
+            countersigners: components["schemas"]["signora__modules__departments__routes__Colleague"][];
             counts: components["schemas"]["Counts"];
             /**
              * Created At
@@ -1102,8 +1334,6 @@ export interface components {
             name: string;
             /** Page Count */
             page_count: number | null;
-            /** Require Email Code */
-            require_email_code: boolean;
             /**
              * Updated At
              * Format: date-time
@@ -1138,6 +1368,30 @@ export interface components {
             updated_at: string;
         };
         /**
+         * DrawnField
+         * @description A field whose value is drawn as text or a mark: what it holds, how, and where.
+         */
+        DrawnField: {
+            /** Format */
+            format: string | null;
+            /** From Recipient */
+            from_recipient: ("name" | "email") | null;
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Party Id */
+            party_id: string | null;
+            /** Places */
+            places: components["schemas"]["Place"][];
+        };
+        /**
          * DuplicateView
          * @description The same bytes already in the department (§2.3): the screen asks before going on.
          */
@@ -1159,6 +1413,121 @@ export interface components {
             /** Email */
             email: string;
         };
+        /** EnvelopeDocument */
+        EnvelopeDocument: {
+            /** Fields */
+            fields: components["schemas"]["DrawnField"][];
+            fit: components["schemas"]["FitRule"];
+            /** Pages */
+            pages: components["schemas"]["PageSize"][];
+        };
+        /** EnvelopePage */
+        EnvelopePage: {
+            /** Envelopes */
+            envelopes: components["schemas"]["EnvelopeSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** EnvelopeSummary */
+        EnvelopeSummary: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Name */
+            document_name: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            /** Signed */
+            signed: number;
+            /** Signers */
+            signers: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "sent" | "opened" | "viewed" | "signed" | "completed" | "declined" | "expired" | "cancelled";
+            /** Title */
+            title: string;
+            /** Version Number */
+            version_number: number;
+        };
+        /** EnvelopeView */
+        EnvelopeView: {
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /**
+             * Department Id
+             * Format: uuid
+             */
+            department_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Name */
+            document_name: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            font: components["schemas"]["FontView"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Max Reminders */
+            max_reminders: number;
+            /** Notify Emails */
+            notify_emails: string[];
+            /** Recipients */
+            recipients: components["schemas"]["RecipientView"][];
+            /** Reminder Interval Hours */
+            reminder_interval_hours: number;
+            /** Require Email Code */
+            require_email_code: boolean;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            sent_by: components["schemas"]["PersonRef"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "sent" | "opened" | "viewed" | "signed" | "completed" | "declined" | "expired" | "cancelled";
+            /** Timeline */
+            timeline: components["schemas"]["TimelineEntry"][];
+            /** Title */
+            title: string;
+            /** Values */
+            values: components["schemas"]["ValueView"][];
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /** Version Number */
+            version_number: number;
+        };
         /** FieldIn */
         FieldIn: {
             depends_on?: components["schemas"]["DependencyIn"] | null;
@@ -1167,11 +1536,13 @@ export interface components {
              * @enum {string}
              */
             filled_by: "role" | "sender" | "none";
+            /** Format */
+            format?: string | null;
             /**
              * Holds
              * @enum {string}
              */
-            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
             /** Holds Label */
             holds_label?: string | null;
             /**
@@ -1210,11 +1581,13 @@ export interface components {
              * @enum {string}
              */
             filled_by: "role" | "sender" | "none";
+            /** Format */
+            format: string | null;
             /**
              * Holds
              * @enum {string}
              */
-            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
             /** Holds Label */
             holds_label: string | null;
             /**
@@ -1244,6 +1617,24 @@ export interface components {
             /** Sensitive */
             sensitive: boolean;
         };
+        /** FitRule */
+        FitRule: {
+            /**
+             * Align
+             * @enum {string}
+             */
+            align: "left" | "center";
+            /** Baseline Min */
+            baseline_min: number;
+            /** Baseline Ratio */
+            baseline_ratio: number;
+            /** Fallback Cap */
+            fallback_cap: number;
+            /** Fallback Ratio */
+            fallback_ratio: number;
+            /** Min Size */
+            min_size: number;
+        };
         /** Flags */
         Flags: {
             /**
@@ -1271,6 +1662,87 @@ export interface components {
              * @default false
              */
             xfa: boolean;
+        };
+        /** FontView */
+        FontView: {
+            /** Family */
+            family: string;
+            /** Id */
+            id: string;
+            /** Url */
+            url: string;
+        };
+        /** FormCountersigner */
+        FormCountersigner: {
+            default: components["schemas"]["signora__modules__envelopes__form__Colleague"] | null;
+            /** Label */
+            label: string;
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+            /** Position */
+            position: number;
+        };
+        /** FormField */
+        FormField: {
+            depends_on: components["schemas"]["Condition"] | null;
+            /** Format */
+            format: string | null;
+            /** From Recipient */
+            from_recipient: ("name" | "email") | null;
+            /**
+             * Holds
+             * @enum {string}
+             */
+            holds: "signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other";
+            /** Holds Label */
+            holds_label: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Options */
+            options: components["schemas"]["Option"][];
+            /** Party Id */
+            party_id: string | null;
+            /** Places */
+            places: components["schemas"]["Place"][];
+            /** Required */
+            required: boolean;
+            /** Sensitive */
+            sensitive: boolean;
+        };
+        /** FormSettings */
+        FormSettings: {
+            /** Expiry Days */
+            expiry_days: number;
+            /** Max Reminders */
+            max_reminders: number;
+            /** Notify Emails */
+            notify_emails: string[];
+            /** Reminder Interval Hours */
+            reminder_interval_hours: number;
+            /** Require Email Code */
+            require_email_code: boolean;
+        };
+        /** FormSigner */
+        FormSigner: {
+            /** Kind Label */
+            kind_label: string | null;
+            /** Label */
+            label: string;
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+            /** Position */
+            position: number;
         };
         /** Grant */
         Grant: {
@@ -1429,6 +1901,20 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** Option */
+        Option: {
+            /** Text */
+            text: string;
+            /** Value */
+            value: string;
+        };
+        /** PageSize */
+        PageSize: {
+            /** Height */
+            height: number;
+            /** Width */
+            width: number;
+        };
         /**
          * PageView
          * @description A page as displayed (rotation applied), in PDF points: the viewer lays pages out from these
@@ -1488,6 +1974,25 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * Place
+         * @description Where a field's value is drawn: PDF points on the page as displayed.
+         */
+        Place: {
+            /** Option Value */
+            option_value: string | null;
+            /** Page */
+            page: number;
+            /** Rect */
+            rect: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Text Size */
+            text_size: number | null;
+        };
         /** PlaceIn */
         PlaceIn: {
             /**
@@ -1535,6 +2040,8 @@ export interface components {
                 number,
                 number
             ];
+            /** Text Size */
+            text_size?: number | null;
         };
         /**
          * Problem
@@ -1578,6 +2085,66 @@ export interface components {
             field: string;
             /** Message */
             message: string;
+        };
+        /** RecipientChange */
+        RecipientChange: {
+            /**
+             * Confirm Same Person
+             * @default false
+             */
+            confirm_same_person: boolean;
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name?: string | null;
+        };
+        /** RecipientView */
+        RecipientView: {
+            delivery: components["schemas"]["Delivery"] | null;
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "signer" | "countersigner" | "copy";
+            /** Name */
+            name: string;
+            /** Opened At */
+            opened_at: string | null;
+            /** Party Id */
+            party_id: string | null;
+            /** Party Label */
+            party_label: string | null;
+            /** Sent At */
+            sent_at: string | null;
+            /** Signed At */
+            signed_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "waiting" | "sent" | "opened" | "viewed" | "signed" | "declined";
+            /** Viewed At */
+            viewed_at: string | null;
+        };
+        /** Reminded */
+        Reminded: {
+            /** Reminded */
+            reminded: number;
+        };
+        /** Resent */
+        Resent: {
+            /**
+             * Recipient Id
+             * Format: uuid
+             */
+            recipient_id: string;
         };
         /** ResetRequest */
         ResetRequest: {
@@ -1652,6 +2219,81 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** SendForm */
+        SendForm: {
+            /** Colleagues */
+            colleagues: components["schemas"]["signora__modules__envelopes__form__Colleague"][];
+            /** Countersigners */
+            countersigners: components["schemas"]["FormCountersigner"][];
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Name */
+            document_name: string;
+            /** Fields */
+            fields: components["schemas"]["FormField"][];
+            fit: components["schemas"]["FitRule"];
+            font: components["schemas"]["FontView"];
+            /** Pages */
+            pages: components["schemas"]["PageSize"][];
+            settings: components["schemas"]["FormSettings"];
+            /** Signers */
+            signers: components["schemas"]["FormSigner"][];
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /** Version Number */
+            version_number: number;
+        };
+        /** SendRequest */
+        SendRequest: {
+            /**
+             * Confirm Same Person
+             * @default false
+             */
+            confirm_same_person: boolean;
+            /** Copies */
+            copies?: components["schemas"]["CopyIn"][];
+            /** Countersigners */
+            countersigners?: components["schemas"]["CountersignerIn"][];
+            settings: components["schemas"]["SettingsIn"];
+            /** Signers */
+            signers: components["schemas"]["SignerIn"][];
+            /**
+             * Time Zone
+             * @default UTC
+             */
+            time_zone: string;
+            /** Title */
+            title?: string | null;
+            /** Values */
+            values?: components["schemas"]["ValueIn"][];
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+        };
+        /** SettingsIn */
+        SettingsIn: {
+            /** Expiry Days */
+            expiry_days: number;
+            /** Max Reminders */
+            max_reminders: number;
+            /** Notify Emails */
+            notify_emails?: string[];
+            /** Reminder Interval Hours */
+            reminder_interval_hours: number;
+            /**
+             * Require Email Code
+             * @default true
+             */
+            require_email_code: boolean;
+        };
         /** SettingsInput */
         SettingsInput: {
             /** Expiry Days */
@@ -1662,6 +2304,23 @@ export interface components {
             notify_emails?: string[] | null;
             /** Reminder Interval Hours */
             reminder_interval_hours?: number | null;
+        };
+        /** SignerIn */
+        SignerIn: {
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+        };
+        /** SigningLink */
+        SigningLink: {
+            /** Url */
+            url: string;
         };
         /** SignupCompleteRequest */
         SignupCompleteRequest: {
@@ -1687,6 +2346,22 @@ export interface components {
              */
             status: "ok" | "unavailable";
         };
+        /** TimelineEntry */
+        TimelineEntry: {
+            /** Action */
+            action: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** By */
+            by: string | null;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+        };
         /** TokenRequest */
         TokenRequest: {
             /** Token */
@@ -1711,8 +2386,6 @@ export interface components {
             description?: string | null;
             /** Name */
             name?: string | null;
-            /** Require Email Code */
-            require_email_code?: boolean | null;
         };
         /** UploadView */
         UploadView: {
@@ -1751,6 +2424,31 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** ValueIn */
+        ValueIn: {
+            /**
+             * Field Id
+             * Format: uuid
+             */
+            field_id: string;
+            /** Value */
+            value: string;
+        };
+        /** ValueView */
+        ValueView: {
+            /**
+             * Field Id
+             * Format: uuid
+             */
+            field_id: string;
+            /**
+             * Given By
+             * @enum {string}
+             */
+            given_by: "sender" | "prefill" | "recipient";
+            /** Value */
+            value: string;
+        };
         /** VersionFields */
         VersionFields: {
             /**
@@ -1778,6 +2476,9 @@ export interface components {
              *         "tax_id",
              *         "bank_account",
              *         "date",
+             *         "day",
+             *         "month",
+             *         "year",
              *         "number",
              *         "currency",
              *         "amount_in_words",
@@ -1826,6 +2527,9 @@ export interface components {
              *         "tax_id",
              *         "bank_account",
              *         "date",
+             *         "day",
+             *         "month",
+             *         "year",
              *         "number",
              *         "currency",
              *         "amount_in_words",
@@ -1837,13 +2541,60 @@ export interface components {
              *     }
              */
             allowed: {
-                [key: string]: ("signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other")[];
+                [key: string]: ("signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other")[];
             };
             /** Fields */
             fields: components["schemas"]["FieldView"][];
             /** Fields From */
             fields_from: ("form_fields" | "blanks" | "none") | null;
             flags: components["schemas"]["Flags"];
+            /**
+             * Formats
+             * @default {
+             *       "date": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "date_of_birth": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "date_signed": [
+             *         "Month D, YYYY",
+             *         "MM/DD/YYYY",
+             *         "DD/MM/YYYY",
+             *         "MM/DD/YY",
+             *         "DD/MM/YY",
+             *         "YYYY-MM-DD",
+             *         "D Month YYYY"
+             *       ],
+             *       "day": [
+             *         "D",
+             *         "Dth"
+             *       ],
+             *       "month": [
+             *         "Month",
+             *         "MM"
+             *       ],
+             *       "year": [
+             *         "YYYY",
+             *         "YY"
+             *       ]
+             *     }
+             */
+            formats: {
+                [key: string]: string[];
+            };
             /** Found Again Failed */
             found_again_failed?: string | null;
             /** Pending */
@@ -1864,7 +2615,7 @@ export interface components {
              *       "party_name"
              *     ]
              */
-            shared: ("signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other")[];
+            shared: ("signature" | "initials" | "date_signed" | "party_name" | "full_name" | "first_name" | "last_name" | "company" | "title" | "date_of_birth" | "email" | "phone" | "address" | "city" | "state" | "postal_code" | "country" | "url" | "tax_id" | "bank_account" | "date" | "day" | "month" | "year" | "number" | "currency" | "amount_in_words" | "percent" | "text" | "checkbox" | "choice" | "note" | "other")[];
             /** Stage */
             stage: ("read" | "ai" | "derive" | "store" | "done") | null;
             /** Status */
@@ -1946,6 +2697,33 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /**
+         * Colleague
+         * @description A member as department lists show them: countersigners, and people edit access can go to.
+         */
+        signora__modules__departments__routes__Colleague: {
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** Colleague */
+        signora__modules__envelopes__form__Colleague: {
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /** RoleView */
         signora__modules__identity_access__routes__schemas__RoleView: {
@@ -2706,7 +3484,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Colleague"][];
+                    "application/json": components["schemas"]["signora__modules__departments__routes__Colleague"][];
                 };
             };
             /** @description Validation failed (problem details) */
@@ -2817,6 +3595,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    list_envelopes_api_v1_departments__department_id__envelopes_get: {
+        parameters: {
+            query?: {
+                status?: ("sent" | "opened" | "viewed" | "signed" | "completed" | "declined" | "expired" | "cancelled") | null;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                department_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePage"];
                 };
             };
             /** @description Validation failed (problem details) */
@@ -2976,7 +3809,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Colleague"][];
+                    "application/json": components["schemas"]["signora__modules__departments__routes__Colleague"][];
                 };
             };
             /** @description Validation failed (problem details) */
@@ -3304,6 +4137,69 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    send_envelope_api_v1_documents__document_id__envelopes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeView"];
+                };
+            };
+            /** @description Not approved, archived, or one person on two parties */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {
@@ -3903,6 +4799,66 @@ export interface operations {
             };
         };
     };
+    send_form_api_v1_documents__document_id__versions__version_id__send_form_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendForm"];
+                };
+            };
+            /** @description The version is not approved */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     unlock_version_api_v1_documents__document_id__versions__version_id__unlock_post: {
         parameters: {
             query?: never;
@@ -3926,6 +4882,489 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    get_envelope_api_v1_envelopes__envelope_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeView"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    cancel_api_v1_envelopes__envelope_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeView"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    get_envelope_document_api_v1_envelopes__envelope_id__document_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDocument"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    change_recipient_api_v1_envelopes__envelope_id__recipients__recipient_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipientChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeView"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    signing_link_api_v1_envelopes__envelope_id__recipients__recipient_id__link_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SigningLink"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    remind_one_api_v1_envelopes__envelope_id__recipients__recipient_id__remind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminded"];
+                };
+            };
+            /** @description They signed, or it is not their turn yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    resend_api_v1_envelopes__envelope_id__recipients__recipient_id__resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resent"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    remind_api_v1_envelopes__envelope_id__remind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminded"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    font_file_api_v1_fonts__font_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                font_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "font/ttf": unknown;
                 };
             };
             /** @description Validation failed (problem details) */

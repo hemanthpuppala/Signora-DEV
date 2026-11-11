@@ -12,6 +12,7 @@ from signora.modules.audit import models as _audit_models  # noqa: F401
 from signora.modules.departments import models as _departments_models  # noqa: F401
 from signora.modules.detection import models as _detection_models  # noqa: F401
 from signora.modules.documents import models as _documents_models  # noqa: F401
+from signora.modules.envelopes import models as _envelopes_models  # noqa: F401
 from signora.modules.identity_access import models as _identity_access_models  # noqa: F401
 from signora.modules.notifications import models as _notifications_models  # noqa: F401
 from signora.modules.review import models as _review_models  # noqa: F401
