@@ -108,7 +108,7 @@ a missing element fails loudly at mount (`runtime/dom.ts`).
 
 ## 6. Data
 
-None. The page reads no API and stores nothing. The signature's pen path (`runtime/penPaths.ts`) is
+None. The page reads no API and stores nothing. The signature's pen path (`shared/ui/signature/penPaths.ts`) is
 recorded data from the brand animation and is kept as data.
 
 ## 7. Algorithms and cost
