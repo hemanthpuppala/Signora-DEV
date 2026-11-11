@@ -155,3 +155,15 @@ def test_a_drawn_line_the_ai_says_nobody_fills_is_not_kept(filled_by: str, kept:
         result = derive(reading, answer, document, problems=[], repaired=False)
     assert bool(result.fields) is kept
     assert any("drawn line nobody fills" in note for note in result.notes) is not kept
+
+
+def test_a_line_drawn_in_white_shows_nothing_and_is_not_a_blank() -> None:
+    white = _page(lambda page: page.draw_line((72, 302), (300, 302), color=(1, 1, 1)))
+    assert _drawn(white) == []
+
+
+def test_a_labelled_line_across_the_text_is_a_blank_an_unlabelled_one_a_separator() -> None:
+    right = _end(PARAGRAPH)
+    labelled = _page(_text(72, 300, "Address:"), _line(_end("Address:") + 4, right, 302))
+    assert len(_drawn(labelled)) == 1
+    assert _drawn(_page(_line(72, right, 302))) == []

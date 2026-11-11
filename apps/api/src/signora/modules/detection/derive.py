@@ -17,6 +17,7 @@ from typing import Any, Literal
 import pymupdf
 from pydantic import BaseModel, ConfigDict
 
+from signora.modules.detection.blanks import UNDERSCORES
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
 from signora.modules.detection.schema import ALLOWED, ANCHOR_MAX
@@ -171,9 +172,16 @@ def _party_places(answer: dict[str, Any], reading: Reading, filled_by: str, page
     ]
 
 
+def _label_words(extra: dict[str, Any]) -> str:
+    """The words an extra field is placed after: its anchor, up to any blank it quotes. An anchor
+    that copies the blank itself ("Total: $______") is cut before it, so the quoted blank is
+    measured like any space after a label (a field or text already there: no room)."""
+    return UNDERSCORES.split(extra["anchor_text"][:ANCHOR_MAX], maxsplit=1)[0].strip()
+
+
 def _extra_problem(space: DocumentSpace, extra: dict[str, Any], near: list[Box]) -> str | None:
     """Why an extra field cannot be placed from its words, in words; None when it can."""
-    words, number = extra["anchor_text"][:ANCHOR_MAX], extra["page"]
+    words, number = _label_words(extra), extra["page"]
     page = space.page(number)
     if page is None or _unsafe(words) or not page.find(words):
         return f"its words are not on page {number}"
@@ -399,9 +407,7 @@ def derive(
         near = _party_places(answer, reading, extra["filled_by"], extra["page"])
         why = _extra_problem(space, extra, near)
         rect = (
-            None
-            if why is not None
-            else space.place_after(extra["page"], extra["anchor_text"][:ANCHOR_MAX], near)
+            None if why is not None else space.place_after(extra["page"], _label_words(extra), near)
         )
         if rect is None:
             notes.append(f"extra field {extra['label']!r} dropped: {why}")

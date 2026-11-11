@@ -153,6 +153,26 @@ whole and drawn in two pieces (none); a ruled table (none); an unlabelled footer
 kept) and one a party fills (kept). The 9 that expect a blank fail on the reader before F1; the 4 that expect none
 guard against finding too much.
 
+**Rigorous testing round** (after the first build):
+
+- **Trap battery**, 15 generated pages (a word processor's gap with a comma after it, a label then a line, two
+  signature columns with captions below, a signature line at the page's foot with its caption below, a footer rule
+  with a page number, initials in every page's footer, an unlabelled header rule, an underlined link, a
+  strikethrough, a box around text, comb boxes, a white spacer line, a long labelled address line, a thick rule, a
+  line drawn in two pieces): two real faults found and fixed at their cause, both now unit tests:
+  - **a line drawn in white** became a blank: a drawing is now read only when it has ink (a stroke or fill colour
+    not white, not fully transparent, `INK_LIGHTEST`);
+  - **a labelled line across the text** ("Address: ____" to the margin) was refused as a separator: only an
+    unlabelled long line is a separator now, as in the margins.
+- **200 pages** with two drawn blanks each: 400 found in 0.42 s.
+- **Every saved AI answer re-derived** with the current code against its committed result: the same keys, types,
+  fillers and places everywhere, except the signatures that grow (F2) and one more fault, fixed: on the fillable
+  trade-secret NDA, an answer from before the F10 contract quoted its blank ("Total for the first year:
+  $______________"), and the field was placed after the blank, beside a total the PDF calculates. **An anchor is now
+  cut before any blank it quotes** (`derive._label_words`, with the reader's own `UNDERSCORES`); the blank is then
+  measured like any space after a label, and the form field already there leaves no room, so the duplicate is
+  dropped with a note (44 fields → 43 on both fillable trade-secret NDAs; nothing else moved).
+
 **On every real document** (read stage, before → after):
 
 | Document | Before | After | |

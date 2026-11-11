@@ -327,3 +327,24 @@ def test_a_field_never_takes_another_partys_column_when_its_own_is_already_fille
     assert any("'Wrong name' dropped" in note for note in result.notes)
     left_box = _extra(result, "Left name")
     assert left_box[0] > left.x1 and left_box[2] < 324  # the left party keeps its own column
+
+
+def test_an_anchor_that_quotes_its_blank_is_placed_after_the_words_before_it() -> None:
+    """The AI copied the blank too ("Total: $____"): the label is the words before the blank, and
+    a form field already there means no room, so no second field is made over it."""
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((72, 100), PARAGRAPH, fontsize=11)
+    page.insert_text((72, 160), "Total for the first year: $" + "_" * 12, fontsize=11)
+    widget = pymupdf.Widget()
+    widget.field_name, widget.field_type = "Total", pymupdf.PDF_WIDGET_TYPE_TEXT  # type: ignore[attr-defined]
+    widget.rect = pymupdf.Rect(_end("Total for the first year: $"), 148, 240, 163)
+    page.add_widget(widget)
+    quoted = {"anchor_text": "Total for the first year: $____________", "filled_by": "party_1"}
+    result = _with_extras(document.tobytes(), [{**quoted, "label": "Total"}], ["text"])
+    assert all(field.label != "Total" for field in result.fields)
+    assert any("'Total' dropped" in note for note in result.notes)
+
+
+def _end(text: str, x: float = 72) -> float:
+    return x + pymupdf.get_text_length(text, fontsize=11)

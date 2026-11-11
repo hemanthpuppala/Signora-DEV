@@ -13,7 +13,9 @@ it gives the stretch after the label, and an underlined word gives nothing.
 A line drawn in pieces is one line (a table's row rule is often drawn once per column), and is
 judged whole. Lines that are not blanks:
 
-- a rule across most of the text's width (a separator, a table's row rule);
+- a line drawn in white or fully transparent (it shows nothing);
+- an unlabelled rule across most of the text's width (a separator, a table's row rule); a labelled
+  line is a blank whatever its length ("Address: ____" across the page);
 - a line whose end meets a vertical line (a table's or a box's border; captioned boxes are
   topic 8's);
 - in the top or bottom margin, a line with no label printed to its left on its row (a header or
@@ -42,6 +44,7 @@ MARGIN = 0.1  # the top and bottom share of a page: header and footer
 LABEL_REACH = 72.0  # points: in a margin, a label to the line's left on its row, this close
 TOUCH = 2.0  # points: a vertical line this close to a line's end meets it
 MERGE_GAP = 6.0  # points: empty stretches on one line closer than this are one blank
+INK_LIGHTEST = 0.9  # a colour whose every channel is lighter than this is white: no ink
 
 Line = tuple[float, float, float]  # x0, x1, y: a horizontal line
 Upright = tuple[float, float, float]  # x, y0, y1: a vertical line
@@ -54,6 +57,8 @@ def _lines(page: pymupdf.Page) -> tuple[list[Line], list[Upright]]:
     pieces: set[Line] = set()
     down: set[Upright] = set()
     for drawing in page.get_drawings():
+        if not _inked(drawing):
+            continue  # white or transparent: draws nothing a person sees
         for item in drawing["items"]:
             if item[0] == "l":
                 rect = pymupdf.Rect(item[1], item[2])
@@ -76,6 +81,21 @@ def _lines(page: pymupdf.Page) -> tuple[list[Line], list[Upright]]:
         else:
             joined.append((x0, x1, y))
     return [line for line in joined if line[1] - line[0] >= LENGTH_MIN], list(down)
+
+
+def _inked(drawing: dict[str, object]) -> bool:
+    """Whether a drawing shows: a stroke or fill colour that is not white, not fully transparent."""
+    kind = str(drawing.get("type") or "")
+    paints = []
+    if "s" in kind:
+        paints.append((drawing.get("color"), drawing.get("stroke_opacity")))
+    if "f" in kind:
+        paints.append((drawing.get("fill"), drawing.get("fill_opacity")))
+    for colour, opacity in paints:
+        shade = colour if isinstance(colour, (tuple, list)) else ()
+        if shade and min(shade) < INK_LIGHTEST and (opacity is None or float(str(opacity)) > 0):
+            return True
+    return False
 
 
 def _written(page: pymupdf.Page) -> list[Box]:
@@ -154,8 +174,9 @@ def drawn_blanks(page: pymupdf.Page, taken: Iterable[Box]) -> list[Box]:
     blanks: list[Box] = []
     for line in across:
         x0, x1, y = line
-        if x1 - x0 > FULL_WIDTH * max(right - left, LENGTH_MIN):
-            continue  # a separator or a table's row rule
+        long = x1 - x0 > FULL_WIDTH * max(right - left, LENGTH_MIN)
+        if long and not _labelled(line, written):
+            continue  # a separator or a table's row rule ("Address: ____" across the page is kept)
         if _meets(down, x0, y) or _meets(down, x1, y):
             continue  # a table's or a box's border
         in_margin = y < height * MARGIN or y > height * (1 - MARGIN)
