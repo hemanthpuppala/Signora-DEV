@@ -28,9 +28,10 @@ rule of a single send (Phase 7 LLD §2, §11) holds for every row, checked by th
 - **FR-6** Two rows that would send to the same signer email are flagged before sending, as
   something to look at rather than a stop: one person may rightly get two envelopes. The same
   batch submitted twice (a double click, a retry) sends once.
-- **FR-7** Settings (email code, reminders, expiry, who is notified), copy recipients and the
-  default countersigners are chosen once for the batch. A row may name its own countersigner, and
-  may override a setting, in optional columns.
+- **FR-7** Settings (email code, reminders, expiry, who is notified) are chosen once for the
+  batch, on the review; a row may override one in an optional column. Who countersigns is not
+  chosen for the batch: every row names its own, in a column of the spreadsheet. A row that leaves
+  it empty takes the department's countersigner; with none set, the cell is asked for in the table.
 - **FR-8** Sending runs in the background. The sender sees how many of the batch are sent, and any
   row that failed at send time with its reason.
 - **FR-9** "Send envelope" and "Send in bulk" are separate buttons. Each dialog offers a quiet way
@@ -64,12 +65,13 @@ Built from the send form of the version (`build_form`), in this order:
 | Columns | One per | Required | Notes |
 |---|---|---|---|
 | `<Party> name`, `<Party> email` | signer party, in signing order | yes | |
-| `<Party> countersigner` | countersigner party | no | a colleague's email; empty takes the batch's default for that party |
+| `<Party> countersigner` | countersigner party | yes | a colleague's email; an empty cell takes the department's countersigner for that party when it has one |
 | `<Field label>` | field the sender may fill | only the sender's own required fields | fields a signer fills are optional prefill, as in the dialog; fields that come from the signer's name or email are not columns |
 | `Email code`, `Remind every (hours)`, `Reminders at most`, `Expires after (days)` | setting | no | not in the downloaded file; recognised when a sender adds them; empty takes the batch's setting |
 
-- A header is the label the dialog shows. Two columns that would share a header get the party's
-  label in front, so headers are unique; columns are matched by header, ignoring case and spaces.
+- A header is the label the dialog shows. Columns are matched by header, ignoring its star, case
+  and extra spaces, so headers are made unique by that same reading: two fields that would share
+  one get the party's label in front, then a number, and none may read as an optional setting's.
 - A required column's header ends with ` *`.
 - An unknown header, or one given twice, is a problem with the file, reported before any row is
   shown: "This file has a column 'X' that this template does not ask for."
@@ -100,7 +102,12 @@ the single send's checks apply unchanged.
   this; a batch does not ask forty times.
 - A signer email that another row also sends to: noted on both rows ("Also in row 12") as a
   warning. It does not stop the send.
-- A countersigner cell that is not an active colleague's email: "Not a colleague's email".
+- A countersigner cell that is not an active colleague's email: "Not a colleague's email". An
+  empty one: "Choose who countersigns as <party>".
+
+A judged row gives its cells back as they were read: a choice as its option's value, a tick as
+`yes`, a colleague as their email. Whoever shows the row shows those and has no reading rules of
+its own.
 
 ### 4.4 A batch's life
 
@@ -113,7 +120,9 @@ checked in the dialog ──Send──► sending ──every row settled──�
   refused with the problems, and nothing is written (FR-3).
 - The job sends the pending rows in file order, each in its own transaction that also marks the
   row sent. A row the single send refuses at that moment (the version was archived, the sender
-  lost access) is marked failed with the refusal's words; the job goes on.
+  lost access) is marked failed with the refusal's words; the job goes on. So does it after any
+  other fault in one row's send: the row is marked and the fault recorded. Only a fault of the
+  database itself stops the run, to be tried again.
 - A batch is finished when no row is pending. Its rows' typed data is erased then (NFR-6).
 
 ## 5. Architecture decision
@@ -190,8 +199,12 @@ recent batches. Rows are read by `batch_id`, the primary key's prefix.
 - Columns from a form: one pass over parties and fields, O(P + F).
 - A file of R rows and C columns: read once, O(R · C). Each row is converted and passed to
   `plan_send`, itself O(P + F + V). Total O(R · (P + F)).
+- What every row is read against (colleagues by email and by id, the fields a row may give) is
+  built once per sheet, O(P + F + C), not once per row.
 - Cross-row duplicates: one hash map from normalised signer email to the rows using it, O(R · P).
-  Not the O(R²) of comparing rows pairwise.
+  Not the O(R²) of comparing rows pairwise; each row's "also in rows …" reads the first four of its
+  group, O(1), so a thousand rows to one address stay linear.
+- Headers are made unique in one pass with a set of the readings taken.
 - The table renders a window of rows that grows as the sender scrolls; the problem count and the
   "next problem" jump read an index of problem rows, built once per check in O(R).
 - The job: O(R) sends, each bounded by a single send.
@@ -226,12 +239,12 @@ Upload step. Its accessible name says what it is ("Download the spreadsheet for 
 |---|---|---|
 | Template | picks the template | one is picked |
 | Upload | downloads the spreadsheet, drops the filled file | the file is read |
-| Fix | corrects or leaves out the rows with problems | no row has a problem. Skipped, and shown done, for a clean file |
-| Send to | chooses default countersigners (if the template has any), copies and settings | the choices are valid |
-| Review | reads "48 envelopes", the settings, what was left out | presses "Send 48 envelopes" |
+| Fix | corrects or leaves out the rows with problems, a missing countersigner among them | no row has a problem. Skipped, and shown done, for a clean file |
+| Review | reads "48 envelopes", who countersigns as the rows say, what was left out; sets what applies to every envelope | presses "Send 48 envelopes" |
 
-While rows have problems the Fix stop on the progress line shows the count and is marked as
-needing attention, and the steps after it cannot be reached.
+There is no step for countersigners: a step after Fix that chose them could never be reached by
+rows that needed one to pass. While rows have problems the Fix stop on the progress line shows the
+count and is marked as needing attention, and Review cannot be reached.
 
 **The Fix table.**
 
@@ -240,8 +253,12 @@ needing attention, and the steps after it cannot be reached.
   sideways; the header stays in place while it scrolls down.
 - Every cell is the input the single dialog uses for that kind of field. A problem cell has a
   visible outline and its message under it, tied to the input.
-- A cell is re-checked when the sender leaves it. The count ("12 of 40 fixed") and a "Next problem"
-  button follow the check.
+- A typed cell is re-checked when the sender leaves it; a choice or a tick as soon as it is made.
+  Changes within a quarter of a second are one check. A check's answer never undoes what was typed
+  while it was out: a row edited since is judged by the next check.
+- A required list column with empty cells (who countersigns) offers, in its heading, one choice for
+  every empty row.
+- The count ("1 of 40 rows needs fixing") and a "Next problem" button follow the check.
 - Tab moves between cells in reading order.
 - Choices and dates use the browser's own select and date inputs here, not the dialog's custom
   ones: in a dense table they are smaller, and they are the accessible standard for a grid of
@@ -302,6 +319,7 @@ Each row is a test in `test_bulk_security.py`.
 | 12.8 | The two buttons, the links across, the progress line | done | `bulk.test.tsx`; `app/departments/[id]/page.tsx` |
 | 12.9 | Full gate | done | API: lint, types, import contracts, tests; web: lint, types, 336 tests, build |
 | 12.11 | Hostile input: the reader and the API attacked, hardened, and the attacks kept as tests | done | `test_bulk_security.py` (29 tests); the probe's hostile files all refused in under 0.25 s |
+| 12.12 | The review of PR 21: ten findings confirmed, fixed, each with its test | done | `test_bulk_review.py` (7 tests), `bulk.test.tsx` (8 tests) |
 | 12.10 | Live check of a real batch in a browser | todo | not run: a live stack here would send real email through the configured mail account |
 
 ### Carried to the merge
