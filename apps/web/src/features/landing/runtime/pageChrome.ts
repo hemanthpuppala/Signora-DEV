@@ -71,27 +71,61 @@ function mountSectionNav(root: HTMLElement, scope: Scope): void {
   scope.add(() => observer.disconnect());
 }
 
-/** The phone menu: a bottom sheet that closes on a choice, the backdrop or Escape. */
+/**
+ * The phone menu: a bottom sheet that behaves as a modal dialog. Opening it moves focus to its
+ * first link and keeps Tab inside it; a choice, the backdrop or Escape closes it and returns focus
+ * to the Menu button.
+ */
 function mountSheet(root: HTMLElement, scope: Scope, reduced: boolean): void {
   const sheet = q(root, "#sheet");
-  const close = () => {
-    if (sheet.hidden) return;
-    sheet.classList.remove("is-open");
-    scope.timeout(() => {
-      sheet.hidden = true;
-    }, reduced ? 0 : 360);
-  };
-  scope.on(q(root, "#menu-btn"), "click", () => {
+  const menu = q<HTMLButtonElement>(root, "#menu-btn");
+  const links = () => qa<HTMLElement>(sheet, "a");
+  const isOpen = () => menu.getAttribute("aria-expanded") === "true";
+
+  const open = () => {
     sheet.hidden = false;
+    menu.setAttribute("aria-expanded", "true");
     // Two frames, so the browser paints the closed state before the transition to open.
     scope.frame(() => scope.frame(() => sheet.classList.add("is-open")));
-  });
+    links()[0]?.focus({ preventScroll: true });
+  };
+  const close = (returnFocus: boolean) => {
+    if (!isOpen()) return;
+    menu.setAttribute("aria-expanded", "false");
+    sheet.classList.remove("is-open");
+    scope.timeout(() => {
+      // Unless it was opened again meanwhile.
+      if (!isOpen()) sheet.hidden = true;
+    }, reduced ? 0 : 360);
+    if (returnFocus) menu.focus({ preventScroll: true });
+  };
+
+  scope.on(menu, "click", open);
   scope.on<MouseEvent>(sheet, "click", (event) => {
     const target = event.target as Element;
-    if (target === sheet || target.closest("[data-sheet-close]")) close();
+    // A link takes the visitor to its section, so focus follows the link, not the button.
+    if (target.closest("[data-sheet-close]")) close(false);
+    else if (target === sheet) close(true);
   });
-  scope.on<KeyboardEvent>(sheet, "keydown", (event) => {
-    if (event.key === "Escape") close();
+  scope.on<KeyboardEvent>(document, "keydown", (event) => {
+    if (!isOpen()) return;
+    if (event.key === "Escape") {
+      close(true);
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const items = links();
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (!first || !last) return;
+    const inside = sheet.contains(document.activeElement);
+    if (event.shiftKey && (!inside || document.activeElement === first)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (!inside || document.activeElement === last)) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 }
 

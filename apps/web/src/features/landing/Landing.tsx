@@ -74,7 +74,14 @@ export function Landing({ signedIn, className }: LandingProps) {
             )}
             <span className="top-ind" id="top-ind" aria-hidden="true" />
           </nav>
-          <button className="top-menu" type="button" id="menu-btn" aria-haspopup="dialog">
+          <button
+            className="top-menu"
+            type="button"
+            id="menu-btn"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="sheet"
+          >
             Menu
           </button>
           <Link className="top-cta" href={primary.href}>
