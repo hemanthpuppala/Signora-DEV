@@ -1,45 +1,41 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, type FormEvent } from "react";
 
-import { AuthPanel } from "@/shared/ui";
+import { AuthPanel, Button } from "@/shared/ui";
 
-import { openLink, type Opened } from "./api";
+import { openLink } from "./api";
 import { SignerProblem } from "./SignerNotices";
 
-// One exchange per token per page load: effects can run twice (strict mode, a remount), and the
-// second run must reuse the first answer, not open again.
-const exchanges = new Map<string, Promise<Opened>>();
-
 /**
- * `/s/{token}` (Phase 8 §1.1): a deliberate request, so a mail scanner that only loads the page
- * opens nothing; then the clean address `/sign/{recipient}`, so the token leaves the address bar
- * and the history.
+ * `/s/{token}` (Phase 8 §1.1): the link is opened by the person's own press, never by the page
+ * loading. Link-safety services fetch every link in an email and many run its script in a
+ * headless browser, but none presses a button, so a scan opens no session, records no "opened"
+ * and sends no email code. Then the clean address `/sign/{recipient}`, so the token leaves the
+ * address bar and the history.
  */
 export function OpenLink({ token }: { token: string }) {
   const router = useRouter();
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  useEffect(() => {
-    let exchange = exchanges.get(token);
-    if (!exchange) {
-      exchange = openLink(token);
-      exchanges.set(token, exchange);
-    }
-    exchange.then(
+
+  function open(event: FormEvent) {
+    event.preventDefault();
+    if (opening) return;
+    setOpening(true);
+    openLink(token).then(
       (opened) => router.replace(`/sign/${opened.recipient_id}`),
       (failure: unknown) => setError(failure),
     );
-  }, [router, token]);
+  }
+
   if (error) return <SignerProblem error={error} />;
   return (
-    <AuthPanel eyebrow="Signing" heading="Opening your document…">
-      {null}
+    <AuthPanel eyebrow="Signing" heading="You have a document to review" onSubmit={open}>
+      <Button type="submit" disabled={opening}>
+        {opening ? "Opening…" : "Review document"}
+      </Button>
     </AuthPanel>
   );
-}
-
-/** Tests only. */
-export function forgetExchangesForTests(): void {
-  exchanges.clear();
 }

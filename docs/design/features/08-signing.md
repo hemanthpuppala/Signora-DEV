@@ -46,9 +46,11 @@ who sees what (Phase 7 §3).
    resources. It posts the token to `POST /api/v1/sign/open` and, on success, replaces the address with
    `/sign/{recipient_id}`. The token then stays out of the address bar, the history, bookmarks and any `Referer`.
    The API receives it in a request body, never in a URL, so no access log holds it.
-2. **Opening is a deliberate request, not a page load.** The exchange is a `POST` made by the page's script. Mail
-   scanners that fetch every link in a message (link-safety services) load the page but run no script, so they never
-   open a session and never mark a person as having opened their email.
+2. **Opening is the person's own press, not a page load.** The page shows "You have a document to review" and one
+   button, Review document; pressing it makes the exchange (`POST`). Link-safety services fetch every link in a
+   message, and many run the page's script in a headless browser, but none presses a button: a scan opens no
+   session, records no "opened" and sends no email code. (Revised in review, R3: an exchange on page load was made by
+   scanners that run scripts.)
 3. **The link is the same until it closes.** Opening it again, Copy signing link and Send again give the same link
    (Phase 7, ADR-E1). A link closes when the envelope is completed, declined, cancelled or expired, or when that
    person's email is changed (the link version moves on). Several tabs and devices may hold sessions at once.
@@ -153,7 +155,7 @@ its primary key, the recipient and the envelope by theirs.
 
 | Case | Behaviour |
 |---|---|
-| A mail scanner fetches the link | Loads the page, runs no script: no session, nothing recorded (1.1.2) |
+| A mail scanner fetches the link | Loads the page, and may run its script, but presses nothing: no session, nothing recorded, no code sent (1.1.2) |
 | The link opened twice, or in two tabs at once | One grant per browser session, one `opened` event (1.6) |
 | Two people's links in one browser | Two grants; each tab acts for the person in its path (1.1.4) |
 | The person's email is changed while their page is open | The next request fails check 3: closed page. The new link works |
@@ -1025,3 +1027,4 @@ Findings from the review of the Phase 8 pull request, each fixed at its cause wi
 |---|---|---|---|
 | R1 | With no signer, the countersigners' turn never came: the envelope was written `sent`, and every countersigner check (routes, inbox, completion) needs `signed` | `signed` means every signer has signed, which holds from the start when there is none: the send writes the envelope `signed` when the countersigners go first (`envelopes/store.write_send`, from `Plan.first`) | `test_countersign.py::test_with_no_signer_the_countersigners_sign_at_once_and_the_envelope_completes` |
 | R2 | Sign and submit did not wait for drafts: a value typed within the 0.8 s pause, or a save still on its way, could reach the server after the submit read the values | Before a submit the screen saves every waiting draft at once and waits for every save on its way; a field's saves run one after another so the last value given is the one kept; a refused save points the guide at its field and nothing is submitted (`SigningScreen.flushDrafts`) | `screen.test.tsx`: submits only once every draft is on the server |
+| R3 | The link was exchanged as the page loaded, so a link-safety service that runs the page's script opened a session, recorded "opened" and sent an email code | The link page waits for the person's press of Review document before the exchange (§1.1.2) | `signing.test.tsx`: opens nothing until the person presses Review document |

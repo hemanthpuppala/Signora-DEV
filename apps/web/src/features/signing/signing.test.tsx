@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeQueryClient } from "@/shared/api/QueryProvider";
 
-import { forgetExchangesForTests, OpenLink } from "./OpenLink";
+import { OpenLink } from "./OpenLink";
 import { SignerPage } from "./SignerPage";
 
 vi.mock("pdfjs-dist", () => ({
@@ -79,15 +79,20 @@ describe("opening a signing link", () => {
     vi.unstubAllGlobals();
     fetchMock.mockReset();
     replace.mockReset();
-    forgetExchangesForTests();
   });
 
-  it("exchanges the token once and moves to the clean address", async () => {
+  it("opens nothing until the person presses Review document: a scanner running the page opens nothing", async () => {
     fetchMock.mockImplementation(() => reply(200, { recipient_id: RECIPIENT, next: "verify" }));
     show(<OpenLink token="tok-1" />);
+    const user = userEvent.setup();
+    const review = await screen.findByRole("button", { name: "Review document" });
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(fetchMock).not.toHaveBeenCalled(); // the page loaded and its script ran: no exchange
+
+    await user.dblClick(review);
 
     await vi.waitFor(() => expect(replace).toHaveBeenCalledWith(`/sign/${RECIPIENT}`));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // once, however often it is pressed
     const request = fetchMock.mock.calls[0]?.[0] as Request;
     expect(request.method).toBe("POST");
     expect(await request.json()).toEqual({ token: "tok-1" });
@@ -98,6 +103,7 @@ describe("opening a signing link", () => {
       reply(404, problem(404, "link-closed", "This request is no longer open")),
     );
     show(<OpenLink token="tok-2" />);
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Review document" }));
 
     expect(await screen.findByText("This request is no longer open.")).toBeTruthy();
     expect(screen.getByText("Nothing more is needed from you.")).toBeTruthy();
