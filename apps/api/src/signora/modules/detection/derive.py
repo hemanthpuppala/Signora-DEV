@@ -579,6 +579,12 @@ def _room_to_sign(items: dict[str, _Item], space: DocumentSpace) -> None:
                 )
 
 
+def _reading_order(items: dict[str, _Item]) -> list[_Item]:
+    """The fields in reading order, ties kept as answered: the one order keys are made in, so
+    a value's first field (``_same_values``) is always keyed before its other places."""
+    return sorted(items.values(), key=lambda item: item.order)
+
+
 def _same_values(answer: dict[str, Any], items: dict[str, _Item], notes: list[str]) -> None:
     """Fields the AI marks as one value (F11) become one key: each mark that holds (the same
     party's, the same kind, as stored) joins its two fields; a group's earliest field gives the
@@ -605,12 +611,13 @@ def _same_values(answer: dict[str, Any], items: dict[str, _Item], notes: list[st
             notes.append(f"{item['id']}: kept apart from {same}: not the same value ({why})")
             continue
         parent[root(item["id"])] = root(same)
+    rank = {id(item): n for n, item in enumerate(_reading_order(items))}
     groups: dict[str, list[_Item]] = {}
     for field_id in parent:
         groups.setdefault(root(field_id), []).append(items[field_id])
     for field_id, members in groups.items():
         everyone = {id(item): item for item in [items[field_id], *members]}.values()
-        first = min(everyone, key=lambda item: item.order)
+        first = min(everyone, key=lambda item: rank[id(item)])  # as _keyed will key them
         for item in everyone:
             if item is not first:
                 item.same = first
@@ -630,7 +637,7 @@ def _option_value(item: _Item, placement: PlacementOut) -> str:
 
 def _keyed(items: dict[str, _Item]) -> list[FieldOut]:
     """One field per key, in reading order: shared values and checkbox groups merged (§4.3)."""
-    ordered = sorted(items.values(), key=lambda item: item.order)
+    ordered = _reading_order(items)
     key_of: dict[int, str] = {}
     taken: set[str] = set()
     shared: dict[str, str] = {}  # (role, holds) -> key for values given once

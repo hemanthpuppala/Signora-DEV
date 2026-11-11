@@ -113,3 +113,33 @@ def test_marks_that_loop_are_one_value_once() -> None:
     problems, result = _run(_answer(ids, {ids[1]: ids[3], ids[3]: ids[1]}))
     assert sum(1 for field in result.fields if field.holds == "address") == 2  # f2+f4, and f6
     assert problems == []
+
+
+def test_two_same_value_fields_at_one_position_are_keyed_without_error() -> None:
+    """Review #6: two fields at the same position (duplicate widgets) made the group's first
+    field and the key order disagree, and keying raised KeyError."""
+    from signora.modules.detection.derive import PlacementOut, _Item, _keyed, _same_values
+
+    def item(field_id: str) -> _Item:
+        place = PlacementOut(page=1, rect=(10, 10, 100, 20), kind="text")
+        return _Item(
+            ids=[field_id],
+            label="Address",
+            holds="address",
+            filled_by="party_1",
+            required=True,
+            placements=[place],
+            order=(1, 10.0, 10.0),
+            review=[],
+        )
+
+    items = {"f1": item("f1"), "f2": item("f2")}
+    answer = {
+        "fields": [
+            {"id": "f1", "filled_by": "party_1", "holds": "address", "same_as": "f2"},
+            {"id": "f2", "filled_by": "party_1", "holds": "address", "same_as": None},
+        ]
+    }
+    _same_values(answer, items, [])
+    (field,) = _keyed(items)
+    assert field.ids == ["f1", "f2"] and len(field.placements) == 2
