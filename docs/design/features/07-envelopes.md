@@ -268,6 +268,8 @@ envelope_values
 - The same email on two parties is refused unless they are the same person by intent: one person holding two
   parties is allowed only when `confirm_same_person` lists both (§15 open question; default refuse).
 - Countersigners: every countersigner party exactly once; an active member of the company.
+- Somebody signs: a version with no party at all is refused (`409 nobody-signs`). With no signer, the
+  countersigners are the first to be emailed.
 - Copies: name 1–120 after trimming; email valid.
 - Values: optional for every field, except as §15.2 decides for required "Filled in before sending" fields;
   signature, initials and signing dates refused; each value valid for its type (§11.3); unknown fields refused.
@@ -426,6 +428,7 @@ Decided by the owner's "complete everything, follow industry practice" (2026-11-
 | 7.14 | Owner review of the send (2026-11-09): Details as titled blocks; the step dialog's progress as a track; a date split into boxes | done | Details: the shared `Blocks`/`Block` panel, yours first ("Filled in by you", "Required to send" said once), then each party, one field a line (1eb296c). Progress: one hairline track, a stop per step, filled when done (said "done" to screen readers), haloed when current (177904d). Date parts: the AI and manual type lists gain `day`, `month`, `year` (a date the form splits into "__ day of ____, 20__" boxes; the AI told when to use them); `check_value` takes a day 1 to 31, a month by number or name (stored as the name), a year of four digits or two (where the form prints "20"); the send asks a day or year as a number and the month from a list of names. Versions approved before keep their three `date` fields (approved versions are frozen): detect again or make a new version to get the parts. Tests: `test_formats.py`, `FieldInput.test.tsx`. Dropdowns: the shared `Select` opens its list in the top layer (a manual popover placed at the trigger, upward when there is no room below, following scrolls), so a dialog's scrolling body no longer clips it; checked in headless Chromium inside a 90px clipping box |
 | 7.15 | Emails give dates in the sender's time zone (§5), with the fixes from the pull request's review | done | `envelopes.time_zone` (0022, kept as sent); `SendRequest.time_zone` (an unknown name takes UTC, the send goes on); `emails._zone` ("PST", or "UTC-3" where the zone has no letters). Tests: `test_emails.py`, `test_send.py` |
 | 7.16 | Fixes from the review of the pull request (§17) | done | §17, each with its test |
+| 7.17 | Fixes from the second review of the pull request (§18) | done | §18, each with its test |
 
 ## 17. Review of the pull request (2026-11-10)
 
@@ -449,6 +452,31 @@ Not changed:
 
 - A recipient's email wider than its Email box is never a reason to refuse a send: the person must still be reached.
   The preview squeezes it into the box (Phase 7b).
-- A version with no signer can still be sent: review warns, the send says so, and neither blocks.
+- A version with no signer can still be sent: review warns and the send says so. (Revised in §18.9: its
+  countersigners then go first, and a version nobody signs at all is not sent.)
 - A version approved before 17.4 keeps a condition that someone else answers; a new version is needed to change it.
 - An approval still reads the PDF's sizes under the version's lock and the PDF library's. Not measured on a large PDF.
+
+## 18. Second review of the pull request (2026-11-11)
+
+Ten findings, posted on the pull request as comments on their lines. Each was reproduced before it was changed, by a
+test that fails on the code as it was or by a measurement.
+
+| # | Problem | Change | Evidence |
+|---|---|---|---|
+| 18.1 | A dropdown reached the send form with no options (it is one place carrying them), so it could not be filled in and a template with a required one could not be sent | One reading of a choice, `review.values.choice_options`, for a Save's check and the send form. A dropdown's box is where its value is written: checked for fit, drawn in the preview, its text size measured (`sending.written_in`, `typeset.writtenIn`) | `test_send.py` (a dropdown, end to end), `typeset.test.ts` |
+| 18.2 | The countersigner list came from the members directory, which someone who sends through a department grant may not read | The send form lists who may countersign, from the function the send checks them against | `test_send_form.py` |
+| 18.3 | The preview drew the signer's whole name in a First name and a Last name box | Each box shows its part (`typeset.namePart`, `sending.split_name`; shared examples `vectors/names.json`) | `test_sending.py`, `typeset.test.ts` |
+| 18.4 | The address of someone who receives a copy could not be corrected: actions showed only for whoever holds a link | Their row has the pencil while the envelope is open | `envelopes.test.tsx` |
+| 18.5 | A refused send's errors stayed on their fields after they were put right; one on a notify address showed nowhere | Each stands until its item is changed; a notify address's is said beside the addresses | `send.test.tsx` (two tests) |
+| 18.6 | A corrected email was not checked against the other parties | Refused as a send refuses it (`409 same-person`), with the same confirmation | `test_follow.py`, `envelopes.test.tsx` |
+| 18.7 | "Copy link" wrote the clipboard after the request answered, which a browser may refuse, leaving a timeline entry for a link not copied | Written inside the click, as a promise of the link; shown to copy by hand if the clipboard refuses, and asked for once | `envelopes.test.tsx` |
+| 18.8 | The default list read and sorted every envelope of a department for each page (the index is by state) | The page is picked first, then joined; migration `0024` adds the index (workspace, department, sent_at, id) | `test_list.py` (the plan reads 51 rows; it read 1 001) |
+| 18.9 | With no signer the countersigners waited for nobody, for ever | Whose turn it is at send is one rule (`Plan.first`): the signers', or with none the countersigners', who are emailed. A version with no party at all is refused, and the send offers to edit the template. Review still only warns | `test_send.py` (two tests), `send.test.tsx` |
+| 18.10 | The rule for which fields are asked is written on both sides with no examples in common | Both run `vectors/conditions.json` | `test_sending.py`, `conditions.test.ts` |
+
+Rules written twice. The send modal shows, hides, measures and previews as a person types, so it holds a copy of five
+of the server's rules: how a date is written, how a number is kept, which fields are asked, how a name is cut, and
+where a value is written as text. Python and TypeScript cannot share the code, so each rule has one set of examples in
+`packages/contracts/vectors` that both run (the first four) or a test on each side (the last). The server's is the one
+that counts: a send is always judged by it.
