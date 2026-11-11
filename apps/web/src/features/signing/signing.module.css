@@ -1,0 +1,192 @@
+/* The signer's screen (Phase 8 §4): a pinned bar, the document, then the Submit block. */
+.screen {
+  min-height: 100dvh;
+  background: var(--bg);
+  --pdf-viewer-height: calc(100dvh - 120px);
+}
+
+.loading {
+  padding: 32px 16px;
+  color: var(--t60);
+}
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--r25);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.company {
+  font: 400 10px/1.4 var(--sans);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--t55);
+}
+
+.title {
+  font-family: var(--serif);
+  font-size: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.count {
+  font: 400 12px/1 var(--mono);
+  color: var(--t75);
+}
+
+/* A box over the page. */
+.box {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 1px dashed transparent;
+  background: transparent;
+  cursor: pointer;
+  min-width: 12px;
+  min-height: 12px;
+}
+
+/* Theirs to fill: a soft tint; filled: only a hairline; the one pointed at: a firmer line. */
+.todo {
+  background: rgba(100, 168, 255, 0.16);
+  border-color: rgba(100, 168, 255, 0.7);
+}
+
+.filled {
+  border-color: rgba(100, 168, 255, 0.35);
+}
+
+.current {
+  border-style: solid;
+  border-color: var(--st-sent);
+}
+
+.box:focus-visible {
+  outline: 2px solid var(--st-sent);
+  outline-offset: 2px;
+}
+
+.inPlace {
+  position: absolute;
+}
+
+.input {
+  position: static;
+  width: 100%;
+  height: 100%;
+  color: var(--paper-ink);
+  text-align: center;
+  line-height: 1;
+  cursor: text;
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--st-declined);
+}
+
+.boxError {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 2px;
+  padding: 2px 6px;
+  background: var(--st-declined);
+  color: #000;
+  font: 500 11px/1.3 var(--sans);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.sign {
+  font: 500 11px/1 var(--sans);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--paper-ink);
+}
+
+/* Someone else's: faint, named. */
+.faint,
+.auto {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  border: 1px dotted var(--paper-faint);
+  pointer-events: none;
+}
+
+.faintLabel {
+  padding: 0 3px;
+  font: 400 9px/1.4 var(--sans);
+  color: var(--paper-quiet);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.submit {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+  margin: 32px auto 64px;
+  padding: 0 16px;
+}
+
+.statement {
+  margin: 0;
+  color: var(--t75);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.missing {
+  margin: 0;
+  color: var(--t60);
+  font-size: 13px;
+}
+
+.beside {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 16px;
+  width: min(340px, calc(100vw - 32px));
+  border: 1px solid var(--r25);
+  background: var(--surface);
+  color: var(--ink);
+  overflow: auto;
+}
+
+.besideActions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.later {
+  max-width: 560px;
+  margin: 15vh auto;
+  padding: 0 16px;
+}
+
+.heading {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 32px;
+}

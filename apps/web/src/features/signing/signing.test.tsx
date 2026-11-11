@@ -8,6 +8,12 @@ import { makeQueryClient } from "@/shared/api/QueryProvider";
 import { forgetExchangesForTests, OpenLink } from "./OpenLink";
 import { SignerPage } from "./SignerPage";
 
+vi.mock("pdfjs-dist", () => ({
+  version: "6.4.299",
+  GlobalWorkerOptions: {},
+  getDocument: () => ({ promise: new Promise(() => {}), destroy: vi.fn() }),
+}));
+
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 
@@ -40,6 +46,14 @@ const SIGNER = {
       { title: "A paper copy", text: "You may ask for a paper copy at any time by writing to rosa@haleward.example." },
     ],
   },
+};
+
+const EMPTY_DOCUMENT = {
+  pages: [{ width: 612, height: 792 }],
+  parties: [],
+  fields: [],
+  font: { id: "liberation-sans", family: "Liberation Sans", url: "/api/v1/fonts/liberation-sans" },
+  fit: { min_size: 6, max_size: 12, baseline: 0.25, padding: 2 },
 };
 
 const problem = (status: number, code: string, title: string) => ({
@@ -100,6 +114,9 @@ describe("the signer's page", () => {
     let consented = false;
     fetchMock.mockImplementation(async (input) => {
       const request = input as Request;
+      const path = new URL(request.url).pathname;
+      if (path.endsWith("/document")) return reply(200, EMPTY_DOCUMENT);
+      if (path.endsWith("/viewed")) return reply(200, null);
       if (request.method === "POST") {
         expect(await request.json()).toEqual({ disclosure_version: "esign-disclosure-v1" });
         consented = true;
@@ -117,7 +134,8 @@ describe("the signer's page", () => {
     await user.click(screen.getByLabelText("I agree to use electronic records and signatures."));
     await user.click(proceed);
 
-    expect(await screen.findByText("Review and sign.")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Sign and submit" })).toBeTruthy(); // the document
+
   });
 
   it("names the sender and the step", async () => {
@@ -130,14 +148,14 @@ describe("the signer's page", () => {
         company: "Hale & Ward LLP",
         sender_name: "Rosa Hale",
         sender_email: "rosa@haleward.example",
-        next: "sign",
-        signed_at: null,
+        next: "done",
+        signed_at: "2026-11-11T09:14:22Z",
         disclosure: SIGNER.disclosure,
       }),
     );
     show(<SignerPage recipientId={RECIPIENT} />);
 
-    expect(await screen.findByText("Review and sign.")).toBeTruthy();
+    expect(await screen.findByText("Signed.")).toBeTruthy();
     expect(screen.getByText("Rosa Hale sent you this to review and sign.")).toBeTruthy();
   });
 

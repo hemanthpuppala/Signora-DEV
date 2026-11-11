@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { cx } from "@/shared/lib/cx";
 import { useTopLayer } from "@/shared/lib/topLayer";
+import { useAnchored } from "@/shared/lib/useAnchored";
 
 import fieldStyles from "./field.module.css";
 import styles from "./select.module.css";
@@ -68,7 +69,6 @@ export function Select({
   const optionsRef = useRef<HTMLUListElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState<CSSProperties>({});
   const canPop = useTopLayer();
   const selectedIndex = options.findIndex((option) => option.value === value);
   // What the list shows: every option, or those matching the search (by label or hint).
@@ -87,43 +87,7 @@ export function Select({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
-  useLayoutEffect(() => {
-    const list = listRef.current;
-    if (!open || !list) return undefined;
-    if (canPop && !list.matches(":popover-open")) list.showPopover();
-    const follow = () => {
-      const trigger = triggerRef.current;
-      if (!trigger) return;
-      const at = trigger.getBoundingClientRect();
-      const gap = 6;
-      const edge = 16;
-      // What can be seen: less than the window while a phone's keyboard is up.
-      const view = window.visualViewport;
-      const top = view?.offsetTop ?? 0;
-      const bottom = top + (view?.height ?? window.innerHeight);
-      const below = bottom - at.bottom - gap - edge;
-      const above = at.top - top - gap - edge;
-      const wanted = Math.min(list.scrollHeight, LIST_MAX_HEIGHT);
-      const up = below < wanted && above > below;
-      const width = Math.max(at.width, list.offsetWidth);
-      setPlace({
-        left: Math.max(edge, Math.min(at.left, window.innerWidth - width - edge)),
-        minWidth: at.width,
-        maxHeight: Math.max(120, Math.min(LIST_MAX_HEIGHT, up ? above : below)),
-        ...(up ? { bottom: window.innerHeight - at.top + gap } : { top: at.bottom + gap }),
-      });
-    };
-    follow();
-    window.addEventListener("scroll", follow, true);
-    window.addEventListener("resize", follow);
-    window.visualViewport?.addEventListener("resize", follow);
-    return () => {
-      window.removeEventListener("scroll", follow, true);
-      window.removeEventListener("resize", follow);
-      window.visualViewport?.removeEventListener("resize", follow);
-      if (canPop && list.matches(":popover-open")) list.hidePopover();
-    };
-  }, [open, canPop]);
+  const place = useAnchored(open, triggerRef, listRef, { canPop, maxHeight: LIST_MAX_HEIGHT });
 
   useEffect(() => {
     if (open && searchable && !touchFirst()) searchRef.current?.focus();

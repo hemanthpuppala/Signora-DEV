@@ -27,7 +27,9 @@ export {
   type Status,
   type TabItem,
 } from "./Display";
+export { Calendar, DatePicker, dateInWords, type DatePickerProps } from "./DatePicker";
 export { Dialog } from "./Dialog";
+export { GuidePointer } from "./GuidePointer";
 export { StepDialog } from "./StepDialog";
 export { Dropzone } from "./Dropzone";
 export { ExpandableList, ExpandableRow } from "./Expandable";

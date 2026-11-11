@@ -1,0 +1,114 @@
+/* The design system's date picker (Phase 8 §5.6): a field that opens a calendar. */
+.box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.box input {
+  padding-right: 40px;
+}
+
+.open {
+  position: absolute;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 0;
+  color: var(--t75);
+  cursor: pointer;
+}
+
+.open:hover,
+.open:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+
+.popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--r25);
+  background: var(--surface);
+  color: var(--ink);
+  overflow: auto;
+}
+
+.calendar {
+  width: 280px;
+  max-width: 100%;
+}
+
+.head {
+  display: grid;
+  grid-template-columns: 32px 1fr 96px 32px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.month {
+  font-family: var(--serif);
+  font-size: 18px;
+  text-align: center;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid var(--r25);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.weekday {
+  font: 400 10px/2 var(--sans);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--t55);
+}
+
+.day {
+  height: 36px;
+  min-width: 36px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink);
+  font: 300 14px/1 var(--sans);
+  cursor: pointer;
+}
+
+.day:hover,
+.day:focus-visible {
+  outline: none;
+  border-color: var(--r40);
+}
+
+.day[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.day[data-today="true"] {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.outside {
+  visibility: hidden;
+}

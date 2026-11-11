@@ -1,6 +1,6 @@
 "use client";
 
-import { Checkbox, Select, SmallText, TextArea, TextField } from "@/shared/ui";
+import { Checkbox, DatePicker, Select, SmallText, TextArea, TextField } from "@/shared/ui";
 
 import styles from "./document.module.css";
 import type { InputField } from "./types";
@@ -15,9 +15,6 @@ function inputType(holds: InputField["holds"]): string {
       return "tel";
     case "url":
       return "url";
-    case "date":
-    case "date_of_birth":
-      return "date";
     default:
       return "text";
   }
@@ -37,6 +34,7 @@ export function FieldInput({
   error,
   markRequired = false,
   onBlur,
+  inlineDate = false,
 }: {
   field: InputField;
   /** Say "Required" under this field: when its group's note does not already say so. */
@@ -46,6 +44,8 @@ export function FieldInput({
   error?: string | undefined;
   /** The person left the box: what it holds can be judged now, not while they type. */
   onBlur?: () => void;
+  /** A whole date as a calendar shown in place (a phone's bottom sheet), not opened from a field. */
+  inlineDate?: boolean;
 }) {
   const label = field.holds === "other" && field.holds_label ? `${field.label} (${field.holds_label})` : field.label;
   const hint = markRequired && field.required ? { hint: "Required" } : {};
@@ -87,6 +87,10 @@ export function FieldInput({
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
       </div>
     );
+  }
+  if (field.holds === "date" || field.holds === "date_of_birth") {
+    // A whole date: the design system's calendar (Phase 8 §5.6), kept as YYYY-MM-DD.
+    return <DatePicker label={label} {...hint} value={value} onChange={onChange} error={error} inline={inlineDate} />;
   }
   if (field.holds === "note") {
     return <TextArea label={label} {...hint} maxLength={2000} value={value} error={error} onChange={(event) => onChange(event.target.value)} />;

@@ -24,6 +24,13 @@ const SHAPES = {
   right: <path d="M5 12h14M13.5 6.5 19 12l-5.5 5.5" />,
   chevron: <path d="m9 6 6 6-6 6" />, // points right; turned to point down when open
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  // A calendar: choose a date.
+  calendar: (
+    <>
+      <path d="M4.5 6.5h15v13h-15Z" />
+      <path d="M4.5 10.5h15M8.5 4v4M15.5 4v4" />
+    </>
+  ),
   // A bell: remind the people who still have to sign.
   bell: (
     <>

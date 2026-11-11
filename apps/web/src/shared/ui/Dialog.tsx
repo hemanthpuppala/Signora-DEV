@@ -13,11 +13,14 @@ export function Dialog({
   children,
   actions,
   onClose,
+  placement = "center",
 }: {
   title: string;
   children: ReactNode;
   actions: ReactNode;
   onClose: () => void;
+  /** "bottom": a sheet along the bottom of a phone's screen (Phase 8 §4.4). */
+  placement?: "center" | "bottom";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -35,7 +38,7 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className={styles.dialog}
+      className={placement === "bottom" ? `${styles.dialog} ${styles.sheet}` : styles.dialog}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
