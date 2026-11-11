@@ -50,11 +50,14 @@ def write_send(
         text(
             "INSERT INTO envelopes (workspace_id, department_id, document_id, version_id, title, "
             "require_email_code, reminder_interval_hours, max_reminders, expires_at, "
-            "notify_emails, sent_by, font, time_zone) VALUES (:w, :dep, :doc, :v, :title, :code, "
-            ":every, :max, now() + make_interval(days => :days), :notify, :by, :font, :zone) "
-            "RETURNING id, expires_at"
+            "notify_emails, sent_by, font, time_zone, status) VALUES (:w, :dep, :doc, :v, "
+            ":title, :code, :every, :max, now() + make_interval(days => :days), :notify, :by, "
+            ":font, :zone, :status) RETURNING id, expires_at"
         ),
         {
+            # ``signed`` is "every signer has signed", the countersigners' turn: with no signer
+            # that holds from the start, and their turn begins at once.
+            "status": "sent" if plan.first == "signer" else "signed",
             "w": workspace_id,
             "dep": department_id,
             "doc": document_id,

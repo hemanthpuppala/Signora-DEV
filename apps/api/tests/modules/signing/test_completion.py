@@ -19,9 +19,8 @@ from signora.kernel.db import Database
 from signora.kernel.jobs import JobContext
 from signora.modules.notifications.service import make_deliver
 from signora.modules.notifications.transports import OutgoingEmail
-from signora.modules.signing import completion
 from tests.modules.identity_access.conftest import Account, idempotency_key
-from tests.modules.signing.conftest import Sent, signable_envelope
+from tests.modules.signing.conftest import Sent, run_completion, signable_envelope
 from tests.modules.signing.test_consent import NO_CODE
 from tests.modules.signing.test_countersign import _as, _signers_done
 from tests.modules.signing.test_open import ENVELOPES, SIGN
@@ -49,20 +48,6 @@ def _countersign(owner: TestClient, sent: Sent) -> None:
     assert done.status_code == 200, done.text
 
 
-def _run_completion(db: Database, envelope_id: str, store: LocalBlobStore) -> None:
-    with db.unit_of_work() as uow:
-        job = uow.session.execute(
-            text(
-                "UPDATE jobs SET status = 'running', attempts = attempts + 1 "
-                "WHERE dedupe_key = :k RETURNING id, attempts"
-            ),
-            {"k": f"{completion.COMPLETE}:{envelope_id}"},
-        ).one()
-    payload = {"envelope_id": envelope_id}
-    context = JobContext(job.id, completion.COMPLETE, payload, {}, job.attempts, db)
-    completion.complete(context, store=store)
-
-
 class Outbox:
     def __init__(self) -> None:
         self.name = "fake"
@@ -87,8 +72,8 @@ def test_the_last_countersignature_completes_the_envelope_and_everyone_gets_both
     _countersign(owner, sent)
 
     store = LocalBlobStore(settings.blob_store.dir)
-    _run_completion(committing_db, sent.id, store)
-    _run_completion(committing_db, sent.id, store)  # a retry after success changes nothing
+    run_completion(committing_db, sent.id, store)
+    run_completion(committing_db, sent.id, store)  # a retry after success changes nothing
 
     envelope = owner.get(f"{ENVELOPES}/{sent.id}").json()
     assert envelope["status"] == "completed"
@@ -164,7 +149,7 @@ def test_the_sender_downloads_the_document_its_certificate_or_both(
     assert owner.get(f"{ENVELOPES}/{sent.id}/download").status_code == 409  # not completed yet
     _signers_done(browser, sent)
     _countersign(owner, sent)
-    _run_completion(committing_db, sent.id, LocalBlobStore(settings.blob_store.dir))
+    run_completion(committing_db, sent.id, LocalBlobStore(settings.blob_store.dir))
 
     # The colleague who countersigned keeps their page: done, completed, and the copy to download.
     firm = str(sent.recipient("countersigner")["id"])

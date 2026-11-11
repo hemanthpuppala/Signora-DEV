@@ -10,7 +10,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
+from signora.kernel.blobstore import LocalBlobStore
+from signora.kernel.db import Database
+from signora.kernel.jobs import JobContext
+from signora.modules.signing import completion
 from tests.modules.detection.conftest import detect  # noqa: F401 - fixtures by name
 from tests.modules.documents.conftest import (  # noqa: F401 - fixtures by name
     approved,
@@ -92,3 +97,18 @@ def signable_envelope(
     response = send(api, doc, request_for(api, doc, colleague, **override))
     assert response.status_code == 201, response.text
     return Sent(doc, response.json())
+
+
+def run_completion(db: Database, envelope_id: str, store: LocalBlobStore) -> None:
+    """The completion job queued by the last countersignature, run here as the worker would."""
+    with db.unit_of_work() as uow:
+        job = uow.session.execute(
+            text(
+                "UPDATE jobs SET status = 'running', attempts = attempts + 1 "
+                "WHERE dedupe_key = :k RETURNING id, attempts"
+            ),
+            {"k": f"{completion.COMPLETE}:{envelope_id}"},
+        ).one()
+    payload = {"envelope_id": envelope_id}
+    context = JobContext(job.id, completion.COMPLETE, payload, {}, job.attempts, db)
+    completion.complete(context, store=store)

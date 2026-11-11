@@ -10,10 +10,13 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
+from signora.kernel.blobstore import LocalBlobStore
+from signora.kernel.config import Settings
 from signora.kernel.db import Database
 from tests.modules.documents.conftest import csrf_headers
+from tests.modules.envelopes.test_send import SETTINGS, _without_signers, send
 from tests.modules.identity_access.conftest import Account, idempotency_key
-from tests.modules.signing.conftest import Sent, signable_envelope
+from tests.modules.signing.conftest import Sent, run_completion, signable_envelope
 from tests.modules.signing.test_consent import NO_CODE
 from tests.modules.signing.test_document import _ready
 from tests.modules.signing.test_open import SIGN
@@ -144,3 +147,47 @@ def test_a_countersigner_must_be_signed_in_and_send_the_csrf_token(
         f"{SIGN}/{firm}/consent", json={"disclosure_version": "esign-disclosure-v1"}
     )
     assert forged.status_code == 403  # no CSRF token
+
+
+def test_with_no_signer_the_countersigners_sign_at_once_and_the_envelope_completes(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+    settings: Settings,
+) -> None:
+    """Every signer has signed holds from the start when there is none: the countersigners' turn
+    begins at send, and their signature completes the envelope."""
+    doc, party = _without_signers(owner, run, detect, firm=True)
+    assert party is not None
+    sent = send(
+        owner,
+        doc,
+        {
+            "version_id": doc.version_id,
+            "signers": [],
+            "countersigners": [{"party_id": party["id"], "user_id": str(company.user_id)}],
+            "settings": SETTINGS,
+        },
+    )
+    assert sent.status_code == 201, sent.text
+    envelope_id = sent.json()["id"]
+    assert sent.json()["status"] == "signed"
+    (firm,) = (r["id"] for r in sent.json()["recipients"])
+
+    assert owner.get(f"{SIGN}/{firm}").json()["next"] == "consent"
+    assert owner.get(f"{ME}/count").json() == {"count": 1}
+    _as(owner, "POST", f"{SIGN}/{firm}/consent", json={"disclosure_version": "esign-disclosure-v1"})
+    _as(
+        owner,
+        "PUT",
+        f"{SIGN}/{firm}/signature/signature",
+        json={"method": "drawn", "strokes": STROKE},
+    )
+    _as(owner, "POST", f"{SIGN}/{firm}/apply-all/signature")
+    done = _as(owner, "POST", f"{SIGN}/{firm}/submit", headers=idempotency_key())
+    assert done.status_code == 200, done.text
+
+    run_completion(committing_db, envelope_id, LocalBlobStore(settings.blob_store.dir))
+    assert owner.get(f"/api/v1/envelopes/{envelope_id}").json()["status"] == "completed"
