@@ -18,8 +18,9 @@ judged whole. Lines that are not blanks:
   line is a blank whatever its length ("Address: ____" across the page);
 - a line whose end meets a vertical line (a table's or a box's border; captioned boxes are
   topic 8's);
-- in the top or bottom margin, a line with no label printed to its left on its row (a header or
-  footer rule; initials in a footer, "Initials: ____", have their label and are kept);
+- in the top or bottom margin, a line with no label (a header or footer rule; initials in a
+  footer, "Initials: ____", have their label and are kept). A label is printed to the line's left
+  on its row, or on the line itself ending with a colon ("Initials:" underlined with its blank);
 - a line under a form field or under a blank already found in the text.
 
 Everything is in the page's own (unrotated) space, as its text and drawings are. One pass over a
@@ -32,7 +33,7 @@ from collections.abc import Iterable
 
 import pymupdf
 
-from signora.modules.detection.geometry import Box, RowIndex
+from signora.modules.detection.geometry import Box, RowIndex, center
 from signora.modules.detection.writing_space import visible
 
 THICKNESS_MAX = 2.0  # points: a drawn line or bar no thicker than this
@@ -113,16 +114,16 @@ def _inked(drawing: dict[str, object]) -> bool:
     return False
 
 
-def _written(page: pymupdf.Page) -> list[Box]:
-    """Every visible character on the page, by its own box."""
-    boxes: list[Box] = []
+def _written(page: pymupdf.Page) -> list[tuple[Box, str]]:
+    """Every visible character on the page, with its own box."""
+    chars: list[tuple[Box, str]] = []
     for block in page.get_text("rawdict")["blocks"]:
         for line in block.get("lines", []):
             for span in line["spans"]:
                 for char in span["chars"]:
                     if visible(char["c"]):
-                        boxes.append(tuple(char["bbox"]))
-    return boxes
+                        chars.append((tuple(char["bbox"]), char["c"]))
+    return chars
 
 
 def _on_row(box: Box, y: float) -> bool:
@@ -134,16 +135,24 @@ def _meets(uprights: Iterable[Upright], x: float, y: float) -> bool:
     return any(abs(ux - x) <= TOUCH and y0 - TOUCH <= y <= y1 + TOUCH for ux, y0, y1 in uprights)
 
 
-def _labelled(line: Line, written: RowIndex[None]) -> bool:
-    """Whether something is printed just left of the line on its row (its label)."""
+def _labelled(line: Line, written: RowIndex[str]) -> bool:
+    """Whether the line has its label: printed just left of it on its row, or printed on it and
+    ending with a colon ("Initials:␣␣␣" underlined in one go). A heading's words on a rule do not
+    end with one ("Section 1: Vehicle Information"), so it stays a separator."""
     x0, _, y = line
-    return any(
-        _on_row(box, y) and x0 - LABEL_REACH <= box[2] <= x0 + 1
-        for box, _ in written.near(y - TEXT_ABOVE, y + 1)
-    )
+    near = [(box, char) for box, char in written.near(y - TEXT_ABOVE, y + 1) if _on_row(box, y)]
+    if any(x0 - LABEL_REACH <= box[2] <= x0 + 1 for box, _ in near):
+        return True
+    # On the line: the label is what is printed before its first empty stretch, and it ends
+    # with a colon ("Section 1: Vehicle Information" on a heading's bar does not).
+    stretches = _empty_stretches(line, written)
+    if not stretches:
+        return False
+    before = [(box, char) for box, char in near if x0 <= center(box)[0] <= stretches[0][0] + 1]
+    return bool(before) and max(before, key=lambda item: item[0][2])[1] == ":"
 
 
-def _empty_stretches(line: Line, written: RowIndex[None]) -> list[tuple[float, float]]:
+def _empty_stretches(line: Line, written: RowIndex[str]) -> list[tuple[float, float]]:
     """The parts of a line with no visible character written on it, at least ``LENGTH_MIN``."""
     x0, x1, y = line
     taken = sorted(
@@ -180,8 +189,9 @@ def drawn_blanks(page: pymupdf.Page, taken: Iterable[Box]) -> list[Box]:
     across, down = _lines(page)
     if not across:
         return []
-    written_boxes = _written(page)
-    written: RowIndex[None] = RowIndex((box, None) for box in written_boxes)
+    written_chars = _written(page)
+    written: RowIndex[str] = RowIndex(written_chars)
+    written_boxes = [box for box, _ in written_chars]
     found: RowIndex[None] = RowIndex((box, None) for box in taken)
     left = min((box[0] for box in written_boxes), default=0.0)
     right = max((box[2] for box in written_boxes), default=page.cropbox.width)

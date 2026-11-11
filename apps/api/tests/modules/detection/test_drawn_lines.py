@@ -179,3 +179,35 @@ def test_two_lines_of_a_row_at_slightly_different_heights_stay_two() -> None:
         lambda page: page.draw_line((380, 300.5), (530, 300.5), width=0.5),
     )
     assert len(_drawn(data)) == 2
+
+
+@pytest.mark.parametrize(
+    ("label", "y", "to_margin"),
+    [
+        pytest.param("Initials:", 762, False, id="footer-initials-underlined-with-label"),
+        pytest.param("Address:", 302, True, id="full-width-address-underlined-with-label"),
+    ],
+)
+def test_an_underline_that_starts_under_its_label_is_labelled_by_it(
+    label: str, y: float, to_margin: bool
+) -> None:
+    """Review #5: a label counted only when it ended left of the line, so a footer's "Initials:"
+    or a full-width "Address:" underlined together with its label was dropped as decoration."""
+    end = _end(PARAGRAPH) if to_margin else _end(label) + 60
+    (blank,) = _drawn(_page(_text(72, y - 2, label), _line(72, end, y)))
+    assert blank.label == label and blank.placements[0].rect[0] >= _end(label)
+
+
+def test_an_underlined_heading_across_the_text_is_still_a_separator() -> None:
+    """The heading's own words on a full-width rule do not make it a labelled blank."""
+    assert (
+        _drawn(_page(_text(72, 298, "SECTION 1. DEFINITIONS"), _line(72, _end(PARAGRAPH), 300)))
+        == []
+    )
+
+
+def test_a_heading_with_a_colon_on_a_bar_across_the_text_is_not_a_blank() -> None:
+    """A form's section bar, "Section 1: Vehicle Information": a colon inside the words, but the
+    words do not end with it, so it is no label of a blank."""
+    data = _page(_text(72, 298, "Section 1: Vehicle Information"), _bar(72, _end(PARAGRAPH), 300))
+    assert _drawn(data) == []
