@@ -18,6 +18,7 @@ from typing import Any, Literal
 import pymupdf
 from pydantic import BaseModel, ConfigDict
 
+from signora.modules.detection.form_fields import box_issues
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.page_text import UNDERSCORES
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
@@ -443,7 +444,7 @@ def derive(
                 label = found.label or found.id
         if label == found.id:  # nothing names it: neither the page nor the AI (F4)
             review.append("nothing on the page names it: check what it asks")
-        review += [issue for issue in found.issues if issue.startswith("page ")]  # its box (F4)
+        review += box_issues(found, reading.pages)  # its boxes (F4)
         first = found.placements[0]
         entry = _Item(
             ids=[found.id],

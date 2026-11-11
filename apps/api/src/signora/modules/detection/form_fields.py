@@ -247,6 +247,20 @@ def read_form(document: pymupdf.Document) -> FormRead:
     )
 
 
+def box_issues(found: FoundField, pages: list[PageInfo]) -> list[str]:
+    """What is wrong with a field's boxes, in words: one with no size, one outside its page. A
+    person must look at these (review flags them); the other issues are for reading only."""
+    notes = []
+    for placement in found.placements:
+        x0, y0, x1, y1 = placement.rect
+        page = pages[placement.page - 1]
+        if x1 - x0 < 1 or y1 - y0 < 1:
+            notes.append(f"page {placement.page}: a box with no size")
+        elif x1 < 0 or y1 < 0 or x0 > page.width or y0 > page.height:
+            notes.append(f"page {placement.page}: a box outside the page")
+    return notes
+
+
 def issues(found: FoundField, pages: list[PageInfo]) -> list[str]:
     """What a person should know about a field, in words (review shows them)."""
     notes = []
@@ -262,13 +276,7 @@ def issues(found: FoundField, pages: list[PageInfo]) -> list[str]:
         notes.append("already signed: kept as it is")
     if all(placement.hidden for placement in found.placements):
         notes.append("hidden: never asked for")
-    for placement in found.placements:
-        x0, y0, x1, y1 = placement.rect
-        page = pages[placement.page - 1]
-        if x1 - x0 < 1 or y1 - y0 < 1:
-            notes.append(f"page {placement.page}: a box with no size")
-        elif x1 < 0 or y1 < 0 or x0 > page.width or y0 > page.height:
-            notes.append(f"page {placement.page}: a box outside the page")
+    notes += box_issues(found, pages)
     if found.kind == "radio":
         if any(placement.option_text is None for placement in found.placements):
             notes.append("an option has no words next to it")

@@ -198,3 +198,10 @@ def test_two_blanks_drawn_under_spaces_on_one_line_each_take_their_label() -> No
         page.draw_line((72 + width("Name:" + " " * 30 + "Date: "), 302), (72 + width(line), 302))
 
     assert _labels(_page(_text(72, 300, line), underlines)) == ["Name:", "Date:"]
+
+
+def test_a_field_whose_box_is_outside_its_page_is_flagged_for_a_look() -> None:
+    """Review #11: box problems reach review through one function, not by matching words."""
+    data = _page(_text(72, 300, "Name:"), _field("n", (700, 290, 800, 304)))
+    (field,) = _answered(data, "Name").fields
+    assert field.needs_review == "page 1: a box outside the page"
