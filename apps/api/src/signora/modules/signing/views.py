@@ -25,3 +25,9 @@ class SignerState(BaseModel):
     sender_email: str
     next: Step
     signed_at: datetime | None
+
+
+class CodeSentView(BaseModel):
+    sent_at: datetime
+    email_masked: str
+    resend_after: int

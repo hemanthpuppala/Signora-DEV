@@ -10,14 +10,13 @@ from sqlalchemy import text
 
 from signora.kernel.config import get_settings
 from signora.kernel.db import UnitOfWork
-from signora.modules.audit import Actor as AuditActor
-from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.envelopes import SignerRecipient, recipient_for_signing, record_opened
 from signora.modules.envelopes.links import link_key, read_token
 from signora.modules.identity_access import hash_token
-from signora.modules.signing import sessions
+from signora.modules.signing import codes, sessions
 from signora.modules.signing.domain import mask_email, next_step
-from signora.modules.signing.errors import LinkClosed, SessionEnded
+from signora.modules.signing.errors import CodeNotRequired, LinkClosed, SessionEnded
+from signora.modules.signing.trail import audit
 from signora.modules.signing.views import Opened, SignerState
 
 
@@ -27,17 +26,6 @@ def _idle() -> timedelta:
 
 def _key() -> bytes:
     return link_key(get_settings().app.secret_key.get_secret_value())
-
-
-def audit(uow: UnitOfWork, recipient: SignerRecipient, action: str) -> None:
-    """A signing event on the envelope's own chain, with the request's IP and user agent."""
-    record(
-        uow,
-        chain=AuditChain.envelope(recipient.workspace_id, recipient.envelope_id),
-        actor=AuditActor("recipient", recipient.id, recipient.email),
-        action=action,
-        subject=Subject("envelope", recipient.envelope_id),
-    )
 
 
 def _consented(uow: UnitOfWork, recipient_id: uuid.UUID) -> bool:
@@ -105,6 +93,7 @@ class Signer:
 
     recipient: SignerRecipient
     verified: bool
+    digest: bytes  # the browser session's
 
 
 def signer(uow: UnitOfWork, cookie: str | None, recipient_id: uuid.UUID) -> Signer:
@@ -123,7 +112,7 @@ def signer(uow: UnitOfWork, cookie: str | None, recipient_id: uuid.UUID) -> Sign
         or not recipient.envelope_open
     ):
         raise LinkClosed
-    return Signer(recipient, grant.verified_at is not None)
+    return Signer(recipient, grant.verified_at is not None, digest)
 
 
 def state(uow: UnitOfWork, who: Signer) -> SignerState:
@@ -139,3 +128,31 @@ def state(uow: UnitOfWork, who: Signer) -> SignerState:
         next=_step(uow, recipient, who.verified).next,
         signed_at=recipient.signed_at,
     )
+
+
+def send_code(uow: UnitOfWork, who: Signer, *, again: bool) -> codes.CodeSent:
+    return codes.send_code(uow, who.recipient, again=again)
+
+
+def verify(uow: UnitOfWork, who: Signer, code: str) -> Opened:
+    """The email code (§2): a match verifies this browser's grant; a wrong try is counted and kept
+    even though the request is refused."""
+    recipient = who.recipient
+    if not recipient.require_email_code:
+        raise CodeNotRequired
+    tried = codes.try_code(uow, recipient, code)
+    if not tried.verified:
+        audit(
+            uow, recipient, "signing.code_locked" if tried.tries_left == 0 else "signing.code_wrong"
+        )
+        uow.commit()
+        raise codes.wrong_code(tried.tries_left)
+    uow.session.execute(
+        text(
+            "UPDATE signing_grants SET verified_at = now() "
+            "WHERE session_hash = :h AND recipient_id = :r"
+        ),
+        {"h": who.digest, "r": recipient.id},
+    )
+    audit(uow, recipient, "signing.verified")
+    return _step(uow, recipient, verified=True)

@@ -1,0 +1,44 @@
+/* A one-time code: one real input drawn as a row of boxes (Phase 8 §2.1.6). */
+.cells {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cells), minmax(0, 44px));
+  gap: 10px;
+}
+
+.cell {
+  display: grid;
+  place-items: center;
+  height: 52px;
+  border-bottom: 1px solid var(--r25);
+  font: 400 24px/1 var(--mono);
+  color: var(--ink);
+}
+
+.cell[data-active="true"] {
+  border-bottom-color: var(--ink);
+}
+
+.cells[aria-invalid="true"] .cell {
+  border-bottom-color: var(--st-declined);
+}
+
+/* The real input covers the boxes: typing, pasting and the phone's offered code all reach it. */
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  font-size: 16px; /* no zoom on focus in mobile Safari */
+  border: 0;
+  background: transparent;
+}
+
+.input:focus-visible + .focusRing {
+  position: absolute;
+  inset: -6px;
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+  pointer-events: none;
+}

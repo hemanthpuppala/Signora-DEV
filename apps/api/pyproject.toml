@@ -263,11 +263,13 @@ forbidden_modules = ["signora.modules.envelopes"]
 name = "Public interface only: signing internals are imported only by signing and composition roots"
 type = "protected"
 protected_modules = [
+    "signora.modules.signing.codes",
     "signora.modules.signing.errors",
     "signora.modules.signing.models",
     "signora.modules.signing.routes",
     "signora.modules.signing.service",
     "signora.modules.signing.sessions",
+    "signora.modules.signing.trail",
     "signora.modules.signing.views",
 ]
 allowed_importers = ["signora.modules.signing", "signora.models", "signora.handlers"]

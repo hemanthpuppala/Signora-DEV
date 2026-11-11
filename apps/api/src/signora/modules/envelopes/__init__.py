@@ -3,6 +3,7 @@
 Public interface — other modules import only from here.
 """
 
+from signora.modules.envelopes.emails import moment_in_words
 from signora.modules.envelopes.recipients import (
     SignerRecipient,
     recipient_for_signing,
@@ -14,6 +15,7 @@ from signora.modules.envelopes.store import count_sends
 __all__ = [
     "SignerRecipient",
     "count_sends",
+    "moment_in_words",
     "recipient_for_signing",
     "record_opened",
     "router",

@@ -191,7 +191,7 @@ def upgrade() -> None:
             "octet_length(code_mac) = 32", name=op.f("ck_signing_codes_code_mac_length")
         ),
         sa.CheckConstraint(
-            "wrong_tries BETWEEN 0 AND 5", name=op.f("ck_signing_codes_wrong_tries_range")
+            "wrong_tries BETWEEN 0 AND 20", name=op.f("ck_signing_codes_wrong_tries_range")
         ),
         sa.CheckConstraint(
             "sent_in_window BETWEEN 1 AND 5", name=op.f("ck_signing_codes_sent_in_window_range")

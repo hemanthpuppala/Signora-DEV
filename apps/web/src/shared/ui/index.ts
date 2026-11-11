@@ -11,6 +11,7 @@ export {
   HeadAction,
 } from "./Button";
 export { Checkbox, Radio } from "./Choice";
+export { CodeField, type CodeFieldProps } from "./CodeField";
 export { Chip, ChipGroup } from "./Chip";
 export {
   ActionCell,

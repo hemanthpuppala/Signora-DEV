@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from signora.kernel.db import Database
 from signora.modules.signing import service
 from signora.modules.signing.sessions import COOKIE
-from signora.modules.signing.views import Opened, SignerState
+from signora.modules.signing.views import CodeSentView, Opened, SignerState
 
 router = APIRouter(prefix="/api/v1/sign", tags=["signing"])
 
@@ -60,3 +60,53 @@ def signer_state(recipient_id: uuid.UUID, request: Request, response: Response) 
         who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
         _no_store(response)
         return service.state(uow, who)
+
+
+class CodeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    again: bool = False
+
+
+class VerifyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+@router.post(
+    "/{recipient_id}/code",
+    summary="Email this person a code, or keep the live one",
+    responses={
+        409: {"description": "This envelope asks for no code"},
+        429: {"description": "Too soon after the last code, or too many codes this hour"},
+    },
+)
+def send_code(
+    recipient_id: uuid.UUID, body: CodeRequest, request: Request, response: Response
+) -> CodeSentView:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        sent = service.send_code(uow, who, again=body.again)
+    _no_store(response)
+    return CodeSentView(
+        sent_at=sent.sent_at, email_masked=sent.email_masked, resend_after=sent.resend_after
+    )
+
+
+@router.post(
+    "/{recipient_id}/verify",
+    summary="Check the email code; on a match this browser may go on for this person",
+    responses={
+        410: {"description": "The code expired, was used, or had too many wrong tries"},
+        422: {"description": "A wrong code (how many tries are left is in the message)"},
+    },
+)
+def verify(
+    recipient_id: uuid.UUID, body: VerifyRequest, request: Request, response: Response
+) -> Opened:
+    with _db(request).unit_of_work() as uow:
+        who = service.signer(uow, request.cookies.get(COOKIE), recipient_id)
+        opened = service.verify(uow, who, body.code)
+    _no_store(response)
+    return opened

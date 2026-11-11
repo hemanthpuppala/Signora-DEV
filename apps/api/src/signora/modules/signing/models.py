@@ -105,7 +105,7 @@ signing_codes = Table(
     Column("window_start", DateTime(timezone=True), nullable=False),
     Column("sent_in_window", SmallInteger, nullable=False, server_default=text("1")),
     CheckConstraint("octet_length(code_mac) = 32", name="code_mac_length"),
-    CheckConstraint("wrong_tries BETWEEN 0 AND 5", name="wrong_tries_range"),
+    CheckConstraint("wrong_tries BETWEEN 0 AND 20", name="wrong_tries_range"),
     CheckConstraint("sent_in_window BETWEEN 1 AND 5", name="sent_in_window_range"),
     PrimaryKeyConstraint("recipient_id"),
     _recipient("signing_codes"),

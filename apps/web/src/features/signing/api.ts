@@ -23,3 +23,21 @@ export function useSigner(recipientId: string) {
     retry: false, // a closed link or an ended session is an answer, not a failure to retry
   });
 }
+
+export type CodeSent = components["schemas"]["CodeSentView"];
+
+export const sendCode = (recipientId: string, again: boolean) =>
+  unwrap(
+    api.POST("/api/v1/sign/{recipient_id}/code", {
+      params: { path: { recipient_id: recipientId } },
+      body: { again },
+    }),
+  );
+
+export const verifyCode = (recipientId: string, code: string) =>
+  unwrap(
+    api.POST("/api/v1/sign/{recipient_id}/verify", {
+      params: { path: { recipient_id: recipientId } },
+      body: { code },
+    }),
+  );

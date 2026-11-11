@@ -1024,6 +1024,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign/{recipient_id}/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email this person a code, or keep the live one */
+        post: operations["send_code_api_v1_sign__recipient_id__code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sign/{recipient_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check the email code; on a match this browser may go on for this person */
+        post: operations["verify_api_v1_sign__recipient_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace": {
         parameters: {
             query?: never;
@@ -1110,6 +1144,26 @@ export interface components {
              * Format: uuid
              */
             role_id: string;
+        };
+        /** CodeRequest */
+        CodeRequest: {
+            /**
+             * Again
+             * @default false
+             */
+            again: boolean;
+        };
+        /** CodeSentView */
+        CodeSentView: {
+            /** Email Masked */
+            email_masked: string;
+            /** Resend After */
+            resend_after: number;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
         };
         /** Condition */
         Condition: {
@@ -2527,6 +2581,11 @@ export interface components {
             given_by: "sender" | "prefill" | "recipient";
             /** Value */
             value: string;
+        };
+        /** VerifyRequest */
+        VerifyRequest: {
+            /** Code */
+            code: string;
         };
         /** VersionFields */
         VersionFields: {
@@ -6469,6 +6528,136 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    send_code_api_v1_sign__recipient_id__code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeSentView"];
+                };
+            };
+            /** @description This envelope asks for no code */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too soon after the last code, or too many codes this hour */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    verify_api_v1_sign__recipient_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Opened"];
+                };
+            };
+            /** @description The code expired, was used, or had too many wrong tries */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A wrong code (how many tries are left is in the message) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Client error (problem details) */
             "4XX": {

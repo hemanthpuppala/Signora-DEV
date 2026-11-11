@@ -204,7 +204,7 @@ signing_codes                                   -- at most one live code per rec
   code_mac       bytea not null
   sent_at        timestamptz not null
   expires_at     timestamptz not null           -- sent_at + 10 min
-  wrong_tries    smallint not null default 0    -- 5 ends the code
+  wrong_tries    smallint not null default 0    -- the setting (5) ends the code; checked 0-20, the setting's range
   used_at        timestamptz                    -- set when it verifies; then dead
   window_start   timestamptz not null           -- the hour in which codes are counted
   sent_in_window smallint not null default 1    -- at most 5
@@ -218,7 +218,7 @@ for the same person never interleave.
 | Method and path | Body | Answers |
 |---|---|---|
 | `POST /api/v1/sign/{r}/code` | — | 200 `{ sent_at, email_masked, resend_after }` (sent, or the live one kept); 429 `code-wait` with `retry_after`; 429 `code-limit` |
-| `POST /api/v1/sign/{r}/verify` | `{ "code": "123456" }` | 200 `{ next }`; 422 `code-wrong` with `tries_left`; 410 `code-ended` (expired, used or locked: ask for a new one) |
+| `POST /api/v1/sign/{r}/verify` | `{ "code": "123456" }` | 200 `{ next }`; 422 with the `code` field's message ("That code isn't right. 3 tries left."); 410 `code-ended` (expired, used or locked: ask for a new one) |
 
 `POST …/code` with `{ "again": true }` asks for a new code even while one is live (the 60-second and hourly limits
 apply). Both need the session and grant of §1.3.
@@ -1003,7 +1003,7 @@ the design system: `DatePicker`, `BottomSheet`, `GuidePointer`, `SignaturePad`, 
 | 8.1 | This design (§1–§17) | done | this document |
 | 8.2 | Migration 0025, models, triggers | done | `0025_signing.py`; `signing/models.py`, envelopes and notifications models; recipients gain `(id, workspace_id)` and `(id, workspace_id, version_id)` keys for the signing tables (foreign keys to recipients named by hand, under Postgres's 63 characters); import contracts for `signing`. Tests: `test_tables.py` (11: consent insert only, a signature frozen once signed, a signature's shape, a decline recorded, completed files set together once, attachments), the schema test, the downgrade and upgrade round trip. The envelopes functions `signing` calls come with the tasks that call them |
 | 8.3 | Opening a link, sessions, grants; `/s` and `/sign` pages; the closed page | done | `signing/` (`sessions.py`: cookie `__Host-signora_sign`, 30 min idle from `.env`, 12 h at most, grants that a newer link version replaces with its verification; `service.py`: `open_link`, `signer` (checked on every request), `state`; `domain.py`: `mask_email`, `next_step`; `errors.py`: `link-closed`, `session-ended`); `envelopes.recipients` (`recipient_for_signing`, `record_opened`); identity exports its token helpers (one definition); `signing.opened` on the envelope's audit chain. Web: `/s/[token]` (one exchange per token, then `/sign/{id}`), `/sign/[recipientId]`, the closed and session-ended screens, both routes noindex and no-referrer (Caddy already keeps tokens out of its access log). Tests: `test_open.py` (7: a session and opened once, no code means consent next, five unusable links answer alike, an open page closes at expiry, a corrected email, two people in one browser, idle end), `signing.test.tsx` (4) |
-| 8.4 | The email code | todo | — |
+| 8.4 | The email code | done | `signing/codes.py` (a code key derived for this purpose; HMAC of recipient, link version and code; the row's lock orders tries and new codes; a wrong try is committed before the refusal; ten minutes and five tries from `.env`; a minute between codes, five an hour), `trail.py` (signing events on the envelope's chain), `POST …/code` and `…/verify`; the envelope emails' date wording made public (`moment_in_words`, one definition); the kernel's retry base made public (`RetryAfter`). Web: `CodeField` in the design system (one input drawn as six boxes, `one-time-code`, paste, digits only), `VerifyStep` (sent as the step opens, Send a new code with its countdown). Tests: `test_code.py` (8: sent and kept, single use, a wrong try kept, the minute's wait, five wrong tries, ten minutes, five an hour, per browser, a corrected email, no code asked), `signing.test.tsx` |
 | 8.5 | Consent | todo | — |
 | 8.6 | The document view, drafts, viewed (API) | todo | — |
 | 8.7 | The signer's screen: overlay inputs, the guide, phone sheet, `DatePicker`, Finish later | todo | — |

@@ -160,6 +160,42 @@
         "title": "ChangeRoleRequest",
         "type": "object"
       },
+      "CodeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "again": {
+            "default": false,
+            "title": "Again",
+            "type": "boolean"
+          }
+        },
+        "title": "CodeRequest",
+        "type": "object"
+      },
+      "CodeSentView": {
+        "properties": {
+          "email_masked": {
+            "title": "Email Masked",
+            "type": "string"
+          },
+          "resend_after": {
+            "title": "Resend After",
+            "type": "integer"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sent_at",
+          "email_masked",
+          "resend_after"
+        ],
+        "title": "CodeSentView",
+        "type": "object"
+      },
       "Condition": {
         "properties": {
           "field_id": {
@@ -3984,6 +4020,21 @@
           "given_by"
         ],
         "title": "ValueView",
+        "type": "object"
+      },
+      "VerifyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "VerifyRequest",
         "type": "object"
       },
       "VersionFields": {
@@ -10161,6 +10212,179 @@
           }
         },
         "summary": "Who is signing, what, and their next step",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/code": {
+      "post": {
+        "operationId": "send_code_api_v1_sign__recipient_id__code_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "This envelope asks for no code"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "429": {
+            "description": "Too soon after the last code, or too many codes this hour"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Email this person a code, or keep the live one",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/sign/{recipient_id}/verify": {
+      "post": {
+        "operationId": "verify_api_v1_sign__recipient_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recipient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Opened"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "410": {
+            "description": "The code expired, was used, or had too many wrong tries"
+          },
+          "422": {
+            "description": "A wrong code (how many tries are left is in the message)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Check the email code; on a match this browser may go on for this person",
         "tags": [
           "signing"
         ]

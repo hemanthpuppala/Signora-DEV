@@ -4,6 +4,7 @@ import { AuthPanel, BodyText } from "@/shared/ui";
 
 import { useSigner, type SignerState } from "./api";
 import { SignerProblem } from "./SignerNotices";
+import { VerifyStep } from "./VerifyStep";
 
 const HEADINGS: Record<SignerState["next"], string> = {
   verify: "Confirm it's you.",
@@ -24,6 +25,7 @@ export function SignerPage({ recipientId }: { recipientId: string }) {
     );
   }
   const state = signer.data;
+  if (state.next === "verify") return <VerifyStep state={state} />;
   return (
     <AuthPanel eyebrow={`${state.company} · ${state.title}`} heading={HEADINGS[state.next]}>
       <BodyText>
