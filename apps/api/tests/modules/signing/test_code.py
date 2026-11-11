@@ -15,8 +15,10 @@ from sqlalchemy import text
 from signora.kernel.db import Database
 from tests.modules.documents.conftest import csrf_headers
 from tests.modules.identity_access.conftest import Account
-from tests.modules.signing.conftest import Sent, sent_envelope
+from tests.modules.signing.conftest import Sent, sent_envelope, signable_envelope
+from tests.modules.signing.test_consent import _consent
 from tests.modules.signing.test_open import SIGN, open_link, token_for
+from tests.modules.signing.test_submit import _fill, _submit
 
 
 @pytest.fixture
@@ -246,3 +248,35 @@ def test_no_code_when_the_envelope_asks_for_none(
 
     refused = _code(browser, signer)
     assert (refused.status_code, refused.json()["code"]) == (409, "code-not-required")
+
+
+def test_after_signing_another_browser_asks_for_the_code_before_the_done_screen(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+    make_client: Callable[..., TestClient],
+) -> None:
+    """The done screen names who is still to sign: like the document, it is shown in a browser only
+    after the email code, also once the person has signed (§1.1.7)."""
+    sent = signable_envelope(owner, run, detect, company)
+    with make_client() as laptop:
+        signer = _opened(laptop, sent)
+        _code(laptop, signer)
+        assert _verify(laptop, signer, _codes(committing_db, signer)[-1]).status_code == 200
+        assert _consent(laptop, signer).status_code == 200
+        _fill(laptop, signer)
+        assert _submit(laptop, signer).status_code == 200
+
+    with make_client() as phone:  # the link, but not the code
+        assert open_link(phone, token_for(signer)).json()["next"] == "verify"
+        assert phone.get(f"{SIGN}/{signer}").json()["next"] == "verify"
+        refused = phone.get(f"{SIGN}/{signer}/done")
+        assert (refused.status_code, refused.json()["code"]) == (403, "verify-first")
+
+        _age_code(committing_db, signer, "61 seconds")  # past the minute between codes
+        assert _code(phone, signer).status_code == 200
+        assert _verify(phone, signer, _codes(committing_db, signer)[-1]).status_code == 200
+        assert phone.get(f"{SIGN}/{signer}").json()["next"] == "done"
+        assert phone.get(f"{SIGN}/{signer}/done").status_code == 200

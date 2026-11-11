@@ -15,12 +15,13 @@ def mask_email(email: str) -> str:
 
 
 def next_step(*, signed: bool, needs_code: bool, verified: bool, consented: bool) -> Step:
-    """The first step the person still has (§1.5): their done screen once signed; else the email
-    code when the envelope asks for it, then consent, then the document."""
-    if signed:
-        return "done"
+    """The first step the person still has (§1.5): the email code in this browser when the
+    envelope asks for it, even once they have signed (§1.1.7); then their done screen once signed,
+    else consent, then the document."""
     if needs_code and not verified:
         return "verify"
+    if signed:
+        return "done"
     if not consented:
         return "consent"
     return "sign"

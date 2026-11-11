@@ -292,7 +292,9 @@ def read_drafts(uow: UnitOfWork, recipient_id: uuid.UUID) -> dict[uuid.UUID, str
 
 
 def done(uow: UnitOfWork, who: Signer) -> DoneView:
-    """What the done screen says (§9.1). Only for someone who has signed."""
+    """What the done screen says (§9.1). Only for someone who has signed, and in this browser only
+    after the email code, as the document is (§1.1.7): it names who is still to sign."""
+    require_ready(uow, who)
     recipient = who.recipient
     if recipient.status != "signed" or recipient.signed_at is None:
         raise NotTheirTurn
