@@ -75,14 +75,18 @@ def facts(
             """
             SELECT r.id, r.kind, r.name, r.email, r.sent_at, r.viewed_at, r.signed_at,
                    p.label AS party, c.consented_at, c.disclosure_version,
-                   (SELECT a.ip FROM audit_events a WHERE a.subject_id = r.envelope_id
-                      AND a.action = 'signing.signed' AND a.actor_id = r.id LIMIT 1) AS ip,
-                   (SELECT a.data ->> 'verified_by' FROM audit_events a
-                    WHERE a.subject_id = r.envelope_id AND a.action = 'signing.signed'
-                      AND a.actor_id = r.id LIMIT 1) AS verified_by
+                   signed.ip, signed.verified_by
             FROM envelope_recipients r
             LEFT JOIN version_roles p ON p.id = r.party_id
             LEFT JOIN signing_consents c ON c.recipient_id = r.id
+            -- The person's signing event, read once: the first on the envelope's chain (there is
+            -- one, written with the guarded update that records them signed).
+            LEFT JOIN LATERAL (
+                SELECT a.ip, a.data ->> 'verified_by' AS verified_by FROM audit_events a
+                WHERE a.subject_id = r.envelope_id AND a.action = 'signing.signed'
+                  AND a.actor_id = r.id
+                ORDER BY a.seq LIMIT 1
+            ) signed ON true
             WHERE r.envelope_id = :e
             ORDER BY r.stage, r.position
             """
