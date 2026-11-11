@@ -41,7 +41,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // Security Policy requires: Next.js applies the nonce from proxy.ts to its script tags.
   await headers();
   return (
-    <html lang="en" className={`${serif.variable} ${mono.variable}`}>
+    // data-scroll-behavior: the landing page scrolls smoothly between its sections; this tells
+    // Next.js to switch that off while it changes page, so a new page opens at the top at once.
+    <html lang="en" className={`${serif.variable} ${mono.variable}`} data-scroll-behavior="smooth">
       <body>
         <QueryProvider>
           <ToastProvider>{children}</ToastProvider>
