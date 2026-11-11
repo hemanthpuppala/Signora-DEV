@@ -1,12 +1,14 @@
 """Shared fixtures (backbone LLD §9.3).
 
-A dedicated ``signora_test`` database on the compose Postgres is recreated once per test session and
-migrated to head. ``db`` gives a unit-of-work factory whose work is rolled back after each test;
+A dedicated ``signora_test`` database (or ``SIGNORA_TEST_DATABASE``) on the compose Postgres is
+recreated once per test session and migrated to head. ``db`` gives a unit-of-work factory whose
+work is rolled back after each test;
 ``committing_db`` commits for real (concurrency tests), using unique ids so tests never collide.
 """
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -18,7 +20,9 @@ from signora.kernel.db import Database, create_db_engine
 from signora.kernel.jobs import core as jobs_core
 from signora.kernel.migrations import upgrade_to_head
 
-TEST_DATABASE = "signora_test"
+# The test database's name. Tests drop and recreate it, so two checkouts running tests at once
+# (worktrees of parallel branches) each set SIGNORA_TEST_DATABASE to a name of their own.
+TEST_DATABASE = os.environ.get("SIGNORA_TEST_DATABASE", "signora_test")
 
 
 @pytest.fixture(scope="session", autouse=True)
