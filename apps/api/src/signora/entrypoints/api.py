@@ -158,6 +158,7 @@ def create_app(
     app.include_router(detection.router)
     app.include_router(review.router)
     app.include_router(envelopes.router)
+    app.include_router(envelopes.bulk_router)
     app.include_router(typesetting.router)
     # A removed member leaves every countersigner list and loses every department grant, in the
     # removal's own transaction.

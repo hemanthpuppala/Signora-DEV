@@ -122,6 +122,204 @@
         "title": "ApproveRequest",
         "type": "object"
       },
+      "BatchDefaults": {
+        "additionalProperties": false,
+        "description": "What is chosen once for every row (FR-7): a row's own countersigner or setting replaces\nthe matching one here.",
+        "properties": {
+          "copies": {
+            "items": {
+              "$ref": "#/components/schemas/CopyIn"
+            },
+            "maxItems": 10,
+            "title": "Copies",
+            "type": "array"
+          },
+          "countersigners": {
+            "items": {
+              "$ref": "#/components/schemas/CountersignerIn"
+            },
+            "maxItems": 20,
+            "title": "Countersigners",
+            "type": "array"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SettingsIn"
+          },
+          "time_zone": {
+            "default": "UTC",
+            "maxLength": 64,
+            "title": "Time Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "title": "BatchDefaults",
+        "type": "object"
+      },
+      "BatchFailure": {
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "row_no": {
+            "title": "Row No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_no",
+          "label",
+          "error"
+        ],
+        "title": "BatchFailure",
+        "type": "object"
+      },
+      "BatchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "defaults": {
+            "$ref": "#/components/schemas/BatchDefaults"
+          },
+          "file_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "File Name",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/Row-Input"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "file_name",
+          "rows",
+          "defaults"
+        ],
+        "title": "BatchRequest",
+        "type": "object"
+      },
+      "BatchView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "department_id": {
+            "format": "uuid",
+            "title": "Department Id",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/BatchFailure"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "sending",
+              "finished"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "department_id",
+          "document_id",
+          "document_name",
+          "file_name",
+          "created_at",
+          "finished_at",
+          "status",
+          "total",
+          "sent",
+          "failed",
+          "failures"
+        ],
+        "title": "BatchView",
+        "type": "object"
+      },
+      "Batches": {
+        "properties": {
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/BatchView"
+            },
+            "title": "Batches",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batches"
+        ],
+        "title": "Batches",
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "additionalProperties": false,
         "properties": {
@@ -158,6 +356,82 @@
           "role_id"
         ],
         "title": "ChangeRoleRequest",
+        "type": "object"
+      },
+      "CheckRequest": {
+        "additionalProperties": false,
+        "description": "Rows to judge again after the sender's edits, with what is chosen once for all of them.",
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Columns",
+            "type": "array"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/BatchDefaults"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/Row-Input"
+            },
+            "maxItems": 1000,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "columns",
+          "rows",
+          "defaults"
+        ],
+        "title": "CheckRequest",
+        "type": "object"
+      },
+      "Column": {
+        "description": "One thing a row gives. ``key`` names it for the life of the sheet; ``header`` is what the\nsender reads at the top of the column, the label the send dialog shows.",
+        "properties": {
+          "header": {
+            "title": "Header",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "email",
+              "date",
+              "choice",
+              "checkbox",
+              "number"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "header",
+          "kind",
+          "required"
+        ],
+        "title": "Column",
         "type": "object"
       },
       "Condition": {
@@ -2736,15 +3010,20 @@
         "title": "PlacementView",
         "type": "object"
       },
-      "Problem": {
-        "description": "Why a version is not ready, in words a person acts on (§2.5, §3.2-3.4).",
+      "Problem-Input": {
+        "description": "What is wrong with a cell, in words. A warning is shown but does not stop the send.",
         "properties": {
-          "can_retry": {
-            "title": "Can Retry",
-            "type": "boolean"
+          "key": {
+            "title": "Key",
+            "type": "string"
           },
-          "code": {
-            "title": "Code",
+          "level": {
+            "default": "error",
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Level",
             "type": "string"
           },
           "message": {
@@ -2753,9 +3032,8 @@
           }
         },
         "required": [
-          "code",
-          "message",
-          "can_retry"
+          "key",
+          "message"
         ],
         "title": "Problem",
         "type": "object"
@@ -3225,6 +3503,70 @@
         "title": "RoleRef",
         "type": "object"
       },
+      "Row-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 500,
+            "title": "Cells",
+            "type": "object"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/Problem-Input"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "row_no": {
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Row No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_no",
+          "cells"
+        ],
+        "title": "Row",
+        "type": "object"
+      },
+      "Row-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 500,
+            "title": "Cells",
+            "type": "object"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/signora__modules__envelopes__bulk_sheet__Problem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "row_no": {
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Row No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_no",
+          "cells"
+        ],
+        "title": "Row",
+        "type": "object"
+      },
       "Saved": {
         "properties": {
           "revision": {
@@ -3493,6 +3835,37 @@
           }
         },
         "title": "SettingsInput",
+        "type": "object"
+      },
+      "Sheet": {
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/Column"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/Row-Output"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "columns",
+          "rows"
+        ],
+        "title": "Sheet",
         "type": "object"
       },
       "SignerIn": {
@@ -4360,7 +4733,7 @@
           "problem": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Problem"
+                "$ref": "#/components/schemas/signora__modules__documents__routes__Problem"
               },
               {
                 "type": "null"
@@ -4463,6 +4836,58 @@
           "email"
         ],
         "title": "Colleague",
+        "type": "object"
+      },
+      "signora__modules__documents__routes__Problem": {
+        "description": "Why a version is not ready, in words a person acts on (§2.5, §3.2-3.4).",
+        "properties": {
+          "can_retry": {
+            "title": "Can Retry",
+            "type": "boolean"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "can_retry"
+        ],
+        "title": "Problem",
+        "type": "object"
+      },
+      "signora__modules__envelopes__bulk_sheet__Problem": {
+        "description": "What is wrong with a cell, in words. A warning is shown but does not stop the send.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "level": {
+            "default": "error",
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "message"
+        ],
+        "title": "Problem",
         "type": "object"
       },
       "signora__modules__envelopes__form__Colleague": {
@@ -5853,6 +6278,84 @@
         ]
       }
     },
+    "/api/v1/departments/{department_id}/envelope-batches": {
+      "get": {
+        "operationId": "list_batches_api_v1_departments__department_id__envelope_batches_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "department_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Department Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Batches"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A department's bulk sends still going, or sent in the last day",
+        "tags": [
+          "bulk send"
+        ]
+      }
+    },
     "/api/v1/departments/{department_id}/envelopes": {
       "get": {
         "operationId": "list_envelopes_api_v1_departments__department_id__envelopes_get",
@@ -6737,6 +7240,85 @@
         ]
       }
     },
+    "/api/v1/documents/{document_id}/envelope-batches": {
+      "post": {
+        "operationId": "send_batch_api_v1_documents__document_id__envelope_batches_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Not approved or archived"
+          },
+          "422": {
+            "description": "A row still has a problem; nothing is sent"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Send a checked sheet: one envelope per row, in the background (requires Idempotency-Key)",
+        "tags": [
+          "bulk send"
+        ]
+      }
+    },
     "/api/v1/documents/{document_id}/envelopes": {
       "post": {
         "operationId": "send_envelope_api_v1_documents__document_id__envelopes_post",
@@ -7085,6 +7667,389 @@
         "summary": "Approve a version in review: its fields freeze, and the newest approved is current",
         "tags": [
           "review"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/bulk-rows": {
+      "post": {
+        "operationId": "read_bulk_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sheet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Not approved, or made for another version"
+          },
+          "413": {
+            "description": "Over 5 MB"
+          },
+          "422": {
+            "description": "Not a spreadsheet, empty, or over 1,000 rows"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Read a filled spreadsheet (XLSX or CSV, the raw bytes as the body): rows and problems",
+        "tags": [
+          "bulk send"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/bulk-rows/check": {
+      "post": {
+        "operationId": "check_bulk_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_check_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sheet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Check rows again after edits: the same sheet with each row's problems",
+        "tags": [
+          "bulk send"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/bulk-rows/left-out": {
+      "post": {
+        "operationId": "left_out_rows_api_v1_documents__document_id__versions__version_id__bulk_rows_left_out_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "The file"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The given rows as a CSV with the spreadsheet's headers",
+        "tags": [
+          "bulk send"
+        ]
+      }
+    },
+    "/api/v1/documents/{document_id}/versions/{version_id}/bulk-template": {
+      "get": {
+        "operationId": "bulk_template_api_v1_documents__document_id__versions__version_id__bulk_template_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "The file"
+          },
+          "409": {
+            "description": "Not approved, or nobody signs it"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The spreadsheet to fill in for a bulk send of this version (XLSX)",
+        "tags": [
+          "bulk send"
         ]
       }
     },
@@ -7905,6 +8870,84 @@
         "summary": "Open a password-protected PDF with its password (never stored)",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/envelope-batches/{batch_id}": {
+      "get": {
+        "operationId": "get_batch_api_v1_envelope_batches__batch_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "A bulk send's progress and its failed rows",
+        "tags": [
+          "bulk send"
         ]
       }
     },

@@ -33,6 +33,11 @@ class EmptyFile(DomainError):
     title = "This file has no rows under its headers"
 
 
+class OutdatedSpreadsheet(Conflict):
+    code = "bulk-file-outdated"
+    title = "This spreadsheet was made for an earlier version of the template. Download a new one"
+
+
 class RowsNeedFixing(DomainError):
     """A batch whose rows still have problems: nothing of it is sent (Bulk send LLD §4.4)."""
 

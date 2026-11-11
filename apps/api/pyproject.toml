@@ -242,6 +242,9 @@ name = "Public interface only: envelopes internals are imported only by envelope
 type = "protected"
 # envelopes.links is pure and public (Phase 8's signing reads links).
 protected_modules = [
+    "signora.modules.envelopes.bulk",
+    "signora.modules.envelopes.bulk_models",
+    "signora.modules.envelopes.bulk_routes",
     "signora.modules.envelopes.form",
     "signora.modules.envelopes.models",
     "signora.modules.envelopes.routes",

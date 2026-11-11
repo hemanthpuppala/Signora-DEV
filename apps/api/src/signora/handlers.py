@@ -10,6 +10,7 @@ from signora.kernel.idempotency import housekeeping as idempotency_housekeeping
 from signora.kernel.jobs import JobRegistry, RecurringJob, housekeeping
 from signora.modules.detection import jobs as detection_jobs
 from signora.modules.documents import jobs as documents_jobs
+from signora.modules.envelopes import bulk as envelope_batches
 from signora.modules.identity_access import jobs as identity_jobs
 from signora.modules.notifications import service as notifications
 
@@ -23,4 +24,5 @@ def register_all(jobs_registry: JobRegistry) -> list[RecurringJob]:
         *identity_jobs.register(jobs_registry),
         *documents_jobs.register(jobs_registry),
         *detection_jobs.register(jobs_registry),
+        *envelope_batches.register(jobs_registry),
     ]

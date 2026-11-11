@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import timedelta
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -60,6 +61,11 @@ def resolve_session(
             text("UPDATE sessions SET last_seen_at = now() WHERE id_hash = :digest"),
             {"digest": digest},
         )
+    return _actor(row, digest)
+
+
+def _actor(row: Any, digest: bytes) -> Actor:
+    """The actor a row of a user, their company and their role describes."""
     return Actor(
         user_id=row.user_id,
         email=row.email,
@@ -74,6 +80,28 @@ def resolve_session(
         is_creator=row.is_creator,
         session_digest=digest,
     )
+
+
+def actor_of(session: Session, workspace_id: uuid.UUID, user_id: uuid.UUID) -> Actor | None:
+    """An active user as an actor, with the role they hold now and no session: for background
+    work done in their name (a bulk send's job), so it passes through the same access checks a
+    request of theirs would. ``None`` once they are deactivated."""
+    row = session.execute(
+        text(
+            """
+            SELECT u.id AS user_id, u.email, u.name, u.workspace_id, w.name AS workspace_name,
+                   w.created_by = u.id AS is_creator,
+                   r.id AS role_id, r.key AS role_key, r.name AS role_name,
+                   r.description AS role_description, r.permissions
+            FROM users u
+            JOIN workspaces w ON w.id = u.workspace_id
+            JOIN roles r ON r.id = u.role_id
+            WHERE u.id = :user AND u.workspace_id = :workspace AND u.deactivated_at IS NULL
+            """
+        ),
+        {"user": user_id, "workspace": workspace_id},
+    ).one_or_none()
+    return None if row is None else _actor(row, b"")
 
 
 def delete_session(session: Session, digest: bytes) -> None:
