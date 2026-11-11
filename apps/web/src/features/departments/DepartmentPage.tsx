@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError, formError } from "@/shared/api/errors";
+import { CONSOLE_HOME } from "@/shared/lib/routes";
 import { can, type Me } from "@/shared/session";
 import {
   Button,
@@ -77,7 +78,7 @@ export function DepartmentPage({
   return (
     <>
       <HeadRow
-        back={{ href: "/", label: "Departments" }}
+        back={{ href: CONSOLE_HOME, label: "Departments" }}
         backActions={
           <>
             {!archived && onAddEnvelope && data.access === "edit" ? (

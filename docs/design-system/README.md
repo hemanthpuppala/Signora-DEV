@@ -2,6 +2,8 @@
 
 **Source of truth for UI and UX:** [`prototype.html`](prototype.html), a clickable prototype of all 28 screens. Open it in a browser and use **All screens** (bottom right) to navigate. The Next.js app in `apps/web` must port these tokens, components and flows; when the app and the prototype disagree, the prototype wins unless this file records a deliberate deviation.
 
+The public landing page (screen 01) is the exception: it has its own approved prototype, tokens and motion in [`landing/prototype.html`](landing/prototype.html), built as described in [`docs/design/features/landing.md`](../design/features/landing.md). Everything below is about the console, the sign-in pages and the signer pages.
+
 ## Principles
 - **Pure black and white.** Dark only (`color-scheme: dark`). The only color in the product is the status dot.
 - **Quiet typography.** Cormorant Garamond Light for headings and numbers; system sans at weight 300 for text; tracked uppercase micro-labels for structure.
@@ -16,7 +18,7 @@
 | Text | `--ink #fff`, `--t75`, `--t60`, `--t55`, `--t30` (white at that % opacity) |
 | Lines | `--sep` (8%), `--r40`, `--r25`, `--r15`, `--r08`, `--r05` (white at that % opacity) |
 | Roles on paper | `--role1 #8c8c8c`, `--role2 #5a5a5a`, `--role3 #b0b0b0`, `--firm #222` (+ matching `*f` fills) |
-| Fonts | `--serif` Cormorant Garamond 300/400/500 (+ italic), `--sans` system UI, `--mono` Source Code Pro, `--logo` Inter Tight 500 |
+| Fonts | `--serif` Cormorant Garamond 300/400/500 (+ italic), `--sans` system UI, `--mono` Source Code Pro. The logo is the signed mark (`SignatureLogo`), not a font |
 | Radius | `0` everywhere |
 
 ## Status colors (dot only, label stays white)

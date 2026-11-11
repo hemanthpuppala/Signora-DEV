@@ -8,6 +8,7 @@ import { api, unwrap } from "@/shared/api/client";
 import { fieldErrors, formError } from "@/shared/api/errors";
 import { usePasswordRules } from "@/shared/api/usePasswordRules";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
+import { CONSOLE_HOME } from "@/shared/lib/routes";
 import { fetchSession, useLogIn, useSignOut } from "@/shared/session";
 import {
   AuthPanel,
@@ -66,7 +67,7 @@ export function AcceptInviteForm() {
   const accepted = accept.state.status === "success";
   useEffect(() => {
     if (accepted && email && logIn.isIdle) {
-      logIn.mutate({ email, password }, { onSuccess: () => router.replace("/") });
+      logIn.mutate({ email, password }, { onSuccess: () => router.replace(CONSOLE_HOME) });
     }
   }, [accepted, email, logIn, password, router]);
 

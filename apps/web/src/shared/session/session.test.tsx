@@ -55,17 +55,17 @@ describe("session", () => {
   });
 
   it.each([
-    [null, "/"],
+    [null, "/departments"],
     ["/people", "/people"],
     ["/settings?tab=password#top", "/settings?tab=password#top"],
-    ["//evil.example", "/"],
-    ["/\\evil.example", "/"],
-    ["/\t/evil.example", "/"], // browsers drop the tab: "//evil.example"
-    ["/\n/evil.example", "/"],
-    ["/\r\n/evil.example", "/"],
+    ["//evil.example", "/departments"],
+    ["/\\evil.example", "/departments"],
+    ["/\t/evil.example", "/departments"], // browsers drop the tab: "//evil.example"
+    ["/\n/evil.example", "/departments"],
+    ["/\r\n/evil.example", "/departments"],
     ["/%09/evil.example", "/%09/evil.example"], // stays encoded: a path on this site
-    ["https://evil.example", "/"],
-    ["javascript:alert(1)", "/"],
+    ["https://evil.example", "/departments"],
+    ["javascript:alert(1)", "/departments"],
   ])("follows only same-site paths after log-in (%j)", (next, expected) => {
     expect(safeNext(next, "https://signora.test")).toBe(expected);
   });

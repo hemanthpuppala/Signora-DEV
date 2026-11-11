@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
+import { CONSOLE_HOME } from "@/shared/lib/routes";
 import {
   ActionCell,
   ActionHeader,
@@ -64,7 +65,7 @@ export function NewDepartmentForm({
     create.state.status === "retrying" ? "Connection lost — retrying…" : nameTaken ? null : formError(error);
   return (
     <PageForm onSubmit={submit} noValidate>
-      <HeadRow back={{ href: "/", label: "Departments" }}>
+      <HeadRow back={{ href: CONSOLE_HOME, label: "Departments" }}>
         <Heading1>New department</Heading1>
       </HeadRow>
       <Section title="About">
