@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeQueryClient } from "@/shared/api/QueryProvider";
 
 import { SendModal, type SendableDocument } from "./SendModal";
-import { MEASURED_AT } from "./typeset";
+import { MEASURED_AT } from "@/shared/document/typeset";
 
 vi.mock("pdfjs-dist", () => ({
   version: "6.4.299",

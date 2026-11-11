@@ -1,6 +1,4 @@
-import type { FormField } from "./api";
-
-type Conditioned = Pick<FormField, "id" | "depends_on">;
+import type { Conditioned } from "./types";
 
 /**
  * The fields that are asked, given these values (the server's envelopes.sending.asked; the two

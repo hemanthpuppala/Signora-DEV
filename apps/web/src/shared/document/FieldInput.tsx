@@ -2,12 +2,12 @@
 
 import { Checkbox, Select, SmallText, TextArea, TextField } from "@/shared/ui";
 
-import type { FormField } from "./api";
-import styles from "./envelopes.module.css";
+import styles from "./document.module.css";
+import type { InputField } from "./types";
 import { MONTHS, number } from "./typeset";
 
 /** The browser's input type for a field type, so phones show the right keyboard. */
-function inputType(holds: FormField["holds"]): string {
+function inputType(holds: InputField["holds"]): string {
   switch (holds) {
     case "email":
       return "email";
@@ -23,8 +23,8 @@ function inputType(holds: FormField["holds"]): string {
   }
 }
 
-const NUMERIC = new Set<FormField["holds"]>(["number", "currency", "percent"]);
-const WHOLE = new Set<FormField["holds"]>(["day", "year"]);
+const NUMERIC = new Set<InputField["holds"]>(["number", "currency", "percent"]);
+const WHOLE = new Set<InputField["holds"]>(["day", "year"]);
 /**
  * One field of the document as an input of its type (Phase 7 §2): a date picker for a date; for a
  * date split into boxes, the month by name and the day or year by number; a choice's own options,
@@ -38,7 +38,7 @@ export function FieldInput({
   markRequired = false,
   onBlur,
 }: {
-  field: FormField;
+  field: InputField;
   /** Say "Required" under this field: when its group's note does not already say so. */
   markRequired?: boolean;
   value: string;
@@ -117,7 +117,7 @@ export function FieldInput({
 }
 
 /** What each type may be typed with; anything else never reaches the box (the server checks again). */
-const TYPED: Partial<Record<FormField["holds"], RegExp>> = {
+const TYPED: Partial<Record<InputField["holds"], RegExp>> = {
   day: /[^0-9]/g,
   year: /[^0-9]/g,
   number: /[^0-9.,-]/g,
@@ -130,7 +130,7 @@ const TYPED: Partial<Record<FormField["holds"], RegExp>> = {
  * The text a keystroke or a paste leaves in the box: characters its type cannot hold are dropped,
  * and a day stays within 1 to 31 (a keystroke that would leave it outside is refused: ``null``).
  */
-export function accepted(holds: FormField["holds"], raw: string): string | null {
+export function accepted(holds: InputField["holds"], raw: string): string | null {
   const strip = TYPED[holds];
   const text = strip ? raw.replace(strip, "") : raw;
   if (holds === "day" && text !== "" && (Number(text) > 31 || /^0{2}/.test(text))) return null;
@@ -142,7 +142,7 @@ export function accepted(holds: FormField["holds"], raw: string): string | null 
  * (review.formats), so it is said at the box and not on Send; nothing when it can be, or for any
  * other type.
  */
-export function refused(holds: FormField["holds"], text: string): string | undefined {
+export function refused(holds: InputField["holds"], text: string): string | undefined {
   if (text === "") return undefined;
   if (holds === "day" && !(Number(text) >= 1 && Number(text) <= 31)) return "Enter a day from 1 to 31";
   if (holds === "year" && !/^(\d{2}|\d{4})$/.test(text)) return "Enter a year, such as 2026";

@@ -26,11 +26,11 @@ import {
 } from "@/shared/ui";
 
 import { useSendForm, type Envelope, type FormField, type SendForm, type SendRequest } from "./api";
-import { askedFields } from "./conditions";
+import { askedFields } from "@/shared/document/conditions";
 import styles from "./envelopes.module.css";
-import { FieldInput, refused } from "./FieldInput";
-import { fitsEverywhere, kept, namePart, useFontReady, written, writtenIn } from "./typeset";
-import { ValuesOverlay } from "./ValuesOverlay";
+import { FieldInput, refused } from "@/shared/document/FieldInput";
+import { fitsEverywhere, kept, namePart, useFontReady, written, writtenIn } from "@/shared/document/typeset";
+import { ValuesOverlay } from "@/shared/document/ValuesOverlay";
 
 const STEPS = ["Template", "Details", "Signers", "Countersigners", "Review"] as const;
 const DOCUMENT = 0;

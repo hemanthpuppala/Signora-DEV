@@ -48,8 +48,8 @@ import {
 } from "./api";
 import { day } from "./EnvelopesList";
 import styles from "./envelopes.module.css";
-import { namePart } from "./typeset";
-import { ValuesOverlay, type Shown } from "./ValuesOverlay";
+import { namePart } from "@/shared/document/typeset";
+import { ValuesOverlay, type Shown } from "@/shared/document/ValuesOverlay";
 
 const OPEN = new Set<Envelope["status"]>(["sent", "opened", "viewed", "signed"]);
 const LIVE = new Set<Recipient["status"]>(["sent", "opened", "viewed"]);
