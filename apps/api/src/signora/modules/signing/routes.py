@@ -284,7 +284,7 @@ def adopt(
     recipient_id: uuid.UUID, kind: signatures.Kind, body: signatures.SignatureIn, request: Request
 ) -> signatures.Adopted:
     with _db(request).unit_of_work() as uow:
-        who = service.acting(uow, request, recipient_id)
+        who = service.locked(uow, service.acting(uow, request, recipient_id))
         service.require_ready(uow, who, to_change=True)
         return signatures.adopt(uow, who.recipient.id, who.recipient.workspace_id, kind, body)
 

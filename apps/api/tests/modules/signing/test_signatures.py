@@ -3,12 +3,16 @@ all, changed in every place at once, fingerprinted."""
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
+from signora.kernel.db import Database
 from signora.modules.signing.signatures import fingerprint
 from tests.modules.identity_access.conftest import Account
 from tests.modules.signing.conftest import Sent, signable_envelope
@@ -146,3 +150,36 @@ def test_the_fonts_are_listed_by_use(client: TestClient) -> None:
     assert [f["id"] for f in text] == ["liberation-sans"]
     served = client.get(signature[0]["url"])
     assert served.status_code == 200 and served.headers["content-type"] == "font/ttf"
+
+
+def test_a_change_of_signature_waits_for_a_submit_under_way_and_then_is_refused(
+    sent: Sent, browser: TestClient, committing_db: Database
+) -> None:
+    """A change takes the envelope's lock that a submit holds: it cannot slip in while the submit
+    signs with the signature it read, and once the person has signed it is refused, not applied."""
+    signer = _ready(browser, sent)
+    assert _adopt(browser, signer, method="drawn", strokes=STROKE).status_code == 200
+
+    with committing_db.unit_of_work() as submitting:  # a submit under way: the lock, then signed
+        submitting.session.execute(
+            text("SELECT 1 FROM envelopes WHERE id = :e FOR UPDATE"), {"e": sent.id}
+        )
+        with ThreadPoolExecutor(1) as pool:
+            change = pool.submit(
+                _adopt, browser, signer, method="typed", text="Maya Chen", font="allura"
+            )
+            time.sleep(0.5)
+            assert not change.done()  # waits for the lock
+            submitting.session.execute(
+                text(
+                    "UPDATE envelope_recipients SET status = 'signed', signed_at = now() "
+                    "WHERE id = :r"
+                ),
+                {"r": signer},
+            )
+            submitting.commit()
+            answer = change.result(timeout=10)
+
+    assert (answer.status_code, answer.json()["code"]) == (409, "already-signed")
+    kept = browser.get(f"{SIGN}/{signer}/signature").json()["adopted"]
+    assert [a["method"] for a in kept] == ["drawn"]

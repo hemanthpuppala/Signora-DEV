@@ -15,6 +15,7 @@ from signora.modules.documents import VersionForSigning, version_for_signing
 from signora.modules.envelopes import (
     SignerRecipient,
     envelope_values,
+    lock_envelope,
     recipient_for_signing,
     record_opened,
     record_viewed,
@@ -162,6 +163,17 @@ def may_act(who: Signer) -> Signer:
     if recipient.envelope_status != "signed" and recipient.status != "signed":
         raise NotTheirTurn
     return who
+
+
+def locked(uow: UnitOfWork, who: Signer) -> Signer:
+    """The person read again under their envelope's lock (§6.2), the lock every submit and decline
+    takes first: a change made under it applies wholly before a submit or after it, never across
+    one, so what a submit signed with is what stays."""
+    lock_envelope(uow.session, who.recipient.envelope_id)
+    recipient = recipient_for_signing(uow.session, who.recipient.id)
+    if recipient is None:
+        raise LinkClosed
+    return may_act(Signer(recipient, who.verified, who.digest))
 
 
 def acting(uow: UnitOfWork, request: Request, recipient_id: uuid.UUID) -> Signer:
