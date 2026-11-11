@@ -457,3 +457,19 @@ def test_a_second_extra_field_on_the_same_blank_is_a_problem_named_as_such() -> 
     assert problems == ["extra field 'Second': the same blank as another extra field: list it once"]
     assert [field.label for field in result.fields] == ["First"]
     assert any("'Second' dropped: the same blank as another" in note for note in result.notes)
+
+
+def test_a_page_is_searched_once_for_the_same_words() -> None:
+    """Review #10: each extra field searched its page three or four times for the same words."""
+    from unittest.mock import patch
+
+    from signora.modules.detection.writing_space import PageSpace
+
+    document = pymupdf.open(
+        stream=_flat([(72, 100, PARAGRAPH), (72, 300, "Name:")]), filetype="pdf"
+    )
+    search = pymupdf.Page.search_for
+    with patch.object(pymupdf.Page, "search_for", autospec=True, side_effect=search) as spy:
+        space = PageSpace(document[0], [])
+        first, again = space.find("Name:"), space.find("Name:")
+    assert first == again and len(first) == 1 and spy.call_count == 1

@@ -67,6 +67,7 @@ class PageSpace:
         self._fields: RowIndex[None] = RowIndex((box, None) for box in fields)  # the PDF's
         self._extras: RowIndex[None] = RowIndex(())  # places given to extra fields since
         self._upright = _reads_upright(page)
+        self._found: dict[str, list[Box]] = {}
         # The text's right edge: a box after a label runs to it at most, never into the margin.
         # The furthest word, or the left margin mirrored when the page's text is short (a form of
         # labels): pages are laid out with even margins.
@@ -100,8 +101,11 @@ class PageSpace:
         """Every place the words are printed on the page, as displayed, in reading order."""
         if not words.strip():
             return []  # nothing to look for (the search answers None, not an empty list)
+        if words in self._found:  # the page's text does not change: one search per words
+            return self._found[words]
         hits = [displayed(self._page, hit) for hit in self._page.search_for(words) or []]
-        return sorted(hits, key=lambda box: (round(box[1]), box[0]))
+        self._found[words] = sorted(hits, key=lambda box: (round(box[1]), box[0]))
+        return self._found[words]
 
     def room_above(self, box: Box) -> Box:
         """The box grown upward into the free space above it; never smaller than it was; kept as
