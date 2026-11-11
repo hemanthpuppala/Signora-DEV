@@ -116,14 +116,23 @@ def write_template(columns: Sequence[Column], *, version_id: uuid.UUID, title: s
         allowed = _allowed_values(column)
         if allowed is not None:
             rule = DataValidation(
-                type="list", formula1='"' + ",".join(allowed) + '"', allow_blank=True
+                type="list",
+                formula1='"' + ",".join(allowed) + '"',
+                allow_blank=True,
+                showErrorMessage=True,  # without it the list is only a suggestion
+                errorStyle="stop",
             )
             rule.error = "Choose one of the listed values"
             sheet.add_data_validation(rule)
             rule.add(cells)
         elif column.kind == "date":
             rule = DataValidation(
-                type="date", operator="greaterThan", formula1="1", allow_blank=True
+                type="date",
+                operator="greaterThan",
+                formula1="1",
+                allow_blank=True,
+                showErrorMessage=True,
+                errorStyle="stop",
             )
             rule.error = "Enter a date"
             sheet.add_data_validation(rule)
@@ -204,7 +213,8 @@ def _text(value: Any) -> str:
         return value.isoformat()
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
-    return clean_cell(str(value))
+    # A cell protected by ``_csv_safe`` reads the same whichever format it comes back in.
+    return clean_cell(_csv_plain(str(value)))
 
 
 def _rows(lines: Iterator[Sequence[Any]]) -> tuple[list[str], list[tuple[int, list[str]]]]:
@@ -290,13 +300,8 @@ def _read_csv(data: bytes) -> FileRows:
     # be taken for one.
     first_line = text.split("\n", 1)[0]
     delimiter = max(",;\t", key=first_line.count)
-    # Each cell without the apostrophe ``_csv_safe`` may have put there, before it is cleaned.
-    lines = (
-        [_csv_plain(cell) for cell in line]
-        for line in csv.reader(io.StringIO(text), delimiter=delimiter)
-    )
     try:
-        headers, rows = _rows(lines)
+        headers, rows = _rows(iter(csv.reader(io.StringIO(text), delimiter=delimiter)))
     except csv.Error as error:
         raise UnreadableFile from error
     return FileRows(headers, rows, None)

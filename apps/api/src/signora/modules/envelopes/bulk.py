@@ -15,11 +15,13 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import DomainError, NotFound, ValidationFailed
 from signora.kernel.jobs import JobContext, JobKind, JobRegistry, RecurringJob, enqueue
+from signora.kernel.logging import get_logger
 from signora.modules.audit import Actor as AuditActor
 from signora.modules.audit import AuditChain, Subject, record
 from signora.modules.departments import get_department, load_access
@@ -36,13 +38,16 @@ from signora.modules.envelopes.bulk_sheet import (
     check_rows,
     clean_cell,
     columns_of,
+    countersigner_key,
     known_columns,
     match_headers,
 )
 from signora.modules.envelopes.errors import NobodySigns, OutdatedSpreadsheet, RowsNeedFixing
 from signora.modules.envelopes.form import SendForm
-from signora.modules.envelopes.sending import CountersignerIn, SendRequest, SettingsIn
+from signora.modules.envelopes.sending import SendRequest, SettingsIn
 from signora.modules.identity_access import Actor, Permission, actor_of, normalize_email
+
+log = get_logger(__name__)
 
 SEND_BATCH = "envelopes.send_batch"
 MAX_ATTEMPTS = 5
@@ -115,16 +120,15 @@ def _form(
 
 
 def form_defaults(form: SendForm) -> BatchDefaults:
-    """What a batch starts from: the department's countersigners and settings, as the send
-    dialog starts from them."""
-    return BatchDefaults(
-        countersigners=[
-            CountersignerIn(party_id=party.party_id, user_id=party.default.user_id)
-            for party in form.countersigners
-            if party.default is not None
-        ],
-        settings=SettingsIn(**form.settings.model_dump()),
-    )
+    """What a batch starts from: the department's settings, as the send dialog starts from them."""
+    return BatchDefaults(settings=SettingsIn(**form.settings.model_dump()))
+
+
+def authorize(
+    session: Session, actor: Actor, document_id: uuid.UUID, version_id: uuid.UUID
+) -> None:
+    """Refuse whoever may not send this version, before anything of theirs is read."""
+    _form(session, actor, document_id, version_id)
 
 
 def template(
@@ -136,11 +140,22 @@ def template(
     return f"{form.document_name} bulk send.xlsx", data
 
 
-def _sheet_rows(file: FileRows, keys: Sequence[str | None]) -> list[RowIn]:
+def _sheet_rows(file: FileRows, keys: Sequence[str | None], form: SendForm) -> list[RowIn]:
+    """A file's rows as a sheet's. A row that does not say who countersigns takes the
+    department's countersigner for that party, as the send dialog does; with none set, the cell
+    stays empty and is asked for where the rows are corrected."""
+    usual = {
+        countersigner_key(party.party_id): party.default.email
+        for party in form.countersigners
+        if party.default is not None
+    }
     return [
         RowIn(
             row_no=number,
-            cells={key: cell for key, cell in zip(keys, cells, strict=False) if key and cell},
+            cells={
+                **usual,
+                **{key: cell for key, cell in zip(keys, cells, strict=False) if key and cell},
+            },
         )
         for number, cells in file.rows
     ]
@@ -167,7 +182,7 @@ def parse(
     return check_rows(
         form,
         matched.columns,
-        _sheet_rows(file, matched.keys),
+        _sheet_rows(file, matched.keys, form),
         form_defaults(form),
         normalize_email=normalize_email,
     ).sheet
@@ -419,6 +434,14 @@ def _send_next(uow: UnitOfWork, batch_id: uuid.UUID) -> bool:
             )
     except DomainError as refused:
         settle("failed", error=_reason(refused)[:500])
+    except DBAPIError:
+        raise  # the database itself: nothing about this row; the job is tried again
+    except Exception:
+        # Anything else is this row's own (a fault its data trips): it is marked and recorded,
+        # and the rows after it still go out. Tried again it would fail the same way, and take
+        # every later row with it when the job gave up.
+        log.exception("envelope_batch.row_failed", batch_id=str(batch_id), row_no=row.row_no)
+        settle("failed", error=GAVE_UP)
     else:
         settle("sent", envelope_id=sent.id)
     return True
@@ -470,6 +493,7 @@ __all__ = [
     "BatchRequest",
     "BatchView",
     "CheckRequest",
+    "authorize",
     "check",
     "create_batch",
     "get_batch",

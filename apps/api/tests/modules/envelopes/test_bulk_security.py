@@ -489,13 +489,11 @@ def test_a_batch_cannot_be_aimed_at_another_companys_template_or_colleague(
     )
 
     # And this company's sender cannot name another company's person as the countersigner.
-    foreign = {
-        **defaults(doc, company),
-        "countersigners": [{"party_id": doc.party("Firm")["id"], "user_id": str(other.user_id)}],
-    }
-    judged = check(owner, doc, sheet, foreign).json()
-    assert [p["message"] for p in judged["rows"][0]["problems"]] == ["Choose a colleague"]
-    assert send_batch(owner, doc, sheet, foreign).status_code == 422
+    firm_key = next(c["key"] for c in sheet["columns"] if c["header"] == "Firm countersigner")
+    sheet["rows"][0]["cells"][firm_key] = other.email
+    judged = check(owner, doc, sheet, defaults(doc, company)).json()
+    assert [p["message"] for p in judged["rows"][0]["problems"]] == ["Not a colleague's email"]
+    assert send_batch(owner, doc, sheet, defaults(doc, company)).status_code == 422
 
 
 def test_reading_files_is_limited_per_person(

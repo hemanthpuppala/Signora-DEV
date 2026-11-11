@@ -56,7 +56,7 @@ def filled(api: TestClient, doc: Sendable, people: list[list[str]]) -> dict[str,
         for column in sheet["columns"]:
             if column["required"] and not row["cells"].get(column["key"]):
                 row["cells"][column["key"]] = (
-                    column["options"][0]["text"]
+                    column["options"][0]["value"]
                     if column["options"]
                     else SAMPLE.get(column["kind"], "Delaware")
                 )
@@ -64,12 +64,8 @@ def filled(api: TestClient, doc: Sendable, people: list[list[str]]) -> dict[str,
 
 
 def defaults(doc: Sendable, colleague: Account) -> dict[str, Any]:
-    return {
-        "countersigners": [
-            {"party_id": doc.party("Firm")["id"], "user_id": str(colleague.user_id)}
-        ],
-        "settings": SETTINGS,
-    }
+    """What is chosen once for the batch. Who countersigns is each row's own cell."""
+    return {"settings": SETTINGS}
 
 
 def check(api: TestClient, doc: Sendable, sheet: dict[str, Any], batch: dict[str, Any]) -> Any:
@@ -139,7 +135,7 @@ def test_the_spreadsheet_for_a_version_has_its_columns_and_is_empty(
     assert "attachment" in response.headers["content-disposition"]
     assert "bulk%20send.xlsx" in response.headers["content-disposition"]
     headers = [c.value for c in load_workbook(io.BytesIO(response.content))["Envelopes"][1]]
-    assert headers[:3] == ["Client name *", "Client email *", "Firm countersigner"]
+    assert headers[:3] == ["Client name *", "Client email *", "Firm countersigner *"]
     assert "Effective date *" in headers and "Internal note" in headers
     # What the signer's own name and email fill is never asked.
     assert "Client printed name" not in headers
@@ -238,7 +234,7 @@ def test_a_batch_sends_one_envelope_per_row_once(
     envelopes = [owner.get(f"/api/v1/envelopes/{row.envelope_id}").json() for row in rows]
     assert [e["recipients"][0]["name"] for e in envelopes] == ["Client 0", "Client 1", "Client 2"]
     assert all(e["status"] == "sent" and e["reminder_interval_hours"] == 48 for e in envelopes)
-    assert all(e["recipients"][1]["email"] == company.email for e in envelopes)  # the default
+    assert all(e["recipients"][1]["email"] == company.email for e in envelopes)  # the row's
 
     # The job run again (a worker that restarted) sends nothing twice.
     run_batch(committing_db, batch["id"], attempt=2)

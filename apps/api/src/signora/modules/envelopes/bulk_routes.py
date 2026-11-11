@@ -103,7 +103,7 @@ async def read_bulk_rows(
 
     def authorize() -> None:
         with database.unit_of_work() as uow:
-            bulk.template(uow.session, actor, document_id, version_id)
+            bulk.authorize(uow.session, actor, document_id, version_id)
 
     await run_in_threadpool(authorize)  # before reading the body
     _limit(request, actor, "file", FILES_PER_HOUR)

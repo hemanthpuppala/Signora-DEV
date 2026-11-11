@@ -29,14 +29,31 @@ from signora.modules.typesetting import fitted_size, place_size
 MAX_COPIES = 10
 
 
+def one_line(text: str) -> str:
+    """Text without control characters: a NUL the database cannot store, an escape sequence, a
+    line break that would start a new header in an email. Each becomes a space. A person's name
+    and email are one line wherever they are typed: in the send dialog or in a spreadsheet."""
+    return "".join(" " if (ord(ch) < 32 or 127 <= ord(ch) < 160) else ch for ch in text)
+
+
 class _In(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class SignerIn(_In):
-    party_id: uuid.UUID
+class _PersonIn(_In):
+    """Someone an envelope goes to, by name and email, each one line."""
+
     name: str = Field(min_length=1, max_length=120)
     email: str = Field(min_length=3, max_length=254)
+
+    @field_validator("name", "email", mode="before")
+    @classmethod
+    def _one_line(cls, value: object) -> object:
+        return one_line(value) if isinstance(value, str) else value
+
+
+class SignerIn(_PersonIn):
+    party_id: uuid.UUID
 
 
 class CountersignerIn(_In):
@@ -44,9 +61,8 @@ class CountersignerIn(_In):
     user_id: uuid.UUID
 
 
-class CopyIn(_In):
-    name: str = Field(min_length=1, max_length=120)
-    email: str = Field(min_length=3, max_length=254)
+class CopyIn(_PersonIn):
+    pass
 
 
 class ValueIn(_In):

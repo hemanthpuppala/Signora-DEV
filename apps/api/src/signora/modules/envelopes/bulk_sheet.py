@@ -10,8 +10,9 @@ items back to the cells they came from.
 from __future__ import annotations
 
 import uuid
+from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, Literal
 
 from pydantic import (
@@ -30,10 +31,10 @@ from signora.modules.envelopes.sending import (
     DEFAULT_ZONE,
     MAX_COPIES,
     CopyIn,
-    CountersignerIn,
     Plan,
     SendRequest,
     SettingsIn,
+    one_line,
     plan_send,
 )
 
@@ -48,10 +49,9 @@ KEY_MAX = 120
 def clean_cell(text: str) -> str:
     """A cell's text without what no value should carry: control characters (a NUL the database
     cannot store, an escape sequence, a line break that could start a new header in an email)
-    become spaces, and the text is cut at the cell limit. The one definition, for a file's cells
-    and for rows sent back by the browser."""
-    cleaned = "".join(" " if (ord(ch) < 32 or 127 <= ord(ch) < 160) else ch for ch in text)
-    return cleaned.strip()[:CELL_MAX]
+    become spaces, as in a single send (``sending.one_line``), and the text is cut at the cell
+    limit. For a file's cells and for rows sent back by the browser."""
+    return one_line(text).strip()[:CELL_MAX]
 
 
 Kind = Literal["text", "email", "date", "choice", "checkbox", "number"]
@@ -61,10 +61,12 @@ _NUMBERS = frozenset({"number", "currency", "percent"})
 _DATES = frozenset({"date", "date_of_birth"})
 _TICKED = frozenset({"yes", "true", "x", "1", "y"})
 _NOT_TICKED = frozenset({"no", "false", "0", "n", ""})
+TICKED = "yes"  # how a ticked box is written in a cell the sheet gives back
 
 SAME_PERSON = (
     "The same person as another party in this row. Use another email, or send this one by itself"
 )
+NOT_A_COLLEAGUE = "Not a colleague's email"
 
 
 class Column(BaseModel):
@@ -104,7 +106,9 @@ class RowIn(BaseModel):
 
 
 class Row(BaseModel):
-    """A row as it is judged: the same, with what is wrong with it."""
+    """A row as it is judged: its cells as they are read (a choice as its option's value, a tick
+    as ``yes``, a colleague as their email), with what is wrong with it. Whoever shows the row
+    shows these cells and needs no reading rules of their own."""
 
     row_no: int
     cells: dict[str, str]
@@ -119,12 +123,11 @@ class Sheet(BaseModel):
 
 
 class BatchDefaults(BaseModel):
-    """What is chosen once for every row (FR-7): a row's own countersigner or setting replaces
-    the matching one here."""
+    """What is chosen once for every row (FR-7); a row's own setting replaces the matching one
+    here. Who countersigns is not chosen here: every row names its own."""
 
     model_config = ConfigDict(extra="forbid")
 
-    countersigners: list[CountersignerIn] = Field(default_factory=list, max_length=20)
     copies: list[CopyIn] = Field(default_factory=list, max_length=MAX_COPIES)
     settings: SettingsIn
     time_zone: str = Field(default=DEFAULT_ZONE, max_length=64)
@@ -164,25 +167,56 @@ def kind_of(holds: str) -> Kind:
     return "text"
 
 
-def _unique(headers: list[str]) -> list[str]:
-    """Headers as given, a repeated one numbered ("Address", "Address (2)"), so each column can
-    be found by its header alone."""
-    seen: dict[str, int] = {}
+def _plain(header: str) -> str:
+    """A header as compared: without its star, case or extra spaces."""
+    return " ".join(header.replace("*", " ").split()).casefold()
+
+
+# A row's own settings (§4.1): not in the downloaded file, recognised when a sender adds them.
+SETTING_COLUMNS: tuple[Column, ...] = (
+    Column(
+        key=setting_key("require_email_code"), header="Email code", kind="checkbox", required=False
+    ),
+    Column(
+        key=setting_key("reminder_interval_hours"),
+        header="Remind every (hours)",
+        kind="number",
+        required=False,
+    ),
+    Column(
+        key=setting_key("max_reminders"), header="Reminders at most", kind="number", required=False
+    ),
+    Column(
+        key=setting_key("expiry_days"), header="Expires after (days)", kind="number", required=False
+    ),
+)
+_RESERVED = frozenset(_plain(column.header) for column in SETTING_COLUMNS)
+
+
+def _unique(headers: Sequence[str]) -> list[str]:
+    """Headers as given, one that reads the same as an earlier one numbered ("Address",
+    "Address (2)"), so each column is found by its header alone. "The same" is the reading
+    ``match_headers`` uses, and the optional settings' headers are taken already. O(n)."""
+    taken = set(_RESERVED)
+    count: Counter[str] = Counter()
     out: list[str] = []
     for header in headers:
-        count = seen.get(header.casefold(), 0) + 1
-        seen[header.casefold()] = count
-        out.append(header if count == 1 else f"{header} ({count})")
+        candidate = header
+        while _plain(candidate) in taken:
+            count[_plain(header)] += 1
+            candidate = f"{header} ({count[_plain(header)] + 1})"
+        taken.add(_plain(candidate))
+        out.append(candidate)
     return out
 
 
 def columns_of(form: SendForm) -> list[Column]:
     """What a row gives for this form (§4.1): each signer's name and email, each countersigner
-    party's colleague, then every field the sender may fill. O(P + F)."""
+    party's colleague, then every field the sender may fill. O(P + F + C)."""
     party_label = {signer.party_id: signer.label for signer in form.signers}
     party_label.update({party.party_id: party.label for party in form.countersigners})
-    labels = [item.label.casefold() for item in form.fields if item.from_recipient is None]
-    repeated = {label for label in labels if labels.count(label) > 1}
+    asked = [item for item in form.fields if item.from_recipient is None]
+    times = Counter(_plain(item.label) for item in asked)
     colleagues = [
         Option(value=person.email, text=f"{person.name} · {person.email}")
         for person in form.colleagues
@@ -212,15 +246,13 @@ def columns_of(form: SendForm) -> list[Column]:
                 key=countersigner_key(party.party_id),
                 header=f"{party.label} countersigner",
                 kind="choice",
-                required=False,
+                required=True,  # every envelope names who countersigns it
                 options=colleagues,
             )
         )
-    for item in form.fields:
-        if item.from_recipient is not None:
-            continue  # the signer's own name or email fills it; never asked (form.py)
+    for item in asked:
         header = item.label
-        if header.casefold() in repeated and item.party_id in party_label:
+        if times[_plain(header)] > 1 and item.party_id in party_label:
             header = f"{party_label[item.party_id]}: {header}"
         columns.append(
             Column(
@@ -236,26 +268,6 @@ def columns_of(form: SendForm) -> list[Column]:
     return columns
 
 
-# A row's own settings (§4.1): not in the downloaded file, recognised when a sender adds them.
-SETTING_COLUMNS: tuple[Column, ...] = (
-    Column(
-        key=setting_key("require_email_code"), header="Email code", kind="checkbox", required=False
-    ),
-    Column(
-        key=setting_key("reminder_interval_hours"),
-        header="Remind every (hours)",
-        kind="number",
-        required=False,
-    ),
-    Column(
-        key=setting_key("max_reminders"), header="Reminders at most", kind="number", required=False
-    ),
-    Column(
-        key=setting_key("expiry_days"), header="Expires after (days)", kind="number", required=False
-    ),
-)
-
-
 def known_columns(form: SendForm) -> list[Column]:
     """Every column a file for this form may have: what it asks, then the optional settings."""
     return [*columns_of(form), *SETTING_COLUMNS]
@@ -264,11 +276,6 @@ def known_columns(form: SendForm) -> list[Column]:
 def header_text(column: Column) -> str:
     """A column's header as written in a file: a required one ends with a star."""
     return f"{column.header} *" if column.required else column.header
-
-
-def _plain(header: str) -> str:
-    """A header as compared: without its star, case or extra spaces."""
-    return " ".join(header.replace("*", " ").split()).casefold()
 
 
 @dataclass(frozen=True)
@@ -344,15 +351,25 @@ def _value(item: FormField, text: str) -> str:
     return text.strip()
 
 
-_SETTING_LIMITS = {
-    "reminder_interval_hours": "Give hours as a whole number from 1 to 720",
-    "max_reminders": "Give a whole number from 0 to 20",
-    "expiry_days": "Give days as a whole number from 1 to 365",
-}
+def _limits(name: str) -> tuple[int, int]:
+    """A numeric setting's range, read from the one place it is defined (``SettingsIn``)."""
+    low = high = 0
+    for rule in SettingsIn.model_fields[name].metadata:
+        low = getattr(rule, "ge", low)
+        high = getattr(rule, "le", high)
+    return low, high
+
+
+_NUMERIC_SETTINGS = ("reminder_interval_hours", "max_reminders", "expiry_days")
+
+
+def _out_of_range(name: str) -> str:
+    low, high = _limits(name)
+    return f"Enter a whole number from {low} to {high}"
 
 
 def _settings(
-    cells: Mapping[str, str], defaults: SettingsIn, problems: list[CellProblem]
+    cells: Mapping[str, str], defaults: SettingsIn, say: Callable[[str, str], None]
 ) -> SettingsIn:
     """The batch's settings with this row's own in place of them (FR-7)."""
     changed: dict[str, object] = {}
@@ -360,64 +377,55 @@ def _settings(
     if code:
         ticked = _ticked(code)
         if ticked is None:
-            problems.append(
-                CellProblem(key=setting_key("require_email_code"), message="Give yes or no")
-            )
+            say(setting_key("require_email_code"), "Give yes or no")
         else:
             changed["require_email_code"] = ticked
-    for name, message in _SETTING_LIMITS.items():
+    for name in _NUMERIC_SETTINGS:
         raw = cells.get(setting_key(name), "").strip()
         if not raw:
             continue
-        if raw.isascii() and raw.isdigit():
+        low, high = _limits(name)
+        if raw.isascii() and raw.isdigit() and low <= int(raw) <= high:
             changed[name] = int(raw)
         else:
-            problems.append(CellProblem(key=setting_key(name), message=message))
-    if not changed:
-        return defaults
-    try:
-        return SettingsIn.model_validate({**defaults.model_dump(), **changed})
-    except ValidationError as error:
-        for issue in error.errors():
-            name = str(issue["loc"][0]) if issue["loc"] else ""
-            problems.append(
-                CellProblem(key=setting_key(name), message=_SETTING_LIMITS.get(name, issue["msg"]))
-            )
-        return defaults
+            say(setting_key(name), _out_of_range(name))
+    return defaults.model_copy(update=changed) if changed else defaults
 
 
 @dataclass(frozen=True)
+class Lookups:
+    """What every row of a sheet is read against, built once for the sheet: O(P + F + C)."""
+
+    by_email: dict[str, Colleague]
+    by_id: dict[uuid.UUID, Colleague]
+    colleague_options: list[Option]
+    signer_parties: frozenset[uuid.UUID]
+    asked: list[FormField]  # the fields a row may give (not the signer's own name or email)
+
+    @staticmethod
+    def of(form: SendForm) -> Lookups:
+        return Lookups(
+            by_email={person.email.casefold(): person for person in form.colleagues},
+            by_id={person.user_id: person for person in form.colleagues},
+            colleague_options=[
+                Option(value=person.email, text=f"{person.name} · {person.email}")
+                for person in form.colleagues
+            ],
+            signer_parties=frozenset(signer.party_id for signer in form.signers),
+            asked=[item for item in form.fields if item.from_recipient is None],
+        )
+
+
+@dataclass
 class Checked:
-    """A row judged: what is wrong with it, and when nothing is, the request to send it with and
-    the plan a single send would write."""
+    """A row judged: its cells as read, what is wrong with it, and when nothing is, the request
+    to send it with and the plan a single send would write."""
 
-    problems: list[CellProblem]
-    general: list[str]  # the batch's own problems this row met (said once per sheet)
-    request: SendRequest | None
-    plan: Plan | None
-
-
-def _request_problems(error: ValidationError, form: SendForm) -> list[CellProblem]:
-    """A request the API itself would refuse (an empty or over-long name, say), on its cell."""
-    problems: list[CellProblem] = []
-    for issue in error.errors():
-        loc = issue["loc"]
-        key = ""
-        if len(loc) >= 3 and loc[0] == "signers" and isinstance(loc[1], int):
-            key = signer_key(
-                form.signers[loc[1]].party_id, "email" if loc[2] == "email" else "name"
-            )
-        elif len(loc) >= 2 and loc[0] == "values" and isinstance(loc[1], int):
-            key = "values"  # replaced below with the field's key by the caller's order
-        limit = issue.get("ctx", {}).get("max_length")
-        if issue["type"] == "string_too_short":
-            message = "Enter an email address" if key.endswith(":email") else "Enter a name"
-        elif issue["type"] == "string_too_long" and limit:
-            message = f"Use {limit} or fewer characters"
-        else:
-            message = str(issue["msg"])
-        problems.append(CellProblem(key=key, message=message))
-    return problems
+    cells: dict[str, str]
+    problems: list[CellProblem] = field(default_factory=list)
+    general: list[str] = field(default_factory=list)  # the batch's own problems this row met
+    request: SendRequest | None = None
+    plan: Plan | None = None
 
 
 def check_row(
@@ -426,56 +434,59 @@ def check_row(
     defaults: BatchDefaults,
     *,
     normalize_email: Callable[[str], str],
+    lookups: Lookups | None = None,
 ) -> Checked:
-    """One row as a single send would judge it. O(P + F)."""
-    problems: list[CellProblem] = []
-    general: list[str] = []
+    """One row as a single send would judge it. O(P + F) given the sheet's lookups."""
+    known = lookups or Lookups.of(form)
+    result = Checked(cells=dict(cells))
+    said: set[str] = set()
 
-    def add(key: str, message: str) -> None:
+    def say(key: str, message: str) -> None:
         # The first thing said about a cell stands: a later item about the same cell is a
         # consequence of it (a colleague that is not one, then "choose who countersigns").
-        if all(problem.key != key for problem in problems):
-            problems.append(CellProblem(key=key, message=message))
+        if key not in said:
+            said.add(key)
+            result.problems.append(CellProblem(key=key, message=message))
 
     # Signers: every party of the form, so a missing one is named on its own cells.
-    signers: list[dict[str, object]] = []
-    for signer in form.signers:
-        signers.append(
-            {
-                "party_id": signer.party_id,
-                "name": cells.get(signer_key(signer.party_id, "name"), "").strip(),
-                "email": cells.get(signer_key(signer.party_id, "email"), "").strip(),
-            }
-        )
+    signers = [
+        {
+            "party_id": signer.party_id,
+            "name": cells.get(signer_key(signer.party_id, "name"), "").strip(),
+            "email": cells.get(signer_key(signer.party_id, "email"), "").strip(),
+        }
+        for signer in form.signers
+    ]
 
-    # Countersigners: the row's own colleague, or the batch's default for that party.
-    by_email = {person.email.casefold(): person for person in form.colleagues}
-    default_of = {choice.party_id: choice.user_id for choice in defaults.countersigners}
+    # Countersigners: the colleague the row names, by email or as the list shows them.
     countersigners: list[dict[str, object]] = []
     for party in form.countersigners:
-        own = cells.get(countersigner_key(party.party_id), "").strip()
-        if own:
-            colleague = by_email.get(own.casefold())
-            if colleague is None:
-                add(countersigner_key(party.party_id), "Not a colleague's email")
-            else:
-                countersigners.append({"party_id": party.party_id, "user_id": colleague.user_id})
-        elif party.party_id in default_of:
-            countersigners.append(
-                {"party_id": party.party_id, "user_id": default_of[party.party_id]}
-            )
+        key = countersigner_key(party.party_id)
+        given = _option(cells.get(key, ""), known.colleague_options)
+        if not given:
+            continue  # the single send says who is missing, on this cell
+        colleague = known.by_email.get(given.casefold())
+        if colleague is None:
+            say(key, NOT_A_COLLEAGUE)
+        else:
+            result.cells[key] = colleague.email
+            countersigners.append({"party_id": party.party_id, "user_id": colleague.user_id})
 
     values: list[dict[str, object]] = []
     value_fields: list[uuid.UUID] = []
-    for item in form.fields:
-        if item.from_recipient is not None:
-            continue
-        text = _value(item, cells.get(field_key(item.id), ""))
+    for item in known.asked:
+        key = field_key(item.id)
+        text = _value(item, cells.get(key, ""))
+        kind = kind_of(item.holds)
+        if kind == "checkbox" and text in ("true", ""):
+            result.cells[key] = TICKED if text else ""
+        elif kind == "choice":
+            result.cells[key] = text
         if text:
             values.append({"field_id": item.id, "value": text})
             value_fields.append(item.id)
 
-    settings = _settings(cells, defaults.settings, problems)
+    settings = _settings(cells, defaults.settings, say)
     try:
         request = SendRequest.model_validate(
             {
@@ -489,46 +500,60 @@ def check_row(
             }
         )
     except ValidationError as error:
-        for problem in _request_problems(error, form):
-            if problem.key == "values":
-                continue  # a value over the length limit: named below by its field
-            if problem.key:
-                add(problem.key, problem.message)
-            else:
-                general.append(problem.message)
-        for issue in error.errors():
-            loc = issue["loc"]
-            if len(loc) >= 2 and loc[0] == "values" and isinstance(loc[1], int):
-                add(field_key(value_fields[loc[1]]), "Use 2000 or fewer characters")
-        return Checked(problems, general, None, None)
+        _say_request_problems(error, form, value_fields, say, result.general)
+        return result
 
-    colleagues: dict[uuid.UUID, Colleague] = {person.user_id: person for person in form.colleagues}
     try:
-        plan = plan_send(form, request, colleagues=colleagues, normalize_email=normalize_email)
+        plan = plan_send(form, request, colleagues=known.by_id, normalize_email=normalize_email)
     except ValidationFailed as refused:
-        signer_parties = {signer.party_id for signer in form.signers}
         for item_error in refused.field_errors:
-            key = _cell_of(item_error.field, request, signer_parties)
-            if key is None:
-                general.append(item_error.message)
+            cell = _cell_of(item_error.field, request, known.signer_parties)
+            if cell is None:
+                result.general.append(item_error.message)
             else:
-                add(key, item_error.message)
-        return Checked(problems, general, None, None)
+                say(cell, item_error.message)
+        return result
 
     if plan.shared_emails:
         shared = set(plan.shared_emails)
         for person in plan.signers:
             if person.email in shared and person.party_id is not None:
-                add(signer_key(person.party_id, "email"), SAME_PERSON)
+                say(signer_key(person.party_id, "email"), SAME_PERSON)
         for person in plan.countersigners:
             if person.email in shared and person.party_id is not None:
-                add(countersigner_key(person.party_id), SAME_PERSON)
-    if problems:
-        return Checked(problems, general, None, None)
-    return Checked([], general, request, plan)
+                say(countersigner_key(person.party_id), SAME_PERSON)
+    if not result.problems:
+        result.request, result.plan = request, plan
+    return result
 
 
-def _cell_of(path: str, request: SendRequest, signer_parties: set[uuid.UUID]) -> str | None:
+def _say_request_problems(
+    error: ValidationError,
+    form: SendForm,
+    value_fields: Sequence[uuid.UUID],
+    say: Callable[[str, str], None],
+    general: list[str],
+) -> None:
+    """A request the API itself would refuse (an empty or over-long name, a value over the
+    length limit), each on its cell."""
+    for issue in error.errors():
+        loc = issue["loc"]
+        limit = issue.get("ctx", {}).get("max_length")
+        too_long = f"Use {limit} or fewer characters" if limit else str(issue["msg"])
+        if len(loc) >= 3 and loc[0] == "signers" and isinstance(loc[1], int):
+            part: Literal["name", "email"] = "email" if loc[2] == "email" else "name"
+            if issue["type"] == "string_too_short":
+                message = "Enter an email address" if part == "email" else "Enter a name"
+            else:
+                message = too_long
+            say(signer_key(form.signers[loc[1]].party_id, part), message)
+        elif len(loc) >= 2 and loc[0] == "values" and isinstance(loc[1], int):
+            say(field_key(value_fields[loc[1]]), too_long)
+        else:
+            general.append(str(issue["msg"]))
+
+
+def _cell_of(path: str, request: SendRequest, signer_parties: frozenset[uuid.UUID]) -> str | None:
     """The cell a single send's refusal is about, from the item it names (``sending.plan_send``):
     ``signers[2].email``, ``fields.<id>``, ``parties.<id>``. ``None``: it is about the batch."""
     head, _, rest = path.partition(".")
@@ -572,6 +597,16 @@ def _label(plan: Plan) -> str:
     return f"{person.name} · {person.email}"
 
 
+def _also_in(row_numbers: Sequence[int], own: int) -> str:
+    """ "Also in rows 3, 4, 5 and 12 more": the first three other rows and how many beyond them.
+    O(1): only the first four of the group are looked at."""
+    others = len(row_numbers) - 1
+    listed = [number for number in row_numbers[:4] if number != own][:3]
+    more = "" if others <= 3 else f" and {others - 3} more"
+    noun = "row" if others == 1 else "rows"
+    return f"Also in {noun} {', '.join(str(number) for number in listed)}{more}"
+
+
 def check_rows(
     form: SendForm,
     columns: Sequence[Column],
@@ -580,40 +615,41 @@ def check_rows(
     *,
     normalize_email: Callable[[str], str],
 ) -> CheckedSheet:
-    """Every row judged, then the rows against each other (FR-6). O(R · (P + F)): one pass over
-    the rows and one map from signer email to the rows that send to it."""
+    """Every row judged, then the rows against each other (FR-6). O(P + F + C) once for the
+    sheet, then O(P + F) a row: one pass over the rows, and one map from a signer's email to the
+    rows that send to it."""
     if not form.signers and not form.countersigners:
         raise NobodySigns
+    lookups = Lookups.of(form)
     general: dict[str, None] = {}
     checked: list[Row] = []
     sendable: list[tuple[int, str, SendRequest]] = []
-    sends_to: dict[str, list[int]] = {}  # a signer's email -> indexes of the rows sending to it
+    sends_to: dict[str, list[int]] = {}  # a signer's email -> the numbers of the rows sending to it
     signer_emails: list[list[tuple[uuid.UUID, str]]] = []
 
-    for index, row in enumerate(rows):
-        result = check_row(form, row.cells, defaults, normalize_email=normalize_email)
+    for row in rows:
+        result = check_row(
+            form, row.cells, defaults, normalize_email=normalize_email, lookups=lookups
+        )
         general.update(dict.fromkeys(result.general))
-        checked.append(Row(row_no=row.row_no, cells=dict(row.cells), problems=result.problems))
+        checked.append(Row(row_no=row.row_no, cells=result.cells, problems=result.problems))
         emails: list[tuple[uuid.UUID, str]] = []
         if result.plan is not None and result.request is not None:
             sendable.append((row.row_no, _label(result.plan), result.request))
             for person in result.plan.signers:
                 if person.party_id is not None:
                     emails.append((person.party_id, person.email))
-                    sends_to.setdefault(person.email, []).append(index)
+                    sends_to.setdefault(person.email, []).append(row.row_no)
         signer_emails.append(emails)
 
-    for index, emails in enumerate(signer_emails):
+    for judged, emails in zip(checked, signer_emails, strict=True):
         for party_id, address in emails:
-            others = [checked[other].row_no for other in sends_to[address] if other != index]
-            if others:
-                listed = ", ".join(str(number) for number in others[:3])
-                more = "" if len(others) <= 3 else f" and {len(others) - 3} more"
-                noun = "row" if len(others) == 1 else "rows"
-                checked[index].problems.append(
+            group = sends_to[address]
+            if len(group) > 1:
+                judged.problems.append(
                     CellProblem(
                         key=signer_key(party_id, "email"),
-                        message=f"Also in {noun} {listed}{more}",
+                        message=_also_in(group, judged.row_no),
                         level="warning",
                     )
                 )

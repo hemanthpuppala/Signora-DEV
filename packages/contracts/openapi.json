@@ -124,7 +124,7 @@
       },
       "BatchDefaults": {
         "additionalProperties": false,
-        "description": "What is chosen once for every row (FR-7): a row's own countersigner or setting replaces\nthe matching one here.",
+        "description": "What is chosen once for every row (FR-7); a row's own setting replaces the matching one\nhere. Who countersigns is not chosen here: every row names its own.",
         "properties": {
           "copies": {
             "items": {
@@ -132,14 +132,6 @@
             },
             "maxItems": 10,
             "title": "Copies",
-            "type": "array"
-          },
-          "countersigners": {
-            "items": {
-              "$ref": "#/components/schemas/CountersignerIn"
-            },
-            "maxItems": 20,
-            "title": "Countersigners",
             "type": "array"
           },
           "settings": {
@@ -3529,7 +3521,7 @@
         "type": "object"
       },
       "Row": {
-        "description": "A row as it is judged: the same, with what is wrong with it.",
+        "description": "A row as it is judged: its cells as they are read (a choice as its option's value, a tick\nas ``yes``, a colleague as their email), with what is wrong with it. Whoever shows the row\nshows these cells and needs no reading rules of their own.",
         "properties": {
           "cells": {
             "additionalProperties": {
@@ -3911,9 +3903,9 @@
           }
         },
         "required": [
-          "party_id",
           "name",
-          "email"
+          "email",
+          "party_id"
         ],
         "title": "SignerIn",
         "type": "object"

@@ -34,7 +34,7 @@ from signora.modules.envelopes.form import (
     Option,
     SendForm,
 )
-from signora.modules.envelopes.sending import CountersignerIn, SettingsIn, plan_send
+from signora.modules.envelopes.sending import SettingsIn, plan_send
 from signora.modules.identity_access import normalize_email
 from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, font_view
 
@@ -117,10 +117,6 @@ def form(*, countersigner: bool = True, witness: bool = False) -> SendForm:
 
 def defaults(sheet_form: SendForm, **settings: object) -> BatchDefaults:
     return BatchDefaults(
-        countersigners=[
-            CountersignerIn(party_id=party.party_id, user_id=ANA.user_id)
-            for party in sheet_form.countersigners
-        ],
         settings=SettingsIn(
             **{"reminder_interval_hours": 24, "max_reminders": 5, "expiry_days": 14, **settings}  # type: ignore[arg-type]
         ),
@@ -135,6 +131,7 @@ def cells(**given: str) -> dict[str, str]:
     return {
         NAME: "Avery Lin",
         EMAIL: "avery@example.com",
+        countersigner_key(PARTNER): ANA.email,  # ignored by a form nobody countersigns
         field_key(MATTER): "Lease review",
         **given,
     }
@@ -153,7 +150,7 @@ def test_columns_are_what_the_form_asks_per_envelope() -> None:
     assert [(c.header, c.kind, c.required) for c in columns] == [
         ("Client name", "text", True),
         ("Client email", "email", True),
-        ("Partner countersigner", "choice", False),
+        ("Partner countersigner", "choice", True),
         ("Matter", "text", True),
         ("Start date", "date", False),
         ("Plan", "choice", False),
@@ -204,6 +201,7 @@ def test_a_file_with_the_wrong_columns_says_which() -> None:
     assert [c.header for c in matched.columns] == [
         "Client name",
         "Client email",
+        "Partner countersigner",
         "Matter",
         "Card number",
     ]
@@ -251,7 +249,7 @@ def test_a_valid_row_is_the_request_a_single_send_accepts() -> None:
         normalize_email=normalize_email,
     )
     assert plan.signers[0].email == "avery@example.com"
-    assert plan.countersigners[0].user_id == ANA.user_id  # the batch's default
+    assert plan.countersigners[0].user_id == ANA.user_id
     assert plan.values[START] == "2026-12-01" and plan.values[URGENT] == "true"
 
 
@@ -347,9 +345,10 @@ def test_a_rows_own_countersigner_and_settings_replace_the_batchs() -> None:
 @pytest.mark.parametrize(
     ("name", "text", "message"),
     [
-        ("expiry_days", "400", "Give days as a whole number from 1 to 365"),
-        ("expiry_days", "soon", "Give days as a whole number from 1 to 365"),
-        ("max_reminders", "-1", "Give a whole number from 0 to 20"),
+        ("expiry_days", "400", "Enter a whole number from 1 to 365"),
+        ("expiry_days", "soon", "Enter a whole number from 1 to 365"),
+        ("max_reminders", "-1", "Enter a whole number from 0 to 20"),
+        ("reminder_interval_hours", "0", "Enter a whole number from 1 to 720"),
         ("require_email_code", "perhaps", "Give yes or no"),
     ],
 )
@@ -357,19 +356,39 @@ def test_a_rows_setting_out_of_range_is_named(name: str, text: str, message: str
     assert judge(form(), cells(**{setting_key(name): text})) == {setting_key(name): message}
 
 
-def test_a_missing_countersigner_is_named_on_its_column() -> None:
-    sheet_form = form()
-    result = check_row(
-        sheet_form,
-        cells(),
-        BatchDefaults(
-            settings=SettingsIn(reminder_interval_hours=24, max_reminders=5, expiry_days=14)
-        ),
-        normalize_email=normalize_email,
-    )
-    assert {p.key: p.message for p in result.problems} == {
+def test_a_row_that_names_no_countersigner_is_asked_for_one_on_that_cell() -> None:
+    """Who countersigns is the row's to say: an empty cell is a problem to fix in the table, not
+    something chosen on a later step."""
+    assert judge(form(), cells(**{countersigner_key(PARTNER): ""})) == {
         countersigner_key(PARTNER): "Choose who countersigns as Partner"
     }
+
+
+def test_a_judged_rows_cells_are_given_back_as_they_were_read() -> None:
+    """Whoever shows a row shows these cells: a choice as its option's value, a tick as yes, a
+    colleague as their email, however the file wrote them."""
+    sheet_form = form()
+    row = cells(
+        **{
+            field_key(PLAN): " SILVER ",
+            field_key(URGENT): "X",
+            countersigner_key(PARTNER): "Ben Okoro · ben@firm.example",
+        }
+    )
+    result = check_row(sheet_form, row, defaults(sheet_form), normalize_email=normalize_email)
+    assert result.problems == []
+    assert result.cells[field_key(PLAN)] == "silver"
+    assert result.cells[field_key(URGENT)] == "yes"
+    assert result.cells[countersigner_key(PARTNER)] == BEN.email
+    # What cannot be read is given back as typed, with its problem.
+    unread = check_row(
+        sheet_form,
+        cells(**{field_key(PLAN): "Platinum", field_key(URGENT): "maybe"}),
+        defaults(sheet_form),
+        normalize_email=normalize_email,
+    )
+    assert unread.cells[field_key(PLAN)] == "Platinum"
+    assert unread.cells[field_key(URGENT)] == "maybe"
 
 
 def test_one_person_on_two_parties_of_a_row_is_refused_on_both_cells() -> None:

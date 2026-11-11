@@ -1183,14 +1183,12 @@ export interface components {
         };
         /**
          * BatchDefaults
-         * @description What is chosen once for every row (FR-7): a row's own countersigner or setting replaces
-         *     the matching one here.
+         * @description What is chosen once for every row (FR-7); a row's own setting replaces the matching one
+         *     here. Who countersigns is not chosen here: every row names its own.
          */
         BatchDefaults: {
             /** Copies */
             copies?: components["schemas"]["CopyIn"][];
-            /** Countersigners */
-            countersigners?: components["schemas"]["CountersignerIn"][];
             settings: components["schemas"]["SettingsIn"];
             /**
              * Time Zone
@@ -2468,7 +2466,9 @@ export interface components {
         };
         /**
          * Row
-         * @description A row as it is judged: the same, with what is wrong with it.
+         * @description A row as it is judged: its cells as they are read (a choice as its option's value, a tick
+         *     as ``yes``, a colleague as their email), with what is wrong with it. Whoever shows the row
+         *     shows these cells and needs no reading rules of their own.
          */
         Row: {
             /** Cells */
