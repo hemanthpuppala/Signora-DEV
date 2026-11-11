@@ -520,6 +520,25 @@ measured on; the corpus must hold the documents that would fool them, and a chan
 
 ---
 
+## Fixes from the pull request's review
+
+A review of PR #19 with a fresh context posted 11 findings; each was reproduced on the branch, fixed at its cause
+with a regression test that fails before the fix (the refactor's test guards behaviour), and its thread resolved.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | An anchor that is only its blank crashed the check (the search answers None), costing a retried AI call and a failed version | nothing searched for empty words; such an anchor is a repair-round problem |
+| 2 | Joining a drawn line's pieces by height swallowed a separate line half a point higher | pieces grouped into rows, then joined left to right only where they touch |
+| 3 | Two blanks drawn under spaces on one line both lost their labels | a field between two words of a line ends the line there |
+| 4 | A signature box grew over single-spaced text above it | a word whose middle is above the box stops it (the labels' rule) |
+| 5 | An underline starting under its own label ("Initials:␣␣␣") was not labelled | a label on the line counts when it ends with a colon before the blank; section bars ("Section 1: Vehicle Information") stay separators, which the corpus pass mark caught in a first version |
+| 6 | Two same-value fields at one position raised `KeyError` | one reading order for keys and same-value groups |
+| 7 | A second extra field on one blank passed the check and was dropped blaming a form field | extra fields' places kept apart from the PDF's; the check places them; "list it once" |
+| 8 | A link to a field not kept gave the note "(None)" | the note names the field not kept |
+| 9 | A description a few characters over still cost a repair call | asked again only when no whole sentence fits |
+| 10 | Each extra field searched its page 3–4 times | each page remembers its searches (measured: 76 ms against a 15–60 s AI call; sharing the page model between check and derive left as is) |
+| 11 | Box problems reached review by matching the text "page " | `form_fields.box_issues`, one function for both |
+
 ## Fix plan
 
 Ordered by dependency: F9's corpus and pass marks come first, so every later change is measured against them; F5 and
