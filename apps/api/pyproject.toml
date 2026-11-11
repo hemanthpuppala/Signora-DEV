@@ -259,6 +259,25 @@ source_modules = [
 forbidden_modules = ["signora.modules.envelopes"]
 
 [[tool.importlinter.contracts]]
+name = "Public interface only: signing internals are imported only by signing and composition roots"
+type = "protected"
+protected_modules = ["signora.modules.signing.models"]
+allowed_importers = ["signora.modules.signing", "signora.models", "signora.handlers"]
+
+[[tool.importlinter.contracts]]
+name = "Signing drives envelopes: nothing it builds on imports signing (Phase 8 §16)"
+type = "forbidden"
+source_modules = [
+    "signora.modules.envelopes",
+    "signora.modules.documents",
+    "signora.modules.review",
+    "signora.modules.detection",
+    "signora.modules.departments",
+    "signora.modules.typesetting",
+]
+forbidden_modules = ["signora.modules.signing"]
+
+[[tool.importlinter.contracts]]
 name = "Documents never depend on detection (detection drives documents through documents.lifecycle)"
 type = "forbidden"
 source_modules = ["signora.modules.documents"]

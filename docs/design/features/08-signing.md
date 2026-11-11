@@ -104,7 +104,7 @@ Checks 2–4 read one row of each table by primary key. The responses for 1–4 
   another browser): the same "open the link in your email again" page. The recipient id in that address grants
   nothing on its own.
 
-### 1.4 Data (migration `0023_signing`, owned by a new `signing` module)
+### 1.4 Data (migration `0025_signing`, owned by a new `signing` module)
 
 ```
 signing_sessions
@@ -193,7 +193,7 @@ the link reaching the person's inbox is the proof, and the certificate says "Ema
 8. **The email is masked** everywhere on the signer's page: the first character of the local part, `•••`, the domain
    (`m•••@example.com`; a one-character local part shows `•••@example.com`).
 
-### 2.2 Data (in `0023_signing`)
+### 2.2 Data (in `0025_signing`)
 
 ```
 signing_codes                                   -- at most one live code per recipient
@@ -264,7 +264,7 @@ same transaction; otherwise `wrong_tries` goes up and the transaction commits (a
    Nov 10, 2026 at 8:07 PM PST".
 6. **Countersigners consent the same way**: they sign electronically too.
 
-### 3.2 Data (in `0023_signing`)
+### 3.2 Data (in `0025_signing`)
 
 ```
 signing_consents
@@ -380,7 +380,7 @@ Each input is named by its field label and party ("Client 1 · Full name"); the 
 and announce it; touch targets are at least 44 px; a list of the person's fields (label, required, filled) is offered
 for anyone who cannot work on the page, and filling from it is the same as on the page.
 
-### 4.7 Data (in `0023_signing`)
+### 4.7 Data (in `0025_signing`)
 
 ```
 signing_drafts                                  -- the person's values before submit; nobody else reads them
@@ -565,7 +565,7 @@ At the end of the document, after the last page:
 
 ### 6.3 What a submit writes (same transaction)
 
-1. The drafts become `envelope_values` rows (`given_by = 'signer'`, `recipient_id`); each signing date field gets the
+1. The drafts become `envelope_values` rows (`given_by = 'recipient'`, `recipient_id`); each signing date field gets the
    transaction's time in the envelope's zone and the field's format (§5.6); signature places get a value naming the
    adopted signature's sha256.
 2. `signing_signatures` for the recipient are frozen (a trigger refuses changes once the recipient is `signed`).
@@ -696,7 +696,7 @@ run the same code.
      same as signers.
 5. The envelope page shows who declined, when, and why, with **Send again** (§8.1.4).
 
-### 8.3 Data (in `0023_signing`)
+### 8.3 Data (in `0025_signing`)
 
 `envelope_recipients` gains `declined_at timestamptz` and `decline_reason text`, with a check that both are set
 exactly when `status = 'declined'` and the reason is 1–500 characters after trimming.
@@ -953,7 +953,7 @@ files; O(1) reads plus the join for Combined, O(pages).
 | NFR-S6 | Phones | the whole path usable at 360 px wide; touch targets 44 px |
 | NFR-S7 | Accessibility | every input named; the guide announced; reduced motion honoured |
 
-## 15. Data design (migration `0023_signing`)
+## 15. Data design (migration `0025_signing`)
 
 New, owned by `signing`: `signing_sessions`, `signing_grants` (§1.4), `signing_codes` (§2.2), `signing_consents`
 (§3.2), `signing_drafts` (§4.7), `signing_signatures`, `saved_signatures` (§5.5).
@@ -1000,7 +1000,7 @@ the design system: `DatePicker`, `BottomSheet`, `GuidePointer`, `SignaturePad`, 
 | # | Task | Status | Evidence |
 |---|---|---|---|
 | 8.1 | This design (§1–§17) | done | this document |
-| 8.2 | Migration 0023, models, triggers; envelopes' signing interface | todo | — |
+| 8.2 | Migration 0025, models, triggers | done | `0025_signing.py`; `signing/models.py`, envelopes and notifications models; recipients gain `(id, workspace_id)` and `(id, workspace_id, version_id)` keys for the signing tables (foreign keys to recipients named by hand, under Postgres's 63 characters); import contracts for `signing`. Tests: `test_tables.py` (11: consent insert only, a signature frozen once signed, a signature's shape, a decline recorded, completed files set together once, attachments), the schema test, the downgrade and upgrade round trip. The envelopes functions `signing` calls come with the tasks that call them |
 | 8.3 | Opening a link, sessions, grants; `/s` and `/sign` pages; the closed page | todo | — |
 | 8.4 | The email code | todo | — |
 | 8.5 | Consent | todo | — |

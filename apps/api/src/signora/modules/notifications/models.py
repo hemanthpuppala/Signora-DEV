@@ -1,4 +1,5 @@
-"""Table definition for ``email_messages`` (Phase 2 LLD §1a.4). Must match migration 0002.
+"""Tables of the notifications module: ``email_messages`` (Phase 2 LLD §1a.4) and its attachments
+(Phase 8). Must match migrations 0002, 0019 and 0025.
 
 ``workspace_id`` has no foreign key: this leaf module owns no workspace table, and auth emails sent
 before a workspace exists carry none (the audit table follows the same rule).
@@ -6,7 +7,20 @@ before a workspace exists carry none (the audit table follows the same rule).
 
 from __future__ import annotations
 
-from sqlalchemy import CheckConstraint, Column, DateTime, Index, Integer, Table, Text, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    PrimaryKeyConstraint,
+    SmallInteger,
+    Table,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 
 from signora.kernel.db import metadata
@@ -38,4 +52,24 @@ email_messages = Table(
         "status = 'queued' OR (text_body IS NULL AND html_body IS NULL)", name="final_has_no_body"
     ),
     Index("ix_email_messages_status_created_at", "status", "created_at"),
+)
+
+# Files an email carries (Phase 8 §15): blob keys, read by the transport when it sends, so an email
+# keeps no file bytes of its own.
+email_attachments = Table(
+    "email_attachments",
+    metadata,
+    Column(
+        "email_id",
+        UUID(as_uuid=True),
+        ForeignKey("email_messages.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("position", SmallInteger, nullable=False),
+    Column("blob_key", Text, nullable=False),
+    Column("filename", Text, nullable=False),
+    Column("content_type", Text, nullable=False),
+    CheckConstraint("position >= 1", name="position_positive"),
+    CheckConstraint("char_length(filename) BETWEEN 1 AND 200", name="filename_length"),
+    PrimaryKeyConstraint("email_id", "position"),
 )
