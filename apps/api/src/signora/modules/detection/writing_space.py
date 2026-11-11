@@ -89,7 +89,9 @@ class PageSpace:
 
     def find(self, words: str) -> list[Box]:
         """Every place the words are printed on the page, as displayed, in reading order."""
-        hits = [displayed(self._page, hit) for hit in self._page.search_for(words)]
+        if not words.strip():
+            return []  # nothing to look for (the search answers None, not an empty list)
+        hits = [displayed(self._page, hit) for hit in self._page.search_for(words) or []]
         return sorted(hits, key=lambda box: (round(box[1]), box[0]))
 
     def room_above(self, box: Box) -> Box:

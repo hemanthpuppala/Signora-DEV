@@ -397,3 +397,26 @@ def test_a_form_field_after_the_label_is_that_blank_and_asks_the_ai_nothing() ->
     assert not any("Total again" in problem for problem in problems)
     assert all(field.label != "Total again" for field in result.fields)
     assert any("'Total again' dropped: a form field already sits" in n for n in result.notes)
+
+
+@pytest.mark.parametrize("anchor", ["________", "   ", "_____ Name:"])
+def test_an_anchor_that_is_only_its_blank_is_a_problem_not_an_error(anchor: str) -> None:
+    """Review #1: an anchor with no words before its blank crashed the check (an empty search
+    answers None), so the job retried a paid AI call and failed the version."""
+    data = _flat([(72, 100, PARAGRAPH), (72, 300, "Name: ________")])
+    extra = {"anchor_text": anchor, "filled_by": "party_1", "label": "Name"}
+    reading = read_document(data)
+    answer: dict[str, Any] = {
+        "roles": [{"slug": "party_1", "kind": "signer"}],
+        "fields": [],
+        "checkbox_groups": [],
+        "extra_fields": [
+            {"page": 1, "holds": "full_name", "format": None, "must_fill": True, **extra}
+        ],
+        "document": None,
+    }
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        problems = check(answer, reading, document)
+        result = derive(reading, answer, document, problems=problems, repaired=True)
+    assert any("extra field 'Name'" in problem for problem in problems)
+    assert any("'Name' dropped" in note for note in result.notes)

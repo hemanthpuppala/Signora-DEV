@@ -223,6 +223,8 @@ def _label_words(extra: dict[str, Any]) -> str:
 def _extra_problem(space: DocumentSpace, extra: dict[str, Any], near: list[Box]) -> str | None:
     """Why an extra field cannot be placed from its words, in words; None when it can."""
     words, number = _label_words(extra), extra["page"]
+    if not words:
+        return "its words are only the blank: give the words printed right before it"
     page = space.page(number)
     if page is None or _unsafe(words) or not page.find(words):
         return f"its words are not on page {number}"
