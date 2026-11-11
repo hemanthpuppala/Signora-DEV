@@ -1,6 +1,8 @@
 /**
- * Everything a landing demo starts (listeners, timers, animation frames, observers) is registered
- * here, so leaving the page stops all of it with one call.
+ * Everything an animation or demo starts (listeners, timers, animation frames, observers) is
+ * registered here, so leaving the page stops all of it with one call. Once disposed it registers
+ * nothing more: work that finishes late (a promise resolving after the page was left) cannot start
+ * anything new.
  */
 export class Scope {
   /** True once disposed; a running demo checks it between steps. */
@@ -15,12 +17,14 @@ export class Scope {
     handler: (event: E) => void,
     options?: AddEventListenerOptions | boolean,
   ): void {
+    if (this.dead) return;
     const listener = handler as EventListener;
     target.addEventListener(type, listener, options);
     this.disposers.push(() => target.removeEventListener(type, listener, options));
   }
 
   timeout(fn: () => void, ms: number): number {
+    if (this.dead) return 0;
     const id = window.setTimeout(() => {
       this.timers.delete(id);
       fn();
@@ -35,6 +39,7 @@ export class Scope {
   }
 
   frame(fn: (now: number) => void): number {
+    if (this.dead) return 0;
     const id = window.requestAnimationFrame((now) => {
       this.frames.delete(id);
       fn(now);
@@ -57,6 +62,7 @@ export class Scope {
 
   /** Reports whether any part of `element` is in the viewport, now and whenever that changes. */
   whenVisible(element: Element, report: (visible: boolean) => void): void {
+    if (this.dead) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const latest = entries[entries.length - 1];
