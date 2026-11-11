@@ -34,6 +34,7 @@ export function SignatureDialog({
   kind,
   name,
   fonts,
+  saved,
   phone,
   onAdopt,
   onClose,
@@ -41,6 +42,8 @@ export function SignatureDialog({
   kind: Kind;
   name: string;
   fonts: readonly Font[];
+  /** A countersigner's saved one (Phase 8 §5.4): offered to use again, still adopted here. */
+  saved?: Adopted | undefined;
   phone: boolean;
   onAdopt: (body: SignatureIn) => Promise<unknown>;
   onClose: () => void;
@@ -82,6 +85,19 @@ export function SignatureDialog({
         </>
       }
     >
+      {saved ? (
+        <TextButton
+          onClick={() => {
+            setTab(saved.method === "typed" ? "type" : "draw");
+            if (saved.method === "typed") {
+              setText(saved.text ?? "");
+              setFont(saved.font?.id ?? font);
+            } else setStrokes((saved.strokes ?? []) as Stroke[]);
+          }}
+        >
+          {`Use my saved ${words.noun}`}
+        </TextButton>
+      ) : null}
       {canType ? (
         <div role="tablist" aria-label={`How to give your ${words.noun}`}>
           <TextButton role="tab" aria-selected={tab === "type"} onClick={() => setTab("type")}>

@@ -82,7 +82,7 @@ describe("the signer's screen", () => {
       const path = new URL(request.url).pathname;
       requests.push(`${request.method} ${path}`);
       if (path.endsWith("/document")) return reply(200, DOCUMENT);
-      if (path.endsWith("/signature") && request.method === "GET") return reply(200, { adopted: adopted ? [ADOPTED] : [], fonts: [] });
+      if (path.endsWith("/signature") && request.method === "GET") return reply(200, { adopted: adopted ? [ADOPTED] : [], saved: [], fonts: [] });
       if (path.endsWith("/signature/signature")) {
         adopted = true;
         return reply(200, ADOPTED);
@@ -173,7 +173,7 @@ describe("signing a place", () => {
       const body = request.method === "GET" ? null : await request.text().then((t) => (t ? JSON.parse(t) : null));
       calls.push({ method: request.method, path, body });
       if (path.endsWith("/document")) return reply(200, DOCUMENT);
-      if (path.endsWith("/signature") && request.method === "GET") return reply(200, { adopted: adoptedOnce ? [ADOPTED] : [], fonts: [] });
+      if (path.endsWith("/signature") && request.method === "GET") return reply(200, { adopted: adoptedOnce ? [ADOPTED] : [], saved: [], fonts: [] });
       if (path.endsWith("/signature/signature")) {
         adoptedOnce = true;
         return reply(200, ADOPTED);
@@ -210,7 +210,7 @@ describe("declining", () => {
         const request = input as Request;
         const path = new URL(request.url).pathname;
         if (path.endsWith("/document")) return reply(200, DOCUMENT);
-        if (path.endsWith("/signature")) return reply(200, { adopted: [], fonts: [] });
+        if (path.endsWith("/signature")) return reply(200, { adopted: [], saved: [], fonts: [] });
         if (path.endsWith("/decline")) {
           sent.push(await request.json());
           return reply(200, { declined: true });

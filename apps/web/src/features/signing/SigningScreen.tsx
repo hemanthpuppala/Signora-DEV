@@ -347,6 +347,7 @@ function Loaded({ state, doc }: { state: SignerState; doc: SignerDocument }) {
           kind={adopting.kind}
           name={state.name}
           fonts={signature.data?.fonts ?? []}
+          saved={signature.data?.saved.find((one) => one.kind === adopting.kind)}
           phone={phone}
           onClose={() => setAdopting(null)}
           onAdopt={(body) => adopted(adopting.kind, adopting.then, body)}
