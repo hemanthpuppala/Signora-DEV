@@ -250,7 +250,30 @@ needing attention, and the steps after it cannot be reached.
 **After sending.** The dialog closes. Above the envelopes list a line shows "Sending 31 of 48" and
 then "48 sent" or "45 sent, 3 could not be sent" with the rows and reasons; it can be dismissed.
 
-## 10. Test strategy
+## 10. Hostile input
+
+A filled spreadsheet comes from outside, and its values go on to a database, to emails, to PDFs
+and back out as files. What was tried against the reader and the API, and what holds it off:
+
+| Attack | Defence |
+|---|---|
+| An XML entity that points at a local file or an internal address (XXE) | `defusedxml`, which openpyxl uses when installed, refuses entities; the file is "could not be read" |
+| Entities that expand without end | the same; refused at once |
+| A small ZIP that unpacks to a huge one | the archive's unpacked size (40 MB) and part count (500) are checked before anything is parsed |
+| A sheet that claims a million rows, or has one row far down, or cells far right | read no further than 20,000 lines and 500 columns |
+| A broken or half-valid workbook | any fault while reading is "could not be read", never a server error |
+| A formula in an uploaded cell | cells are read as stored values; nothing is evaluated |
+| A template label or a value that starts with `=`, `+`, `-`, `@` | written into the XLSX as text; written into a CSV behind an apostrophe, removed again on reading |
+| SQL, markup or template syntax in a value | values are bound parameters and plain text everywhere; kept word for word |
+| A NUL, an escape sequence, or a line break in a name | control characters become spaces (`clean_cell`), for a file's cells and for rows the browser sends |
+| A template name with quotes or line breaks, in the download header | non-printable characters removed; the value quoted and percent-encoded |
+| Oversized requests | 5 MB per file as it arrives; rows, cells per row, key and cell lengths bounded |
+| Requests in a loop | per person per hour: 60 files, 1,500 checks, 30 batches |
+| Another site posting for a signed-in person; no session; another company's template or colleague | the app's CSRF check; 401; 404; "Choose a colleague" |
+
+Each row is a test in `test_bulk_security.py`.
+
+## 11. Test strategy
 
 | Requirement | Check |
 |---|---|
@@ -278,6 +301,7 @@ then "48 sent" or "45 sent, 3 could not be sent" with the rows and reasons; it c
 | 12.7 | The bulk dialog: Template, Upload, Fix table, Send to, Review | done | `bulk.test.tsx` (4 tests) |
 | 12.8 | The two buttons, the links across, the progress line | done | `bulk.test.tsx`; `app/departments/[id]/page.tsx` |
 | 12.9 | Full gate | done | API: lint, types, import contracts, tests; web: lint, types, 336 tests, build |
+| 12.11 | Hostile input: the reader and the API attacked, hardened, and the attacks kept as tests | done | `test_bulk_security.py` (29 tests); the probe's hostile files all refused in under 0.25 s |
 | 12.10 | Live check of a real batch in a browser | todo | not run: a live stack here would send real email through the configured mail account |
 
 ### Carried to the merge
