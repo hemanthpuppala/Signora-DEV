@@ -275,6 +275,7 @@ protected_modules = [
     "signora.modules.signing.errors",
     "signora.modules.signing.inbox",
     "signora.modules.signing.jobs",
+    "signora.modules.signing.limits",
     "signora.modules.signing.models",
     "signora.modules.signing.routes",
     "signora.modules.signing.service",

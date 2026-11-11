@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "__Host-signora_session";
 const CONSOLE_PATHS = new Set(["/", "/people", "/settings"]);
+const isSigningPath = (path: string) =>
+  path.startsWith("/s/") || path.startsWith("/sign/") || path.startsWith("/countersign");
 const isConsolePath = (path: string) =>
   CONSOLE_PATHS.has(path) || path.startsWith("/departments") || path.startsWith("/countersign");
 
@@ -43,6 +45,11 @@ export function proxy(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", policy);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", policy);
+  if (isSigningPath(pathname)) {
+    // A signing page is for one person: never indexed, never kept in a cache (Phase 8 §13).
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    response.headers.set("Cache-Control", "no-store");
+  }
   return response;
 }
 

@@ -14,7 +14,7 @@ from signora.kernel.db import Database
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.kernel.http import attachment
 from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
-from signora.modules.signing import decline, drafts, drawing, service, signatures, submit
+from signora.modules.signing import decline, drafts, drawing, limits, service, signatures, submit
 from signora.modules.signing.document import SignerDocument
 from signora.modules.signing.errors import VerifyFirst
 from signora.modules.signing.sessions import COOKIE
@@ -45,6 +45,7 @@ def _no_store(response: Response) -> None:
     responses={404: {"description": "The link cannot be used (closed, replaced or not genuine)"}},
 )
 def open_link(body: OpenRequest, request: Request, response: Response) -> Opened:
+    limits.by_address(request, "open")
     with _db(request).unit_of_work() as uow:
         result = service.open_link(uow, body.token, request.cookies.get(COOKIE))
     if result.cookie is not None:
@@ -114,6 +115,7 @@ def send_code(
 def verify(
     recipient_id: uuid.UUID, body: VerifyRequest, request: Request, response: Response
 ) -> Opened:
+    limits.by_address(request, "verify")
     with _db(request).unit_of_work() as uow:
         who = service.acting(uow, request, recipient_id)
         opened = service.verify(uow, who, body.code)
@@ -207,6 +209,7 @@ class DraftSaved(BaseModel):
 def save_draft(
     recipient_id: uuid.UUID, field_id: uuid.UUID, body: DraftRequest, request: Request
 ) -> DraftSaved:
+    limits.by_session(request, "draft", str(recipient_id))
     with _db(request).unit_of_work() as uow:
         who = service.acting(uow, request, recipient_id)
         service.require_ready(uow, who, to_change=True)
@@ -220,6 +223,7 @@ def save_draft(
     responses=_DOCUMENT,
 )
 def clear_draft(recipient_id: uuid.UUID, field_id: uuid.UUID, request: Request) -> None:
+    limits.by_session(request, "draft", str(recipient_id))
     with _db(request).unit_of_work() as uow:
         who = service.acting(uow, request, recipient_id)
         service.require_ready(uow, who, to_change=True)
@@ -311,6 +315,7 @@ def sign_and_submit(
     request: Request,
     guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
 ) -> JSONResponse:
+    limits.by_session(request, "act", str(recipient_id))
     with _db(request).unit_of_work() as uow:
         if (replay := guard.begin(uow)) is not None:
             return replay
@@ -342,6 +347,7 @@ def decline_to_sign(
     request: Request,
     guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
 ) -> JSONResponse:
+    limits.by_session(request, "act", str(recipient_id))
     reason = body.reason.strip()
     if not reason:
         raise ValidationFailed([FieldError("reason", "Tell them why")])

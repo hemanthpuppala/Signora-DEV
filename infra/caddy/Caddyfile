@@ -38,6 +38,12 @@
 		respond 404
 	}
 
+	# The signer's API: one person's documents and values, never indexed or cached (Phase 8 §13).
+	header /api/v1/sign/* {
+		X-Robots-Tag "noindex, nofollow"
+		Cache-Control "no-store"
+	}
+
 	handle /api/* {
 		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
 		reverse_proxy api:8000 {
