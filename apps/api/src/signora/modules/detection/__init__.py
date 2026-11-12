@@ -4,5 +4,6 @@ Public interface — other modules import only from here.
 """
 
 from signora.modules.detection.routes import router
+from signora.modules.detection.signature_room import signature_tops
 
-__all__ = ["router"]
+__all__ = ["router", "signature_tops"]

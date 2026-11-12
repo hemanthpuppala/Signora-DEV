@@ -649,7 +649,7 @@ def _room_to_sign(
                 rect = (
                     _grown_by(place.rect, free)
                     if free is not None
-                    else _grown_from_foot(
+                    else grown_from_foot(
                         place.rect, free_above(document[place.page - 1], place.rect, SIGN_HEIGHT)
                     )
                 )
@@ -668,7 +668,7 @@ def _grown_by(box: Box, free: float) -> Box:
     return (x0, min(top, y0), x1, y1)
 
 
-def _grown_from_foot(box: Box, free: float) -> Box:
+def grown_from_foot(box: Box, free: float) -> Box:
     """A scanned extra field's box (the AI's) grown upward by the free height measured above its
     foot, up to ``SIGN_HEIGHT`` in all, never smaller than it was."""
     x0, y0, x1, y1 = box

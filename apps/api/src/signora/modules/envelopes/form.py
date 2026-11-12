@@ -17,7 +17,13 @@ from pydantic import BaseModel
 from signora.modules.review import FieldView, RoleView
 from signora.modules.review.formats import NOT_TYPED
 from signora.modules.review.values import SIGNING_PLACES, ManualHolds, choice_options
-from signora.modules.typesetting import DEFAULT_FONT, FIT_RULE, FitRule, FontView, font_view
+from signora.modules.typesetting import (
+    DEFAULT_FONT,
+    FIT_RULE,
+    FitRule,
+    FontView,
+    font_view,
+)
 
 # A party's fields that come from the person signing as it, as DocuSign's Full Name, First Name,
 # Last Name and Email fields do (Phase 7b): the email at send, the name at signing (the name they
@@ -44,6 +50,9 @@ class Place(BaseModel):
     rect: tuple[float, float, float, float]
     option_value: str | None  # a choice's place stands for one option
     text_size: float | None  # the agreement's text size beside it (Phase 7b), when measured
+    # A signature's or initials' box top: the room to sign measured above its line at approval
+    # (review.signature_room, detection's rule), else its own top. None for other fields.
+    mark_top: float | None = None
 
 
 class PageSize(BaseModel):
@@ -130,6 +139,11 @@ def places_of(field: FieldView) -> list[Place]:
             rect=place.rect,
             option_value=place.option_value,
             text_size=place.text_size,
+            mark_top=(
+                (place.mark_top if place.mark_top is not None else place.rect[1])
+                if field.holds in SIGNING_PLACES
+                else None
+            ),
         )
         for place in field.placements
     ]

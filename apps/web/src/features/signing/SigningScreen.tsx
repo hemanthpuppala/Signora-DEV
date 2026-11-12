@@ -83,13 +83,12 @@ function stillMotion(): boolean {
 }
 
 /**
- * Where a signature sits: its box grown upwards from its line to the least readable height, as the
- * signed PDF draws it (rendering.draw.SIGNATURE_MIN_HEIGHT, 36 points).
+ * Where a signature sits: the box the server gives (``mark_top``: grown to a readable height,
+ * never over the agreement's text above it), the same box the signed PDF draws it in.
  */
-const SIGNATURE_MIN_HEIGHT = 36;
 function signatureStyle(place: Place, scale: number) {
   const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = place.rect;
-  const top = Math.min(y0, y1 - SIGNATURE_MIN_HEIGHT);
+  const top = place.mark_top ?? y0;
   return { left: x0 * scale, top: top * scale, width: (x1 - x0) * scale, height: (y1 - top) * scale };
 }
 

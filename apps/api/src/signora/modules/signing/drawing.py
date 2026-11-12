@@ -58,7 +58,9 @@ def _items(field: FormField, value: str, font: str, mark: Any) -> list[Item]:
             return []
         out: list[Item] = []
         for place in places:
-            rect = place.rect
+            x0, y0, x1, y1 = place.rect
+            # Grown to a readable height, never over the agreement's text (typesetting.mark_top).
+            rect = (x0, place.mark_top if place.mark_top is not None else y0, x1, y1)
             initials = field.holds == "initials"
             signature_id = bytes(mark.sha256).hex()[:16]
             if mark.method == "typed":

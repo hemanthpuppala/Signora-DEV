@@ -1,8 +1,10 @@
 """The agreement's text size beside each text place of an approved version (Phase 7b LLD), read
 from its working copy once and kept in ``placement_text_sizes``: at approval, and by
 ``signora measure-text-sizes`` for versions approved before sizes were measured or whose file
-could not be read then. A size is a refinement: without one a value is drawn by the fallback rule
-(typesetting.fit), so a file that cannot be read never fails what asked for the sizes."""
+could not be read then. The same pass measures the room above each signature or initials place
+(``placement_mark_tops``, typesetting.marks). Both are refinements: without them a value is drawn
+by the fallback rule (typesetting.fit) and a signature at its full height, so a file that cannot
+be read never fails what asked for them."""
 
 from __future__ import annotations
 
@@ -15,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.logging import get_logger
+from signora.modules.review.signature_room import MarkedPlace, signature_room
 from signora.modules.typesetting import Measured, text_sizes
 
 log = get_logger("signora.review.text_sizes")
@@ -25,11 +28,12 @@ _WRITTEN = (
     "(p.kind IN ('combobox', 'listbox') OR (p.kind IN ('text', 'blank') "
     "AND f.holds NOT IN ('checkbox', 'choice', 'signature', 'initials')))"
 )
+# Places a signature or initials is drawn in: the room above each is measured too.
+_MARKED = "f.holds IN ('signature', 'initials')"
 
 
-def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: BlobRef) -> int:
-    """Measure and keep one version's sizes; how many places were measured. One read of the
-    places, one of the PDF, one insert."""
+def _measure_sizes(session: Session, version_id: uuid.UUID, pdf: BlobRef, data: bytes) -> int:
+    """Keep the text size beside each written place; how many were measured."""
     places = [
         Measured(row.id, row.page, (row.x0, row.y0, row.x1, row.y1))
         for row in session.execute(
@@ -41,9 +45,7 @@ def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: Blob
             {"v": version_id},
         )
     ]
-    if not places:
-        return 0
-    sizes = text_sizes(blobs.path(pdf).read_bytes(), places)
+    sizes = text_sizes(data, places) if places else {}
     if sizes:
         session.execute(
             text(
@@ -60,15 +62,71 @@ def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: Blob
     return len(sizes)
 
 
+def _measure_room(session: Session, version_id: uuid.UUID, pdf: BlobRef, data: bytes) -> int:
+    """Keep the room to sign above each signature or initials place, by detection's rule
+    (``signature_room``); how many were measured. Every place gets a row, those on a page the
+    file lacks too (at their own top), so a version is measured once."""
+    rows = session.execute(
+        text(
+            "SELECT p.id, p.page, p.x0, p.y0, p.x1, p.y1, p.kind, "
+            "f.holds IN ('signature', 'initials') AS marked "
+            "FROM field_placements p JOIN version_fields f ON f.id = p.field_id "
+            "WHERE p.version_id = :v"
+        ),
+        {"v": version_id},
+    ).all()
+    marked = [
+        MarkedPlace(row.id, row.page, (row.x0, row.y0, row.x1, row.y1), row.kind)
+        for row in rows
+        if row.marked
+    ]
+    others: dict[int, list[tuple[float, float, float, float]]] = {}
+    for row in rows:
+        others.setdefault(row.page, []).append((row.x0, row.y0, row.x1, row.y1))
+    tops = signature_room(data, marked, others)
+    if not tops:
+        return 0  # nothing to measure, or no rule registered: each box is drawn as it is
+    session.execute(
+        text(
+            "INSERT INTO placement_mark_tops (placement_id, workspace_id, version_id, top) "
+            "SELECT x.id, :w, :v, x.top FROM jsonb_to_recordset(CAST(:rows AS jsonb)) "
+            "AS x(id uuid, top float8) ON CONFLICT (placement_id) DO NOTHING"
+        ),
+        {
+            "w": pdf.workspace_id,
+            "v": version_id,
+            "rows": json.dumps([{"id": str(k), "top": v} for k, v in tops.items()]),
+        },
+    )
+    return len(tops)
+
+
+def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: BlobRef) -> int:
+    """Measure and keep one version's text sizes and its signatures' room; how many places were
+    measured. The file is read once; each measurement is kept in a savepoint of its own, so one
+    that fails never loses the other (``measure_if_readable`` logs it)."""
+    data = blobs.path(pdf).read_bytes()
+    measured = 0
+    failure: Exception | None = None
+    for step in (_measure_sizes, _measure_room):
+        try:
+            with session.begin_nested():
+                measured += step(session, version_id, pdf, data)
+        except Exception as error:  # whatever the PDF library raises: both are refinements
+            failure = failure or error
+    if failure is not None:
+        raise failure
+    return measured
+
+
 def measure_if_readable(
     session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: BlobRef
 ) -> bool:
-    """Measure one version in a savepoint of its own; whether it was measured. A version that
-    cannot be read (its file gone, a PDF that does not open) is logged and left as it was, for
-    the command to measure later: the caller's transaction goes on."""
+    """Measure one version; whether it was measured. A version that cannot be read (its file
+    gone, a PDF that does not open) is logged and left as it was, for the command to measure
+    later: the caller's transaction goes on."""
     try:
-        with session.begin_nested():
-            measure(session, blobs, version_id, pdf)
+        measure(session, blobs, version_id, pdf)
     except Exception as error:  # whatever the file or the PDF library raises: sizes are optional
         log.warning("text_sizes.version_failed", version_id=str(version_id), error=repr(error))
         return False
@@ -84,7 +142,8 @@ class Backfill:
 def measure_unmeasured(
     session: Session, blobs: BlobStore, workspace_id: uuid.UUID | None = None
 ) -> Backfill:
-    """Every approved version (of one company, if given) with a written place not measured yet.
+    """Every approved version (of one company, if given) with a written place, or a signature
+    place, not measured yet.
     A place with no words on its page (a scanned page) stays unmeasured and is drawn by the
     fallback rule; such a version is read again by the next run, which writes nothing.
 
@@ -96,8 +155,10 @@ def measure_unmeasured(
             "SELECT v.id, v.workspace_id, v.pdf_sha256, v.pdf_bytes FROM document_versions v "  # noqa: S608
             "WHERE v.status = 'approved' AND v.pdf_sha256 IS NOT NULL AND EXISTS "
             "(SELECT 1 FROM field_placements p JOIN version_fields f ON f.id = p.field_id "
-            "WHERE p.version_id = v.id AND " + _WRITTEN + " "
+            "WHERE p.version_id = v.id AND ((" + _WRITTEN + " "
             "AND NOT EXISTS (SELECT 1 FROM placement_text_sizes s WHERE s.placement_id = p.id)) "
+            "OR (" + _MARKED + " "
+            "AND NOT EXISTS (SELECT 1 FROM placement_mark_tops m WHERE m.placement_id = p.id)))) "
             "AND (CAST(:w AS uuid) IS NULL OR v.workspace_id = :w)"
         ),
         {"w": workspace_id},
