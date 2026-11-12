@@ -51,7 +51,7 @@
   --signature-paper: var(--bg);
 }
 
-/* "SIGNORA | Company": the company after a hairline (its logo, later, in the same place). */
+/* "SIGNORA | Company": the company after a hairline, as its logo or its name. */
 .workspace {
   padding-left: 26px;
   border-left: 1px solid var(--r25);
@@ -59,6 +59,15 @@
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--t55);
+}
+
+/* The logo sits on the name's line: no taller than the signed mark, never wider than a long name. */
+.workspaceLogo {
+  display: block;
+  height: 28px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
 }
 
 /* What a page puts on the right of the bar in place of a navigation. */

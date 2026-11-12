@@ -15,9 +15,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from signora.kernel.db import UnitOfWork
-from signora.kernel.errors import FieldError, NotFound, ValidationFailed
+from signora.kernel.errors import FieldError, NotFound, PermissionDenied, ValidationFailed
 from signora.modules.audit import AuditChain, Subject, record
-from signora.modules.identity_access import accounts
+from signora.modules.identity_access import accounts, company_logo
 from signora.modules.identity_access.access import Actor
 from signora.modules.identity_access.errors import CannotRemoveSelf, CreatorProtected
 from signora.modules.identity_access.hooks import run_member_removed
@@ -205,6 +205,35 @@ def rename_workspace(uow: UnitOfWork, *, actor: Actor, name: str) -> str:
             new_name=name,
         )
     return name
+
+
+def change_website(uow: UnitOfWork, *, actor: Actor, domain: str | None, queue: bool) -> None:
+    """The company's website (its domain, or ``None``): the creator's alone to set. A new website
+    drops the old logo and plans a look-up for the new one."""
+    if not actor.is_creator:
+        raise PermissionDenied("Only the company's owner can change its website")
+    old = uow.session.execute(
+        text("SELECT website FROM workspaces WHERE id = :w FOR UPDATE"), {"w": actor.workspace_id}
+    ).scalar_one()
+    if old == domain:
+        return
+    uow.session.execute(
+        text(
+            "UPDATE workspaces SET website = :d, logo_sha256 = NULL, logo_bytes = NULL, "
+            "logo_etag = NULL, logo_check_due_at = NULL WHERE id = :w"
+        ),
+        {"d": domain, "w": actor.workspace_id},
+    )
+    if domain is not None:
+        company_logo.plan_check(uow.session, actor.workspace_id, queue=queue)
+    _audit(
+        uow,
+        actor,
+        "workspace.website_changed",
+        Subject("workspace", actor.workspace_id),
+        old_website=old,
+        new_website=domain,
+    )
 
 
 def rename_self(uow: UnitOfWork, *, actor: Actor, name: str) -> None:

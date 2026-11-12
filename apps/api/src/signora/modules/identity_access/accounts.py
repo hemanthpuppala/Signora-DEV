@@ -71,7 +71,13 @@ class CreatedWorkspace:
 
 
 def create_workspace(
-    uow: UnitOfWork, *, workspace_name: str, creator_name: str, email: str, password_hash: str
+    uow: UnitOfWork,
+    *,
+    workspace_name: str,
+    website: str | None = None,
+    creator_name: str,
+    email: str,
+    password_hash: str,
 ) -> CreatedWorkspace:
     """The workspace, its default roles and its creator, in the caller's transaction.
 
@@ -80,8 +86,11 @@ def create_workspace(
     session = uow.session
     workspace_id, user_id = session.execute(text("SELECT uuidv7(), uuidv7()")).one()
     session.execute(
-        text("INSERT INTO workspaces (id, name, created_by) VALUES (:w, :name, :u)"),
-        {"w": workspace_id, "name": workspace_name, "u": user_id},
+        text(
+            "INSERT INTO workspaces (id, name, website, created_by) "
+            "VALUES (:w, :name, :website, :u)"
+        ),
+        {"w": workspace_id, "name": workspace_name, "website": website, "u": user_id},
     )
     role_ids: dict[str, uuid.UUID] = {}
     for template in DEFAULT_ROLES:

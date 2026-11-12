@@ -19,7 +19,8 @@ import {
   useToast,
 } from "@/shared/ui";
 
-/** Your name and password, and the workspace name for those allowed to rename it. */
+/** Your name and password; the company's name for those allowed to rename it, and its website
+ * for its owner. */
 export function SettingsPanel({ me }: { me: Me }) {
   return (
     <>
@@ -153,8 +154,8 @@ function WorkspaceForm({ me }: { me: Me }) {
     save.mutate(name);
   };
   return (
-    <form onSubmit={submit} noValidate>
-      <Section title="Company">
+    <Section title="Company">
+      <form onSubmit={submit} noValidate>
         {formError(save.error) ? <Notice tone="warning">{formError(save.error)}</Notice> : null}
         <FieldGrid>
           <TextField
@@ -172,7 +173,54 @@ function WorkspaceForm({ me }: { me: Me }) {
             </Button>
           </FieldAction>
         </FieldGrid>
-      </Section>
+      </form>
+      {me.is_creator ? <WebsiteForm me={me} /> : null}
+    </Section>
+  );
+}
+
+/** The owner's alone: the company's logo in the header is found from its website. */
+function WebsiteForm({ me }: { me: Me }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [website, setWebsite] = useState(me.workspace.website ?? "");
+  const save = useMutation({
+    mutationFn: (value: string | null) =>
+      unwrap(api.PUT("/api/v1/workspace/website", { body: { website: value } })),
+    onSuccess: async (saved) => {
+      setWebsite(saved.website ?? "");
+      await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+      toast.show(saved.website ? "Website saved" : "Website removed");
+    },
+  });
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    save.mutate(website.trim() || null);
+  };
+  return (
+    <form onSubmit={submit} noValidate>
+      {formError(save.error) ? <Notice tone="warning">{formError(save.error)}</Notice> : null}
+      <FieldGrid>
+        <TextField
+          label="Company website"
+          name="url"
+          type="text"
+          inputMode="url"
+          autoComplete="url"
+          spellCheck={false}
+          placeholder="yourcompany.com"
+          hint="Optional. Your company's logo then shows in the header."
+          maxLength={2048}
+          value={website}
+          error={fieldErrors(save.error).website}
+          onChange={(event) => setWebsite(event.target.value)}
+        />
+        <FieldAction>
+          <Button type="submit" variant="quiet" loading={save.isPending} loadingLabel="Saving…">
+            Save
+          </Button>
+        </FieldAction>
+      </FieldGrid>
     </form>
   );
 }

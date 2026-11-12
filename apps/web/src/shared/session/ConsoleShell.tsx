@@ -101,7 +101,14 @@ export function ConsoleShell({ requires, width = "content", children }: ConsoleS
     </TextButton>
   );
   return (
-    <AppShell home={CONSOLE_HOME} workspace={me.workspace.name} nav={nav} actions={actions} width={width}>
+    <AppShell
+      home={CONSOLE_HOME}
+      workspace={me.workspace.name}
+      workspaceLogo={me.workspace.logo_url}
+      nav={nav}
+      actions={actions}
+      width={width}
+    >
       {requires && !can(me, requires) ? (
         <Notice title="No access">{NO_ACCESS[requires] ?? NO_ACCESS_DEFAULT}</Notice>
       ) : (
