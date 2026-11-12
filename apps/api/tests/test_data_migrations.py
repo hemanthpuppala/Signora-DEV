@@ -174,6 +174,9 @@ def test_0031_queues_detection_for_every_scanned_version_and_back(
     command.upgrade(config, "0030")
     engine = create_engine(scratch.url)
     scanned = _processed_version(engine, status="needs_ocr")
+    # Two: one event id each. (The old lateral uuid ran once for all rows, or once per row,
+    # by the plan: the live database had it once; this database may not.)
+    scanned_too = _processed_version(engine, status="needs_ocr")
     locked = _processed_version(engine, status="needs_password")
 
     command.upgrade(config, "0031")
@@ -183,9 +186,14 @@ def test_0031_queues_detection_for_every_scanned_version_and_back(
         jobs = connection.execute(
             text("SELECT payload FROM jobs WHERE dedupe_key LIKE '%scanned-0031'")
         ).all()
-    assert {row.id: row.status for row in rows} == {scanned: "detecting", locked: "needs_password"}
-    (job,) = jobs
-    assert DocumentVersionProcessed.model_validate(job.payload).version_id == scanned
+    assert {row.id: row.status for row in rows} == {
+        scanned: "detecting",
+        scanned_too: "detecting",
+        locked: "needs_password",
+    }
+    events = [DocumentVersionProcessed.model_validate(job.payload) for job in jobs]
+    assert {event.version_id for event in events} == {scanned, scanned_too}
+    assert len({event.event_id for event in events}) == 2
 
     command.downgrade(config, "0030")
 
@@ -194,7 +202,11 @@ def test_0031_queues_detection_for_every_scanned_version_and_back(
         left = connection.execute(
             text("SELECT count(*) FROM jobs WHERE dedupe_key LIKE '%scanned-0031'")
         ).scalar_one()
-    assert {row.id: row.status for row in rows} == {scanned: "needs_ocr", locked: "needs_password"}
+    assert {row.id: row.status for row in rows} == {
+        scanned: "needs_ocr",
+        scanned_too: "needs_ocr",
+        locked: "needs_password",
+    }
     assert left == 0
     engine.dispose()
 
