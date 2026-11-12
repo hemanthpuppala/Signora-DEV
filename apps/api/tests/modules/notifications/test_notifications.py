@@ -121,6 +121,21 @@ def test_layout_escapes_caller_text_and_matches_the_text_part() -> None:
     assert "Rosa & Sam invited you." in email.text
 
 
+def test_every_email_shows_the_logo_by_its_absolute_address_with_the_name_as_its_alt_text() -> None:
+    from pathlib import Path
+
+    from signora.kernel.config import get_settings
+    from signora.modules.notifications.layout import LOGO_PATH
+
+    email = render_layout(heading="Hello", paragraphs=["x"])
+
+    base = str(get_settings().app.public_base_url).rstrip("/")
+    assert f'src="{base}{LOGO_PATH}"' in email.html  # an email cannot load a relative address
+    assert 'alt="Signora"' in email.html  # what shows where images are blocked
+    web_public = Path(__file__).resolve().parents[4] / "web" / "public"
+    assert (web_public / LOGO_PATH.lstrip("/")).is_file()  # the file the address names is served
+
+
 # --- queueing ----------------------------------------------------------------------------------
 
 

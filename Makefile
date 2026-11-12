@@ -97,5 +97,9 @@ web-test:      ## Frontend unit tests (Vitest)
 web-build:     ## Production build of the web app
 	pnpm --filter web build
 
+email-logo:    ## Redraw the emails' logo (apps/web/public/email) from the site's logo data
+	node apps/web/scripts/email-logo.mjs
+	cd $(API) && uv run python -I ../web/scripts/rasterise-logo.py
+
 check: lint typecheck imports test contracts-check web-lint web-typecheck web-test web-build  ## Everything that must pass before a merge
 	@echo "make check: all gates passed"

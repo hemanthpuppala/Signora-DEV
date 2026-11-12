@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
+from signora.kernel.config import get_settings
+
 _env = Environment(
     loader=PackageLoader("signora.modules.notifications", "templates"),
     autoescape=True,
@@ -18,6 +20,14 @@ _env = Environment(
     keep_trailing_newline=True,
 )
 _HTML = _env.get_template("layout.html")
+# The logo every email's header shows: the web app's static file (apps/web/public/email, drawn by
+# `make email-logo`), by its absolute address, as an email cannot load anything relative. Its alt
+# text is the name, shown where images are blocked.
+LOGO_PATH = "/email/signora-logo.png"
+
+
+def logo_url() -> str:
+    return str(get_settings().app.public_base_url).rstrip("/") + LOGO_PATH
 
 
 @dataclass(frozen=True)
@@ -45,5 +55,7 @@ def render_layout(
         lines += [f"{action.label}: {action.url}", ""]
     if footer:
         lines += ["--", footer, ""]
-    html = _HTML.render(heading=heading, paragraphs=paragraphs, action=action, footer=footer)
+    html = _HTML.render(
+        heading=heading, paragraphs=paragraphs, action=action, footer=footer, logo_url=logo_url()
+    )
     return RenderedEmail(text="\n".join(lines).rstrip() + "\n", html=html)
