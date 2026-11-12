@@ -53,7 +53,7 @@ class AiCall:
 
 
 class Assigner(Protocol):
-    def assign(self, messages: list[dict[str, str]], answer: type[BaseModel]) -> AiCall: ...
+    def assign(self, messages: list[dict[str, Any]], answer: type[BaseModel]) -> AiCall: ...
 
 
 class OpenAIAssigner:
@@ -76,7 +76,7 @@ class OpenAIAssigner:
             else None
         )
 
-    def assign(self, messages: list[dict[str, str]], answer: type[BaseModel]) -> AiCall:
+    def assign(self, messages: list[dict[str, Any]], answer: type[BaseModel]) -> AiCall:
         if self._client is None:
             raise AiError("ai_not_configured", "AI_API_KEY is not set")
         started = time.perf_counter()

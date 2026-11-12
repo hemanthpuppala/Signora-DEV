@@ -55,7 +55,12 @@ def layout_text(document: pymupdf.Document, reading: Reading) -> str:
                 rows[-1].append(token)
             else:
                 rows.append([token])
-        lines = [f"--- page {number} ---"]
+        scanned = (
+            " (a scanned picture: read it from its image)"
+            if number in reading.scanned_pages
+            else ""
+        )
+        lines = [f"--- page {number}{scanned} ---"]
         previous_bottom: float | None = None
         for row in rows:
             top = min(box[1] for _, box, _ in row)

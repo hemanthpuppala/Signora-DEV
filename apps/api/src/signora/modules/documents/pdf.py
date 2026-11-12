@@ -12,11 +12,8 @@ from dataclasses import dataclass
 
 import pymupdf
 
-# A page "lacks text" when an image covers at least this share of it and it has fewer than
-# MIN_TEXT_CHARACTERS of extractable text: what a scanned page looks like. Pages that are blank,
-# or carry only a little text and lines (a signature block), are not scans.
-MIN_TEXT_CHARACTERS = 20
-SCAN_IMAGE_SHARE = 1 / 3
+from signora.kernel.scanned import is_scanned_page
+
 # Saving with this removes encryption and restrictions (the constant is missing from the stubs).
 _ENCRYPT_NONE = int(pymupdf.PDF_ENCRYPT_NONE)  # type: ignore[attr-defined]
 
@@ -87,17 +84,6 @@ def unlock(data: bytes, password: str) -> bytes | None:
         if not document.authenticate(password):
             return None
         return bytes(document.tobytes(encryption=_ENCRYPT_NONE))
-
-
-def _lacks_text(page: pymupdf.Page) -> bool:
-    if len("".join(page.get_text("text").split())) >= MIN_TEXT_CHARACTERS:
-        return False
-    page_area = abs(page.rect.width * page.rect.height) or 1.0
-    for image in page.get_image_info():
-        x0, y0, x1, y1 = image["bbox"]
-        if abs((x1 - x0) * (y1 - y0)) / page_area >= SCAN_IMAGE_SHARE:
-            return True
-    return False
 
 
 # Actions that run a script or reach outside the document (another file, an embedded one, a
@@ -174,7 +160,7 @@ def prepare(data: bytes, *, max_pages: int) -> Prepared:
             for page in _pages(document)
         ]
         without = [
-            number for number, page in enumerate(_pages(document), start=1) if _lacks_text(page)
+            number for number, page in enumerate(_pages(document), start=1) if is_scanned_page(page)
         ]
         _make_safe(document)
         pdf = bytes(document.tobytes(garbage=3, deflate=True, encryption=_ENCRYPT_NONE))

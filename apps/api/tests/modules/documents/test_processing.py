@@ -90,20 +90,19 @@ def test_a_word_file_is_converted_by_gotenberg(owner: TestClient, run: Callable[
     assert (version["status"], version["kind"], version["page_count"]) == ("detecting", "docx", 1)
 
 
-def test_scanned_pages_block_the_version_and_say_which(
+def test_scanned_pages_go_on_to_detection_and_are_recorded(
     owner: TestClient, run: Callable[..., None]
 ) -> None:
+    """Phase 5c: a scanned page no longer stops the version; detection reads it from its picture."""
     department = create_department(owner)
     document = new_document(owner, department["id"], pdf_with_scan([2, 3, 4, 7], pages=8)).json()
 
     run(document["versions"][0]["id"])
 
     version = _version(owner, document["id"])
-    assert version["status"] == "needs_ocr"
+    assert version["status"] == "detecting"
     assert version["pages_without_text"] == [2, 3, 4, 7]
-    assert version["problem"]["message"] == (
-        "Pages 2-4 and 7 are scanned images. Scanned pages can't be read yet"
-    )
+    assert version["problem"] is None
 
 
 def test_too_many_pages_fail_with_the_count(

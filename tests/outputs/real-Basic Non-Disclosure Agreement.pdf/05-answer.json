@@ -1,0 +1,130 @@
+{
+  "roles": [
+    {
+      "slug": "disclosing_party",
+      "kind": "signer"
+    },
+    {
+      "slug": "receiving_party",
+      "kind": "signer"
+    }
+  ],
+  "fields": [
+    {
+      "id": "f1",
+      "holds": "date",
+      "format": "Month D, YYYY",
+      "filled_by": "sender",
+      "label": "Agreement date",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f2",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "disclosing_party",
+      "label": "Disclosing Party name",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f3",
+      "holds": "address",
+      "format": null,
+      "filled_by": "disclosing_party",
+      "label": "Disclosing Party mailing address",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f4",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "receiving_party",
+      "label": "Receiving Party name",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f5",
+      "holds": "address",
+      "format": null,
+      "filled_by": "receiving_party",
+      "label": "Receiving Party mailing address",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f6",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "disclosing_party",
+      "label": "Disclosing Party signature",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f7",
+      "holds": "date_signed",
+      "format": null,
+      "filled_by": "disclosing_party",
+      "label": "Disclosing Party signing date",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f8",
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "disclosing_party",
+      "label": "Disclosing Party typed or printed name",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f9",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "receiving_party",
+      "label": "Receiving Party signature",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f10",
+      "holds": "date_signed",
+      "format": null,
+      "filled_by": "receiving_party",
+      "label": "Receiving Party signing date",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f11",
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "receiving_party",
+      "label": "Receiving Party typed or printed name",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    }
+  ],
+  "checkbox_groups": [],
+  "extra_fields": [],
+  "document": {
+    "name": "Non-Disclosure Agreement",
+    "description": "A non-disclosure agreement between a Disclosing Party and a Receiving Party. It covers confidential information, the Receiving Party’s obligations, and how long confidentiality obligations continue. Both parties sign; neither is identified as the countersigner."
+  }
+}

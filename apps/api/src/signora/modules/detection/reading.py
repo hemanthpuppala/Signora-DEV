@@ -45,6 +45,7 @@ class Placement(_Model):
     option_text: str | None = None  # an option's own words, other fields in it as {f3}
     hidden: bool = False
     continued: list[Box] = []  # the rest of a placeholder that wraps onto the next lines
+    headroom: float | None = None  # a scanned line's free points above it (Phase 5c, for F2)
 
 
 class FoundField(_Model):
@@ -105,6 +106,7 @@ class Reading(_Model):
     xfa: bool = False  # what Acrobat shows may differ from these form fields
     already_signed: bool = False  # filling the file breaks that signature
     layout: str = ""  # the document as the AI reads it (§2.5)
+    scanned_pages: list[int] = []  # pages that are pictures, read from their pixels (Phase 5c)
 
     @property
     def asked(self) -> list[FoundField]:

@@ -30,6 +30,7 @@ from signora.modules.detection.derive import Result, check, derive
 from signora.modules.detection.prompt import SYSTEM_PROMPT, user_message
 from signora.modules.detection.read import read_document
 from signora.modules.detection.reading import Reading
+from signora.modules.detection.scan_images import marked_pages
 from signora.modules.detection.schema import answer_model
 from signora.modules.documents import (
     VersionForDetection,
@@ -308,18 +309,20 @@ def ask(
     current_name: str,
     instructions: str,
 ) -> tuple[list[JsonDict], dict[str, Any], str | None]:
-    """The AI step (§3.4): one call, and one repair call when the checks find problems; nothing to
-    ask, no call. Returns each call's facts (with the problems found), the last answer, the model.
-    A passing failure propagates (the job retries; ``on_dead`` fails it at the end); any other is
-    ``Failed``. The job and the test pipeline both run this."""
-    if not reading.asked:
-        return [], EMPTY_ANSWER, None
+    """The AI step (§3.4): one call, and one repair call when the checks find problems; nothing
+    to ask and no scanned page, no call. Returns each call's facts (with the problems found), the
+    last answer, the model. A passing failure propagates (the job retries; ``on_dead`` fails it
+    at the end); any other is ``Failed``. The job and the test pipeline both run this."""
+    if not reading.asked and not reading.scanned_pages:
+        return [], EMPTY_ANSWER, None  # nothing to ask; a scanned page may still hold places
     answer_type = answer_model([field.id for field in reading.asked])
-    messages = [
+    text = user_message(reading, current_name=current_name, instructions=instructions)
+    pictures = marked_pages(document, reading)  # the scanned pages, their fields tagged (5c)
+    messages: list[dict[str, Any]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {
             "role": "user",
-            "content": user_message(reading, current_name=current_name, instructions=instructions),
+            "content": [{"type": "text", "text": text}, *pictures] if pictures else text,
         },
     ]
     calls: list[JsonDict] = []
