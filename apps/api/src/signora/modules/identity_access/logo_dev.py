@@ -22,7 +22,7 @@ LOGO_SIZE = 128  # pixels on the long side: the header shows it about 28 px tall
 MAX_LOGO_BYTES = 512 * 1024
 TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-_NOT_NOW = frozenset({httpx.codes.ACCEPTED, httpx.codes.TOO_MANY_REQUESTS})
+_NOT_NOW = frozenset({httpx.codes.TOO_MANY_REQUESTS})  # 202 is its own (indexing)
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,11 @@ class FoundLogo:
 
 class LogoDevUnavailableError(RuntimeError):
     """logo.dev did not answer in time or cannot now (indexing the brand, rate limit, outage)."""
+
+
+class LogoDevIndexingError(LogoDevUnavailableError):
+    """202: logo.dev has not indexed the domain yet and has started to; asking again within
+    seconds usually finds the logo (its docs: retry shortly)."""
 
 
 def look_up(domain: str, *, secret_key: SecretStr, client: httpx.Client) -> FoundLogo | None:
@@ -88,6 +93,8 @@ def download(found: FoundLogo, *, client: httpx.Client) -> bytes | None:
 
 
 def _raise_if_not_now(answer: httpx.Response) -> None:
+    if answer.status_code == httpx.codes.ACCEPTED:
+        raise LogoDevIndexingError("logo.dev answered 202: indexing the domain")
     if answer.status_code in _NOT_NOW or answer.status_code >= httpx.codes.INTERNAL_SERVER_ERROR:
         raise LogoDevUnavailableError(f"logo.dev answered {answer.status_code}")
 

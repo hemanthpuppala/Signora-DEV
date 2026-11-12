@@ -49,12 +49,15 @@ DOWNLOAD = "https://img.logo.dev/assets/brand_1.png?signature=abc"
     [
         ("scoutboard.com", "scoutboard.com"),
         ("  https://www.ScoutBoard.com/about?x=1  ", "scoutboard.com"),
-        ("http://app.scoutboard.co.uk:8080", "app.scoutboard.co.uk"),
+        ("http://app.scoutboard.co.uk:8080", "scoutboard.co.uk"),  # the registrable domain
+        ("https://www.app.scoutboard.com/team", "scoutboard.com"),
+        ("sub.example.ai", "example.ai"),
+        ("acme.github.io", "acme.github.io"),  # a platform's suffix: not GitHub's own
         ("scoutboard.com.", "scoutboard.com"),
         ("münchen.de", "xn--mnchen-3ya.de"),
     ],
 )
-def test_a_website_is_kept_as_its_domain(typed: str, domain: str) -> None:
+def test_a_website_is_kept_as_its_registrable_domain(typed: str, domain: str) -> None:
     assert company_domain(typed) == domain
 
 
@@ -76,6 +79,8 @@ def test_a_website_is_kept_as_its_domain(typed: str, domain: str) -> None:
         "https://scoutboard.com:99999",
         "a" * 64 + ".com",
         "x." * 130 + "com",
+        "co.uk",  # only a public suffix: nobody's company
+        "github.io",
     ],
 )
 def test_anything_but_a_public_host_name_is_refused(typed: str) -> None:
@@ -243,61 +248,111 @@ def sign_up(client: TestClient, db: Database, **overrides: Any) -> tuple[str, An
     return email, response
 
 
+@pytest.fixture
+def domain() -> str:
+    """A domain of this test's own: logos are shared by domain and kept across tests."""
+    return f"scout{uuid.uuid4().hex[:10]}.com"
+
+
 def workspace_of(db: Database, email: str) -> Any:
+    """The company's website, and its domain's logo row (none without a website)."""
     with db.unit_of_work() as uow:
         return uow.session.execute(
             text(
-                "SELECT w.id, w.website, w.logo_sha256, w.logo_bytes, w.logo_etag, "
-                "extract(epoch FROM w.logo_check_due_at - now()) AS due_in "
-                "FROM workspaces w JOIN users u ON u.workspace_id = w.id WHERE u.email = :e"
+                "SELECT w.id, w.website, c.logo_sha256, c.logo_bytes, c.etag, c.checked_at, "
+                "extract(epoch FROM c.check_due_at - now()) AS due_in "
+                "FROM workspaces w JOIN users u ON u.workspace_id = w.id "
+                "LEFT JOIN company_logos c ON c.domain = w.website WHERE u.email = :e"
             ),
             {"e": email},
         ).one()
 
 
-def queued_look_ups(db: Database, workspace_id: uuid.UUID) -> int:
+def logo_row(db: Database, domain: str) -> Any:
+    with db.unit_of_work() as uow:
+        return uow.session.execute(
+            text(
+                "SELECT logo_sha256, logo_bytes, etag, checked_at, "
+                "extract(epoch FROM check_due_at - now()) AS due_in "
+                "FROM company_logos WHERE domain = :d"
+            ),
+            {"d": domain},
+        ).one_or_none()
+
+
+def queued_look_ups(db: Database, domain: str) -> int:
     with db.unit_of_work() as uow:
         return int(
             uow.session.execute(
                 text(
                     "SELECT count(*) FROM jobs WHERE kind = :k AND status = 'queued' "
-                    "AND payload->>'workspace_id' = :w"
+                    "AND payload->>'domain' = :d"
                 ),
-                {"k": company_logo.FIND_LOGO, "w": str(workspace_id)},
+                {"k": company_logo.FIND_LOGO, "d": domain},
             ).scalar_one()
         )
 
 
-def claim_look_up(db: Database, workspace_id: uuid.UUID) -> JobContext:
-    """This workspace's queued look-up, claimed as a worker would."""
+def claim_look_up(db: Database, domain: str) -> JobContext:
+    """This domain's queued look-up, claimed as a worker would."""
     with db.unit_of_work() as uow:
         job = uow.session.execute(
             text(
                 "UPDATE jobs SET status = 'running', attempts = attempts + 1, "
                 "lease_expires_at = now() + interval '1 minute' "
-                "WHERE kind = :k AND status = 'queued' AND payload->>'workspace_id' = :w "
+                "WHERE kind = :k AND status = 'queued' AND payload->>'domain' = :d "
                 "RETURNING id, kind, payload, meta, attempts"
             ),
-            {"k": company_logo.FIND_LOGO, "w": str(workspace_id)},
+            {"k": company_logo.FIND_LOGO, "d": domain},
         ).one()
     return JobContext(job.id, job.kind, job.payload, job.meta, job.attempts, db)
 
 
-def run_look_up(
-    db: Database, settings: Settings, workspace_id: uuid.UUID, client: httpx.Client
-) -> None:
-    """Run this workspace's queued look-up against ``client`` instead of logo.dev."""
+def run_look_up(db: Database, settings: Settings, domain: str, client: httpx.Client) -> None:
+    """Run this domain's queued look-up against ``client`` instead of logo.dev."""
     company_logo.find_and_keep(
-        claim_look_up(db, workspace_id),
+        claim_look_up(db, domain),
         settings=LogoSettings(secret_key=KEY),
         store=blob_store_from_settings(settings.blob_store),
         client=client,
     )
 
 
-def plan_now(db: Database, workspace_id: uuid.UUID) -> None:
+def plan_now(db: Database, domain: str) -> None:
+    """A look-up due now, queued: as the sweep does when one comes due."""
     with db.unit_of_work() as uow:
-        company_logo.plan_check(uow.session, workspace_id, queue=True)
+        due = uow.session.execute(
+            text(
+                "UPDATE company_logos SET check_due_at = now() WHERE domain = :d "
+                "RETURNING check_due_at"
+            ),
+            {"d": domain},
+        ).scalar_one()
+        company_logo._queue(uow.session, domain, due)
+
+
+def age(db: Database, domain: str, days: int) -> None:
+    """Move the domain's last answer and next look-up back, as if ``days`` had passed."""
+    with db.unit_of_work() as uow:
+        uow.session.execute(
+            text(
+                "UPDATE company_logos SET checked_at = checked_at - make_interval(days => :n), "
+                "check_due_at = check_due_at - make_interval(days => :n) WHERE domain = :d"
+            ),
+            {"n": days, "d": domain},
+        )
+
+
+def leave(db: Database, email: str) -> None:
+    """The company stops naming its website, as one deleted or moved elsewhere would."""
+    with db.unit_of_work() as uow:
+        uow.session.execute(
+            text(
+                "UPDATE workspaces SET website = NULL WHERE id = "
+                "(SELECT workspace_id FROM users WHERE email = :e)"
+            ),
+            {"e": email},
+        )
 
 
 def run_sweep(db: Database, settings: LogoSettings) -> None:
@@ -315,38 +370,46 @@ def run_sweep(db: Database, settings: LogoSettings) -> None:
 HOUR, DAY = 3600, 86400
 
 
-def assert_due_in(workspace: Any, seconds: int) -> None:
-    assert workspace.due_in == pytest.approx(seconds, abs=60)
+def assert_due_in(row: Any, seconds: int) -> None:
+    assert row.due_in == pytest.approx(seconds, abs=60)
+
+
+def found_and_kept(
+    db: Database, settings: Settings, client: TestClient, domain: str, **overrides: Any
+) -> str:
+    """A company signed up on ``domain`` whose logo was found; its owner's email."""
+    email, _ = sign_up(client, db, website=domain, **overrides)
+    run_look_up(db, settings, domain, logo_dev_answering(found(), png))
+    return email
 
 
 @pytest.mark.usefixtures("signup_worker")
 def test_a_website_given_at_sign_up_is_kept_as_its_domain_and_its_logo_looked_up_at_once(
-    make_client: Callable[..., TestClient], committing_db: Database, with_key: Settings
+    make_client: Callable[..., TestClient], committing_db: Database, with_key: Settings, domain: str
 ) -> None:
     with make_client(with_key) as client:
-        email, response = sign_up(client, committing_db, website="https://www.ScoutBoard.com/team")
+        email, response = sign_up(client, committing_db, website=f"https://www.app.{domain}/team")
 
     assert response.status_code == 201
     workspace = workspace_of(committing_db, email)
-    assert workspace.website == "scoutboard.com"
+    assert workspace.website == domain  # the registrable domain: the key, and what is asked
     assert_due_in(workspace, 0)
-    assert queued_look_ups(committing_db, workspace.id) == 1
+    assert queued_look_ups(committing_db, domain) == 1
 
 
 @pytest.mark.usefixtures("signup_worker")
 def test_without_a_key_the_look_up_waits_for_the_sweep_once_there_is_one(
-    client: TestClient, committing_db: Database
+    client: TestClient, committing_db: Database, domain: str
 ) -> None:
-    email, _ = sign_up(client, committing_db, website="scoutboard.com")
-    workspace = workspace_of(committing_db, email)
-    assert queued_look_ups(committing_db, workspace.id) == 0  # nothing to ask without a key
+    sign_up(client, committing_db, website=domain)
+    assert queued_look_ups(committing_db, domain) == 0  # nothing to ask without a key
 
     run_sweep(committing_db, LogoSettings(secret_key=None))
-    assert queued_look_ups(committing_db, workspace.id) == 0
+    assert queued_look_ups(committing_db, domain) == 0
 
     run_sweep(committing_db, LogoSettings(secret_key=KEY))  # the key was added
     run_sweep(committing_db, LogoSettings(secret_key=KEY))  # and the sweep runs again
-    assert queued_look_ups(committing_db, workspace.id) == 1
+    assert queued_look_ups(committing_db, domain) == 1
 
 
 @pytest.mark.usefixtures("signup_worker")
@@ -365,7 +428,6 @@ def test_the_website_is_optional(
 
     workspace = workspace_of(committing_db, email)
     assert (workspace.website, workspace.due_in) == (None, None)
-    assert queued_look_ups(committing_db, workspace.id) == 0
 
 
 @pytest.mark.usefixtures("signup_worker")
@@ -386,23 +448,22 @@ def test_a_website_that_is_not_one_is_a_field_error_and_creates_nothing(
 
 
 @pytest.mark.usefixtures("signup_worker")
-def test_a_found_logo_is_kept_and_shown_to_the_companys_members_only(
+def test_a_found_logo_is_kept_for_its_domain_and_shown_to_the_companys_members_only(
     make_client: Callable[..., TestClient],
     committing_db: Database,
     settings: Settings,
     with_key: Settings,
+    domain: str,
 ) -> None:
     with make_client(with_key) as client:
-        email, _ = sign_up(client, committing_db, website="scoutboard.com")
-        workspace_id = workspace_of(committing_db, email).id
-        run_look_up(committing_db, settings, workspace_id, logo_dev_answering(found(), png))
+        email = found_and_kept(committing_db, settings, client, domain)
 
-        workspace = workspace_of(committing_db, email)
-        assert workspace.logo_etag == "etag-1"
-        assert_due_in(workspace, 30 * DAY)  # a refresh in a month
+        row = logo_row(committing_db, domain)
+        assert row.etag == "etag-1"
+        assert_due_in(row, 30 * DAY)  # a refresh in a month
         log_in(client, email)
         logo_url = client.get("/api/v1/me").json()["workspace"]["logo_url"]
-        assert logo_url == f"/api/v1/workspace/logo?v={workspace.logo_sha256[:16]}"
+        assert logo_url == f"/api/v1/workspace/logo?v={row.logo_sha256[:16]}"
         logo = client.get(logo_url)
         assert logo.status_code == 200
         assert logo.content == PNG
@@ -413,34 +474,102 @@ def test_a_found_logo_is_kept_and_shown_to_the_companys_members_only(
 
 
 @pytest.mark.usefixtures("signup_worker")
+def test_a_second_company_on_a_known_domain_shows_its_logo_at_once_without_asking_logo_dev(
+    make_client: Callable[..., TestClient],
+    committing_db: Database,
+    settings: Settings,
+    with_key: Settings,
+    domain: str,
+) -> None:
+    with make_client(with_key) as client:
+        first = found_and_kept(committing_db, settings, client, domain)
+        email, _ = sign_up(client, committing_db, website=f"https://shop.{domain}")  # same domain
+        log_in(client, email)
+        logo_url = client.get("/api/v1/me").json()["workspace"]["logo_url"]
+
+    assert queued_look_ups(committing_db, domain) == 0  # logo.dev not asked again
+    assert logo_url is not None
+    assert workspace_of(committing_db, email).logo_sha256 == (
+        workspace_of(committing_db, first).logo_sha256
+    )
+    assert_due_in(logo_row(committing_db, domain), 30 * DAY)  # the first company's schedule
+
+
+@pytest.mark.usefixtures("signup_worker")
+def test_a_company_recreated_a_year_later_gets_the_kept_logo_without_asking_logo_dev(
+    make_client: Callable[..., TestClient],
+    committing_db: Database,
+    settings: Settings,
+    with_key: Settings,
+    domain: str,
+) -> None:
+    with make_client(with_key) as client:
+        first = found_and_kept(committing_db, settings, client, domain)
+        kept = logo_row(committing_db, domain).logo_sha256
+        leave(committing_db, first)  # the company is gone
+        age(committing_db, domain, 365)
+        run_sweep(committing_db, LogoSettings(secret_key=KEY))
+        assert logo_row(committing_db, domain).due_in is None  # nobody uses it: not refreshed
+        assert queued_look_ups(committing_db, domain) == 0
+
+        email, _ = sign_up(client, committing_db, website=domain)  # a year on, signed up again
+
+    assert queued_look_ups(committing_db, domain) == 0  # shown from what was kept
+    assert workspace_of(committing_db, email).logo_sha256 == kept
+    assert_due_in(logo_row(committing_db, domain), 30 * DAY)  # refreshed a month on
+
+
+@pytest.mark.usefixtures("signup_worker")
+def test_a_domain_without_a_logo_is_asked_again_only_once_that_answer_is_a_week_old(
+    make_client: Callable[..., TestClient],
+    committing_db: Database,
+    settings: Settings,
+    with_key: Settings,
+    domain: str,
+) -> None:
+    with make_client(with_key) as client:
+        first, _ = sign_up(client, committing_db, website=domain)
+        run_look_up(committing_db, settings, domain, logo_dev_answering(answering(404)))
+        leave(committing_db, first)
+        age(committing_db, domain, 2)
+        sign_up(client, committing_db, website=domain)  # two days after "none"
+        assert queued_look_ups(committing_db, domain) == 0
+        assert_due_in(logo_row(committing_db, domain), 5 * DAY)
+
+        age(committing_db, domain, 6)  # now eight days after
+        leave(committing_db, first)
+        sign_up(client, committing_db, website=domain)
+    assert queued_look_ups(committing_db, domain) == 1
+
+
+@pytest.mark.usefixtures("signup_worker")
 def test_a_refresh_downloads_nothing_while_the_logo_is_unchanged_and_the_new_one_when_it_changed(
     make_client: Callable[..., TestClient],
     committing_db: Database,
     settings: Settings,
     with_key: Settings,
+    domain: str,
 ) -> None:
     with make_client(with_key) as client:
-        email, _ = sign_up(client, committing_db, website="scoutboard.com")
-    workspace_id = workspace_of(committing_db, email).id
-    run_look_up(committing_db, settings, workspace_id, logo_dev_answering(found(), png))
-    first = workspace_of(committing_db, email)
+        found_and_kept(committing_db, settings, client, domain)
+    first = logo_row(committing_db, domain)
 
-    plan_now(committing_db, workspace_id)
-    run_look_up(committing_db, settings, workspace_id, logo_dev_answering(found()))  # no download
-    unchanged = workspace_of(committing_db, email)
+    plan_now(committing_db, domain)
+    run_look_up(committing_db, settings, domain, logo_dev_answering(found()))  # no download
+    unchanged = logo_row(committing_db, domain)
     assert unchanged.logo_sha256 == first.logo_sha256
     assert_due_in(unchanged, 30 * DAY)
 
     new_png = PNG + b"new"
-    plan_now(committing_db, workspace_id)
+    plan_now(committing_db, domain)
     run_look_up(
         committing_db,
         settings,
-        workspace_id,
+        domain,
         logo_dev_answering(found(etag="etag-2"), lambda _: httpx.Response(200, content=new_png)),
     )
-    changed = workspace_of(committing_db, email)
-    assert (changed.logo_etag, changed.logo_bytes) == ("etag-2", len(new_png))
+    changed = logo_row(committing_db, domain)
+    assert (changed.etag, changed.logo_bytes) == ("etag-2", len(new_png))
 
 
 @pytest.mark.usefixtures("signup_worker")
@@ -449,7 +578,7 @@ def test_a_refresh_downloads_nothing_while_the_logo_is_unchanged_and_the_new_one
     [
         (answering(404), 7 * DAY),
         (answering(401), 7 * DAY),
-        (answering(202), HOUR),
+        (answering(202), 10),  # indexing: asked again shortly (below)
         (answering(503), HOUR),
         (timing_out, HOUR),
     ],
@@ -462,15 +591,15 @@ def test_without_a_logo_the_company_keeps_its_name_and_logo_dev_is_asked_again_l
     with_key: Settings,
     api: Callable[[httpx.Request], httpx.Response],
     again: int,
+    domain: str,
 ) -> None:
     with make_client(with_key) as client:
-        email, _ = sign_up(client, committing_db, website="scoutboard.com")
-        workspace_id = workspace_of(committing_db, email).id
-        run_look_up(committing_db, settings, workspace_id, logo_dev_answering(api))  # never raises
+        email, _ = sign_up(client, committing_db, website=domain)
+        run_look_up(committing_db, settings, domain, logo_dev_answering(api))  # never raises
 
-        workspace = workspace_of(committing_db, email)
-        assert workspace.logo_sha256 is None
-        assert_due_in(workspace, again)
+        row = logo_row(committing_db, domain)
+        assert row.logo_sha256 is None
+        assert_due_in(row, again)
         log_in(client, email)
         me = client.get("/api/v1/me").json()
         assert (me["workspace"]["name"], me["workspace"]["logo_url"]) == ("ScoutBoard", None)
@@ -478,22 +607,25 @@ def test_without_a_logo_the_company_keeps_its_name_and_logo_dev_is_asked_again_l
 
 
 @pytest.mark.usefixtures("signup_worker")
-def test_a_logo_found_for_a_website_since_changed_is_not_kept(
+def test_a_logo_found_while_the_company_moved_to_another_website_is_kept_for_its_domain(
     make_client: Callable[..., TestClient],
     committing_db: Database,
     settings: Settings,
     with_key: Settings,
+    domain: str,
 ) -> None:
+    """The company shows its new website's logo; the one found is kept for whoever names it."""
     with make_client(with_key) as client:
-        email, _ = sign_up(client, committing_db, website="scoutboard.com")
+        email, _ = sign_up(client, committing_db, website=domain)
     workspace_id = workspace_of(committing_db, email).id
-    context = claim_look_up(committing_db, workspace_id)
+    context = claim_look_up(committing_db, domain)
+    other = f"other{uuid.uuid4().hex[:10]}.com"
 
-    def changed_meanwhile(request: httpx.Request) -> httpx.Response:
+    def moved_meanwhile(request: httpx.Request) -> httpx.Response:
         with committing_db.unit_of_work() as uow:
             uow.session.execute(
-                text("UPDATE workspaces SET website = 'other.com' WHERE id = :w"),
-                {"w": workspace_id},
+                text("UPDATE workspaces SET website = :o WHERE id = :w"),
+                {"o": other, "w": workspace_id},
             )
         return png(request)
 
@@ -501,10 +633,11 @@ def test_a_logo_found_for_a_website_since_changed_is_not_kept(
         context,
         settings=LogoSettings(secret_key=KEY),
         store=blob_store_from_settings(settings.blob_store),
-        client=logo_dev_answering(found(), changed_meanwhile),
+        client=logo_dev_answering(found(), moved_meanwhile),
     )
 
-    assert workspace_of(committing_db, email).logo_sha256 is None
+    assert logo_row(committing_db, domain).logo_sha256 is not None  # kept for the domain
+    assert workspace_of(committing_db, email).logo_sha256 is None  # not other.com's
 
 
 @pytest.mark.usefixtures("signup_worker")
@@ -513,42 +646,48 @@ def test_a_logo_file_missing_from_the_store_shows_the_name_and_is_fetched_again(
     committing_db: Database,
     settings: Settings,
     with_key: Settings,
+    domain: str,
 ) -> None:
     with make_client(with_key) as client:
-        email, _ = sign_up(client, committing_db, website="scoutboard.com")
-        workspace_id = workspace_of(committing_db, email).id
-        run_look_up(committing_db, settings, workspace_id, logo_dev_answering(found(), png))
+        email = found_and_kept(committing_db, settings, client, domain)
         with committing_db.unit_of_work() as uow:  # as if the file were lost
             uow.session.execute(
-                text("UPDATE workspaces SET logo_sha256 = :s WHERE id = :w"),
-                {"s": "0" * 64, "w": workspace_id},
+                text("UPDATE company_logos SET logo_sha256 = :s WHERE domain = :d"),
+                {"s": "0" * 64, "d": domain},
             )
         log_in(client, email)
         logo_url = client.get("/api/v1/me").json()["workspace"]["logo_url"]
 
         assert client.get(logo_url).status_code == 404
         assert client.get("/api/v1/me").json()["workspace"]["logo_url"] is None
-        assert_due_in(workspace_of(committing_db, email), 0)
-        assert queued_look_ups(committing_db, workspace_id) == 1
+        assert_due_in(logo_row(committing_db, domain), 0)
+        assert queued_look_ups(committing_db, domain) == 1
 
 
-def test_the_sweep_queues_each_due_look_up_once(
-    committing_db: Database, make_workspace: Callable[..., Account]
+def test_the_sweep_queues_each_due_look_up_once_and_leaves_domains_nobody_uses(
+    committing_db: Database, make_workspace: Callable[..., Account], domain: str
 ) -> None:
     account = make_workspace()
+    unused = f"gone{uuid.uuid4().hex[:10]}.com"
     with committing_db.unit_of_work() as uow:
         uow.session.execute(
+            text("UPDATE workspaces SET website = :d WHERE id = :w"),
+            {"d": domain, "w": account.workspace_id},
+        )
+        uow.session.execute(
             text(
-                "UPDATE workspaces SET website = 'scoutboard.com', "
-                "logo_check_due_at = now() - interval '1 minute' WHERE id = :w"
+                "INSERT INTO company_logos (domain, check_due_at) VALUES "
+                "(:d, now() - interval '1 minute'), (:u, now() - interval '1 minute')"
             ),
-            {"w": account.workspace_id},
+            {"d": domain, "u": unused},
         )
 
     run_sweep(committing_db, LogoSettings(secret_key=KEY))
     run_sweep(committing_db, LogoSettings(secret_key=KEY))
 
-    assert queued_look_ups(committing_db, account.workspace_id) == 1
+    assert queued_look_ups(committing_db, domain) == 1
+    assert queued_look_ups(committing_db, unused) == 0
+    assert logo_row(committing_db, unused).due_in is None  # nothing planned until named again
 
 
 # --- the website in Settings -------------------------------------------------------------------
@@ -560,35 +699,34 @@ def put_website(client: TestClient, website: str | None) -> Any:
     )
 
 
-def test_the_owner_sets_changes_and_removes_the_website_and_a_new_one_drops_the_old_logo(
+@pytest.mark.usefixtures("signup_worker")
+def test_the_owner_sets_changes_and_removes_the_website_and_a_known_domain_shows_at_once(
     make_client: Callable[..., TestClient],
     committing_db: Database,
+    settings: Settings,
     make_workspace: Callable[..., Account],
     with_key: Settings,
+    domain: str,
 ) -> None:
     owner = make_workspace(workspace_name="ScoutBoard")
-    with committing_db.unit_of_work() as uow:  # a logo found for an older website
-        uow.session.execute(
-            text(
-                "UPDATE workspaces SET website = 'old.com', logo_sha256 = :s, logo_bytes = 1 "
-                "WHERE id = :w"
-            ),
-            {"s": "a" * 64, "w": owner.workspace_id},
-        )
+    new = f"new{uuid.uuid4().hex[:10]}.com"
     with make_client(with_key) as client:
+        found_and_kept(committing_db, settings, client, domain)  # another company found it
         log_in(client, owner.email)
 
-        answer = put_website(client, "https://www.ScoutBoard.com")
+        answer = put_website(client, f"https://www.{new}")  # unknown: looked up
         assert answer.status_code == 200
-        assert (answer.json()["website"], answer.json()["logo_url"]) == ("scoutboard.com", None)
-        workspace = workspace_of(committing_db, owner.email)
-        assert (workspace.website, workspace.logo_sha256) == ("scoutboard.com", None)
-        assert queued_look_ups(committing_db, owner.workspace_id) == 1
-        assert client.get("/api/v1/me").json()["workspace"]["website"] == "scoutboard.com"
+        assert (answer.json()["website"], answer.json()["logo_url"]) == (new, None)
+        assert queued_look_ups(committing_db, new) == 1
+
+        known = put_website(client, f"https://www.{domain}/about")  # known: shown at once
+        assert known.json()["website"] == domain
+        assert known.json()["logo_url"] is not None
+        assert queued_look_ups(committing_db, domain) == 0
+        assert client.get("/api/v1/me").json()["workspace"]["logo_url"] == known.json()["logo_url"]
 
         assert put_website(client, None).json()["website"] is None
-        workspace = workspace_of(committing_db, owner.email)
-        assert (workspace.website, workspace.due_in) == (None, None)
+        assert workspace_of(committing_db, owner.email).website is None
 
         refused = put_website(client, "localhost")
         assert refused.status_code == 422
@@ -602,7 +740,7 @@ def test_the_owner_sets_changes_and_removes_the_website_and_a_new_one_drops_the_
             ),
             {"w": owner.workspace_id},
         ).all()
-    assert len(recorded) == 2
+    assert len(recorded) == 3
 
 
 def test_only_the_owner_changes_the_website(
@@ -610,12 +748,13 @@ def test_only_the_owner_changes_the_website(
     committing_db: Database,
     make_workspace: Callable[..., Account],
     add_member: Callable[..., Account],
+    domain: str,
 ) -> None:
     owner = make_workspace()
     editor = add_member(owner, role="read_write")
     with make_client() as client:
         log_in(client, editor.email)
-        assert put_website(client, "scoutboard.com").status_code == 403
+        assert put_website(client, domain).status_code == 403
     assert workspace_of(committing_db, owner.email).website is None
 
 
@@ -625,16 +764,71 @@ def test_a_look_up_queued_before_the_key_was_removed_asks_nothing_and_waits_a_da
     committing_db: Database,
     settings: Settings,
     with_key: Settings,
+    domain: str,
 ) -> None:
     with make_client(with_key) as client:
-        email, _ = sign_up(client, committing_db, website="scoutboard.com")
-    workspace_id = workspace_of(committing_db, email).id
+        sign_up(client, committing_db, website=domain)
 
     company_logo.find_and_keep(
-        claim_look_up(committing_db, workspace_id),
+        claim_look_up(committing_db, domain),
         settings=LogoSettings(secret_key=None),
         store=blob_store_from_settings(settings.blob_store),
         client=logo_dev_answering(lambda _: pytest.fail("logo.dev was called")),
     )
 
-    assert_due_in(workspace_of(committing_db, email), DAY)
+    assert_due_in(logo_row(committing_db, domain), DAY)
+
+
+def queued_look_up(db: Database, domain: str) -> Any:
+    with db.unit_of_work() as uow:
+        return uow.session.execute(
+            text(
+                "SELECT payload, extract(epoch FROM run_at - now()) AS runs_in FROM jobs "
+                "WHERE kind = :k AND status = 'queued' AND payload->>'domain' = :d"
+            ),
+            {"k": company_logo.FIND_LOGO, "d": domain},
+        ).one()
+
+
+@pytest.mark.usefixtures("signup_worker")
+def test_a_domain_logo_dev_is_still_indexing_is_asked_again_three_times_then_hourly(
+    make_client: Callable[..., TestClient],
+    committing_db: Database,
+    settings: Settings,
+    with_key: Settings,
+    domain: str,
+) -> None:
+    """202: logo.dev started indexing it. Asked again after 10, 30 and 90 seconds (queued to run
+    then, not left to the sweep); a fourth 202 waits for the hourly look-up."""
+    with make_client(with_key) as client:
+        sign_up(client, committing_db, website=domain)
+
+    for tries, wait in enumerate((10, 30, 90), start=1):
+        run_look_up(committing_db, settings, domain, logo_dev_answering(answering(202)))
+        retry = queued_look_up(committing_db, domain)
+        assert retry.payload == {"domain": domain, "indexing": tries}
+        assert retry.runs_in == pytest.approx(wait, abs=5)
+        assert_due_in(logo_row(committing_db, domain), wait)
+
+    run_look_up(committing_db, settings, domain, logo_dev_answering(answering(202)))
+
+    assert queued_look_ups(committing_db, domain) == 0  # no fourth quick retry
+    assert_due_in(logo_row(committing_db, domain), HOUR)
+
+
+@pytest.mark.usefixtures("signup_worker")
+def test_a_logo_indexed_by_the_retry_is_kept(
+    make_client: Callable[..., TestClient],
+    committing_db: Database,
+    settings: Settings,
+    with_key: Settings,
+    domain: str,
+) -> None:
+    with make_client(with_key) as client:
+        email, _ = sign_up(client, committing_db, website=domain)
+    run_look_up(committing_db, settings, domain, logo_dev_answering(answering(202)))
+
+    run_look_up(committing_db, settings, domain, logo_dev_answering(found(), png))  # 10 s on
+
+    assert workspace_of(committing_db, email).logo_sha256 is not None
+    assert_due_in(logo_row(committing_db, domain), 30 * DAY)

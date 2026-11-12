@@ -38,22 +38,10 @@ workspaces = Table(
     Column("name", Text, nullable=False),
     Column("created_by", UUID(as_uuid=True)),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-    # The company's website as its domain, and the logo found for it (migration 0029).
+    # The company's website as its registrable domain: its logo is ``company_logos``' row for it.
     Column("website", Text),
-    Column("logo_sha256", Text),
-    Column("logo_bytes", Integer),
-    Column("logo_etag", Text),
-    Column("logo_check_due_at", DateTime(timezone=True)),
     CheckConstraint("char_length(name) BETWEEN 1 AND 120", name="name_length"),
     CheckConstraint("char_length(website) BETWEEN 4 AND 253", name="website_length"),
-    CheckConstraint(
-        "(logo_sha256 IS NULL) = (logo_bytes IS NULL) "
-        "AND (logo_sha256 IS NULL OR website IS NOT NULL)",
-        name="logo_complete",
-    ),
-    CheckConstraint(
-        "logo_check_due_at IS NULL OR website IS NOT NULL", name="logo_check_has_website"
-    ),
     CheckConstraint(
         f"created_by IS NOT NULL OR id = '{SYSTEM_WORKSPACE}'", name="creator_required"
     ),
@@ -67,11 +55,32 @@ workspaces = Table(
     ),
 )
 
-# The logo checks that are due (the sweep's scan): only workspaces with a check planned.
+# The companies on a domain: whether its logo is still in use, and each company's logo.
 Index(
-    "ix_workspaces_logo_check_due_at",
-    workspaces.c.logo_check_due_at,
-    postgresql_where=workspaces.c.logo_check_due_at.isnot(None),
+    "ix_workspaces_website", workspaces.c.website, postgresql_where=workspaces.c.website.isnot(None)
+)
+
+# One logo per domain, shared by every company on it and kept when they are gone (migration
+# 0032): a company on a known domain shows its logo without asking logo.dev. A row without a logo
+# after a look-up means none was found then. The file is in the system workspace's store.
+company_logos = Table(
+    "company_logos",
+    metadata,
+    Column("domain", Text, primary_key=True),
+    Column("logo_sha256", Text),
+    Column("logo_bytes", Integer),
+    Column("etag", Text),  # logo.dev's version of it: a refresh downloads only a changed one
+    Column("checked_at", DateTime(timezone=True)),  # the last look-up that answered
+    Column("check_due_at", DateTime(timezone=True)),  # the next look-up; null: none planned
+    CheckConstraint("char_length(domain) BETWEEN 4 AND 253", name="domain_length"),
+    CheckConstraint("(logo_sha256 IS NULL) = (logo_bytes IS NULL)", name="logo_complete"),
+)
+
+# The look-ups that are due (the sweep's scan): only rows with one planned.
+Index(
+    "ix_company_logos_check_due_at",
+    company_logos.c.check_due_at,
+    postgresql_where=company_logos.c.check_due_at.isnot(None),
 )
 
 roles = Table(

@@ -112,14 +112,12 @@ def change_website(
 ) -> WorkspaceView:
     domain = valid_website(body.website)
     with database_of(request).unit_of_work() as uow:
-        member_service.change_website(
+        logo = member_service.change_website(
             uow, actor=actor, domain=domain, queue=settings_of(request).logo.configured
         )
-    same = domain == actor.workspace_website
+    # A known domain's logo shows at once; a new one once it is found.
     return WorkspaceView.of(
-        dataclasses.replace(
-            actor, workspace_website=domain, workspace_logo=actor.workspace_logo if same else None
-        )
+        dataclasses.replace(actor, workspace_website=domain, workspace_logo=logo)
     )
 
 
@@ -134,15 +132,16 @@ def workspace_logo(
     """Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until
     the logo changes. A file missing from the store is fetched again; the name shows meanwhile."""
     with database_of(request).unit_of_work() as uow:
-        logo = company_logo.logo_of(uow.session, actor.workspace_id)
-        if logo is None:
+        found = company_logo.logo_of(uow.session, actor.workspace_id)
+        if found is None:
             raise NotFound("This company has no logo")
+        domain, logo = found
         store: BlobStore = request.app.state.blob_store
         try:
             path = store.path(logo)
         except BlobNotFoundError:
             company_logo.forget_missing(
-                uow.session, logo, queue=settings_of(request).logo.configured
+                uow.session, domain, logo, queue=settings_of(request).logo.configured
             )
             path = None
     if path is None:
