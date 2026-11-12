@@ -1,14 +1,21 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<meta name="color-scheme" content="dark light"><title>{{ heading }}</title></head>
-<body style="margin:0;padding:0;background:#000;color:#fff;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#000">
-<tr><td align="center" style="padding:40px 16px">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px">
-<tr><td style="font-size:14px;letter-spacing:.16em;font-weight:600;padding-bottom:32px">SIGNORA</td></tr>
-<tr><td style="font-family:Georgia,'Times New Roman',serif;font-size:30px;line-height:1.2;font-weight:300;padding-bottom:20px">{{ heading }}</td></tr>
-{% for paragraph in paragraphs %}<tr><td style="font-size:15px;line-height:1.6;color:rgba(255,255,255,.75);padding-bottom:16px">{{ paragraph }}</td></tr>
-{% endfor %}{% if action %}<tr><td style="padding:12px 0 24px"><a href="{{ action.url }}" style="display:inline-block;border:1px solid rgba(255,255,255,.4);color:#fff;text-decoration:none;font-size:12px;letter-spacing:.3em;text-transform:uppercase;padding:14px 22px">{{ action.label }} &rarr;</a></td></tr>
-<tr><td style="font-size:12px;line-height:1.6;color:rgba(255,255,255,.55);padding-bottom:16px;word-break:break-all">If the button does not work, copy this link: {{ action.url }}</td></tr>
-{% endif %}{% if footer %}<tr><td style="font-size:12px;line-height:1.6;color:rgba(255,255,255,.55);border-top:1px solid rgba(255,255,255,.08);padding-top:16px">{{ footer }}</td></tr>
+<meta name="color-scheme" content="dark light"><meta name="supported-color-schemes" content="dark light"><title>{{ heading }}</title>
+<style>
+/* Gmail's apps repaint a dark email light and its white text dark, and leave images as they are.
+   The black is also a background image, which they keep; white text inside these two blends stays
+   white through their repaint (u + .body: only Gmail wraps the body so). */
+u + .body .gmail-screen { background:#000; mix-blend-mode:screen; }
+u + .body .gmail-difference { background:#000; mix-blend-mode:difference; }
+</style></head>
+<body class="body" style="margin:0;padding:0;background:#000;background-image:linear-gradient(#000,#000);color:#fff;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#000;background-image:linear-gradient(#000,#000)">
+<tr><td align="center" style="padding:40px 16px;background:#000;background-image:linear-gradient(#000,#000)">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px">
+<tr><td style="padding-bottom:28px"><img src="{{ logo_url }}" width="140" height="54" alt="Signora" style="display:block;border:0;outline:none;width:140px;height:auto;color:#fff;font-size:14px;letter-spacing:.16em;font-weight:600"></td></tr>
+<tr><td style="font-family:Georgia,'Times New Roman',serif;font-size:30px;line-height:1.2;font-weight:300;padding-bottom:20px;color:#fff"><div class="gmail-screen"><div class="gmail-difference">{{ heading }}</div></div></td></tr>
+{% for paragraph in paragraphs %}<tr><td style="font-size:15px;line-height:1.6;color:rgba(255,255,255,.75);padding-bottom:16px"><div class="gmail-screen"><div class="gmail-difference">{{ paragraph }}</div></div></td></tr>
+{% endfor %}{% if action %}<tr><td style="padding:12px 0 24px"><a href="{{ action.url }}" style="display:inline-block;border:1px solid rgba(255,255,255,.4);color:#fff;text-decoration:none;font-size:12px;letter-spacing:.3em;text-transform:uppercase;padding:14px 22px"><span class="gmail-screen"><span class="gmail-difference">{{ action.label }} &rarr;</span></span></a></td></tr>
+<tr><td style="font-size:12px;line-height:1.6;color:rgba(255,255,255,.55);padding-bottom:16px;word-break:break-all"><div class="gmail-screen"><div class="gmail-difference">If the button does not work, copy this link: {{ action.url }}</div></div></td></tr>
+{% endif %}{% if footer %}<tr><td style="font-size:12px;line-height:1.6;color:rgba(255,255,255,.55);border-top:1px solid rgba(255,255,255,.08);padding-top:16px"><div class="gmail-screen"><div class="gmail-difference">{{ footer }}</div></div></td></tr>
 {% endif %}</table></td></tr></table></body></html>
