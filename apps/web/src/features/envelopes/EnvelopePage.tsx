@@ -140,6 +140,20 @@ function left(expiresAt: string): string {
   return days === 1 ? "1 day left" : `${days} days left`;
 }
 
+/** When the person is reminded next, as they would say it: "today at 3:00 PM", "tomorrow at
+ * 9:00 AM", or the day further out. A moment already past is about to be sent: nothing to show. */
+export function nextReminder(iso: string, now: number = Date.now()): string | null {
+  const at = new Date(iso);
+  if (at.getTime() <= now) return null;
+  const time = at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const today = new Date(now);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(today.getDate() + 1);
+  if (at.toDateString() === today.toDateString()) return `Next reminder today at ${time}`;
+  if (at.toDateString() === tomorrow.toDateString()) return `Next reminder tomorrow at ${time}`;
+  return `Next reminder ${day(iso)}`;
+}
+
 /** The person's moments, in one quiet line: sent, read, signed; the time left to act, and when
  * they are reminded next. */
 function times(recipient: Recipient, envelope: Envelope): string {
@@ -150,7 +164,7 @@ function times(recipient: Recipient, envelope: Envelope): string {
     recipient.viewed_at ? `Read ${day(recipient.viewed_at)}` : recipient.opened_at ? `Opened ${day(recipient.opened_at)}` : null,
     recipient.signed_at ? `Signed ${day(recipient.signed_at)}` : null,
     OPEN.has(envelope.status) && LIVE.has(recipient.status) ? left(envelope.expires_at) : null,
-    recipient.next_reminder_at ? `Next reminder ${day(recipient.next_reminder_at)}` : null,
+    recipient.next_reminder_at ? nextReminder(recipient.next_reminder_at) : null,
   ];
   return parts.filter(Boolean).join(" · ");
 }
