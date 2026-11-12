@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pymupdf
 
+from signora.kernel.scanned import is_scanned_page
 from signora.modules.detection import blanks, form_fields, layout
 from signora.modules.detection.page_text import pages
 from signora.modules.detection.reading import (
@@ -14,7 +15,7 @@ from signora.modules.detection.reading import (
     Reading,
     number_fields,
 )
-from signora.modules.detection.scan_lines import is_image_page, scan_blanks
+from signora.modules.detection.scan_lines import scan_blanks
 
 
 def read_document(data: bytes) -> Reading:
@@ -23,7 +24,8 @@ def read_document(data: bytes) -> Reading:
     with pymupdf.open(stream=data, filetype="pdf") as document:
         form = form_fields.read_form(document)
         found = blanks.find_blanks(document, covered=form.boxes_by_page)
-        scanned = [number for number, page in pages(document) if is_image_page(page)]
+        # Pages processing recorded as scans (one rule, the kernel's): read from their pictures.
+        scanned = [number for number, page in pages(document) if is_scanned_page(page)]
         found += _scanned_blanks(document, scanned)
         fields = number_fields(form.fields + found)
         infos = [

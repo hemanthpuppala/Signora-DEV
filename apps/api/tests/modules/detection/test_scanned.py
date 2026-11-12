@@ -333,3 +333,14 @@ def test_two_blanks_of_a_row_at_slightly_different_feet_stay_two() -> None:
     right = ScanBlank(box=(326.0, 107.0, 470.0, 120.4), headroom=12.0)
     merged = sorted(b.box for b in _merge([right, left]))
     assert merged == [left.box, right.box]
+
+
+def test_a_scan_with_a_fax_header_in_its_text_layer_is_read_from_its_picture() -> None:
+    """Review #2: processing called such a page a scan (an image over it, under 20 characters of
+    text) while detection called it text, so it reached review with no fields. One rule now."""
+    data = _scan([_text(72, 300, "Name:"), _line(110, 300, 302)])
+    document = pymupdf.open(stream=data, filetype="pdf")
+    document[0].insert_text((20, 20), "FAX 11/12 p1", fontsize=7)  # a fax machine's header line
+    faxed = document.tobytes()
+    reading = read_document(faxed)
+    assert reading.scanned_pages == [1] and len(reading.asked) == 1

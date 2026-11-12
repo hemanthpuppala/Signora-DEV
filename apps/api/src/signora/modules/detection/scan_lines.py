@@ -265,8 +265,3 @@ def _merge(blanks: list[ScanBlank]) -> list[ScanBlank]:
         if current is not None:
             merged.append(current)
     return merged
-
-
-def is_image_page(page: pymupdf.Page) -> bool:
-    """Whether a page has no text layer to read (a scan): nothing but pictures."""
-    return not page.get_text().strip()
