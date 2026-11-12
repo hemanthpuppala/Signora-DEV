@@ -403,7 +403,8 @@ describe("document page", () => {
 
       await user.click(row(list, "Client tax number"));
       expect(screen.getByText("Private to Client: shown to nobody else")).toBeTruthy();
-      expect(screen.getByText("Needs a look: not assigned to anyone.")).toBeTruthy();
+      expect(screen.getByText("Not assigned to anyone.")).toBeTruthy(); // why it needs a look
+      expect(screen.queryByRole("button", { name: "Looks right" })).toBeNull(); // only while editing
     });
 
     it("opens a field from its box on the PDF, and filters and finds in the list", async () => {

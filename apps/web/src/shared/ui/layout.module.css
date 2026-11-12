@@ -329,3 +329,35 @@
 .details[aria-busy="true"] {
   cursor: progress;
 }
+
+/* ListControls: the search takes the room; the list's own controls keep their size at the end,
+   their underline on the search's. */
+.listControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  align-items: flex-end;
+}
+
+.listSearch {
+  min-width: min(100%, 280px);
+  flex: 1;
+}
+
+.listTools {
+  display: flex;
+  flex: none;
+  gap: 16px;
+  align-items: flex-end;
+  width: 220px;
+}
+
+.listTools > * {
+  flex: 1;
+}
+
+@media (max-width: 559px) {
+  .listTools {
+    width: 100%;
+  }
+}

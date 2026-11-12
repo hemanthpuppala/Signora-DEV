@@ -91,6 +91,13 @@ documents = Table(
         unique=True,
         postgresql_where=text("archived_at IS NULL"),
     ),
+    # Search by name (ADR S-1): a trigram index serves "contains" and "close to".
+    Index(
+        "ix_documents_name_trgm",
+        "name",
+        postgresql_using="gin",
+        postgresql_ops={"name": "gin_trgm_ops"},
+    ),
 )
 
 # Each version of a document: an upload, or an edit of an approved version (Phase 6 §1.2) sharing

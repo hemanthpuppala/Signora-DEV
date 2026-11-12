@@ -132,10 +132,27 @@ jumps to its field). Approve opens a confirmation listing them, and approving re
 
 A field nobody fills ("For office use only") is legitimate: no warning; it shows as "Not asked".
 
-### 2.2 "Needs a look" without a button per field
+### 2.2 "Needs a look": a checklist (revised 2026-11-11)
 
-There is no per-field "Looks right". A flag clears when its field is edited; approving accepts every flag still
-left, and the approval's audit entry and metrics record them as accepted as detected.
+A flag clears when its field is edited, or when the person accepts the field as found with **Looks right**; approving
+accepts every flag still left, and the approval's audit entry and metrics record them as accepted as detected. Approval
+then clears them, before the version freezes: an approved version, and one made from it by editing, never asks for a
+look at what was accepted (`store.accept_flags`; migration 0027 clears the flags kept on versions approved before).
+
+- **Things to check names each flagged field**, with why it was flagged and Show me, drawn from the fields as they
+  are now, so the list shortens as each is settled. Five are shown, the rest behind "Show all n".
+- **A flagged field's details** say why, with **Looks right** (accept it as found, then go on to the next one, or
+  close it when it was the last) and **Next · i of n**. Looks right is an edit like any other: it is undone with
+  Undo and kept by Save. People who only read the fields see why and Next.
+- **Saved as `checked`**: a field sent with `checked: true` loses its flag though nothing else about it changed, and
+  the save's audit entry lists it as a change (`needs_review: [reason, null]`).
+- **Marked wherever the field appears**, in the "waiting" amber (attention, not an error): a dot after its name in
+  Fields and a **Needs a look · n** filter there; **n to check** beside the party it concerns in Who signs; a dot on
+  its box's corner on the page, besides the dotted border.
+- **Approve names them**: "Company and Date still need a look; approving accepts them as found" (three names at
+  most, then "and n more").
+
+(Was: no per-field Looks right; a count only, 2026-11-09.)
 
 ### 2.3 What is not a warning
 
@@ -538,7 +555,7 @@ the contract.
 
 ### 10.2 `PUT …/fields` (save a version in review)
 
-Request `FieldSet { revision, parties: [Party without counts], fields: [Field without key, origin, needs_review] }`;
+Request `FieldSet { revision, parties: [Party without counts], fields: [Field without key, origin, needs_review; with checked] }`;
 the server keeps each existing place's `pdf_field` by id (the client never sets it). Response `200 { revision }`
 (built: the page already holds the set it sent, and the fields view is detection's to build, ADR-R1; the page
 refetches it after a save).

@@ -45,7 +45,8 @@ def test_the_list_is_newest_first_with_its_signers_filtered_and_paged(
     cancelled = owner.get(listing, params={"status": "cancelled"}).json()["envelopes"]
     assert [e["id"] for e in cancelled] == [ids[0]]
     counts = owner.get(f"{DEPARTMENTS}/{doc.department_id}").json()["counts"]
-    assert counts == {"sent": 2, "signed": 0, "pending": 2}  # a withdrawn send is not counted
+    # a withdrawn send is not counted
+    assert counts == {"sent": 2, "signed": 0, "pending": 2, "to_approve": 0}
     home = {d["id"]: d["counts"] for d in owner.get(DEPARTMENTS).json()}
     assert home[doc.department_id] == counts
 
@@ -129,3 +130,48 @@ def test_a_thousand_envelopes_list_in_under_200_ms(
         return own + sum(read(child, table) for child in node.get("Plans", ()))
 
     assert read(plan[0]["Plan"], "envelopes") == store.PAGE + 1
+
+
+def test_a_search_finds_envelopes_by_their_customer_or_template_best_match_first(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR S-1: a signer's name or email, the template's name or the title; typos forgiven; the
+    envelope's other people (copies) are not its customers."""
+    doc = sendable(owner, run, detect)
+    sent = {}
+    for name, email in (
+        ("Ada Lovelace", "ada@analytical.example"),
+        ("Ben Okafor", "ben.okafor@lagos.example"),
+        ("Adam Smith", "adam@wealth.example"),
+    ):
+        signers = [{"party_id": doc.party("Client")["id"], "name": name, "email": email}]
+        answer = send(owner, doc, request_for(owner, doc, company, signers=signers))
+        sent[name] = answer.json()["id"]
+    listing = f"{DEPARTMENTS}/{doc.department_id}/envelopes"
+
+    def found(q: str) -> list[str]:
+        envelopes = owner.get(listing, params={"q": q}).json()["envelopes"]
+        return [e["signers"][0] for e in envelopes]
+
+    assert found("lovlace") == ["Ada Lovelace"]  # a typo
+    assert found("OKAFOR@LAGOS") == ["Ben Okafor"]  # part of an email, any case
+    assert found("ada") == ["Adam Smith", "Ada Lovelace"]  # both contain it: newest first
+    assert found("records@firm") == []  # a copy, not a customer
+    template = owner.get(f"{DEPARTMENTS}/{doc.department_id}/documents").json()[0]["name"]
+    assert len(found(template)) == 3  # by the template's name
+
+    monkeypatch.setattr(store, "PAGE", 1)  # page through the matches: none twice, none missed
+    seen: list[str] = []
+    cursor = None
+    while True:
+        params = {"q": "a", **({"cursor": cursor} if cursor else {})}
+        page = owner.get(listing, params=params).json()
+        seen += [e["id"] for e in page["envelopes"]]
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    assert sorted(seen) == sorted(sent.values())

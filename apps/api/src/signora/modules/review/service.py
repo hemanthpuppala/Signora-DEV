@@ -32,6 +32,7 @@ from signora.modules.review.errors import FieldsChanged, VersionNotInReview, War
 from signora.modules.review.fieldset import ApproveRequest, FieldSet, Revised
 from signora.modules.review.metrics import ApprovedPlace, measure
 from signora.modules.review.store import (
+    accept_flags,
     begin_review,
     lock_review,
     read_baseline,
@@ -158,6 +159,7 @@ def approve(
         flags_accepted=flags_accepted,
         accepted=accepted,
     )
+    accept_flags(session, version_id)  # counted above; resolved by this approval
     if version.pdf is not None:
         # The text size beside each place, for drawing values (7b). A file that cannot be read
         # leaves the fallback rule in place and never refuses the approval.

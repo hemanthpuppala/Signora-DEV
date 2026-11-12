@@ -37,7 +37,7 @@ const finance = {
   created_at: "2026-11-07T10:00:00Z",
   updated_at: "2026-11-07T10:00:00Z",
   archived_at: null,
-  counts: { sent: 4, signed: 3, pending: 1 },
+  counts: { sent: 4, signed: 3, pending: 1, to_approve: 0 },
   access: "edit",
   created_by: { id: "u", name: "Rosa Hale" },
   settings: { reminder_interval_hours: 24, max_reminders: 5, expiry_days: 14, notify_emails: [] },
@@ -83,6 +83,34 @@ describe("departments screens", () => {
     expect(card.textContent).toContain("Engagement letters");
     expect(card.textContent).toMatch(/Sent\s*4/);
     expect(screen.getAllByRole("link", { name: /New department/ })).toHaveLength(2);
+  });
+
+  it("marks a department with templates to approve: a dot on its card and on its Templates tab", async () => {
+    const waiting = { ...finance, counts: { ...finance.counts, to_approve: 2 } };
+    fetchMock.mockImplementation(() => reply(200, [waiting]));
+    wrap(<DepartmentsHome me={me(EDITOR)} />);
+    const card = await screen.findByRole("link", { name: /Finance/ });
+    expect(card.textContent).toContain("2 templates to approve");
+
+    fetchMock.mockImplementation(() => reply(200, waiting));
+    wrap(
+      <DepartmentPage me={me(EDITOR)} id="d-1" tab="envelopes">
+        {() => null}
+      </DepartmentPage>,
+    );
+    const tabs = await screen.findByRole("navigation", { name: "Department" });
+    expect(within(tabs).getByRole("link", { name: "Templates, 2 templates to approve" })).toBeTruthy();
+  });
+
+  it("shows no dot where nothing waits", async () => {
+    fetchMock.mockImplementation(() => reply(200, finance));
+    wrap(
+      <DepartmentPage me={me(EDITOR)} id="d-1" tab="envelopes">
+        {() => null}
+      </DepartmentPage>,
+    );
+    const tabs = await screen.findByRole("navigation", { name: "Department" });
+    expect(within(tabs).getByRole("link", { name: "Templates" })).toBeTruthy();
   });
 
   it("shows viewers no create action at all, and the empty state", async () => {
@@ -159,6 +187,39 @@ describe("departments screens", () => {
     const tabs = screen.getByRole("navigation", { name: "Department" });
     expect(within(tabs).getByRole("link", { name: "Templates · 2" }).getAttribute("aria-current")).toBe("page");
     expect(within(tabs).getByRole("link", { name: "Envelopes" }).getAttribute("href")).toBe("/departments/d-1");
+  });
+
+  it("names the department's main actions, keeps Settings an icon, and offers Upload template on every tab", async () => {
+    fetchMock.mockImplementation(() => reply(200, finance));
+    for (const tab of ["envelopes", "documents"] as const) {
+      const { unmount } = render(
+        <QueryClientProvider client={makeQueryClient()}>
+          <DepartmentPage me={me(EDITOR)} id="d-1" tab={tab} onAddEnvelope={() => undefined} onSendInBulk={() => undefined}>
+            {() => null}
+          </DepartmentPage>
+        </QueryClientProvider>,
+      );
+
+      const upload = await screen.findByRole("link", { name: "Upload template" });
+      expect(upload.getAttribute("href")).toBe("/departments/d-1/upload");
+      for (const name of ["New envelope", "Send in bulk"]) {
+        expect(screen.getByRole("button", { name }).className).toMatch(/headActionNamed/); // words shown
+      }
+      expect(screen.getByRole("link", { name: "Settings" }).className).toMatch(/headAction(?!Named)/); // icon
+      unmount();
+    }
+  });
+
+  it("offers no upload to someone who cannot edit", async () => {
+    fetchMock.mockImplementation(() => reply(200, { ...finance, access: "read" }));
+    wrap(
+      <DepartmentPage me={me([])} id="d-1" tab="envelopes">
+        {() => null}
+      </DepartmentPage>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Finance" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Upload template" })).toBeNull();
   });
 
   it("gives viewers no settings or restore", async () => {

@@ -30,6 +30,31 @@
   border-style: dotted; /* needs a look */
 }
 
+/* Needs a look: an amber dot on the box's corner, the panel's marker for the same field. */
+.review::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--paper);
+  border-radius: 50%;
+  background: var(--st-viewed);
+  pointer-events: none;
+}
+
+/* The same marker after a flagged field's name in the list. */
+.lookDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--st-viewed);
+  vertical-align: middle;
+}
+
 .pending {
   border: 1px dashed var(--paper-faint); /* found, not yet assigned */
   background: transparent;

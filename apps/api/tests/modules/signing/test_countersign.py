@@ -120,6 +120,8 @@ def test_a_countersigner_signs_signed_in_sees_every_value_and_keeps_their_signat
     assert (record["total"], record["waiting"], record["done"]) == (1, 0, 1)
     found = owner.get(ME, params={"state": "done", "q": "maya"}).json()  # a signer's name, any case
     assert found["total"] == 1
+    typo = owner.get(ME, params={"state": "done", "q": "mya chen"}).json()  # a typo
+    assert [item["recipient_id"] for item in typo["items"]] == [firm]
     assert owner.get(ME, params={"state": "done", "q": "100%_nothing"}).json()["total"] == 0
     with committing_db.unit_of_work() as uow:
         kept = uow.session.execute(

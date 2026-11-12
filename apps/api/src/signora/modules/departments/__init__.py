@@ -8,6 +8,7 @@ from signora.modules.departments.access import (
     load_access,
     revoke_removed_member,
 )
+from signora.modules.departments.approvals import provide_approval_counts
 from signora.modules.departments.countersigners import (
     Countersigner,
     drop_removed_member,
@@ -28,6 +29,7 @@ __all__ = [
     "list_countersigners",
     "load_access",
     "normalize_name",
+    "provide_approval_counts",
     "provide_send_counts",
     "require_active",
     "revoke_removed_member",

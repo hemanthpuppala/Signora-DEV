@@ -377,6 +377,19 @@ def record_approval(
     )
 
 
+def accept_flags(session: Session, version_id: uuid.UUID) -> None:
+    """Approving accepts every flag still left (§2.2): they are cleared before the version freezes,
+    once counted for its metrics, so neither the approved version nor one made from it by editing
+    asks for a look again."""
+    session.execute(
+        text(
+            "UPDATE version_fields SET needs_review = NULL "
+            "WHERE version_id = :v AND needs_review IS NOT NULL"
+        ),
+        {"v": version_id},
+    )
+
+
 def read_stored(session: Session, version_id: uuid.UUID) -> Stored:
     """A version's set as editing compares it: by id, with each place's PDF field name."""
     parties = {
@@ -453,7 +466,7 @@ def write_set(
 ) -> None:
     """Write a settled set in place of the stored one, keeping the editor's ids: a constant number
     of statements over O(R + F + P) rows. A place from the PDF keeps its form field name; a field
-    keeps its origin, and its flag only while it is unchanged (§2.2)."""
+    keeps its origin, and its flag only while it is unchanged and not checked (§2.2)."""
     _clear(session, version_id)
     if settled.parties:
         session.execute(
@@ -499,7 +512,7 @@ def write_set(
                 "required": item.required,
                 "sensitive": is_sensitive(item),
                 "needs_review": before.needs_review
-                if before is not None and unchanged(item, before, stored)
+                if before is not None and not item.checked and unchanged(item, before, stored)
                 else None,
                 "origin": before.origin if before is not None else "added",
             }

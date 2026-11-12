@@ -192,7 +192,7 @@ describe("field review", () => {
     const user = userEvent.setup();
     await chooseField("Company");
     const form = screen.getByRole("region", { name: "Details of Company" });
-    expect(within(form).getByText("Needs a look: not sure who fills it. Any change clears this.")).toBeTruthy();
+    expect(within(form).getByText("Not sure who fills it.")).toBeTruthy();
 
     const label = within(form).getByLabelText("Label");
     await user.clear(label);
@@ -213,6 +213,45 @@ describe("field review", () => {
     // Reloaded at revision 1 with nothing to check: Approve is open.
     await waitFor(() => expect(screen.queryByText(/unsaved change/)).toBeNull());
     expect(within(bar()).getByRole("button", { name: "Approve version" })).toBeTruthy();
+  });
+
+  it("walks the fields that need a look: named in Things to check, Looks right moves on, and the save says so", async () => {
+    inReview();
+    const base = fieldsView();
+    state.fields["v-1"] = {
+      ...base,
+      fields: base.fields.map((field) => (field.id === "f-sign" ? { ...field, needs_review: "two boxes found" } : field)),
+    };
+    answers["PUT /api/v1/documents/doc-1/versions/v-1/fields"] = () => reply(200, { revision: 1 });
+    open();
+    const user = userEvent.setup();
+    const check = await screen.findByRole("list", { name: "Things to check" });
+    expect(within(check).getByText("Client signature needs a look")).toBeTruthy();
+    expect(within(check).getByText("Company needs a look")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Needs a look · 2" })).toBeTruthy(); // the Fields filter
+    const who = screen.getByRole("list", { name: "Who signs" });
+    expect(within(who).getAllByText("1 to check")).toHaveLength(2); // Client's, and one filled before sending
+
+    const signature = within(check).getByText("Client signature needs a look").closest("li") as HTMLElement;
+    await user.click(within(signature).getByRole("button", { name: "Show me" }));
+    const form = screen.getByRole("region", { name: "Details of Client signature" });
+    expect(within(form).getByText("Two boxes found.")).toBeTruthy();
+    expect(within(form).getByRole("button", { name: "Next · 1 of 2" })).toBeTruthy();
+
+    await user.click(within(form).getByRole("button", { name: "Looks right" }));
+
+    const next = screen.getByRole("region", { name: "Details of Company" }); // on to the next one
+    expect(within(next).queryByRole("button", { name: /^Next/ })).toBeNull(); // the last one left
+    expect(within(check).queryByText("Client signature needs a look")).toBeNull();
+    expect(screen.getByRole("button", { name: "Needs a look · 1" })).toBeTruthy();
+    await user.click(within(bar()).getByRole("button", { name: "Save" }));
+    const [saved] = sentTo("PUT /api/v1/documents/doc-1/versions/v-1/fields");
+    expect(saved?.body).toMatchObject({
+      fields: [
+        { id: "f-sign", checked: true },
+        { id: "f-company", checked: false },
+      ],
+    });
   });
 
   it("undoes and discards unsaved changes", async () => {
@@ -351,7 +390,7 @@ describe("field review", () => {
     try {
       open();
       const check = await screen.findByRole("list", { name: "Things to check" });
-      expect(within(check).getAllByRole("listitem")).toHaveLength(2);
+      expect(within(check).getAllByRole("listitem")).toHaveLength(3); // Company's look, then its two overlaps
       expect(complaints.mock.calls.filter((call) => String(call[0]).includes("same key"))).toHaveLength(0);
     } finally {
       complaints.mockRestore();
@@ -370,7 +409,8 @@ describe("field review", () => {
     open();
     const user = userEvent.setup();
     const check = await screen.findByRole("list", { name: "Things to check" });
-    expect(within(check).getByText("1 field needs a look; approving accepts them as found")).toBeTruthy();
+    expect(within(check).getByText("Company needs a look")).toBeTruthy(); // named, with why and Show me
+    expect(within(check).getByText("not sure who fills it")).toBeTruthy();
     for (const section of ["Things to check", "Who signs", "Fields · 2", "Versions"]) {
       expect(screen.getByRole("button", { name: `About ${section}` })).toBeTruthy(); // each section explains itself
     }
@@ -379,7 +419,7 @@ describe("field review", () => {
 
     await user.click(screen.getByRole("button", { name: "Approve version" }));
     const dialog = screen.getByRole("dialog", { name: "Approve version 1?" });
-    expect(within(dialog).getByText("1 field needs a look; approving accepts them as found")).toBeTruthy();
+    expect(within(dialog).getByText("Company still needs a look; approving accepts it as found")).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "Approve anyway" }));
 
     expect(sentTo("POST /api/v1/documents/doc-1/versions/v-1/approve")[0]?.body).toEqual({ revision: 0, accepted: ["needs_a_look"] });

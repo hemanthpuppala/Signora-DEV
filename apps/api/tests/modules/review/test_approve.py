@@ -291,3 +291,30 @@ def test_every_change_of_a_document_takes_its_lock_first(
         lambda: answer.append(_approve(owner, document_id, version_id)),
     ) == (0, [])
     assert answer[0].status_code == 204
+
+
+def test_approving_accepts_every_flag_left_and_an_edited_version_does_not_ask_again(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """A flag still left is accepted as found by the approval: counted, then gone from the approved
+    version and from one made from it by editing."""
+    document_id, source_id = _in_review(owner, run, detect)
+    with committing_db.unit_of_work() as uow:
+        uow.session.execute(
+            text("UPDATE version_fields SET needs_review = 'two answers' WHERE version_id = :v"),
+            {"v": source_id},
+        )
+    flagged = len(_view(owner, document_id, source_id)["fields"])
+
+    assert _approve(owner, document_id, source_id).status_code == 204
+
+    approved = _view(owner, document_id, source_id)
+    assert [f["needs_review"] for f in approved["fields"]] == [None] * flagged
+    assert "needs_a_look" not in {w["code"] for w in approved["warnings"]}
+    assert _metrics(committing_db, source_id).flags_accepted == flagged  # recorded as accepted
+    made = _revise(owner, document_id, source_id, _body(approved)).json()
+    edited = _view(owner, document_id, made["version_id"])
+    assert all(f["needs_review"] is None for f in edited["fields"])

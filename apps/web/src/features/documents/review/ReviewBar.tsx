@@ -7,6 +7,7 @@ import { ActionBar, Button, Dialog, HeadAction, Notice, TextButton } from "@/sha
 
 import type { Version } from "../api";
 import type { Review } from "./useReview";
+import { needingALook } from "./editor";
 import styles from "./review.module.css";
 import type { ReviewWarning } from "./ThingsToCheck";
 
@@ -128,6 +129,12 @@ function ApproveDialog({
   onClose: () => void;
 }) {
   const { approve } = review;
+  // The fields still needing a look, by name: nobody approves a count blind.
+  const looks = needingALook(review.draft).map((field) => field.label || "Unnamed field");
+  const words = (warning: ReviewWarning) =>
+    warning.code === "needs_a_look" && looks.length > 0
+      ? `${listed(looks)} ${looks.length === 1 ? "still needs" : "still need"} a look; approving accepts ${looks.length === 1 ? "it" : "them"} as found`
+      : warning.message;
   const stale = approve.error instanceof ApiError && ["fields-changed", "warnings-changed"].includes(approve.error.code);
   return (
     <Dialog
@@ -160,11 +167,19 @@ function ApproveDialog({
       {warnings.length > 0 ? (
         <ul className={styles.problems} aria-label="Things to check">
           {warnings.map((warning, index) => (
-            <li key={index}>{warning.message}</li>
+            <li key={index}>{words(warning)}</li>
           ))}
         </ul>
       ) : null}
       {approve.error ? <Notice tone="warning">{formError(approve.error)}</Notice> : null}
     </Dialog>
   );
+}
+
+/** "A", "A and B", "A, B and 3 more": names, a handful at most. */
+function listed(names: readonly string[], most = 3): string {
+  const shown = names.slice(0, most);
+  const rest = names.length - shown.length;
+  if (rest > 0) return `${shown.join(", ")} and ${rest} more`;
+  return shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}` : (shown[0] ?? "");
 }

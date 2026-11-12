@@ -115,6 +115,7 @@ export function HeadAction({
   href,
   onClick,
   disabled = false,
+  named = false,
 }: {
   icon: IconName;
   label: string;
@@ -122,31 +123,30 @@ export function HeadAction({
   href?: string;
   onClick?: () => void;
   disabled?: boolean;
+  /** Its words beside the icon (a page's main actions); on a phone the icon alone. */
+  named?: boolean;
 }) {
   const className = cx(
     styles.button,
     styles.compact,
-    styles.headAction,
+    named ? styles.headActionNamed : styles.headAction,
     variant === "quiet" && styles.quiet,
     variant === "destructive" && styles.destructive,
   );
   const content = (
     <>
       <Icon name={icon} />
-      <span className={styles.headActionLabel}>{label}</span>
+      <span className={named ? styles.namedLabel : styles.headActionLabel}>{label}</span>
     </>
   );
-  return (
-    <Tooltip label={label}>
-      {href ? (
-        <Link href={href} className={className}>
-          {content}
-        </Link>
-      ) : (
-        <button type="button" className={className} onClick={onClick} disabled={disabled}>
-          {content}
-        </button>
-      )}
-    </Tooltip>
+  const control = href ? (
+    <Link href={href} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <button type="button" className={className} onClick={onClick} disabled={disabled}>
+      {content}
+    </button>
   );
+  return named ? control : <Tooltip label={label}>{control}</Tooltip>;
 }

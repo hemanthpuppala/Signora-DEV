@@ -16,6 +16,7 @@ from signora.kernel.idempotency import IdempotencyGuard, idempotency_guard
 from signora.modules.departments import access as grants
 from signora.modules.departments import service
 from signora.modules.departments.access import DepartmentAccess, GrantRow, load_access
+from signora.modules.departments.approvals import approval_counts
 from signora.modules.departments.countersigners import list_countersigners, set_countersigners
 from signora.modules.departments.sends import SendCounts, send_counts
 from signora.modules.identity_access import Actor, Permission, current_actor, require
@@ -73,6 +74,7 @@ class Counts(BaseModel):
     sent: int = 0
     signed: int = 0
     pending: int = 0
+    to_approve: int = 0  # templates waiting for approval (not archived): the Templates dot
 
 
 class DepartmentSummary(BaseModel):
@@ -102,7 +104,7 @@ class Department(DepartmentSummary):
 
 
 def summary(
-    row: service.DepartmentRow, rights: DepartmentAccess, counts: SendCounts
+    row: service.DepartmentRow, rights: DepartmentAccess, counts: SendCounts, to_approve: int
 ) -> DepartmentSummary:
     return DepartmentSummary(
         id=row.id,
@@ -110,7 +112,9 @@ def summary(
         description=row.description,
         status=row.status,
         created_at=row.created_at,
-        counts=Counts(sent=counts.sent, signed=counts.signed, pending=counts.pending),
+        counts=Counts(
+            sent=counts.sent, signed=counts.signed, pending=counts.pending, to_approve=to_approve
+        ),
         access=rights.level(row.id),
     )
 
@@ -123,6 +127,7 @@ def detail(session: Session, actor: Actor, row: service.DepartmentRow) -> Depart
             row,
             load_access(session, actor),
             send_counts(session, actor.workspace_id, [row.id])[row.id],
+            approval_counts(session, actor.workspace_id, [row.id])[row.id],
         ).model_dump(),
         countersigners=[Colleague(id=s.id, name=s.name, email=s.email) for s in signers],
         updated_at=row.updated_at,
@@ -162,8 +167,10 @@ def list_departments(
     with _db(request).unit_of_work() as uow:
         rows = service.list_departments(uow.session, actor.workspace_id, status_filter)
         rights = load_access(uow.session, actor)
-        counts = send_counts(uow.session, actor.workspace_id, [row.id for row in rows])
-    return [summary(row, rights, counts[row.id]) for row in rows]
+        ids = [row.id for row in rows]
+        counts = send_counts(uow.session, actor.workspace_id, ids)
+        waiting = approval_counts(uow.session, actor.workspace_id, ids)
+    return [summary(row, rights, counts[row.id], waiting[row.id]) for row in rows]
 
 
 @router.post(
