@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { formError } from "@/shared/api/errors";
 import { SEARCH_SETTLE_MS, useDebounced } from "@/shared/lib/useDebounced";
@@ -59,6 +59,14 @@ export function DocumentsSection({ departmentId, canEdit }: { departmentId: stri
   const query = useDebounced(typed.trim(), SEARCH_SETTLE_MS);
   const [chosen, setChosen] = useState<TemplateSort | null>(null); // none: best match, or newest
   const templates = useTemplates(departmentId, query, chosen);
+  // One poll: every template's list polls while one is worked on; this list follows its changes.
+  const { refetch } = templates;
+  const changed = documents.dataUpdatedAt;
+  const followed = useRef(changed);
+  useEffect(() => {
+    if (followed.current && changed !== followed.current) void refetch(); // a later answer only
+    followed.current = changed;
+  }, [changed, refetch]);
   const limits = useDocumentLimits();
 
   if (documents.isError) return <Notice tone="warning">{formError(documents.error)}</Notice>;
@@ -97,7 +105,7 @@ export function DocumentsSection({ departmentId, canEdit }: { departmentId: stri
       {templates.isError ? <Notice tone="warning">{formError(templates.error)}</Notice> : null}
       {/* While searching, how many match, said once the answer comes (and read aloud). */}
       <div role="status" aria-live="polite">
-        {query && templates.isSuccess ? (
+        {query && templates.isSuccess && !templates.isPlaceholderData ? (
           list.length > 0 ? (
             <SmallText>{list.length === 1 ? "1 template matches" : `${list.length} templates match`}</SmallText>
           ) : (

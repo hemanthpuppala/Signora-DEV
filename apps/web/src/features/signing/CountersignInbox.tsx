@@ -5,12 +5,13 @@ import { useState } from "react";
 
 import { formError } from "@/shared/api/errors";
 import { SEARCH_SETTLE_MS, useDebounced } from "@/shared/lib/useDebounced";
-import { Heading1, LinkButton, Notice, SearchField, TextButton } from "@/shared/ui";
+import { Heading1, LinkButton, Notice, SearchField, Select, TextButton } from "@/shared/ui";
 
 import { useWaiting, type InboxState } from "./api";
 import styles from "./inbox.module.css";
 
 const DAY = 86_400_000;
+const ALL = "all"; // the department choice that filters nothing
 const SOON_DAYS = 3; // an expiry this close is said in the "waiting" orange
 
 function day(iso: string): string {
@@ -40,13 +41,16 @@ export function CountersignInbox() {
   const [state, setState] = useState<InboxState>("waiting");
   const [typed, setTyped] = useState("");
   const query = useDebounced(typed.trim(), SEARCH_SETTLE_MS);
-  const list = useWaiting(state, query);
+  const [department, setDepartment] = useState<string | null>(null); // null: every department
+  const list = useWaiting(state, query, department);
   const [now] = useState(() => Date.now());
   const first = list.data?.pages[0];
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
   const waiting = state === "waiting";
   const counts = { waiting: first?.waiting, done: first?.done };
   const total = first?.total ?? 0;
+  // The departments they countersign in; a choice only when there is more than one.
+  const departments = first?.departments ?? [];
 
   const quiet = (words: string) => (
     <tr>
@@ -75,7 +79,19 @@ export function CountersignInbox() {
             </button>
           ))}
         </div>
-        <SearchField label="Search by template, department or signer" value={typed} onChange={(event) => setTyped(event.target.value)} />
+        <div className={styles.filters}>
+          {departments.length > 1 || department ? (
+            <Select
+              label="Department"
+              labelHidden
+              className={styles.department ?? ""}
+              options={[{ value: ALL, label: "All departments" }, ...departments.map((d) => ({ value: d.id, label: d.name }))]}
+              value={department ?? ALL}
+              onChange={(value) => setDepartment(value === ALL ? null : value)}
+            />
+          ) : null}
+          <SearchField label="Search by customer, email or template" value={typed} onChange={(event) => setTyped(event.target.value)} />
+        </div>
       </div>
 
       {list.isError ? <Notice tone="warning">{formError(list.error)}</Notice> : null}

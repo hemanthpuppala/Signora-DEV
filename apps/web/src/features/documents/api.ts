@@ -47,7 +47,8 @@ export function useDocuments(departmentId: string) {
     queryFn: () =>
       unwrap(
         api.GET("/api/v1/departments/{department_id}/documents", {
-          params: { path: { department_id: departmentId } },
+          // A–Z: the send dialogs' template lists (the Templates tab orders its own, useTemplates).
+          params: { path: { department_id: departmentId }, query: { sort: "name" } },
         }),
       ),
     // A list shows each document's newest version; poll while any is still being worked on.
@@ -81,12 +82,8 @@ export function useTemplates(departmentId: string, query: string, sort: Template
         }),
       ),
     placeholderData: keepPreviousData, // the last answer stays while the next one comes
-    refetchInterval: (state) =>
-      processingInterval(
-        (state.state.data ?? [])
-          .filter((document) => isWorking(document.latest_version.status))
-          .map((document) => document.latest_version.created_at),
-      ),
+    // Not polled: useDocuments polls while a template is being worked on, and the Templates tab
+    // reads this list again when that one changes (DocumentsSection).
   });
 }
 

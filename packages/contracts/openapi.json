@@ -906,6 +906,25 @@
         "title": "Department",
         "type": "object"
       },
+      "DepartmentRef": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "DepartmentRef",
+        "type": "object"
+      },
       "DepartmentSettings": {
         "properties": {
           "expiry_days": {
@@ -5812,6 +5831,13 @@
       },
       "WaitingPage": {
         "properties": {
+          "departments": {
+            "items": {
+              "$ref": "#/components/schemas/DepartmentRef"
+            },
+            "title": "Departments",
+            "type": "array"
+          },
           "done": {
             "title": "Done",
             "type": "integer"
@@ -5848,7 +5874,8 @@
           "next_cursor",
           "total",
           "waiting",
-          "done"
+          "done",
+          "departments"
         ],
         "title": "WaitingPage",
         "type": "object"
@@ -11723,7 +11750,7 @@
     },
     "/api/v1/me/countersign": {
       "get": {
-        "description": "With ``q``: those whose title, template or signer's name or email matches, best match first,\nthen in the list's own order (ADR S-1).",
+        "description": "With ``q``: those whose title, template or signer's name or email matches, best match first,\nthen in the list's own order (ADR S-1). With ``department``: only that department's.",
         "operationId": "waiting_api_v1_me_countersign_get",
         "parameters": [
           {
@@ -11772,6 +11799,23 @@
                 }
               ],
               "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "department",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Department"
             }
           }
         ],

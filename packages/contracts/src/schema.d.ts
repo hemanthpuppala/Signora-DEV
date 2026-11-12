@@ -1058,7 +1058,7 @@ export interface paths {
         /**
          * My countersigning: what waits for me (soonest expiry first), or what I countersigned
          * @description With ``q``: those whose title, template or signer's name or email matches, best match first,
-         *     then in the list's own order (ADR S-1).
+         *     then in the list's own order (ADR S-1). With ``department``: only that department's.
          */
         get: operations["waiting_api_v1_me_countersign_get"];
         put?: never;
@@ -1939,6 +1939,16 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DepartmentRef */
+        DepartmentRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** DepartmentSettings */
         DepartmentSettings: {
@@ -3742,6 +3752,8 @@ export interface components {
         };
         /** WaitingPage */
         WaitingPage: {
+            /** Departments */
+            departments: components["schemas"]["DepartmentRef"][];
             /** Done */
             done: number;
             /** Items */
@@ -7539,6 +7551,7 @@ export interface operations {
                 state?: "waiting" | "done";
                 cursor?: string | null;
                 q?: string | null;
+                department?: string | null;
             };
             header?: never;
             path?: never;

@@ -16,6 +16,25 @@
   margin: 24px 0 8px;
 }
 
+/* Department and search together at the line's end; on a phone they take the full width. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-end;
+}
+
+.department {
+  width: 220px;
+}
+
+@media (max-width: 559px) {
+  .filters,
+  .department {
+    width: 100%;
+  }
+}
+
 .tabs {
   display: flex;
   gap: 28px;
