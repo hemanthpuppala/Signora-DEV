@@ -19,6 +19,7 @@ displayed (the page is rendered with its rotation). One pass over the page's pix
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -52,6 +53,7 @@ MERGE_GAP = 6.0  # points: stretches on one line closer than this are one blank
 LINE_FRINGE = 1.0  # points of a line's own rough edge under it, not counted as what is below
 PAPER_BELOW = 2.5  # points under a line that are paper: a line is a stroke with paper both sides
 INK_BELOW_MAX = 0.3  # a stroke with ink under more of its length is the top edge of text
+WHITE_ROW = 0.05  # a row under a stroke with ink across at most this share of it is paper
 
 
 @dataclass(frozen=True)
@@ -148,9 +150,7 @@ def scan_blanks(page: pymupdf.Page) -> list[ScanBlank]:
             continue  # a rule across the page
         if _border(ink, x0, y0, y1, px(BORDER)) or _border(ink, x1 - 1, y0, y1, px(BORDER)):
             continue  # a table's or a box's border
-        below = y1 + 1 + px(LINE_FRINGE)  # past the line's own rough edge (blur, straightening)
-        under = ink[below : below + px(PAPER_BELOW), x0:x1]
-        if under.size and under.any(axis=0).mean() > INK_BELOW_MAX:
+        if not _paper_under(ink[y1 + 1 : y1 + 1 + px(LINE_FRINGE + PAPER_BELOW), x0:x1], px):
             continue  # letters under it: the top edge of a line of (bold or blurred) text
         band = ink[max(y0 - px(TEXT_ABOVE), 0) : max(y0 - 1, 0), x0:x1]
         written = band.sum(axis=0) >= INK_ABOVE if band.size else np.zeros(x1 - x0, dtype=bool)
@@ -191,6 +191,19 @@ def free_above(page: pymupdf.Page, box: Box, reach: float) -> float:
     height = int(pix.height)
     free_px = height - 1 - int(rows[-1]) if rows.size else height
     return round(min(free_px * float(clip.height) / max(height, 1), reach), 1)
+
+
+def _paper_under(below: np.ndarray, px: Callable[[float], int]) -> bool:
+    """Whether paper lies under a stroke (``below``: the rows right under it): the band past its
+    own rough edge (blur, straightening) is mostly paper, or a clean row of paper runs right under
+    it before anything printed there (a caption set close under a line). The top edge of a line
+    of letters has neither: their bodies run on under it. O(rows · length)."""
+    if below.size == 0:
+        return True
+    past_edge = below[px(LINE_FRINGE) :]
+    if past_edge.size == 0 or past_edge.any(axis=0).mean() <= INK_BELOW_MAX:
+        return True
+    return bool((below.mean(axis=1) <= WHITE_ROW).any())
 
 
 def _ink_width(ink: np.ndarray, gap_px: int) -> int:

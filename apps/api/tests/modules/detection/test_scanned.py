@@ -65,6 +65,16 @@ def test_a_line_after_a_label_is_found_at_its_exact_place() -> None:
     assert abs(x0 - (_end("Name:") + 4)) <= 2 and abs(x1 - 300) <= 2 and abs(y1 - 302) <= 2
 
 
+def test_a_line_with_its_caption_set_close_under_it_is_still_a_line() -> None:
+    """Review #10: a caption 1 pt under a line ("Authorized Signature") read as the letters a
+    line's top edge belongs to, and the line was dropped."""
+    caption = "Authorized Signature"
+    end = 300 + float(pymupdf.get_text_length(caption, fontsize=8)) + 10
+    printed = lambda page: page.insert_text((300, 402 + 1 + 6), caption, fontsize=8)  # noqa: E731
+    ((x0, _, x1, y1),) = _boxes(_scan([_line(290, end, 402), printed]))
+    assert abs(x0 - 290) <= 2 and abs(x1 - end) <= 2 and abs(y1 - 402) <= 2
+
+
 def test_typed_underscores_on_a_scan_are_one_line() -> None:
     data = _scan([_text(72, 300, "Date: " + "_" * 20)])
     ((x0, _, x1, _),) = _boxes(data)
