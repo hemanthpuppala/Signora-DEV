@@ -187,8 +187,9 @@ def free_above(page: pymupdf.Page, box: Box, reach: float) -> float:
         :, : pix.width
     ]
     rows = np.nonzero(_ink(grey).sum(axis=1) >= INK_ABOVE)[0]
-    free_px = int(pix.height - 1 - rows[-1]) if rows.size else pix.height
-    return round(min(free_px * clip.height / max(pix.height, 1), reach), 1)
+    height = int(pix.height)
+    free_px = height - 1 - int(rows[-1]) if rows.size else height
+    return round(min(free_px * float(clip.height) / max(height, 1), reach), 1)
 
 
 def _ink(grey: np.ndarray) -> np.ndarray:
