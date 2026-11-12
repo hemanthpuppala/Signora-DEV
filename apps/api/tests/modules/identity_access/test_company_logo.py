@@ -53,6 +53,9 @@ DOWNLOAD = "https://img.logo.dev/assets/brand_1.png?signature=abc"
         ("https://www.app.scoutboard.com/team", "scoutboard.com"),
         ("sub.example.ai", "example.ai"),
         ("acme.github.io", "acme.github.io"),  # a platform's suffix: not GitHub's own
+        ("github.io", "github.io"),  # the platform's own domain
+        ("myshopify.com", "myshopify.com"),
+        ("www.app.acme.zzqnewtld", "acme.zzqnewtld"),  # an ending the list does not know
         ("scoutboard.com.", "scoutboard.com"),
         ("münchen.de", "xn--mnchen-3ya.de"),
     ],
@@ -80,7 +83,6 @@ def test_a_website_is_kept_as_its_registrable_domain(typed: str, domain: str) ->
         "a" * 64 + ".com",
         "x." * 130 + "com",
         "co.uk",  # only a public suffix: nobody's company
-        "github.io",
     ],
 )
 def test_anything_but_a_public_host_name_is_refused(typed: str) -> None:

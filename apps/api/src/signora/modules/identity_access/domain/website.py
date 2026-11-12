@@ -27,6 +27,10 @@ _MESSAGE = "Enter the company's website, like scoutboard.com"
 _SUFFIXES = tldextract.TLDExtract(
     suffix_list_urls=(), cache_dir=None, include_psl_private_domains=True
 )
+# The same list without the private suffixes: a platform's own domain (github.io) is registrable.
+_ICANN = tldextract.TLDExtract(
+    suffix_list_urls=(), cache_dir=None, include_psl_private_domains=False
+)
 
 
 class InvalidWebsiteError(ValueError):
@@ -65,10 +69,22 @@ def company_domain(raw: str) -> str:
         raise InvalidWebsiteError(_MESSAGE)
     if not _TOP_LEVEL.match(labels[-1]):
         raise InvalidWebsiteError(_MESSAGE)
-    registrable: str = _SUFFIXES(host).top_domain_under_public_suffix
-    if not registrable:
-        raise InvalidWebsiteError(_MESSAGE)  # a public suffix itself
-    return registrable
+    return _registrable(host)
+
+
+def _registrable(host: str) -> str:
+    """The part of ``host`` a company registers. A platform's own domain (``github.io``,
+    ``myshopify.com``) is itself; a host on an ending the bundled list does not know yet (a new
+    top-level domain) is its last two labels; a public suffix on its own (``co.uk``) is refused."""
+    found = _SUFFIXES(host)
+    if found.top_domain_under_public_suffix:
+        return str(found.top_domain_under_public_suffix)
+    if not found.suffix:
+        return ".".join(host.split(".")[-2:])  # an ending the list does not know
+    icann = _ICANN(host)
+    if found.is_private and icann.top_domain_under_public_suffix:
+        return str(icann.top_domain_under_public_suffix)
+    raise InvalidWebsiteError(_MESSAGE)  # only a public suffix: nobody's company
 
 
 def _is_ip(host: str) -> bool:
