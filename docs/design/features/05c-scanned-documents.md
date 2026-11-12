@@ -78,6 +78,28 @@ picture ("______,") and widens it by up to 6 pt. 85 to 165 ms a page.
 
 A text document with the new prompt (the Unilateral NDA) answers as on `main`: 18 of 18, one call.
 
+## Review fixes (PR #25)
+
+A fresh review raised 13 findings; each was reproduced, fixed at its origin with a regression test that fails on
+the earlier code, and checked against the realistic scans (unchanged: every line within 6 pt, no wrong field; UL
+scan 31 lines):
+
+- **Limits on what a PDF can make us hold**: a page is rendered at most 4.2 million pixels (`render_dpi`; an
+  8000 pt page went from 2.1 GB and 9 s to 254 MB and 0.09 s); the pictures sent to the AI are JPEG within a
+  per-page and per-document pixel budget (14-page UL scan: 2.9 MB).
+- **One rule for "scanned"** (`kernel/scanned.py`), used by processing and detection alike.
+- **Tags on rotated pages** are drawn on the picture as displayed (`/Rotate` 180 and 270 were wrong).
+- **A scan with no lines** still goes to the AI (its places may all be unmarked); "none" answers a page with none.
+- **A line under a form field** is not a second field (`_covers`).
+- **An extra field on a scan never lies on another place** (a tagged field or another extra field):
+  `PageSpace.lies_on`, reported by `check`, dropped by `derive`.
+- **A scanned signature placed by its box** grows into the free height read above its foot (`free_above`).
+- **Dust in the margins** no longer widens the page's ink so a rule passes as a blank: edge islands of ink with
+  under 1% of the page's ink are left out (`_ink_width`).
+- **A caption about 1 pt under a line** keeps the line: a clean paper row right under a stroke is paper under it
+  (`_paper_under`); a caption touching the line (one pixel) is still dropped.
+- **The prompt's data rule** names the pictures and their printed words; processing's dead status branch removed.
+
 ## Requirements
 
 | # | Requirement |
@@ -109,3 +131,4 @@ A text document with the new prompt (the Unilateral NDA) answers as on `main`: 1
 | 5 | Derive: extra fields on image pages placed from their box | done | `derive._scanned_box`, `_room_to_sign` by headroom |
 | 6 | Processing: no `needs_ocr`; migration for existing versions | done | `processing.py`; migration 0027 and its data test |
 | 7 | Tests: unit, real AI on the scans, full gate | done | 20 tests in `test_scanned.py`; real AI runs (above); full gate |
+| 8 | Review fixes (13 findings) | done | PR #25 threads, all resolved; 34 tests in `test_scanned.py` |
