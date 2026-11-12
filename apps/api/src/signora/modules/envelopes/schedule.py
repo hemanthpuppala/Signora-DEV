@@ -1,7 +1,8 @@
 """When each person is reminded next (reminders LLD §4): one interval after they were last emailed
 their link or a reminder, while the envelope allows more and before it expires.
 
-The only place ``next_reminder_at`` is set; the sweep (``reminders``) only reads and clears it.
+The rule for ``next_reminder_at``; the sweep (``reminders``) only reads and clears it, cancelling
+clears it, and migration 0034 applied the same rule to the envelopes already out.
 """
 
 from __future__ import annotations
@@ -22,10 +23,13 @@ DELIVERABLE = (
     "NOT EXISTS (SELECT 1 FROM email_messages m WHERE m.id = r.last_email_id "
     "AND m.status = 'failed')"
 )
-# One interval from now, if it falls before the expiry and the maximum is not reached.
+# One interval from now, if the maximum is not reached and it leaves at least an hour before the
+# expiry: a last-chance reminder always leaves time to sign (and the sweep's few minutes of delay
+# never push it past the expiry).
 NEXT = (
     "CASE WHEN r.reminders_sent < e.max_reminders "
-    "AND now() + make_interval(hours => e.reminder_interval_hours) < e.expires_at "
+    "AND now() + make_interval(hours => e.reminder_interval_hours) "
+    "<= e.expires_at - interval '1 hour' "
     "THEN now() + make_interval(hours => e.reminder_interval_hours) END"
 )
 

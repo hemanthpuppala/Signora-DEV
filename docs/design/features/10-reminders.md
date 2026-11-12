@@ -35,8 +35,8 @@ platform design describes (FR-33, §5.5).
 
 - **The schedule lives on the recipient:** `next_reminder_at`, set in one place (`schedule.schedule_next`)
   whenever the person is emailed their link or a reminder:
-  `now + interval` while `reminders_sent < max_reminders` and `now + interval < expires_at`; otherwise
-  NULL (no more reminders).
+  `now + interval` while `reminders_sent < max_reminders` and `now + interval <= expires_at − 1 hour`
+  (a last-chance reminder always leaves time to sign); otherwise NULL (no more reminders).
 - **Set by:** the send (the people emailed first), every signer signing (the countersigners whose turn
   begins), a corrected email (the new link), every reminder (by hand or automatic), and Send again.
 - **A failed address is not reminded:** a person whose last email failed is not due (their schedule

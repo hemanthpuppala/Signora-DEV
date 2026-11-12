@@ -39,7 +39,8 @@ def upgrade() -> None:
         f"UPDATE envelope_recipients r SET next_reminder_at = {slot} FROM envelopes e "  # noqa: S608
         "WHERE e.id = r.envelope_id AND r.status IN ('sent', 'opened', 'viewed') "
         "AND r.sent_at IS NOT NULL AND e.status IN ('sent', 'opened', 'viewed', 'signed') "
-        f"AND r.reminders_sent < e.max_reminders AND {slot} < e.expires_at"
+        # At least an hour before the expiry, as envelopes.schedule.NEXT requires.
+        f"AND r.reminders_sent < e.max_reminders AND {slot} <= e.expires_at - interval '1 hour'"
     )
 
 

@@ -21,6 +21,7 @@ from signora.modules.envelopes import (
     reminders,
 )
 from signora.modules.envelopes.reminders import remind_due
+from signora.modules.envelopes.schedule import schedule_next
 from signora.modules.notifications import service as notifications_service
 from signora.modules.notifications import spare_capacity
 from tests.modules.documents.conftest import csrf_headers
@@ -379,3 +380,24 @@ def test_a_failed_address_is_not_reminded_until_it_is_sent_again(
     assert again.status_code in (200, 204), again.text
     restarted = _schedule(committing_db, signer["id"])
     assert _about(restarted.next_reminder_at, restarted.now + INTERVAL)
+
+
+def test_no_reminder_is_scheduled_within_an_hour_of_the_expiry(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    _, envelope = sent_envelope(owner, run, detect, company)
+    signer = envelope["recipients"][0]
+    for expires, scheduled in (("48 hours 30 minutes", False), ("49 hours 30 minutes", True)):
+        _run(
+            committing_db,
+            "UPDATE envelopes SET expires_at = now() + CAST(:x AS interval) WHERE id = :e",
+            x=expires,
+            e=envelope["id"],
+        )
+        with committing_db.unit_of_work() as uow:
+            schedule_next(uow.session, [uuid.UUID(signer["id"])])
+        assert (_schedule(committing_db, signer["id"]).next_reminder_at is not None) == scheduled
