@@ -44,6 +44,8 @@ THICKNESS_MAX = 3.0  # points: a thicker stroke is a bar or a shape, not a line
 TEXT_ABOVE = 12.0  # points above a line where what is written on it sits
 INK_ABOVE = 2  # dark pixels in a column of that band that make it written (a speck is not)
 FULL_WIDTH = 0.8  # a stroke wider than this share of the page's ink is a rule
+EDGE_INK = 0.01  # an island of ink at a margin with less than this share of the page's is dust
+MARGIN_GAP = 12.0  # points of empty columns that set such an island apart
 BORDER = 8.0  # points of vertical ink at a stroke's end that make it a border
 HEADROOM_MAX = 36.0  # points: the most room above a line that is measured (F2's height)
 MERGE_GAP = 6.0  # points: stretches on one line closer than this are one blank
@@ -139,8 +141,7 @@ def scan_blanks(page: pymupdf.Page) -> list[ScanBlank]:
         bx, by = _turn_point(x, y, -angle, ink.shape) if angle else (x, y)
         return bx / scale, by / scale
 
-    columns = np.nonzero(ink.any(axis=0))[0]
-    ink_width = (columns[-1] - columns[0]) if columns.size else ink.shape[1]
+    ink_width = _ink_width(ink, px(MARGIN_GAP))
     blanks: list[ScanBlank] = []
     for x0, x1, y0, y1 in _strokes(ink, px(LENGTH_MIN), px(THICKNESS_MAX)):
         if x1 - x0 > FULL_WIDTH * ink_width:
@@ -190,6 +191,28 @@ def free_above(page: pymupdf.Page, box: Box, reach: float) -> float:
     height = int(pix.height)
     free_px = height - 1 - int(rows[-1]) if rows.size else height
     return round(min(free_px * float(clip.height) / max(height, 1), reach), 1)
+
+
+def _ink_width(ink: np.ndarray, gap_px: int) -> int:
+    """How wide the page's ink runs, in pixels, without dust: the ink's columns fall into islands
+    split by ``gap_px`` or more of empty columns, and an island at either edge with under
+    ``EDGE_INK`` of the page's ink is a speck in a margin, not the page (counted, it would widen
+    the page and let a rule pass as a blank). One pass over the columns: O(W·H)."""
+    mass = ink.sum(axis=0)
+    columns = np.nonzero(mass)[0]
+    if columns.size == 0:
+        return int(ink.shape[1])
+    breaks = np.nonzero(np.diff(columns) > gap_px)[0]
+    starts = np.concatenate(([columns[0]], columns[breaks + 1]))
+    ends = np.concatenate((columns[breaks], [columns[-1]]))
+    sizes = [int(mass[a : b + 1].sum()) for a, b in zip(starts, ends, strict=True)]
+    least = EDGE_INK * sum(sizes)
+    first, last = 0, len(sizes) - 1
+    while first < last and sizes[first] < least:
+        first += 1
+    while last > first and sizes[last] < least:
+        last -= 1
+    return max(int(ends[last] - starts[first]), 1)
 
 
 def _ink(grey: np.ndarray) -> np.ndarray:

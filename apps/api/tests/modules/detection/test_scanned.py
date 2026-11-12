@@ -78,6 +78,16 @@ def test_typed_underscores_on_a_scan_are_one_line() -> None:
             [_text(72, 300, "Disclosing"), _line(72, _end("Disclosing"), 302)], id="underlined-word"
         ),
         pytest.param([_line(72, _end(PARAGRAPH), 260)], id="rule-across-the-text"),
+        pytest.param(  # review #9: dust in both margins must not widen the page's ink
+            [_line(72, _end(PARAGRAPH), 260)]
+            + [
+                lambda page, x=x: page.draw_rect(
+                    pymupdf.Rect(x, 500, x + 1.5, 501.5), fill=(0, 0, 0)
+                )
+                for x in (8, 585)
+            ],
+            id="rule-across-the-text-with-dust-in-the-margins",
+        ),
         pytest.param(
             [_line(72, 300, y) for y in (240, 262, 284)]
             + [
