@@ -79,8 +79,10 @@ def _measure_text_sizes(args: argparse.Namespace) -> int:
     """Measure the text sizes of versions approved before they were measured (Phase 7b)."""
     from signora.kernel.blobstore import blob_store_from_settings
     from signora.kernel.db import Database, create_db_engine
-    from signora.modules.review import measure_unmeasured
+    from signora.modules import detection
+    from signora.modules.review import measure_unmeasured, provide_signature_room
 
+    provide_signature_room(detection.signature_tops)  # detection's rule (review cannot import it)
     settings = get_settings()
     engine = create_db_engine(settings.db, pool_size=1)
     try:

@@ -23,7 +23,6 @@ from signora.modules.typesetting import (
     FitRule,
     FontView,
     font_view,
-    mark_top,
 )
 
 # A party's fields that come from the person signing as it, as DocuSign's Full Name, First Name,
@@ -51,8 +50,8 @@ class Place(BaseModel):
     rect: tuple[float, float, float, float]
     option_value: str | None  # a choice's place stands for one option
     text_size: float | None  # the agreement's text size beside it (Phase 7b), when measured
-    # A signature's or initials' box top (typesetting.mark_top): grown to a readable height, never
-    # over the agreement's text above it. None for other fields.
+    # A signature's or initials' box top: the room to sign measured above its line at approval
+    # (review.signature_room, detection's rule), else its own top. None for other fields.
     mark_top: float | None = None
 
 
@@ -140,9 +139,11 @@ def places_of(field: FieldView) -> list[Place]:
             rect=place.rect,
             option_value=place.option_value,
             text_size=place.text_size,
-            mark_top=mark_top(place.rect, place.mark_top)
-            if field.holds in SIGNING_PLACES
-            else None,
+            mark_top=(
+                (place.mark_top if place.mark_top is not None else place.rect[1])
+                if field.holds in SIGNING_PLACES
+                else None
+            ),
         )
         for place in field.placements
     ]

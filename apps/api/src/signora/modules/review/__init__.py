@@ -9,6 +9,7 @@ naming from ``review.keys`` directly.
 from signora.modules.review.checks import ReviewWarning, warnings_for
 from signora.modules.review.proposal import Proposal, ProposedField, ProposedParty, ProposedPlace
 from signora.modules.review.routes import router
+from signora.modules.review.signature_room import MarkedPlace, provide_signature_room
 from signora.modules.review.store import read_review, read_set, replace_fields
 from signora.modules.review.text_sizes import measure_unmeasured
 from signora.modules.review.views import (
@@ -22,6 +23,7 @@ from signora.modules.review.views import (
 __all__ = [
     "DependencyView",
     "FieldView",
+    "MarkedPlace",
     "PlacementView",
     "Proposal",
     "ProposedField",
@@ -31,6 +33,7 @@ __all__ = [
     "RoleView",
     "measure_unmeasured",
     "option_words",
+    "provide_signature_room",
     "read_review",
     "read_set",
     "replace_fields",

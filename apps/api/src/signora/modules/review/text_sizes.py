@@ -17,7 +17,8 @@ from sqlalchemy.orm import Session
 
 from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.logging import get_logger
-from signora.modules.typesetting import Measured, mark_tops, text_sizes
+from signora.modules.review.signature_room import MarkedPlace, signature_room
+from signora.modules.typesetting import Measured, text_sizes
 
 log = get_logger("signora.review.text_sizes")
 
@@ -31,36 +32,8 @@ _WRITTEN = (
 _MARKED = "f.holds IN ('signature', 'initials')"
 
 
-def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: BlobRef) -> int:
-    """Measure and keep one version's sizes, and the room above its signature places; how many
-    places were measured. One read of each kind of place, one of the PDF, one insert each."""
-    marked = [
-        Measured(row.id, row.page, (row.x0, row.y0, row.x1, row.y1))
-        for row in session.execute(
-            text(
-                # _MARKED is a constant of this module, never input.
-                "SELECT p.id, p.page, p.x0, p.y0, p.x1, p.y1 FROM field_placements p "  # noqa: S608
-                "JOIN version_fields f ON f.id = p.field_id WHERE p.version_id = :v AND " + _MARKED
-            ),
-            {"v": version_id},
-        )
-    ]
-    pdf_bytes = blobs.path(pdf).read_bytes() if marked else None
-    if marked and pdf_bytes is not None:
-        tops = mark_tops(pdf_bytes, marked)
-        if tops:
-            session.execute(
-                text(
-                    "INSERT INTO placement_mark_tops (placement_id, workspace_id, version_id, top) "
-                    "SELECT x.id, :w, :v, x.top FROM jsonb_to_recordset(CAST(:rows AS jsonb)) "
-                    "AS x(id uuid, top float8) ON CONFLICT (placement_id) DO NOTHING"
-                ),
-                {
-                    "w": pdf.workspace_id,
-                    "v": version_id,
-                    "rows": json.dumps([{"id": str(k), "top": v} for k, v in tops.items()]),
-                },
-            )
+def _measure_sizes(session: Session, version_id: uuid.UUID, pdf: BlobRef, data: bytes) -> int:
+    """Keep the text size beside each written place; how many were measured."""
     places = [
         Measured(row.id, row.page, (row.x0, row.y0, row.x1, row.y1))
         for row in session.execute(
@@ -72,9 +45,7 @@ def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: Blob
             {"v": version_id},
         )
     ]
-    if not places:
-        return len(marked)
-    sizes = text_sizes(pdf_bytes or blobs.path(pdf).read_bytes(), places)
+    sizes = text_sizes(data, places) if places else {}
     if sizes:
         session.execute(
             text(
@@ -88,18 +59,74 @@ def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: Blob
                 "rows": json.dumps([{"id": str(k), "size": v} for k, v in sizes.items()]),
             },
         )
-    return len(sizes) + len(marked)
+    return len(sizes)
+
+
+def _measure_room(session: Session, version_id: uuid.UUID, pdf: BlobRef, data: bytes) -> int:
+    """Keep the room to sign above each signature or initials place, by detection's rule
+    (``signature_room``); how many were measured. Every place gets a row, those on a page the
+    file lacks too (at their own top), so a version is measured once."""
+    rows = session.execute(
+        text(
+            "SELECT p.id, p.page, p.x0, p.y0, p.x1, p.y1, p.kind, "
+            "f.holds IN ('signature', 'initials') AS marked "
+            "FROM field_placements p JOIN version_fields f ON f.id = p.field_id "
+            "WHERE p.version_id = :v"
+        ),
+        {"v": version_id},
+    ).all()
+    marked = [
+        MarkedPlace(row.id, row.page, (row.x0, row.y0, row.x1, row.y1), row.kind)
+        for row in rows
+        if row.marked
+    ]
+    others: dict[int, list[tuple[float, float, float, float]]] = {}
+    for row in rows:
+        others.setdefault(row.page, []).append((row.x0, row.y0, row.x1, row.y1))
+    tops = signature_room(data, marked, others)
+    if not tops:
+        return 0  # nothing to measure, or no rule registered: each box is drawn as it is
+    session.execute(
+        text(
+            "INSERT INTO placement_mark_tops (placement_id, workspace_id, version_id, top) "
+            "SELECT x.id, :w, :v, x.top FROM jsonb_to_recordset(CAST(:rows AS jsonb)) "
+            "AS x(id uuid, top float8) ON CONFLICT (placement_id) DO NOTHING"
+        ),
+        {
+            "w": pdf.workspace_id,
+            "v": version_id,
+            "rows": json.dumps([{"id": str(k), "top": v} for k, v in tops.items()]),
+        },
+    )
+    return len(tops)
+
+
+def measure(session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: BlobRef) -> int:
+    """Measure and keep one version's text sizes and its signatures' room; how many places were
+    measured. The file is read once; each measurement is kept in a savepoint of its own, so one
+    that fails never loses the other (``measure_if_readable`` logs it)."""
+    data = blobs.path(pdf).read_bytes()
+    measured = 0
+    failure: Exception | None = None
+    for step in (_measure_sizes, _measure_room):
+        try:
+            with session.begin_nested():
+                measured += step(session, version_id, pdf, data)
+        except Exception as error:  # whatever the PDF library raises: both are refinements
+            failure = failure or error
+    if failure is not None:
+        raise failure
+    return measured
 
 
 def measure_if_readable(
     session: Session, blobs: BlobStore, version_id: uuid.UUID, pdf: BlobRef
 ) -> bool:
-    """Measure one version in a savepoint of its own; whether it was measured. A version that
-    cannot be read (its file gone, a PDF that does not open) is logged and left as it was, for
-    the command to measure later: the caller's transaction goes on."""
+    """Measure one version; whether it was measured. A version that cannot be read (its file
+    gone, a PDF that does not open) is logged and left as it was, for the command to measure
+    later: the caller's transaction goes on."""
     try:
-        with session.begin_nested():
-            measure(session, blobs, version_id, pdf)
+        measure(session, blobs, version_id, pdf)
     except Exception as error:  # whatever the file or the PDF library raises: sizes are optional
         log.warning("text_sizes.version_failed", version_id=str(version_id), error=repr(error))
         return False
