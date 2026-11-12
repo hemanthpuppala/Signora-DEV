@@ -50,6 +50,10 @@ website, or when no logo can be found, the header stays exactly as it is today.
   once and is refreshed a month on, or is asked again if its "none found" is a week old.
 - A sweep (every 15 minutes, only while a key is configured) queues the look-ups due for domains in
   use, and clears the plan of domains nobody uses (they wait until named again).
+- **Queuing claims the domain:** its next look-up moves to 30 minutes on (`LOST_AFTER`), and that
+  time is the job's dedupe key. A queued look-up is never queued twice; one whose job died or was
+  lost comes due again and is queued under a new key (a dead job keeps its key for ever, so reusing
+  the planned time would drop every later look-up); a finished one plans the real next look-up.
 - The planned time is part of the job's dedupe key: one planned look-up is queued once however
   often the sweep or a request asks, and the next one can always be queued.
 - logo.dev answers, and what follows:
