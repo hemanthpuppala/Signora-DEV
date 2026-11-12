@@ -99,7 +99,10 @@ platform design describes (FR-33, §5.5).
 
 | # | Task | Status | Evidence of completion |
 |---|------|--------|------------------------|
-| 1 | Schedule on send, turn, corrected email and reminder; index and backfill (0034) | todo | — |
-| 2 | The sweep job and the shared reminder; last-chance wording | todo | — |
-| 3 | Next reminder on the envelope page | todo | — |
-| 4 | Full gate, live check | todo | — |
+| 1 | Schedule on send, turn, corrected email and reminder; index and backfill (0034) | done | commit f512697; `test_reminders.py` (7), `test_data_migrations.py::test_0034_…` |
+| 2 | The sweep job and the shared reminder; last-chance wording | done | commit f512697; `reminders.py`, `service._remind`; `test_reminders.py` |
+| 3 | Next reminder on the envelope page | done | commit 31e6650; `envelopes.test.tsx` |
+| 4 | Full gate, live check | in-progress | gate: 1,088 API and 388 web tests, lint, types, imports, build, contracts (commit 31e6650); live check after deploy |
+
+Deviation: tasks 1 and 2 share one commit, since the manual and automatic reminders were made one
+code path (`service._remind`) in the same change.
