@@ -110,7 +110,9 @@ function PasswordForm() {
         <FieldGrid>
           <PasswordField
             label="Current password"
-            autoComplete="current-password"
+            // Typed by the person, never filled in by the browser: changing a password asks them
+            // to prove they know the one they have.
+            autoComplete="off"
             required
             value={current}
             error={errors.current_password}
@@ -209,7 +211,6 @@ function WebsiteForm({ me }: { me: Me }) {
           autoComplete="url"
           spellCheck={false}
           placeholder="yourcompany.com"
-          hint="Optional. Your company's logo then shows in the header."
           maxLength={2048}
           value={website}
           error={fieldErrors(save.error).website}

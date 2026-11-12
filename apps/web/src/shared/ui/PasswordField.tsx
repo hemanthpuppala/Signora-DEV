@@ -7,8 +7,9 @@ import { TextField, type TextFieldProps } from "./Field";
 import styles from "./field.module.css";
 
 export type PasswordFieldProps = Omit<TextFieldProps, "type"> & {
-  /** "new-password" when choosing one, "current-password" when signing in. */
-  autoComplete: "new-password" | "current-password";
+  /** "new-password" when choosing one, "current-password" when signing in, "off" for one the
+   * person must type themselves (the current password, to change it). */
+  autoComplete: "new-password" | "current-password" | "off";
 };
 
 /** Length as the server counts it: after Unicode NFKC normalisation. */

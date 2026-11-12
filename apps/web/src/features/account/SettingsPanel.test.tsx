@@ -92,3 +92,16 @@ describe("the company's website in Settings", () => {
     expect(await screen.findByText("Website removed")).toBeTruthy();
   });
 });
+
+describe("changing the password in Settings", () => {
+  beforeEach(() => vi.stubGlobal("fetch", vi.fn<typeof fetch>(() => reply(200, {}))));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("starts with the current password empty and asks the browser not to fill it in", () => {
+    show(me(false));
+    const current = screen.getByLabelText("Current password") as HTMLInputElement;
+    expect(current.value).toBe("");
+    expect(current.getAttribute("autocomplete")).toBe("off");
+    expect(screen.getByLabelText("New password").getAttribute("autocomplete")).toBe("new-password");
+  });
+});
