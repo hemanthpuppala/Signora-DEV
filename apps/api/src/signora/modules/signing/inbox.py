@@ -130,18 +130,21 @@ def waiting(
     query = search.normalize(q)
     where = (_WAITING if state == "waiting" else _DONE) + _IN_DEPARTMENT
     params: dict[str, object] = {"u": actor.user_id, "limit": PAGE + 1, "dep": department}
+    # The page is chosen from the rows' own columns (x.*): the score is worked out once a row.
     if query is None:
         after = _cursor(cursor)
         score = "NULL"
         then = ">" if soonest else "<"
-        beyond = f"(CAST(:at AS timestamptz) IS NULL OR ({column}, r.id) {then} (:at, :id))"
-        order = f"{column} {way}, r.id {way}"
+        beyond = (
+            f"(CAST(:at AS timestamptz) IS NULL OR (x.sort_at, x.recipient_id) {then} (:at, :id))"
+        )
+        order = f"x.sort_at {way}, x.recipient_id {way}"
         params |= {"at": after[0] if after else None, "id": after[1] if after else None}
         listed = where
     else:
         score = _SCORE
-        beyond = search.beyond(_SCORE, column, "r.id", soonest_first=soonest)
-        order = search.order(_SCORE, column, "r.id", soonest_first=soonest)
+        beyond = search.beyond("x.score", "x.sort_at", "x.recipient_id", soonest_first=soonest)
+        order = search.order("x.score", "x.sort_at", "x.recipient_id", soonest_first=soonest)
         params |= query.params | search.after_params(search.after(cursor))
         listed = where + _MATCHES
     with _db(request).unit_of_work() as uow:
@@ -150,16 +153,19 @@ def waiting(
         rows = uow.session.execute(
             text(
                 f"""
-                SELECT r.id AS recipient_id, e.id AS envelope_id, e.title, d.name AS document_name,
-                       e.department_id, dep.name AS department_name, e.expires_at,
-                       r.signed_at AS countersigned_at, e.status = 'completed' AS completed,
-                       (SELECT array_agg(s.name ORDER BY s.position) FROM envelope_recipients s
-                        WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signers,
-                       (SELECT max(s.signed_at) FROM envelope_recipients s
-                        WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signed_at,
-                       {score} AS score
-                {listed}
-                  AND {beyond}
+                SELECT * FROM (
+                    SELECT r.id AS recipient_id, e.id AS envelope_id, e.title,
+                           d.name AS document_name, e.department_id, dep.name AS department_name,
+                           e.expires_at, r.signed_at AS countersigned_at,
+                           e.status = 'completed' AS completed, {column} AS sort_at,
+                           (SELECT array_agg(s.name ORDER BY s.position) FROM envelope_recipients s
+                            WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signers,
+                           (SELECT max(s.signed_at) FROM envelope_recipients s
+                            WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signed_at,
+                           {score} AS score
+                    {listed}
+                ) x
+                WHERE {beyond}
                 ORDER BY {order}
                 LIMIT :limit
                 """  # noqa: S608 - every interpolated part is a constant of this module or search's

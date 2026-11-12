@@ -48,7 +48,7 @@ export function EnvelopesList({ departmentId }: { departmentId: string }) {
         ))}
       </ChipGroup>
       <div role="status" aria-live="polite">
-        {envelopes.isSuccess && rows.length === 0 ? (
+        {envelopes.isSuccess && !envelopes.isPlaceholderData && rows.length === 0 ? (
           query ? (
             <SmallText>
               {`No envelope matches “${query}”${status ? " in this state" : ""}. `}

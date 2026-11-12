@@ -201,3 +201,36 @@ def test_with_no_signer_the_countersigners_sign_at_once_and_the_envelope_complet
 
     run_completion(committing_db, envelope_id, LocalBlobStore(settings.blob_store.dir))
     assert owner.get(f"/api/v1/envelopes/{envelope_id}").json()["status"] == "completed"
+
+
+def test_the_inbox_pages_through_everything_once_with_or_without_a_search(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    make_client: Callable[..., TestClient],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from signora.modules.signing import inbox
+    from tests.modules.envelopes.test_send import request_for, send
+    from tests.modules.signing.conftest import Sent
+
+    first = signable_envelope(owner, run, detect, company, settings=NO_CODE)
+    again = send(owner, first.doc, request_for(owner, first.doc, company, settings=NO_CODE))
+    waiting = []
+    for sent in (first, Sent(first.doc, again.json())):  # two from the one template
+        with make_client() as browser:
+            _signers_done(browser, sent)
+        waiting.append(str(sent.recipient("countersigner")["id"]))
+    monkeypatch.setattr(inbox, "PAGE", 1)
+
+    for params in ({}, {"q": "maya"}):
+        seen: list[str] = []
+        cursor = None
+        while True:
+            page = owner.get(ME, params={**params, **({"cursor": cursor} if cursor else {})}).json()
+            seen += [item["recipient_id"] for item in page["items"]]
+            cursor = page["next_cursor"]
+            if cursor is None:
+                break
+        assert sorted(seen) == sorted(waiting), params  # each once, none missed
