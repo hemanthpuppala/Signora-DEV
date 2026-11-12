@@ -65,7 +65,7 @@ function happened(entry: Envelope["timeline"][number], envelope: Envelope): stri
       return `Sent to ${String(data.signers)} ${data.signers === 1 ? "signer" : "signers"}`;
     case "envelope.reminded":
       if (data.recipient_id) return `Reminded ${who(data.recipient_id)}`;
-      return `Reminded ${String(data.recipients)} ${data.recipients === 1 ? "person" : "people"}`;
+      return `Reminded ${String(data.recipients)} ${data.recipients === 1 ? "person" : "people"}${data.automatic ? " automatically" : ""}`;
     case "envelope.resent":
       return `Emailed ${who(data.recipient_id)} again`;
     case "envelope.recipient_changed":
@@ -136,7 +136,8 @@ function left(expiresAt: string): string {
   return days === 1 ? "1 day left" : `${days} days left`;
 }
 
-/** The person's moments, in one quiet line: sent, read, signed; and the time left to act. */
+/** The person's moments, in one quiet line: sent, read, signed; the time left to act, and when
+ * they are reminded next. */
 function times(recipient: Recipient, envelope: Envelope): string {
   if (recipient.kind === "copy") return "Gets the signed copy";
   if (recipient.status === "waiting") return "Emailed once every signer has signed";
@@ -145,6 +146,7 @@ function times(recipient: Recipient, envelope: Envelope): string {
     recipient.viewed_at ? `Read ${day(recipient.viewed_at)}` : recipient.opened_at ? `Opened ${day(recipient.opened_at)}` : null,
     recipient.signed_at ? `Signed ${day(recipient.signed_at)}` : null,
     OPEN.has(envelope.status) && LIVE.has(recipient.status) ? left(envelope.expires_at) : null,
+    recipient.next_reminder_at ? `Next reminder ${day(recipient.next_reminder_at)}` : null,
   ];
   return parts.filter(Boolean).join(" · ");
 }

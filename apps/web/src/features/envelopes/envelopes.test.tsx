@@ -42,6 +42,7 @@ const recipient = (id: string, overrides: Record<string, unknown> = {}) => ({
   opened_at: null,
   viewed_at: null,
   signed_at: null,
+  next_reminder_at: null,
   delivery: { status: "sent", error: null },
   ...overrides,
 });
@@ -64,12 +65,13 @@ const ENVELOPE = {
   max_reminders: 5,
   notify_emails: [],
   recipients: [
-    recipient("r-maya"),
+    recipient("r-maya", { next_reminder_at: "2026-11-10T10:00:00Z" }),
     recipient("r-ben", { name: "Ben Ode", email: "ben@example.com", delivery: { status: "failed", error: "mailbox full" } }),
     recipient("r-rosa", { kind: "countersigner", party_id: "p-firm", party_label: "Firm", name: "Rosa Hale", email: "rosa@firm.example", status: "waiting", sent_at: null, delivery: null }),
   ],
   values: [{ field_id: "f-date", value: "2026-12-01", given_by: "sender" }],
   timeline: [
+    { at: "2026-11-10T10:00:00Z", action: "envelope.reminded", by: null, data: { recipients: 2, automatic: true } },
     { at: "2026-11-09T10:05:00Z", action: "envelope.resent", by: "rosa@firm.example", data: { recipient_id: "r-ben" } },
     { at: "2026-11-09T10:00:00Z", action: "envelope.sent", by: "rosa@firm.example", data: { signers: 2 } },
   ],
@@ -190,6 +192,9 @@ describe("envelopes", () => {
     expect(firm.textContent).toContain("Emailed once every signer has signed");
     expect(within(firm).queryByRole("button", { name: "Copy link" })).toBeNull(); // not their turn
     expect(rows[0]?.textContent).toContain("Sent Nov 9");
+    expect(rows[0]?.textContent).toContain("Next reminder Nov 10"); // scheduled, and shown
+    expect(rows[1]?.textContent).not.toContain("Next reminder");
+    expect(screen.getByText("Reminded 2 people automatically")).toBeTruthy();
     expect(within(rows[0] as HTMLElement).queryByRole("button", { name: "Send again" })).toBeNull(); // delivered
     expect(screen.getByText("Email not delivered: mailbox full")).toBeTruthy();
     expect(screen.getByText("Emailed Ben Ode again")).toBeTruthy();

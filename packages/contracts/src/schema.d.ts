@@ -2948,6 +2948,8 @@ export interface components {
             kind: "signer" | "countersigner" | "copy";
             /** Name */
             name: string;
+            /** Next Reminder At */
+            next_reminder_at: string | null;
             /** Opened At */
             opened_at: string | null;
             /** Party Id */

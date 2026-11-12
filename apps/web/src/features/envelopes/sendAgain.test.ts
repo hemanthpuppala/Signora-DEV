@@ -17,6 +17,7 @@ const person = (id: string, kind: string, party: string | null, name: string, em
   signed_at: null,
   declined_at: null,
   decline_reason: null,
+  next_reminder_at: null,
   delivery: null,
   ...extra,
 });
