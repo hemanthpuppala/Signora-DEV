@@ -6,6 +6,7 @@ import { Button, Checkbox, IconButton, InfoTip, Notice, Select, SmallText, TextF
 
 import { HOLDS, FORMAT_EXAMPLES, whoFills } from "../fields";
 import { PLACES_HELP } from "./help";
+import { NeedsALook, type LookStep } from "./NeedsALook";
 import { PlaceChips } from "./PlaceChips";
 import type { PanelEditing } from "./useReview";
 import type { Selection } from "../FieldBoxes";
@@ -92,6 +93,7 @@ export function FieldForm({
   draft,
   place,
   editing,
+  look,
   onPlace,
   onSelect,
   onDone,
@@ -100,6 +102,8 @@ export function FieldForm({
   draft: Draft;
   place: number;
   editing: PanelEditing;
+  /** Its place in the needs-a-look checklist, when it is flagged. */
+  look: LookStep | null;
   onPlace: (place: number) => void;
   onSelect: (selection: Selection) => void;
   onDone: () => void;
@@ -125,7 +129,7 @@ export function FieldForm({
 
   return (
     <div className={styles.form}>
-      {field.needs_review ? <Notice tone="warning">{`Needs a look: ${field.needs_review}. Any change clears this.`}</Notice> : null}
+      {field.needs_review ? <NeedsALook reason={field.needs_review} step={look} /> : null}
       {joined ? (
         // Said before Save does it: a separate field of a value its party gives once would
         // otherwise be gone after the save, with no word of why.

@@ -1854,6 +1854,11 @@
       "FieldIn": {
         "additionalProperties": false,
         "properties": {
+          "checked": {
+            "default": false,
+            "title": "Checked",
+            "type": "boolean"
+          },
           "depends_on": {
             "anyOf": [
               {

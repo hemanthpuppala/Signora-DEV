@@ -453,7 +453,7 @@ def write_set(
 ) -> None:
     """Write a settled set in place of the stored one, keeping the editor's ids: a constant number
     of statements over O(R + F + P) rows. A place from the PDF keeps its form field name; a field
-    keeps its origin, and its flag only while it is unchanged (§2.2)."""
+    keeps its origin, and its flag only while it is unchanged and not checked (§2.2)."""
     _clear(session, version_id)
     if settled.parties:
         session.execute(
@@ -499,7 +499,7 @@ def write_set(
                 "required": item.required,
                 "sensitive": is_sensitive(item),
                 "needs_review": before.needs_review
-                if before is not None and unchanged(item, before, stored)
+                if before is not None and not item.checked and unchanged(item, before, stored)
                 else None,
                 "origin": before.origin if before is not None else "added",
             }

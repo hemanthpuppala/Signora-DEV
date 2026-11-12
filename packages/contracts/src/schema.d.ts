@@ -2257,6 +2257,11 @@ export interface components {
         };
         /** FieldIn */
         FieldIn: {
+            /**
+             * Checked
+             * @default false
+             */
+            checked: boolean;
             depends_on?: components["schemas"]["DependencyIn"] | null;
             /**
              * Filled By

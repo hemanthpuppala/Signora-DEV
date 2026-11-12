@@ -457,6 +457,8 @@ def changes(stored: Stored, settled: Settled) -> dict[str, Any]:
         kept = new_places.keys() & old_places.keys()
         moved = sum(1 for pid in kept if _moved(new_places[pid], old_places[pid]))
         reworded = sum(1 for pid in kept if _reworded(new_places[pid], old_places[pid]))
+        if item.checked and stored_field.needs_review:
+            field_diff["needs_review"] = [stored_field.needs_review, None]  # looked at, as found
         if added or removed or moved or reworded:
             field_diff["places"] = {
                 "added": added,

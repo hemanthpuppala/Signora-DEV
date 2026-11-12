@@ -209,3 +209,40 @@
   padding-top: 14px;
   border-top: 1px solid var(--sep);
 }
+
+/* Needs a look: the checklist's amber, the "waiting" colour (attention, not an error). */
+.lookActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+
+.lookText {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lookReason {
+  font-size: 12px;
+  color: var(--t60);
+  overflow-wrap: anywhere;
+}
+
+.lookCount {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--st-viewed);
+  white-space: nowrap;
+}
+
+.lookDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--st-viewed);
+}

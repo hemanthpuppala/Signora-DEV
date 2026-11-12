@@ -47,6 +47,11 @@ export function PartyList({
   const [adding, setAdding] = useState(false);
   const count = (id: string) => fields.filter((field) => field.filled_by === "role" && field.party_id === id).length;
   const fieldsWord = (n: number) => `${n} ${n === 1 ? "field" : "fields"}`;
+  // Whose fields still need a look: the checklist's amber, by the party it concerns.
+  const toCheck = (inParty: (field: DraftField) => boolean) => {
+    const n = fields.filter((field) => field.needs_review && inParty(field)).length;
+    return n > 0 ? <span className={styles.lookCount}>{`${n} to check`}</span> : null;
+  };
 
   return (
     <>
@@ -90,6 +95,7 @@ export function PartyList({
               {tone}
               <span className={styles.name}>{party.label || "Unnamed party"}</span>
               <span className={styles.kind}>{kindWords(party)}</span>
+              {toCheck((field) => field.filled_by === "role" && field.party_id === party.id)}
               <span className={styles.number}>{fieldsWord(n)}</span>
               {edit ? <IconButton icon="edit" label={`Edit ${party.label || "party"}`} onClick={() => setEditingId(party.id)} /> : null}
             </li>
@@ -99,6 +105,7 @@ export function PartyList({
           <li className={styles.line}>
             <span className={`${fieldStyles.dot} ${fieldStyles.sender}`} aria-hidden="true" />
             <span className={styles.name}>Filled in before sending</span>
+            {toCheck((field) => field.filled_by === "sender")}
             <span className={styles.number}>{fieldsWord(sender)}</span>
           </li>
         ) : null}

@@ -43,6 +43,8 @@ export type DraftField = {
   sensitive: boolean;
   depends_on: { field_id: string; option: string } | null;
   needs_review: string | null; // a flag detection left; editing the field clears it (§2.2)
+  /** Looked at and accepted as found (Looks right): its flag is cleared on save, unchanged. */
+  checked?: boolean;
   places: DraftPlace[];
 };
 
@@ -174,6 +176,7 @@ export function toFieldSet(draft: Draft, revision: number): FieldSet {
       required: field.required,
       sensitive: field.holds === "other" ? field.sensitive : PRIVATE.has(field.holds),
       depends_on: field.depends_on,
+      checked: Boolean(field.checked),
       places: field.places.map((place) => ({
         id: place.id,
         page: place.page,
@@ -284,6 +287,16 @@ export function newField(holds: Holds, label: string, partyId: string | null, pl
     needs_review: null,
     places: [{ id: newId(), kind: "blank", ...place }],
   };
+}
+
+/** The fields still flagged, in the panel's order: the checklist Things to check and Next walk. */
+export function needingALook(draft: Draft): DraftField[] {
+  return draft.fields.filter((field) => field.needs_review);
+}
+
+/** Looks right: the field is accepted as found, nothing else about it changes (§2.2). */
+export function markChecked(draft: Draft, id: string): Draft {
+  return mapField(draft, id, (field) => ({ ...field, needs_review: null, checked: true }));
 }
 
 export function addField(draft: Draft, field: DraftField): Draft {

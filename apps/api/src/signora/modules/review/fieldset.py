@@ -63,6 +63,9 @@ class FieldIn(_In):
     sensitive: bool = False  # honoured for an Other type; the rest follow review.values
     depends_on: DependencyIn | None = None
     places: list[PlaceIn] = Field(min_length=1, max_length=MAX_PLACES)
+    # The person looked at the field's flag and accepts the field as found: the flag is cleared
+    # though nothing else changed (§2.2).
+    checked: bool = False
 
 
 class FieldSet(_In):
