@@ -8,7 +8,7 @@ Numbered after 0027 and 0028, written on a parallel branch from the same 0026; m
 it follows 0028.
 
 Revision ID: 0029
-Revises: 0026
+Revises: 0028
 Create Date: 2026-11-11
 """
 
@@ -20,7 +20,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0029"
-down_revision: str | None = "0026"
+down_revision: str | None = "0028"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
