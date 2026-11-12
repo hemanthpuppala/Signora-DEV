@@ -242,18 +242,35 @@ def test_two_sweeps_at_once_send_one_reminder(
     company: Account,
     committing_db: Database,
 ) -> None:
+    """Both sweeps find the person due, then queue on the envelope's lock; the second re-checks
+    under it and finds nothing due. One email, one count, one timeline entry (audit events are
+    not deduplicated, so a second reminder would show)."""
     _, envelope = sent_envelope(owner, run, detect, company)
     signer = envelope["recipients"][0]
     _due(committing_db, signer["id"])
 
     sweeps = [threading.Thread(target=remind_due, args=(committing_db,)) for _ in range(2)]
+    with committing_db.unit_of_work() as held:  # both reach the envelope while it is held
+        lock_envelope(held.session, uuid.UUID(envelope["id"]))
+        for sweep in sweeps:
+            sweep.start()
+        for sweep in sweeps:
+            sweep.join(timeout=0.5)
+        assert all(sweep.is_alive() for sweep in sweeps)  # both waiting on the envelope
     for sweep in sweeps:
-        sweep.start()
-    for sweep in sweeps:
-        sweep.join()
+        sweep.join(timeout=10)
 
     assert len(_reminders(committing_db, signer["email"])) == 1
     assert _schedule(committing_db, signer["id"]).reminders_sent == 1
+    with committing_db.unit_of_work() as uow:
+        entries = uow.session.execute(
+            text(
+                "SELECT count(*) FROM audit_events WHERE subject_id = :e "
+                "AND action = 'envelope.reminded'"
+            ),
+            {"e": envelope["id"]},
+        ).scalar_one()
+    assert entries == 1
 
 
 def test_reminders_use_only_their_share_of_the_daily_email_limit(
