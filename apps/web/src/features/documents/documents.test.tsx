@@ -156,9 +156,13 @@ describe("documents", () => {
     const sort = screen.getByRole("combobox", { name: "Sort templates" });
     expect(sort.textContent).toContain("Newest first");
 
+    // Every template, for the send dialogs: always A–Z (asked before any sort is chosen).
+    expect(asked).toContain("sort=name");
+    const byName = () => asked.filter((query) => query === "sort=name").length;
+    const before = byName();
     await user.click(sort);
     await user.click(screen.getByRole("option", { name: "Name (A–Z)" }));
-    await waitFor(() => expect(asked).toContain("sort=name"));
+    await waitFor(() => expect(byName()).toBeGreaterThan(before)); // the tab's own list, by name
 
     await user.click(sort);
     await user.click(screen.getByRole("option", { name: "Newest first" }));

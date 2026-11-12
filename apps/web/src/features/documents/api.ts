@@ -47,7 +47,8 @@ export function useDocuments(departmentId: string) {
     queryFn: () =>
       unwrap(
         api.GET("/api/v1/departments/{department_id}/documents", {
-          params: { path: { department_id: departmentId } },
+          // A–Z: the send dialogs' template lists (the Templates tab orders its own, useTemplates).
+          params: { path: { department_id: departmentId }, query: { sort: "name" } },
         }),
       ),
     // A list shows each document's newest version; poll while any is still being worked on.
