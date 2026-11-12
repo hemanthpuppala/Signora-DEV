@@ -196,14 +196,18 @@ def read_envelope(
             signed_at=row.signed_at,
             declined_at=row.declined_at,
             decline_reason=row.decline_reason,
+            next_reminder_at=row.next_reminder_at,
             delivery=Delivery(status=row.delivery, error=row.last_error) if row.delivery else None,
         )
         for row in session.execute(
             text(
                 "SELECT r.id, r.kind, r.party_id, p.label AS party_label, r.name, r.email, "
                 "r.status, r.sent_at, r.opened_at, r.viewed_at, r.signed_at, r.declined_at, "
-                "r.decline_reason, m.status AS "
+                "r.decline_reason, CASE WHEN r.status IN ('sent', 'opened', 'viewed') "
+                "AND e.status IN ('sent', 'opened', 'viewed', 'signed') AND e.expires_at > now() "
+                "THEN r.next_reminder_at END AS next_reminder_at, m.status AS "
                 "delivery, m.last_error FROM envelope_recipients r "
+                "JOIN envelopes e ON e.id = r.envelope_id "
                 "LEFT JOIN version_roles p ON p.id = r.party_id "
                 "LEFT JOIN email_messages m ON m.id = r.last_email_id "
                 "WHERE r.envelope_id = :e ORDER BY r.stage, r.position"

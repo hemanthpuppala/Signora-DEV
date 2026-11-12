@@ -60,16 +60,33 @@ def sign_request(
 
 
 def sign_reminder(
-    *, company: str, signer: str, document: str, url: str, expires_at: datetime
+    *,
+    company: str,
+    signer: str,
+    document: str,
+    url: str,
+    expires_at: datetime,
+    last_chance: bool = False,
 ) -> Letter:
-    heading = f"{document} is waiting for your signature"
+    """A reminder; within one reminder interval of the expiry it says when the link stops."""
+    expiry = moment_in_words(expires_at)
+    heading = (
+        f"{document} expires on {expiry}"
+        if last_chance
+        else f"{document} is waiting for your signature"
+    )
+    still_waiting = f"Hi {_first(signer)}, {company} is still waiting for you to sign."
     return Letter(
         subject=f"Reminder: {heading}",
         body=render_layout(
             heading=heading,
-            paragraphs=[f"Hi {_first(signer)}, {company} is still waiting for you to sign."],
+            paragraphs=[
+                f"{still_waiting} After {expiry}, this link stops working."
+                if last_chance
+                else still_waiting
+            ],
             action=EmailAction("Review and sign", url),
-            footer=f"This link is for you only. It expires on {moment_in_words(expires_at)}. "
+            footer=f"This link is for you only. It expires on {expiry}. "
             "Questions? Reply to this email.",
         ),
     )

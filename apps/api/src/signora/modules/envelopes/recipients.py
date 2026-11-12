@@ -12,6 +12,8 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from signora.modules.envelopes.schedule import schedule_next
+
 # An envelope a signer may still act on (Phase 7 §1.1). Past its expiry it is closed to them even
 # before Phase 10 moves its status (Phase 8 §1.1.9).
 OPEN_STATUSES = frozenset({"sent", "opened", "viewed", "signed"})
@@ -217,7 +219,9 @@ def every_signer_signed(session: Session, envelope_id: uuid.UUID) -> list[uuid.U
         ),
         {"e": envelope_id},
     )
-    return [row.id for row in rows]
+    turned = [row.id for row in rows]
+    schedule_next(session, turned)
+    return turned
 
 
 @dataclass(frozen=True)

@@ -33,6 +33,7 @@ from signora.modules.envelopes.errors import (
 )
 from signora.modules.envelopes.form import Colleague, FormSettings, SendForm, build_form
 from signora.modules.envelopes.links import link_key, make_token, signing_url
+from signora.modules.envelopes.schedule import schedule_next
 from signora.modules.envelopes.sending import Person, SendRequest, plan_send, split_name
 from signora.modules.envelopes.store import read_envelope, record_email, write_send
 from signora.modules.envelopes.views import EnvelopePage, EnvelopeSummary, EnvelopeView
@@ -112,13 +113,13 @@ class _From:
     sender_email: str
 
 
-def _from(session: Session, actor: Actor, sent_by: uuid.UUID | None = None) -> _From:
+def _from(session: Session, workspace_id: uuid.UUID, user_id: uuid.UUID) -> _From:
     row = session.execute(
         text(
             "SELECT w.name AS company, u.name, u.email FROM users u "
             "JOIN workspaces w ON w.id = u.workspace_id WHERE u.id = :u AND u.workspace_id = :w"
         ),
-        {"u": sent_by or actor.user_id, "w": actor.workspace_id},
+        {"u": user_id, "w": workspace_id},
     ).one()
     return _From(row.company, row.name, row.email)
 
@@ -177,6 +178,7 @@ def _email_sign_request(
         reply_to=sender.sender_email,
     )
     record_email(uow.session, recipient_id, email_id)
+    schedule_next(uow.session, [recipient_id])
 
 
 def send(
@@ -209,7 +211,7 @@ def send(
         settings=request.settings,
         time_zone=request.time_zone,
     )
-    sender = _from(session, actor)
+    sender = _from(session, actor.workspace_id, actor.user_id)
     for recipient_id, person in written.first:
         _email_sign_request(
             uow,
@@ -271,33 +273,45 @@ LIVE = frozenset({"sent", "opened", "viewed"})  # holds a working link and has n
 @dataclass(frozen=True)
 class _Locked:
     id: uuid.UUID
+    workspace_id: uuid.UUID
     status: str
     department_id: uuid.UUID
     document_name: str
     expires_at: datetime
     sent_by: uuid.UUID
     time_zone: str  # the sender's, for the dates in its emails
+    max_reminders: int
+    expired: bool  # now is at or past its expiry
+    last_chance: bool  # it expires within one reminder interval
 
     @property
     def expires_local(self) -> datetime:
         return self.expires_at.astimezone(ZoneInfo(self.time_zone))
 
 
+def _locked(session: Session, envelope_id: uuid.UUID, workspace_id: uuid.UUID) -> _Locked | None:
+    """The envelope under its row lock (the one every follow-up and the reminder sweep take)."""
+    row = session.execute(
+        text(
+            "SELECT e.id, e.workspace_id, e.status, e.department_id, d.name AS document_name, "
+            "e.expires_at, e.sent_by, e.time_zone, e.max_reminders, e.expires_at <= now() AS "
+            "expired, e.expires_at - make_interval(hours => e.reminder_interval_hours) <= now() "
+            "AS last_chance FROM envelopes e JOIN documents d ON d.id = e.document_id "
+            "WHERE e.id = :e AND e.workspace_id = :w FOR UPDATE OF e"
+        ),
+        {"e": envelope_id, "w": workspace_id},
+    ).one_or_none()
+    return None if row is None else _Locked(**row._mapping)
+
+
 def _lock(session: Session, actor: Actor, envelope_id: uuid.UUID) -> _Locked:
     """The envelope under its row lock, for someone who may send in its department; ``404`` for
     another company's."""
-    row = session.execute(
-        text(
-            "SELECT e.id, e.status, e.department_id, d.name AS document_name, e.expires_at, "
-            "e.sent_by, e.time_zone FROM envelopes e JOIN documents d ON d.id = e.document_id "
-            "WHERE e.id = :e AND e.workspace_id = :w FOR UPDATE OF e"
-        ),
-        {"e": envelope_id, "w": actor.workspace_id},
-    ).one_or_none()
-    if row is None:
+    envelope = _locked(session, envelope_id, actor.workspace_id)
+    if envelope is None:
         raise NotFound
-    load_access(session, actor).require(Permission.DOCUMENTS_SEND, row.department_id)
-    return _Locked(**row._mapping)
+    load_access(session, actor).require(Permission.DOCUMENTS_SEND, envelope.department_id)
+    return envelope
 
 
 def _open(session: Session, actor: Actor, envelope_id: uuid.UUID) -> _Locked:
@@ -340,6 +354,40 @@ def _one(session: Session, envelope_id: uuid.UUID, recipient_id: uuid.UUID) -> _
     return found[0]
 
 
+def _remind(uow: UnitOfWork, envelope: _Locked, due: list[_Recipient]) -> None:
+    """Email each a reminder, by hand or on schedule alike: counted, and their next one scheduled
+    an interval on. The dedupe key holds one email per count, whoever reminds."""
+    session = uow.session
+    sender = _from(session, envelope.workspace_id, envelope.sent_by)
+    for recipient in due:
+        count = recipient.reminders_sent + 1
+        letter = emails.sign_reminder(
+            company=sender.company,
+            signer=recipient.name,
+            document=envelope.document_name,
+            url=_link(recipient.id, recipient.link_version, recipient.kind),
+            expires_at=envelope.expires_local,
+            last_chance=envelope.last_chance,
+        )
+        email_id = send_email(
+            uow,
+            to=recipient.email,
+            subject=letter.subject,
+            text=letter.body.text,
+            html=letter.body.html,
+            category="sign_reminder",
+            workspace_id=envelope.workspace_id,
+            dedupe_key=f"sign_reminder:{recipient.id}:{count}",
+            reply_to=sender.sender_email,
+        )
+        session.execute(
+            text("UPDATE envelope_recipients SET reminders_sent = :n WHERE id = :r"),
+            {"n": count, "r": recipient.id},
+        )
+        record_email(session, recipient.id, email_id)
+    schedule_next(session, [recipient.id for recipient in due])
+
+
 def remind(
     uow: UnitOfWork,
     *,
@@ -360,34 +408,41 @@ def remind(
         if one.status not in LIVE:
             raise NotTheirTurn
         due = [one]
-    sender = _from(session, actor, envelope.sent_by)
-    for recipient in due:
-        count = recipient.reminders_sent + 1
-        letter = emails.sign_reminder(
-            company=sender.company,
-            signer=recipient.name,
-            document=envelope.document_name,
-            url=_link(recipient.id, recipient.link_version, recipient.kind),
-            expires_at=envelope.expires_local,
-        )
-        email_id = send_email(
-            uow,
-            to=recipient.email,
-            subject=letter.subject,
-            text=letter.body.text,
-            html=letter.body.html,
-            category="sign_reminder",
-            workspace_id=actor.workspace_id,
-            dedupe_key=f"sign_reminder:{recipient.id}:{count}",
-            reply_to=sender.sender_email,
-        )
-        session.execute(
-            text("UPDATE envelope_recipients SET reminders_sent = :n WHERE id = :r"),
-            {"n": count, "r": recipient.id},
-        )
-        record_email(session, recipient.id, email_id)
+    _remind(uow, envelope, due)
     details = {"recipient_id": str(recipient_id)} if recipient_id else {}
     _audit(uow, actor, "envelope.reminded", envelope_id, recipients=len(due), **details)
+    return len(due)
+
+
+def remind_automatically(uow: UnitOfWork, envelope_id: uuid.UUID, workspace_id: uuid.UUID) -> int:
+    """The reminder sweep's (reminders LLD §4): everyone of the envelope whose reminder is due,
+    checked again under the envelope's lock. Returns how many were emailed."""
+    session = uow.session
+    envelope = _locked(session, envelope_id, workspace_id)
+    if envelope is None or envelope.status in CLOSED or envelope.expired:
+        return 0
+    people = _recipients(session, envelope_id)  # locked before they are read for their schedule
+    due_ids = set(
+        session.execute(
+            text(
+                "SELECT id FROM envelope_recipients WHERE envelope_id = :e "
+                "AND next_reminder_at <= now() AND reminders_sent < :max"
+            ),
+            {"e": envelope_id, "max": envelope.max_reminders},
+        ).scalars()
+    )
+    due = [r for r in people if r.id in due_ids and r.status in LIVE]
+    if not due:
+        return 0
+    _remind(uow, envelope, due)
+    record(
+        uow,
+        chain=AuditChain.workspace(workspace_id),
+        actor=AuditActor.system(),
+        action="envelope.reminded",
+        subject=Subject("envelope", envelope_id),
+        data={"recipients": len(due), "automatic": True},
+    )
     return len(due)
 
 
@@ -402,7 +457,7 @@ def resend(
         raise RecipientSigned
     if recipient.status not in LIVE:
         raise NotTheirTurn
-    sender = _from(session, actor, envelope.sent_by)
+    sender = _from(session, actor.workspace_id, envelope.sent_by)
     letter = emails.sign_request(
         company=sender.company,
         sender=sender.sender,
@@ -497,7 +552,7 @@ def change_recipient(
     if email_changed and live:
         _email_sign_request(
             uow,
-            sender=_from(session, actor, envelope.sent_by),
+            sender=_from(session, actor.workspace_id, envelope.sent_by),
             workspace_id=actor.workspace_id,
             recipient_id=recipient_id,
             link_version=link_version,
@@ -556,7 +611,7 @@ def cancel(uow: UnitOfWork, *, actor: Actor, envelope_id: uuid.UUID) -> None:
         ),
         {"e": envelope_id},
     )
-    sender = _from(session, actor, envelope.sent_by)
+    sender = _from(session, actor.workspace_id, envelope.sent_by)
     for recipient in told:
         letter = emails.sign_withdrawn(
             company=sender.company, signer=recipient.name, document=envelope.document_name

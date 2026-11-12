@@ -1,4 +1,4 @@
-"""Tables of the envelopes module (Phase 7 LLD §9). Must match migrations 0019 to 0025."""
+"""Tables of the envelopes module (Phase 7 LLD §9). Must match migrations 0019 to 0034."""
 
 from __future__ import annotations
 
@@ -177,6 +177,8 @@ envelope_recipients = Table(
     Index(None, "last_email_id"),
     # A countersigner's inbox (Phase 8 §7.2): their waiting envelopes, one index range.
     Index(None, "user_id", "status", postgresql_where=text("kind = 'countersigner'")),
+    # The reminder sweep (reminders LLD §7): due people by one index range of live schedules.
+    Index(None, "next_reminder_at", postgresql_where=text("next_reminder_at IS NOT NULL")),
     # Search by a person's name or email (ADR S-1).
     Index(
         "ix_envelope_recipients_name_trgm",
