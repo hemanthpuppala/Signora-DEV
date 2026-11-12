@@ -1494,10 +1494,27 @@ export interface paths {
         /**
          * The company's logo (PNG), for its members' header
          * @description Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until
-         *     the logo changes.
+         *     the logo changes. A file missing from the store is fetched again; the name shows meanwhile.
          */
         get: operations["workspace_logo_api_v1_workspace_logo_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/website": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set or remove the company's website (owner only) */
+        put: operations["change_website_api_v1_workspace_website_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3710,6 +3727,14 @@ export interface components {
             /** Waiting */
             waiting: number;
         };
+        /** WebsiteRequest */
+        WebsiteRequest: {
+            /**
+             * Website
+             * @description Kept as its domain; empty or null removes it (and the logo)
+             */
+            website: string | null;
+        };
         /** WorkspaceView */
         WorkspaceView: {
             /**
@@ -3724,6 +3749,11 @@ export interface components {
             logo_url: string | null;
             /** Name */
             name: string;
+            /**
+             * Website
+             * @description The company's website as its domain, when given
+             */
+            website: string | null;
         };
         /**
          * Colleague
@@ -9328,6 +9358,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    change_website_api_v1_workspace_website_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebsiteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceView"];
+                };
             };
             /** @description Validation failed (problem details) */
             422: {

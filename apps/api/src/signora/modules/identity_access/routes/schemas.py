@@ -136,6 +136,12 @@ class ChangeRoleRequest(_Body):
     role_id: uuid.UUID
 
 
+class WebsiteRequest(_Body):
+    website: Annotated[str, StringConstraints(max_length=2048)] | None = Field(
+        description="Kept as its domain; empty or null removes it (and the logo)"
+    )
+
+
 class NameRequest(_Body):
     name: NameInput
 
@@ -154,6 +160,7 @@ class UserView(BaseModel):
 class WorkspaceView(BaseModel):
     id: uuid.UUID
     name: str
+    website: str | None = Field(description="The company's website as its domain, when given")
     logo_url: str | None = Field(
         description="The company's logo (PNG), changing with it; null while it has none"
     )
@@ -164,6 +171,7 @@ class WorkspaceView(BaseModel):
         return WorkspaceView(
             id=actor.workspace_id,
             name=actor.workspace_name if name is None else name,
+            website=actor.workspace_website,
             logo_url=None if logo is None else f"{WORKSPACE_LOGO_PATH}?v={logo[:16]}",
         )
 

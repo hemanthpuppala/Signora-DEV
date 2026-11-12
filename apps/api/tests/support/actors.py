@@ -37,6 +37,7 @@ def actor_for(db: Database, account: Member) -> Actor:
         name="x",
         workspace_id=account.workspace_id,
         workspace_name="x",
+        workspace_website=None,
         workspace_logo=None,
         role_id=uuid.uuid4(),
         role_key=row.key,

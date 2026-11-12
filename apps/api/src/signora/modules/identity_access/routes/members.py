@@ -9,12 +9,17 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import FileResponse
 
-from signora.kernel.blobstore import BlobStore
+from signora.kernel.blobstore import BlobNotFoundError, BlobStore
 from signora.kernel.errors import NotFound
 from signora.modules.identity_access import company_logo
 from signora.modules.identity_access import members as member_service
 from signora.modules.identity_access.access import Actor
-from signora.modules.identity_access.dependencies import current_actor, database_of, require
+from signora.modules.identity_access.dependencies import (
+    current_actor,
+    database_of,
+    require,
+    settings_of,
+)
 from signora.modules.identity_access.domain.permissions import Permission
 from signora.modules.identity_access.routes.schemas import (
     ChangeRoleRequest,
@@ -25,8 +30,10 @@ from signora.modules.identity_access.routes.schemas import (
     NameRequest,
     RoleDetailView,
     RoleRef,
+    WebsiteRequest,
     WorkspaceView,
 )
+from signora.modules.identity_access.signup import valid_website
 
 router = APIRouter(prefix="/api/v1", tags=["members"])
 Manager = Annotated[Actor, Depends(require(Permission.MEMBERS_MANAGE))]
@@ -99,6 +106,23 @@ def rename_workspace(
     return WorkspaceView.of(actor, name=name)
 
 
+@router.put("/workspace/website", summary="Set or remove the company's website (owner only)")
+def change_website(
+    body: WebsiteRequest, request: Request, actor: Annotated[Actor, Depends(current_actor)]
+) -> WorkspaceView:
+    domain = valid_website(body.website)
+    with database_of(request).unit_of_work() as uow:
+        member_service.change_website(
+            uow, actor=actor, domain=domain, queue=settings_of(request).logo.configured
+        )
+    same = domain == actor.workspace_website
+    return WorkspaceView.of(
+        dataclasses.replace(
+            actor, workspace_website=domain, workspace_logo=actor.workspace_logo if same else None
+        )
+    )
+
+
 @router.get(
     "/workspace/logo",
     summary="The company's logo (PNG), for its members' header",
@@ -108,14 +132,23 @@ def workspace_logo(
     request: Request, actor: Annotated[Actor, Depends(current_actor)]
 ) -> FileResponse:
     """Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until
-    the logo changes."""
+    the logo changes. A file missing from the store is fetched again; the name shows meanwhile."""
     with database_of(request).unit_of_work() as uow:
         logo = company_logo.logo_of(uow.session, actor.workspace_id)
-    if logo is None:
+        if logo is None:
+            raise NotFound("This company has no logo")
+        store: BlobStore = request.app.state.blob_store
+        try:
+            path = store.path(logo)
+        except BlobNotFoundError:
+            company_logo.forget_missing(
+                uow.session, logo, queue=settings_of(request).logo.configured
+            )
+            path = None
+    if path is None:
         raise NotFound("This company has no logo")
-    store: BlobStore = request.app.state.blob_store
     return FileResponse(
-        store.path(logo),
+        path,
         media_type="image/png",
         headers={
             "Cache-Control": "private, max-age=31536000, immutable",

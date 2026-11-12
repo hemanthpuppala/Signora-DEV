@@ -1,8 +1,8 @@
 """logo.dev's brand API: a company's logo by its domain (Company logo LLD §5). No database here.
 
-The API answers with a short-lived download link; the logo is downloaded from it at once, as a
-PNG sized for the header, and kept by the caller (logo.dev's self-hosting rule: keep the file,
-never the link).
+Two steps, so a refresh downloads nothing when the logo is unchanged: ``look_up`` answers the
+logo's version (``etag``) and a short-lived download link; ``download`` fetches the PNG from it,
+sized for the header (logo.dev's self-hosting rule: keep the file, never the link).
 """
 
 from __future__ import annotations
@@ -22,24 +22,24 @@ LOGO_SIZE = 128  # pixels on the long side: the header shows it about 28 px tall
 MAX_LOGO_BYTES = 512 * 1024
 TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-_RETRYABLE = frozenset({httpx.codes.ACCEPTED, httpx.codes.TOO_MANY_REQUESTS})
+_NOT_NOW = frozenset({httpx.codes.ACCEPTED, httpx.codes.TOO_MANY_REQUESTS})
 
 
 @dataclass(frozen=True)
-class Logo:
-    png: bytes
+class FoundLogo:
+    link: httpx.URL
     etag: str
 
 
 class LogoDevUnavailableError(RuntimeError):
-    """logo.dev cannot answer now (still indexing the brand, rate limit, outage): retry later."""
+    """logo.dev did not answer in time or cannot now (indexing the brand, rate limit, outage)."""
 
 
-def find_logo(domain: str, *, secret_key: SecretStr, client: httpx.Client) -> Logo | None:
-    """The brand's logo as a PNG on a dark background, or ``None`` when there is none to show.
+def look_up(domain: str, *, secret_key: SecretStr, client: httpx.Client) -> FoundLogo | None:
+    """The brand's logo version and download link, or ``None`` when there is none to show.
 
-    Raises ``LogoDevUnavailableError`` when asking again later may succeed. A refusal retrying
-    cannot fix (a bad or unpaid key) is logged and answered ``None``: the company keeps its name.
+    Raises ``LogoDevUnavailableError`` when asking again later may succeed. A refusal asking again
+    cannot fix (a bad or unpaid key) is logged and answered ``None``.
     """
     try:
         answer = client.get(
@@ -49,7 +49,7 @@ def find_logo(domain: str, *, secret_key: SecretStr, client: httpx.Client) -> Lo
         )
     except httpx.HTTPError as error:
         raise LogoDevUnavailableError(f"logo.dev unreachable: {type(error).__name__}") from error
-    _raise_if_retryable(answer)
+    _raise_if_not_now(answer)
     if answer.status_code == httpx.codes.NOT_FOUND:
         return None
     if answer.status_code != httpx.codes.OK:
@@ -64,19 +64,17 @@ def find_logo(domain: str, *, secret_key: SecretStr, client: httpx.Client) -> Lo
     if link.scheme != "https" or not _is_logo_dev(link.host):
         log.warning("company_logo.unexpected_link", host=link.host, domain=domain)
         return None
-    sized = link.copy_merge_params({"format": "png", "size": LOGO_SIZE, "theme": "dark"})
-    png = _download(client, sized)
-    if png is None:
-        log.warning("company_logo.unusable_file", domain=domain)
-        return None
-    return Logo(png=png, etag=etag)
+    return FoundLogo(link=link, etag=etag)
 
 
-def _download(client: httpx.Client, link: httpx.URL) -> bytes | None:
-    """The PNG at the link, read no further than ``MAX_LOGO_BYTES``; ``None`` if it is not one."""
+def download(found: FoundLogo, *, client: httpx.Client) -> bytes | None:
+    """The logo as a PNG for a dark background, read no further than ``MAX_LOGO_BYTES``;
+    ``None`` when the file is not a small PNG. Raises ``LogoDevUnavailableError`` like
+    ``look_up``."""
+    sized = found.link.copy_merge_params({"format": "png", "size": LOGO_SIZE, "theme": "dark"})
     try:
-        with client.stream("GET", link) as answer:
-            _raise_if_retryable(answer)
+        with client.stream("GET", sized) as answer:
+            _raise_if_not_now(answer)
             if answer.status_code != httpx.codes.OK:
                 return None
             body = bytearray()
@@ -89,8 +87,8 @@ def _download(client: httpx.Client, link: httpx.URL) -> bytes | None:
     return bytes(body) if body.startswith(PNG_SIGNATURE) else None
 
 
-def _raise_if_retryable(answer: httpx.Response) -> None:
-    if answer.status_code in _RETRYABLE or answer.status_code >= httpx.codes.INTERNAL_SERVER_ERROR:
+def _raise_if_not_now(answer: httpx.Response) -> None:
+    if answer.status_code in _NOT_NOW or answer.status_code >= httpx.codes.INTERNAL_SERVER_ERROR:
         raise LogoDevUnavailableError(f"logo.dev answered {answer.status_code}")
 
 

@@ -31,19 +31,24 @@ def create_session(
     return token
 
 
+# What an actor is made of (``_actor``), from ``users u``, ``workspaces w`` and ``roles r``.
+_ACTOR_COLUMNS = """
+    u.id AS user_id, u.email, u.name, u.workspace_id, w.name AS workspace_name,
+    w.website AS workspace_website, w.logo_sha256 AS workspace_logo,
+    w.created_by = u.id AS is_creator,
+    r.id AS role_id, r.key AS role_key, r.name AS role_name,
+    r.description AS role_description, r.permissions
+"""
+
+
 def resolve_session(
     session: Session, digest: bytes, *, idle: timedelta, touch: timedelta
 ) -> Actor | None:
     """The actor of a live session of an active user, or ``None``. Touches it when due."""
     row = session.execute(
         text(
-            """
-            SELECT s.user_id, s.last_seen_at < now() - make_interval(secs => :touch) AS due,
-                   u.email, u.name, u.workspace_id, w.name AS workspace_name,
-                   w.logo_sha256 AS workspace_logo,
-                   w.created_by = u.id AS is_creator,
-                   r.id AS role_id, r.key AS role_key, r.name AS role_name,
-                   r.description AS role_description, r.permissions
+            f"""
+            SELECT s.last_seen_at < now() - make_interval(secs => :touch) AS due, {_ACTOR_COLUMNS}
             FROM sessions s
             JOIN users u ON u.id = s.user_id
             JOIN workspaces w ON w.id = u.workspace_id
@@ -51,7 +56,7 @@ def resolve_session(
             WHERE s.id_hash = :digest
               AND s.last_seen_at > now() - make_interval(secs => :idle)
               AND u.deactivated_at IS NULL
-            """
+            """  # noqa: S608 - the columns are a constant of this module
         ),
         {"digest": digest, "idle": idle.total_seconds(), "touch": touch.total_seconds()},
     ).one_or_none()
@@ -73,6 +78,7 @@ def _actor(row: Any, digest: bytes) -> Actor:
         name=row.name,
         workspace_id=row.workspace_id,
         workspace_name=row.workspace_name,
+        workspace_website=row.workspace_website,
         workspace_logo=row.workspace_logo,
         role_id=row.role_id,
         role_key=row.role_key,
@@ -90,17 +96,13 @@ def actor_of(session: Session, workspace_id: uuid.UUID, user_id: uuid.UUID) -> A
     request of theirs would. ``None`` once they are deactivated."""
     row = session.execute(
         text(
-            """
-            SELECT u.id AS user_id, u.email, u.name, u.workspace_id, w.name AS workspace_name,
-                   w.logo_sha256 AS workspace_logo,
-                   w.created_by = u.id AS is_creator,
-                   r.id AS role_id, r.key AS role_key, r.name AS role_name,
-                   r.description AS role_description, r.permissions
+            f"""
+            SELECT {_ACTOR_COLUMNS}
             FROM users u
             JOIN workspaces w ON w.id = u.workspace_id
             JOIN roles r ON r.id = u.role_id
             WHERE u.id = :user AND u.workspace_id = :workspace AND u.deactivated_at IS NULL
-            """
+            """  # noqa: S608 - the columns are a constant of this module
         ),
         {"user": user_id, "workspace": workspace_id},
     ).one_or_none()

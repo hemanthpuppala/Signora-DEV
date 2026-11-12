@@ -5821,6 +5821,29 @@
         "title": "WaitingPage",
         "type": "object"
       },
+      "WebsiteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Kept as its domain; empty or null removes it (and the logo)",
+            "title": "Website"
+          }
+        },
+        "required": [
+          "website"
+        ],
+        "title": "WebsiteRequest",
+        "type": "object"
+      },
       "WorkspaceView": {
         "properties": {
           "id": {
@@ -5843,11 +5866,24 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The company's website as its domain, when given",
+            "title": "Website"
           }
         },
         "required": [
           "id",
           "name",
+          "website",
           "logo_url"
         ],
         "title": "WorkspaceView",
@@ -13967,7 +14003,7 @@
     },
     "/api/v1/workspace/logo": {
       "get": {
-        "description": "Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until\nthe logo changes.",
+        "description": "Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until\nthe logo changes. A file missing from the store is fetched again; the name shows meanwhile.",
         "operationId": "workspace_logo_api_v1_workspace_logo_get",
         "responses": {
           "200": {
@@ -14020,6 +14056,82 @@
           }
         },
         "summary": "The company's logo (PNG), for its members' header",
+        "tags": [
+          "members"
+        ]
+      }
+    },
+    "/api/v1/workspace/website": {
+      "put": {
+        "operationId": "change_website_api_v1_workspace_website_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebsiteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Set or remove the company's website (owner only)",
         "tags": [
           "members"
         ]

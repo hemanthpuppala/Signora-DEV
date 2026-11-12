@@ -61,6 +61,7 @@ def test_log_in_returns_the_user_and_sets_hardened_cookies(
     assert body["workspace"] == {
         "id": str(account.workspace_id),
         "name": "Hale & Ward LLP",
+        "website": None,
         "logo_url": None,
     }
     assert body["role"]["key"] == "read_write"

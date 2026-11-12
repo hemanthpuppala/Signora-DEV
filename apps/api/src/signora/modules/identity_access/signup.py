@@ -109,10 +109,11 @@ def complete_signup(
     website: str | None,
     name: str,
     password: str,
+    queue_logo_lookup: bool,
 ) -> str:
     """Create the workspace and its creator; returns the email. No session here: the page logs in
-    next (LLD §1.2). A website queues the look-up of the company's logo, which never holds the
-    sign-up up."""
+    next (LLD §1.2). A website plans the look-up of the company's logo, queued now when logos are
+    configured; it never holds the sign-up up."""
     domain = valid_website(website)
     # Lock order: the address first, then the link. Completing marks every link of the address
     # used, so taking a link's row lock before the address lock would deadlock two completions.
@@ -133,5 +134,5 @@ def complete_signup(
     )
     links.use_up_links(uow.session, purpose="signup", email=link.email)
     if domain is not None:
-        company_logo.request_logo(uow.session, workspace_id=created.workspace_id, domain=domain)
+        company_logo.plan_check(uow.session, created.workspace_id, queue=queue_logo_lookup)
     return link.email

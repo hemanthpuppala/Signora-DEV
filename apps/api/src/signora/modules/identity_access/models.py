@@ -43,12 +43,16 @@ workspaces = Table(
     Column("logo_sha256", Text),
     Column("logo_bytes", Integer),
     Column("logo_etag", Text),
+    Column("logo_check_due_at", DateTime(timezone=True)),
     CheckConstraint("char_length(name) BETWEEN 1 AND 120", name="name_length"),
     CheckConstraint("char_length(website) BETWEEN 4 AND 253", name="website_length"),
     CheckConstraint(
         "(logo_sha256 IS NULL) = (logo_bytes IS NULL) "
         "AND (logo_sha256 IS NULL OR website IS NOT NULL)",
         name="logo_complete",
+    ),
+    CheckConstraint(
+        "logo_check_due_at IS NULL OR website IS NOT NULL", name="logo_check_has_website"
     ),
     CheckConstraint(
         f"created_by IS NOT NULL OR id = '{SYSTEM_WORKSPACE}'", name="creator_required"
@@ -61,6 +65,13 @@ workspaces = Table(
         initially="DEFERRED",
         name="fk_workspaces_created_by_users",
     ),
+)
+
+# The logo checks that are due (the sweep's scan): only workspaces with a check planned.
+Index(
+    "ix_workspaces_logo_check_due_at",
+    workspaces.c.logo_check_due_at,
+    postgresql_where=workspaces.c.logo_check_due_at.isnot(None),
 )
 
 roles = Table(

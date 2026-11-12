@@ -1,7 +1,8 @@
 """A company's website and its logo (Company logo LLD §6).
 
 The website is kept as its domain; the logo found for it is a blob of the workspace, set by a
-background job after sign-up. Both are optional: a company without them shows its name.
+background job, and looked up again when ``logo_check_due_at`` comes (a sweep queues those).
+Both are optional: a company without them shows its name.
 
 Numbered after 0027 and 0028, written on a parallel branch from the same 0026; merged after them,
 it follows 0028.
@@ -36,6 +37,9 @@ def upgrade() -> None:
     op.add_column("workspaces", sa.Column("logo_sha256", sa.Text(), nullable=True))
     op.add_column("workspaces", sa.Column("logo_bytes", sa.Integer(), nullable=True))
     op.add_column("workspaces", sa.Column("logo_etag", sa.Text(), nullable=True))
+    op.add_column(
+        "workspaces", sa.Column("logo_check_due_at", sa.DateTime(timezone=True), nullable=True)
+    )
     op.create_check_constraint(
         op.f("ck_workspaces_website_length"),
         "workspaces",
@@ -47,11 +51,24 @@ def upgrade() -> None:
         "(logo_sha256 IS NULL) = (logo_bytes IS NULL) "
         "AND (logo_sha256 IS NULL OR website IS NOT NULL)",
     )
+    op.create_check_constraint(
+        op.f("ck_workspaces_logo_check_has_website"),
+        "workspaces",
+        "logo_check_due_at IS NULL OR website IS NOT NULL",
+    )
+    op.create_index(
+        "ix_workspaces_logo_check_due_at",
+        "workspaces",
+        ["logo_check_due_at"],
+        postgresql_where=sa.text("logo_check_due_at IS NOT NULL"),
+    )
     op.execute(f"SET CONSTRAINTS {_CREATOR_FK} DEFERRED")
 
 
 def downgrade() -> None:
+    op.drop_index("ix_workspaces_logo_check_due_at", table_name="workspaces")
+    op.drop_constraint(op.f("ck_workspaces_logo_check_has_website"), "workspaces", type_="check")
     op.drop_constraint(op.f("ck_workspaces_logo_complete"), "workspaces", type_="check")
     op.drop_constraint(op.f("ck_workspaces_website_length"), "workspaces", type_="check")
-    for column in ("logo_etag", "logo_bytes", "logo_sha256", "website"):
+    for column in ("logo_check_due_at", "logo_etag", "logo_bytes", "logo_sha256", "website"):
         op.drop_column("workspaces", column)

@@ -56,7 +56,8 @@ def complete(
     guard: Annotated[IdempotencyGuard, Depends(idempotency_guard)],
 ) -> JSONResponse:
     """No session is set here; the page logs in with the new password next."""
-    policy = PasswordPolicy(min_length=settings_of(request).auth.password_min_length)
+    settings = settings_of(request)
+    policy = PasswordPolicy(min_length=settings.auth.password_min_length)
     with database_of(request).unit_of_work() as uow:
         if (replay := guard.begin(uow)) is not None:
             return replay
@@ -68,5 +69,6 @@ def complete(
             website=body.website,
             name=body.name,
             password=body.password,
+            queue_logo_lookup=settings.logo.configured,
         )
         return guard.finish(uow, status.HTTP_201_CREATED, {"email": email})
