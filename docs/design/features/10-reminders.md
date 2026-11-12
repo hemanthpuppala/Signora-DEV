@@ -82,9 +82,10 @@ platform design describes (FR-33, §5.5).
 
 ## 8. Interfaces
 
-- `schedule.schedule_next(session, recipient_ids) -> None`
+- `schedule.schedule_next(session, recipient_ids) -> None` (the rule; cancel clears it, migration 0034 applied it)
 - `reminders.remind_due(database) -> int` (how many people were reminded); job kind `envelopes.remind_due`.
-- `service.remind_automatically(uow, envelope_id) -> int`
+- `service.remind_automatically(uow, envelope_id, workspace_id, *, at_most) -> int`
+- `notifications.spare_capacity(session, share) -> int` (how many more emails fit in a share of the daily limit)
 - `emails.sign_reminder(..., last_chance: bool)`
 
 ## 9. Test strategy
@@ -106,7 +107,8 @@ platform design describes (FR-33, §5.5).
 | 1 | Schedule on send, turn, corrected email and reminder; index and backfill (0034) | done | commit f512697; `test_reminders.py` (7), `test_data_migrations.py::test_0034_…` |
 | 2 | The sweep job and the shared reminder; last-chance wording | done | commit f512697; `reminders.py`, `service._remind`; `test_reminders.py` |
 | 3 | Next reminder on the envelope page | done | commit 31e6650; `envelopes.test.tsx` |
-| 4 | Full gate, live check | in-progress | gate: 1,088 API and 388 web tests, lint, types, imports, build, contracts (commit 31e6650); live check after deploy |
+| 4 | Review of PR #35: 11 findings fixed one per commit | done | 2e0fbad (corrected email), 0cd44f0 (spread backfill), 2742d48 (email share), fac8ed1 (lock order), 8db0084 (two sweeps), 0ca3d25 (failed address), 6bff88b (expiry margin), 105529e (timeline names), 0e35b33 (next reminder words), b7b0770 (tests), this commit (doc) |
+| 5 | Full gate, live check | in-progress | — |
 
 Deviation: tasks 1 and 2 share one commit, since the manual and automatic reminders were made one
 code path (`service._remind`) in the same change.
