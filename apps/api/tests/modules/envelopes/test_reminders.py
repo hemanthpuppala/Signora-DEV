@@ -13,7 +13,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from signora.kernel.db import Database
-from signora.modules.envelopes import every_signer_signed, reminders
+from signora.modules.envelopes import (
+    every_signer_signed,
+    lock_envelope,
+    recipient_for_signing,
+    record_opened,
+    reminders,
+)
 from signora.modules.envelopes.reminders import remind_due
 from signora.modules.notifications import service as notifications_service
 from signora.modules.notifications import spare_capacity
@@ -287,3 +293,42 @@ def test_reminders_use_only_their_share_of_the_daily_email_limit(
     assert sorted(sent) == [0, 1]
     left = people[sent.index(0)]
     assert _schedule(committing_db, left["id"]).next_reminder_at is not None  # due next sweep
+
+
+def test_an_open_waits_for_the_envelope_before_it_locks_the_person(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    """The lock order of the sweep (envelope, then its people) is every writer's: an open that
+    locked the person first and then waited for the envelope would deadlock with a reminder."""
+    _, envelope = sent_envelope(owner, run, detect, company)
+    signer = envelope["recipients"][0]
+
+    def open_link() -> None:
+        with committing_db.unit_of_work() as uow:
+            recipient = recipient_for_signing(uow.session, uuid.UUID(signer["id"]))
+            assert recipient is not None
+            record_opened(uow.session, recipient)
+
+    with committing_db.unit_of_work() as sweep:  # a reminder holding the envelope
+        lock_envelope(sweep.session, uuid.UUID(envelope["id"]))
+        opening = threading.Thread(target=open_link)
+        opening.start()
+        opening.join(timeout=0.5)  # waiting on the envelope
+        assert opening.is_alive()
+        with committing_db.unit_of_work() as other:  # the person's row is still free
+            other.session.execute(
+                text("SELECT 1 FROM envelope_recipients WHERE id = :r FOR UPDATE NOWAIT"),
+                {"r": signer["id"]},
+            )
+    opening.join(timeout=5)
+    assert not opening.is_alive()
+    assert _schedule(committing_db, signer["id"]).next_reminder_at is not None
+    with committing_db.unit_of_work() as uow:
+        status = uow.session.execute(
+            text("SELECT status FROM envelope_recipients WHERE id = :r"), {"r": signer["id"]}
+        ).scalar_one()
+    assert status == "opened"

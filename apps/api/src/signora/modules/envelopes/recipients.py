@@ -78,7 +78,10 @@ def recipient_for_signing(session: Session, recipient_id: uuid.UUID) -> SignerRe
 def record_opened(session: Session, recipient: SignerRecipient) -> bool:
     """The first accepted open (Phase 8 §1.1.5): the recipient is ``opened`` and the envelope too
     while it is ``sent``. ``True`` only for the open that recorded it, so two opens at the same
-    moment record it once. Statuses only move forward."""
+    moment record it once. Statuses only move forward. The envelope's lock is taken first, the
+    order every writer of an envelope's rows keeps (a reminder locks the envelope, then its people),
+    so an open and a reminder at the same moment wait for each other instead of deadlocking."""
+    lock_envelope(session, recipient.envelope_id)
     opened = session.execute(
         text(
             "UPDATE envelope_recipients SET opened_at = now(), "
@@ -98,7 +101,9 @@ def record_opened(session: Session, recipient: SignerRecipient) -> bool:
 
 def record_viewed(session: Session, recipient: SignerRecipient) -> bool:
     """The document first shown to the person (Phase 8 §4.5): ``viewed``, and the envelope too
-    while it is ``opened``. Once; statuses only move forward."""
+    while it is ``opened``. Once; statuses only move forward. The envelope's lock first, as for
+    an open."""
+    lock_envelope(session, recipient.envelope_id)
     viewed = session.execute(
         text(
             "UPDATE envelope_recipients SET viewed_at = now(), "
@@ -143,8 +148,9 @@ def envelope_values(session: Session, envelope_id: uuid.UUID) -> list[GivenValue
 
 
 def lock_envelope(session: Session, envelope_id: uuid.UUID) -> None:
-    """The envelope's row lock (Phase 8 §6.2): every submit, decline and cancel of one envelope
-    takes it first, so they apply one at a time and exactly one submit is the last."""
+    """The envelope's row lock (Phase 8 §6.2): every submit, decline, cancel, open, view and
+    reminder of one envelope takes it before its people's rows, so they apply one at a time,
+    exactly one submit is the last, and two of them never wait on each other in a cycle."""
     session.execute(text("SELECT 1 FROM envelopes WHERE id = :e FOR UPDATE"), {"e": envelope_id})
 
 
