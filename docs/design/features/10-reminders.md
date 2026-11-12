@@ -28,6 +28,7 @@ platform design describes (FR-33, §5.5).
 | NFR-R1 | A sweep finds due people by an index range on `next_reminder_at`, O(log N + due), never a scan of all recipients. |
 | NFR-R2 | A reminder goes out within 5 minutes of being due. |
 | NFR-R3 | One envelope that cannot be reminded (its data broken) never stops the others; it is logged and tried again on the next sweep. |
+| NFR-R5 | Reminders use at most 70% of the daily email limit (sent in the last 24 hours plus queued), so sign requests and email codes always have room; whoever is left over stays due for the next sweep. |
 | NFR-R4 | Envelopes already out when this ships are scheduled at their own next slot, spread as their sends were, not all at once. |
 
 ## 4. Business logic

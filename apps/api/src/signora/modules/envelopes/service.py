@@ -415,9 +415,12 @@ def remind(
     return len(due)
 
 
-def remind_automatically(uow: UnitOfWork, envelope_id: uuid.UUID, workspace_id: uuid.UUID) -> int:
+def remind_automatically(
+    uow: UnitOfWork, envelope_id: uuid.UUID, workspace_id: uuid.UUID, *, at_most: int
+) -> int:
     """The reminder sweep's (reminders LLD §4): everyone of the envelope whose reminder is due,
-    checked again under the envelope's lock. Returns how many were emailed."""
+    checked again under the envelope's lock, up to ``at_most`` (the rest stay due for the next
+    sweep). Returns how many were emailed."""
     session = uow.session
     envelope = _locked(session, envelope_id, workspace_id)
     if envelope is None or envelope.status in CLOSED or envelope.expired:
@@ -432,7 +435,7 @@ def remind_automatically(uow: UnitOfWork, envelope_id: uuid.UUID, workspace_id: 
             {"e": envelope_id, "max": envelope.max_reminders},
         ).scalars()
     )
-    due = [r for r in people if r.id in due_ids and r.status in LIVE]
+    due = [r for r in people if r.id in due_ids and r.status in LIVE][:at_most]
     if not due:
         return 0
     _remind(uow, envelope, due)

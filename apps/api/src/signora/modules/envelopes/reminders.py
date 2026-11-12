@@ -13,12 +13,16 @@ from signora.kernel.jobs import JobContext, JobKind, JobRegistry, RecurringJob
 from signora.kernel.logging import get_logger
 from signora.modules.envelopes import service
 from signora.modules.envelopes.schedule import OPEN, STILL_TO_ACT
+from signora.modules.notifications import spare_capacity
 
 log = get_logger("signora.envelopes.reminders")
 
 SWEEP = "envelopes.remind_due"
 EVERY = timedelta(minutes=5)
 BATCH = 100  # envelopes per pass
+# Reminders can wait; a sign request or an email code cannot. Reminders use at most this share of
+# the daily email limit, so the rest is always there for mail a person is waiting for.
+REMINDER_SHARE = 0.7
 
 # A due schedule nobody can be reminded on (signed, declined, the envelope closed or expired, the
 # maximum reached): cleared, so the index holds only live schedules. Constants, never input.
@@ -31,13 +35,17 @@ _CLEAR_DEAD = (
 
 
 def remind_due(database: Database) -> int:
-    """Remind everyone due now; how many were emailed. One envelope that fails is logged and left
-    for the next sweep (its schedule is unchanged); the others still go. O(log N + due)."""
+    """Remind everyone due now, within the reminders' share of the daily email limit; how many
+    were emailed. Whoever is left over, and an envelope that fails (logged), stay due for the next
+    sweep with their schedule unchanged; the others still go. O(log N + due)."""
     with database.unit_of_work() as uow:
         uow.session.execute(text(_CLEAR_DEAD))
+        budget = spare_capacity(uow.session, REMINDER_SHARE)
+    if budget <= 0:
+        return 0  # the day's reminder share is spent: everyone due stays due
     reminded = 0
     seen: set[uuid.UUID] = set()  # each envelope once a sweep, reminded or not: the loop ends
-    while True:
+    while budget > reminded:
         with database.unit_of_work() as uow:
             due = uow.session.execute(
                 text(
@@ -49,14 +57,20 @@ def remind_due(database: Database) -> int:
                 {"seen": list(seen), "n": BATCH},
             ).all()
         for envelope_id, workspace_id in due:
+            if reminded >= budget:
+                break
             seen.add(envelope_id)
             try:
                 with database.unit_of_work() as uow:
-                    reminded += service.remind_automatically(uow, envelope_id, workspace_id)
+                    reminded += service.remind_automatically(
+                        uow, envelope_id, workspace_id, at_most=budget - reminded
+                    )
             except Exception:  # one envelope's data never stops the others' reminders
                 log.exception("reminders.envelope_failed", envelope_id=str(envelope_id))
         if len(due) < BATCH:
             return reminded
+    log.warning("reminders.waiting_for_capacity", reminded=reminded)  # the rest: next sweeps
+    return reminded
 
 
 def _sweep(context: JobContext) -> None:

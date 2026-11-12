@@ -65,6 +65,19 @@ class AttachedFile:
     content_type: str = "application/pdf"
 
 
+def spare_capacity(session: Session, share: float) -> int:
+    """How many more emails fit in ``share`` of the daily limit: the emails sent in the last 24
+    hours and those still queued count against it. Lets mail that can wait (reminders) leave the
+    rest of the day's limit to mail a person is waiting for (sign requests, email codes)."""
+    used: int = session.execute(
+        sql(
+            "SELECT count(*) FROM email_messages WHERE status = 'queued' "
+            "OR (status = 'sent' AND sent_at > now() - interval '24 hours')"
+        )
+    ).scalar_one()
+    return max(0, int(_default_daily_limit() * share) - used)
+
+
 def send_email(
     uow: UnitOfWork,
     *,

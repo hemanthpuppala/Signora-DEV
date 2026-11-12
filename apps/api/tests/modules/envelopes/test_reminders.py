@@ -8,12 +8,15 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from signora.kernel.db import Database
-from signora.modules.envelopes import every_signer_signed
+from signora.modules.envelopes import every_signer_signed, reminders
 from signora.modules.envelopes.reminders import remind_due
+from signora.modules.notifications import service as notifications_service
+from signora.modules.notifications import spare_capacity
 from tests.modules.documents.conftest import csrf_headers
 from tests.modules.envelopes.conftest import sendable
 from tests.modules.envelopes.test_follow import ENVELOPES, emails_to, post, sent_envelope
@@ -245,3 +248,42 @@ def test_two_sweeps_at_once_send_one_reminder(
 
     assert len(_reminders(committing_db, signer["email"])) == 1
     assert _schedule(committing_db, signer["id"]).reminders_sent == 1
+
+
+def test_reminders_use_only_their_share_of_the_daily_email_limit(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reminders can wait; sign requests and email codes cannot (reminders LLD, review of #35)."""
+    with committing_db.unit_of_work() as uow:
+        used = uow.session.execute(
+            text(
+                "SELECT count(*) FROM email_messages WHERE status = 'queued' "
+                "OR (status = 'sent' AND sent_at > now() - interval '24 hours')"
+            )
+        ).scalar_one()
+        monkeypatch.setattr(notifications_service, "_default_daily_limit", lambda: used + 10)
+        assert spare_capacity(uow.session, 1.0) == 10
+        assert spare_capacity(uow.session, 0.0) == 0  # never below nothing
+
+    doc = sendable(owner, run, detect)
+    people = []
+    for name in ("first", "second"):
+        address = f"{name}-{uuid.uuid4().hex[:8]}@example.com"
+        signers = [{"party_id": doc.party("Client")["id"], "name": "Maya Chen", "email": address}]
+        response = send(owner, doc, request_for(owner, doc, company, signers=signers))
+        assert response.status_code == 201, response.text
+        people.append(response.json()["recipients"][0])
+        _due(committing_db, people[-1]["id"])
+    monkeypatch.setattr(reminders, "spare_capacity", lambda _session, _share: 1)
+
+    assert remind_due(committing_db) == 1
+
+    sent = [len(_reminders(committing_db, p["email"])) for p in people]
+    assert sorted(sent) == [0, 1]
+    left = people[sent.index(0)]
+    assert _schedule(committing_db, left["id"]).next_reminder_at is not None  # due next sweep
