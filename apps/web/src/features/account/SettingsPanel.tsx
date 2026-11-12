@@ -110,7 +110,9 @@ function PasswordForm() {
         <FieldGrid>
           <PasswordField
             label="Current password"
-            autoComplete="current-password"
+            // Typed by the person, never filled in by the browser: changing a password asks them
+            // to prove they know the one they have.
+            autoComplete="off"
             required
             value={current}
             error={errors.current_password}
