@@ -5,8 +5,8 @@ from its pixels and the AI reads the pictures (``05c-scanned-documents.md``). Ev
 ``needs_ocr`` becomes ``detecting`` with its detection queued, as the event would have done, the way
 0016 queued the processed versions. The status stays allowed: nothing sets it any more.
 
-Revision ID: 0027
-Revises: 0026
+Revision ID: 0031
+Revises: 0030
 """
 
 from __future__ import annotations
@@ -15,12 +15,12 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0027"
-down_revision: str | None = "0026"
+revision: str = "0031"
+down_revision: str | None = "0030"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# The queued jobs' dedupe keys end with "scanned-0027", so the downgrade finds them (matched
+# The queued jobs' dedupe keys end with "scanned-0031", so the downgrade finds them (matched
 # without a colon before it: in SQL text, ":word" is read as a bind parameter).
 
 
@@ -35,7 +35,7 @@ def upgrade() -> None:
                    'workspace_id', v.workspace_id,
                    'document_id', v.document_id,
                    'version_id', v.id),
-               'event:' || e.event_id || ':detection:scanned-0027'
+               'event:' || e.event_id || ':detection:scanned-0031'
         FROM document_versions v
         CROSS JOIN LATERAL (SELECT gen_random_uuid() AS event_id) e
         WHERE v.status = 'needs_ocr'
@@ -50,8 +50,8 @@ def downgrade() -> None:
         UPDATE document_versions SET status = 'needs_ocr'
         WHERE id IN (
             SELECT (payload ->> 'version_id')::uuid FROM jobs
-            WHERE dedupe_key LIKE '%scanned-0027'
+            WHERE dedupe_key LIKE '%scanned-0031'
         ) AND status = 'detecting'
         """
     )
-    op.execute("DELETE FROM jobs WHERE dedupe_key LIKE '%scanned-0027'")
+    op.execute("DELETE FROM jobs WHERE dedupe_key LIKE '%scanned-0031'")

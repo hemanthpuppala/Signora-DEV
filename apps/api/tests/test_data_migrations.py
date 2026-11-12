@@ -163,7 +163,7 @@ def test_0016_queues_detection_for_every_processed_version_and_back(
     engine.dispose()
 
 
-def test_0027_queues_detection_for_every_scanned_version_and_back(
+def test_0031_queues_detection_for_every_scanned_version_and_back(
     scratch: DatabaseSettings,
 ) -> None:
     """Phase 5c: a version stopped at needs_ocr becomes detecting with its detection queued; the
@@ -171,28 +171,28 @@ def test_0027_queues_detection_for_every_scanned_version_and_back(
     from signora.modules.documents.processing import DocumentVersionProcessed
 
     config = alembic_config(scratch)
-    command.upgrade(config, "0026")
+    command.upgrade(config, "0030")
     engine = create_engine(scratch.url)
     scanned = _processed_version(engine, status="needs_ocr")
     locked = _processed_version(engine, status="needs_password")
 
-    command.upgrade(config, "0027")
+    command.upgrade(config, "0031")
 
     with engine.connect() as connection:
         rows = connection.execute(text("SELECT id, status FROM document_versions")).all()
         jobs = connection.execute(
-            text("SELECT payload FROM jobs WHERE dedupe_key LIKE '%scanned-0027'")
+            text("SELECT payload FROM jobs WHERE dedupe_key LIKE '%scanned-0031'")
         ).all()
     assert {row.id: row.status for row in rows} == {scanned: "detecting", locked: "needs_password"}
     (job,) = jobs
     assert DocumentVersionProcessed.model_validate(job.payload).version_id == scanned
 
-    command.downgrade(config, "0026")
+    command.downgrade(config, "0030")
 
     with engine.connect() as connection:
         rows = connection.execute(text("SELECT id, status FROM document_versions")).all()
         left = connection.execute(
-            text("SELECT count(*) FROM jobs WHERE dedupe_key LIKE '%scanned-0027'")
+            text("SELECT count(*) FROM jobs WHERE dedupe_key LIKE '%scanned-0031'")
         ).scalar_one()
     assert {row.id: row.status for row in rows} == {scanned: "needs_ocr", locked: "needs_password"}
     assert left == 0

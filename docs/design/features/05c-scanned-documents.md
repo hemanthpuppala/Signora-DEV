@@ -129,6 +129,6 @@ scan 31 lines):
 | 3 | Read stage: image pages give `scanned` blanks | done | `read.py`, `reading.scanned_pages`, `Placement.headroom` |
 | 4 | AI message: marked page images; `ExtraField.box` | done | `scan_images.py`, `run.ask`, `prompt`, `schema.ExtraField.box` |
 | 5 | Derive: extra fields on image pages placed from their box | done | `derive._scanned_box`, `_room_to_sign` by headroom |
-| 6 | Processing: no `needs_ocr`; migration for existing versions | done | `processing.py`; migration 0027 and its data test |
+| 6 | Processing: no `needs_ocr`; migration for existing versions | done | `processing.py`; migration 0031 and its data test |
 | 7 | Tests: unit, real AI on the scans, full gate | done | 20 tests in `test_scanned.py`; real AI runs (above); full gate |
 | 8 | Review fixes (13 findings) | done | PR #25 threads, all resolved; 34 tests in `test_scanned.py` |
