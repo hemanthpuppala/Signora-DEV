@@ -349,3 +349,33 @@ def test_an_open_waits_for_the_envelope_before_it_locks_the_person(
             text("SELECT status FROM envelope_recipients WHERE id = :r"), {"r": signer["id"]}
         ).scalar_one()
     assert status == "opened"
+
+
+def test_a_failed_address_is_not_reminded_until_it_is_sent_again(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    _, envelope = sent_envelope(owner, run, detect, company)
+    signer = envelope["recipients"][0]
+    _run(
+        committing_db,
+        "UPDATE email_messages SET status = 'failed', failed_at = now(), last_error = 'bounced', "
+        "text_body = NULL, html_body = NULL "
+        "WHERE id = (SELECT last_email_id FROM envelope_recipients WHERE id = :r)",
+        r=signer["id"],
+    )
+    page = owner.get(f"{ENVELOPES}/{envelope['id']}").json()
+    assert page["recipients"][0]["next_reminder_at"] is None  # not promised while it fails
+    _due(committing_db, signer["id"])
+
+    remind_due(committing_db)
+
+    assert not _reminders(committing_db, signer["email"])
+    assert _schedule(committing_db, signer["id"]).next_reminder_at is None  # cleared
+    again = post(owner, f"{ENVELOPES}/{envelope['id']}/recipients/{signer['id']}/resend")
+    assert again.status_code in (200, 204), again.text
+    restarted = _schedule(committing_db, signer["id"])
+    assert _about(restarted.next_reminder_at, restarted.now + INTERVAL)

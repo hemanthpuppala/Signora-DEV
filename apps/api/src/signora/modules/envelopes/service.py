@@ -33,7 +33,7 @@ from signora.modules.envelopes.errors import (
 )
 from signora.modules.envelopes.form import Colleague, FormSettings, SendForm, build_form
 from signora.modules.envelopes.links import link_key, make_token, signing_url
-from signora.modules.envelopes.schedule import schedule_next
+from signora.modules.envelopes.schedule import DELIVERABLE, schedule_next
 from signora.modules.envelopes.sending import Person, SendRequest, plan_send, split_name
 from signora.modules.envelopes.store import read_envelope, record_email, write_send
 from signora.modules.envelopes.views import EnvelopePage, EnvelopeSummary, EnvelopeView
@@ -429,8 +429,9 @@ def remind_automatically(
     due_ids = set(
         session.execute(
             text(
-                "SELECT id FROM envelope_recipients WHERE envelope_id = :e "
-                "AND next_reminder_at <= now() AND reminders_sent < :max"
+                # DELIVERABLE is a constant of envelopes.schedule, never input.
+                "SELECT r.id FROM envelope_recipients r WHERE r.envelope_id = :e "  # noqa: S608
+                f"AND r.next_reminder_at <= now() AND r.reminders_sent < :max AND {DELIVERABLE}"
             ),
             {"e": envelope_id, "max": envelope.max_reminders},
         ).scalars()
@@ -481,6 +482,7 @@ def resend(
         reply_to=sender.sender_email,
     )
     record_email(session, recipient.id, email_id)
+    schedule_next(session, [recipient.id])  # emailed their link: also how a failed one restarts
     _audit(uow, actor, "envelope.resent", envelope_id, recipient_id=str(recipient_id))
 
 

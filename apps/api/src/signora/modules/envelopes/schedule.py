@@ -16,6 +16,12 @@ from sqlalchemy.orm import Session
 STILL_TO_ACT = "('sent', 'opened', 'viewed')"
 # An envelope its people can still act on: ``signed`` is the countersigners' turn.
 OPEN = "('sent', 'opened', 'viewed', 'signed')"
+# Their last email reached them, or is still on its way: a failed address is not reminded (the
+# page offers Send again, which schedules them afresh). ``r`` is envelope_recipients.
+DELIVERABLE = (
+    "NOT EXISTS (SELECT 1 FROM email_messages m WHERE m.id = r.last_email_id "
+    "AND m.status = 'failed')"
+)
 # One interval from now, if it falls before the expiry and the maximum is not reached.
 NEXT = (
     "CASE WHEN r.reminders_sent < e.max_reminders "

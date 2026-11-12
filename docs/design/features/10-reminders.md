@@ -38,8 +38,10 @@ platform design describes (FR-33, §5.5).
   `now + interval` while `reminders_sent < max_reminders` and `now + interval < expires_at`; otherwise
   NULL (no more reminders).
 - **Set by:** the send (the people emailed first), every signer signing (the countersigners whose turn
-  begins), a corrected email (the new link), and every reminder (by hand or automatic). A resend of the
-  same link is a delivery retry and leaves the schedule as it is.
+  begins), a corrected email (the new link), every reminder (by hand or automatic), and Send again.
+- **A failed address is not reminded:** a person whose last email failed is not due (their schedule
+  is cleared and the page shows no next reminder); Send again, once the address is fixed or the
+  mailbox is back, schedules them afresh.
 - **Due:** `next_reminder_at <= now`, the person still to act (`sent`, `opened`, `viewed`) with a working
   link, the envelope open (`sent`, `opened`, `viewed`, `signed`) and before its expiry, and under the
   maximum. A due row failing any of these is cleared (set NULL) by the sweep, so the index holds only live

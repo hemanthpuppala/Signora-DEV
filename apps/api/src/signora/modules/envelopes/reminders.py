@@ -12,7 +12,7 @@ from signora.kernel.db import Database
 from signora.kernel.jobs import JobContext, JobKind, JobRegistry, RecurringJob
 from signora.kernel.logging import get_logger
 from signora.modules.envelopes import service
-from signora.modules.envelopes.schedule import OPEN, STILL_TO_ACT
+from signora.modules.envelopes.schedule import DELIVERABLE, OPEN, STILL_TO_ACT
 from signora.modules.notifications import spare_capacity
 
 log = get_logger("signora.envelopes.reminders")
@@ -25,12 +25,13 @@ BATCH = 100  # envelopes per pass
 REMINDER_SHARE = 0.7
 
 # A due schedule nobody can be reminded on (signed, declined, the envelope closed or expired, the
-# maximum reached): cleared, so the index holds only live schedules. Constants, never input.
+# maximum reached, their last email failed): cleared, so the index holds only live schedules.
+# Constants, never input.
 _CLEAR_DEAD = (
     "UPDATE envelope_recipients r SET next_reminder_at = NULL FROM envelopes e "  # noqa: S608
     "WHERE e.id = r.envelope_id AND r.next_reminder_at <= now() AND NOT ("
     f"r.status IN {STILL_TO_ACT} AND e.status IN {OPEN} AND e.expires_at > now() "
-    "AND r.reminders_sent < e.max_reminders)"
+    f"AND r.reminders_sent < e.max_reminders AND {DELIVERABLE})"
 )
 
 

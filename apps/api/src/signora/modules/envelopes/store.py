@@ -205,6 +205,7 @@ def read_envelope(
                 "r.status, r.sent_at, r.opened_at, r.viewed_at, r.signed_at, r.declined_at, "
                 "r.decline_reason, CASE WHEN r.status IN ('sent', 'opened', 'viewed') "
                 "AND e.status IN ('sent', 'opened', 'viewed', 'signed') AND e.expires_at > now() "
+                "AND m.status IS DISTINCT FROM 'failed' "
                 "THEN r.next_reminder_at END AS next_reminder_at, m.status AS "
                 "delivery, m.last_error FROM envelope_recipients r "
                 "JOIN envelopes e ON e.id = r.envelope_id "
