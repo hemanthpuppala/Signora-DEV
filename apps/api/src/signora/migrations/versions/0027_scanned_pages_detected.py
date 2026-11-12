@@ -20,7 +20,8 @@ down_revision: str | None = "0026"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# The queued jobs' dedupe keys end with ":scanned-0027", so the downgrade finds them.
+# The queued jobs' dedupe keys end with "scanned-0027", so the downgrade finds them (matched
+# without a colon before it: in SQL text, ":word" is read as a bind parameter).
 
 
 def upgrade() -> None:
@@ -49,8 +50,8 @@ def downgrade() -> None:
         UPDATE document_versions SET status = 'needs_ocr'
         WHERE id IN (
             SELECT (payload ->> 'version_id')::uuid FROM jobs
-            WHERE dedupe_key LIKE '%:scanned-0027'
+            WHERE dedupe_key LIKE '%scanned-0027'
         ) AND status = 'detecting'
         """
     )
-    op.execute("DELETE FROM jobs WHERE dedupe_key LIKE '%:scanned-0027'")
+    op.execute("DELETE FROM jobs WHERE dedupe_key LIKE '%scanned-0027'")

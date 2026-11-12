@@ -181,7 +181,7 @@ def test_0027_queues_detection_for_every_scanned_version_and_back(
     with engine.connect() as connection:
         rows = connection.execute(text("SELECT id, status FROM document_versions")).all()
         jobs = connection.execute(
-            text("SELECT payload FROM jobs WHERE dedupe_key LIKE '%:scanned-0027'")
+            text("SELECT payload FROM jobs WHERE dedupe_key LIKE '%scanned-0027'")
         ).all()
     assert {row.id: row.status for row in rows} == {scanned: "detecting", locked: "needs_password"}
     (job,) = jobs
@@ -192,7 +192,7 @@ def test_0027_queues_detection_for_every_scanned_version_and_back(
     with engine.connect() as connection:
         rows = connection.execute(text("SELECT id, status FROM document_versions")).all()
         left = connection.execute(
-            text("SELECT count(*) FROM jobs WHERE dedupe_key LIKE '%:scanned-0027'")
+            text("SELECT count(*) FROM jobs WHERE dedupe_key LIKE '%scanned-0027'")
         ).scalar_one()
     assert {row.id: row.status for row in rows} == {scanned: "needs_ocr", locked: "needs_password"}
     assert left == 0
