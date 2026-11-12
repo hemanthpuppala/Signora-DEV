@@ -64,7 +64,8 @@ def upgrade() -> None:
         sa.text("SELECT id, website FROM workspaces WHERE website IS NOT NULL")
     ).all()
     for row in rows:
-        domain = suffixes(row.website).top_domain_under_public_suffix or None
+        # A website that cannot be reduced is kept as it is, never cleared.
+        domain = suffixes(row.website).top_domain_under_public_suffix or row.website
         connection.execute(
             sa.text("UPDATE workspaces SET website = :d WHERE id = :w"), {"d": domain, "w": row.id}
         )
