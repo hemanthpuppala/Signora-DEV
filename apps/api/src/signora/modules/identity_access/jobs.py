@@ -6,9 +6,10 @@ from datetime import timedelta
 
 from sqlalchemy import text
 
+from signora.kernel.blobstore import blob_store_from_settings
 from signora.kernel.config import get_settings
 from signora.kernel.jobs import JobContext, JobKind, JobRegistry, RecurringJob
-from signora.modules.identity_access import passwords, signup
+from signora.modules.identity_access import company_logo, passwords, signup
 from signora.modules.identity_access.sessions import purge_idle_sessions
 
 SWEEP = "sweep.identity"
@@ -42,6 +43,17 @@ def password_reset_request(context: JobContext) -> None:
     )
 
 
+def find_company_logo(context: JobContext) -> None:
+    settings = get_settings()
+    company_logo.find_and_keep(
+        context, settings=settings.logo, store=blob_store_from_settings(settings.blob_store)
+    )
+
+
+def sweep_company_logos(context: JobContext) -> None:
+    company_logo.sweep(context, settings=get_settings().logo)
+
+
 def register(jobs_registry: JobRegistry) -> list[RecurringJob]:
     lease = timedelta(minutes=2)
     jobs_registry.register(JobKind(SWEEP, sweep, max_attempts=3, lease=lease))
@@ -51,4 +63,18 @@ def register(jobs_registry: JobRegistry) -> list[RecurringJob]:
     jobs_registry.register(
         JobKind(passwords.RESET_REQUEST, password_reset_request, max_attempts=8, lease=lease)
     )
-    return [RecurringJob(SWEEP, every=timedelta(hours=1))]
+    jobs_registry.register(
+        JobKind(
+            company_logo.FIND_LOGO,
+            find_company_logo,
+            max_attempts=company_logo.MAX_ATTEMPTS,
+            lease=company_logo.LEASE,
+        )
+    )
+    jobs_registry.register(
+        JobKind(company_logo.SWEEP, sweep_company_logos, max_attempts=1, lease=lease)
+    )
+    return [
+        RecurringJob(SWEEP, every=timedelta(hours=1)),
+        RecurringJob(company_logo.SWEEP, every=company_logo.SWEEP_EVERY),
+    ]

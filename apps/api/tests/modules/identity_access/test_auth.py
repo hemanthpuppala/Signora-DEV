@@ -58,7 +58,12 @@ def test_log_in_returns_the_user_and_sets_hardened_cookies(
     assert response.status_code == 200
     body = response.json()
     assert body["user"]["email"] == account.email
-    assert body["workspace"] == {"id": str(account.workspace_id), "name": "Hale & Ward LLP"}
+    assert body["workspace"] == {
+        "id": str(account.workspace_id),
+        "name": "Hale & Ward LLP",
+        "website": None,
+        "logo_url": None,
+    }
     assert body["role"]["key"] == "read_write"
     assert body["is_creator"] is True
     assert body["display_role"]["name"] == "Owner"

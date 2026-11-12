@@ -203,6 +203,8 @@ def test_two_first_countersigners_at_once_both_succeed(
         name="x",
         workspace_id=company.workspace_id,
         workspace_name="x",
+        workspace_website=None,
+        workspace_logo=None,
         role_id=uuid.uuid4(),  # the service reads only the company, user and email
         role_key="x",
         role_name="x",
