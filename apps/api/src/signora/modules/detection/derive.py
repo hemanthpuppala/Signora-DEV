@@ -243,11 +243,20 @@ def _extra_problem(
     """Why an extra field cannot be placed, in words; None when it can. On a scanned page there
     are no words to find: its box places it (Phase 5c)."""
     if extra["page"] in reading.scanned_pages:
-        if _scanned_box(extra, reading) is None:
+        box = _scanned_box(extra, reading)
+        if box is None:
             return (
                 f"page {extra['page']} is a scanned picture: give the blank's box, [x0, y0, x1, "
                 "y1] from 0 to 1000"
             )
+        page = space.page(extra["page"])
+        on = page.lies_on(box) if page is not None else None
+        if on == "field":
+            return (
+                "its box lies on a field already tagged on the picture: answer that field instead"
+            )
+        if on == "extra":
+            return "the same blank as another extra field: list it once"
         return None
     words, number = _label_words(extra), extra["page"]
     if not words:
@@ -344,6 +353,10 @@ def check(answer: dict[str, Any], reading: Reading, document: pymupdf.Document) 
         near = _party_places(answer, reading, extra["filled_by"], extra["page"])
         if (problem := _extra_problem(space, extra, near, reading)) is not None:
             problems.append(f"extra field {extra['label']!r}: {problem}")
+        elif extra["page"] in reading.scanned_pages:  # placed as derive will (by its box)
+            box, page = _scanned_box(extra, reading), space.page(extra["page"])
+            if box is not None and page is not None:
+                page.take(box)
         else:  # placed as derive will, so a second field on the same blank is seen
             space.place_after(extra["page"], _label_words(extra), near)
     meta = answer["document"]
@@ -516,6 +529,9 @@ def derive(
             rect = None
         elif scanned:
             rect = _scanned_box(extra, reading)
+            page = space.page(extra["page"])
+            if rect is not None and page is not None:
+                page.take(rect)  # a later extra field on the same blank is seen
         else:
             rect = space.place_after(extra["page"], _label_words(extra), near)
         if rect is None:

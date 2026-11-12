@@ -484,3 +484,35 @@ def test_a_fillable_scan_gives_each_place_once() -> None:
     assert [(field.kind, field.pdf_field) for field in reading.asked] == [
         ("signature", "Signature")
     ]
+
+
+@pytest.mark.parametrize(
+    ("extras", "problem"),
+    [
+        pytest.param(
+            [[140, 352, 500, 366]],  # over the tagged line after "Name:" (its box reaches up)
+            "lies on a field already tagged on the picture",
+            id="on-a-tagged-field",
+        ),
+        pytest.param(
+            [[180, 418, 490, 432], [190, 420, 480, 430]],  # the same blank twice
+            "the same blank as another extra field",
+            id="the-same-blank-twice",
+        ),
+    ],
+)
+def test_an_extra_field_on_a_scan_never_lies_on_another_place(
+    extras: list[list[int]], problem: str
+) -> None:
+    """Review #7: on a scanned page an extra field was accepted wherever its box was, even over a
+    tagged field or another extra field; the text path refuses both."""
+    data = _scan([_text(72, 300, "Name:"), _line(110, 300, 302), _text(72, 340, "Title:")])
+    reading = read_document(data)
+    answer = _answer(
+        reading, [{**_extra(box), "label": f"Extra {n}"} for n, box in enumerate(extras)]
+    )
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        problems = check(answer, reading, document)
+        result = derive(reading, answer, document, problems=problems, repaired=True)
+    assert any(problem in line for line in problems)
+    assert sum(1 for field in result.fields if field.label.startswith("Extra")) == len(extras) - 1
