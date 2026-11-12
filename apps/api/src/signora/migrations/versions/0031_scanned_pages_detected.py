@@ -30,15 +30,16 @@ def upgrade() -> None:
         INSERT INTO jobs (kind, payload, dedupe_key)
         SELECT 'event:DocumentVersionProcessed:detection',
                jsonb_build_object(
-                   'event_id', e.event_id,
+                   'event_id', v.event_id,
                    'occurred_at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
                    'workspace_id', v.workspace_id,
                    'document_id', v.document_id,
                    'version_id', v.id),
-               'event:' || e.event_id || ':detection:scanned-0031'
-        FROM document_versions v
-        CROSS JOIN LATERAL (SELECT gen_random_uuid() AS event_id) e
-        WHERE v.status = 'needs_ocr'
+               'event:' || v.event_id || ':detection:scanned-0031'
+        -- One event id per version: a volatile call in a subquery's own select list runs per
+        -- row (a lateral subquery that names no column of the row ran once, for every version).
+        FROM (SELECT id, workspace_id, document_id, gen_random_uuid() AS event_id
+              FROM document_versions WHERE status = 'needs_ocr') v
         """
     )
     op.execute("UPDATE document_versions SET status = 'detecting' WHERE status = 'needs_ocr'")
