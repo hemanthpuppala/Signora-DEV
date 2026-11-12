@@ -1,0 +1,361 @@
+{
+  "roles": [
+    {
+      "slug": "party_1",
+      "kind": "signer"
+    },
+    {
+      "slug": "university",
+      "kind": "signer"
+    }
+  ],
+  "fields": [
+    {
+      "id": "f1",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f2",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f3",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f4",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": "f1",
+      "depends_on": null
+    },
+    {
+      "id": "f5",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": "f2",
+      "depends_on": null
+    },
+    {
+      "id": "f6",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": "f3",
+      "depends_on": null
+    },
+    {
+      "id": "f7",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": "f1",
+      "depends_on": null
+    },
+    {
+      "id": "f8",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": "f2",
+      "depends_on": null
+    },
+    {
+      "id": "f9",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": "f3",
+      "depends_on": null
+    },
+    {
+      "id": "f10",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": "f1",
+      "depends_on": null
+    },
+    {
+      "id": "f11",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": "f2",
+      "depends_on": null
+    },
+    {
+      "id": "f12",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": "f3",
+      "depends_on": null
+    },
+    {
+      "id": "f13",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": "f1",
+      "depends_on": null
+    },
+    {
+      "id": "f14",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": "f2",
+      "depends_on": null
+    },
+    {
+      "id": "f15",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": "f3",
+      "depends_on": null
+    },
+    {
+      "id": "f16",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": "f1",
+      "depends_on": null
+    },
+    {
+      "id": "f17",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": "f2",
+      "depends_on": null
+    },
+    {
+      "id": "f18",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": "f3",
+      "depends_on": null
+    },
+    {
+      "id": "f19",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": "f1",
+      "depends_on": null
+    },
+    {
+      "id": "f20",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": "f2",
+      "depends_on": null
+    },
+    {
+      "id": "f21",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": "f3",
+      "depends_on": null
+    },
+    {
+      "id": "f22",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": "f1",
+      "depends_on": null
+    },
+    {
+      "id": "f23",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": "f2",
+      "depends_on": null
+    },
+    {
+      "id": "f24",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": "f3",
+      "depends_on": null
+    },
+    {
+      "id": "f25",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 legal name",
+      "must_fill": true,
+      "same_as": "f1",
+      "depends_on": null
+    },
+    {
+      "id": "f26",
+      "holds": "text",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 entity description",
+      "must_fill": true,
+      "same_as": "f2",
+      "depends_on": null
+    },
+    {
+      "id": "f27",
+      "holds": "address",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 address",
+      "must_fill": true,
+      "same_as": "f3",
+      "depends_on": null
+    },
+    {
+      "id": "f28",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 signature",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f29",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "university",
+      "label": "University signature",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f30",
+      "holds": "date_signed",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 signing date",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    },
+    {
+      "id": "f31",
+      "holds": "date_signed",
+      "format": null,
+      "filled_by": "university",
+      "label": "University signing date",
+      "must_fill": true,
+      "same_as": null,
+      "depends_on": null
+    }
+  ],
+  "checkbox_groups": [],
+  "extra_fields": [
+    {
+      "page": 14,
+      "anchor_text": "NAME:",
+      "box": [
+        163,
+        842,
+        402,
+        856
+      ],
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 printed name",
+      "must_fill": true
+    },
+    {
+      "page": 14,
+      "anchor_text": "TITLE:",
+      "box": [
+        163,
+        860,
+        402,
+        874
+      ],
+      "holds": "title",
+      "format": null,
+      "filled_by": "party_1",
+      "label": "Party 1 title",
+      "must_fill": false
+    }
+  ],
+  "document": {
+    "name": "Non-Disclosure Agreement",
+    "description": "A non-disclosure agreement between Party 1 and the University of Louisiana at Lafayette. It covers confidential information, permitted use and disclosure, confidentiality obligations, and Louisiana governing law. Both parties sign; neither is identified as the sender, so there is no countersignature."
+  }
+}
