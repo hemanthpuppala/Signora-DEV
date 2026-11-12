@@ -28,7 +28,7 @@ platform design describes (FR-33, §5.5).
 | NFR-R1 | A sweep finds due people by an index range on `next_reminder_at`, O(log N + due), never a scan of all recipients. |
 | NFR-R2 | A reminder goes out within 5 minutes of being due. |
 | NFR-R3 | One envelope that cannot be reminded (its data broken) never stops the others; it is logged and tried again on the next sweep. |
-| NFR-R4 | Envelopes already out when this ships are scheduled one interval from the deploy, not all at once. |
+| NFR-R4 | Envelopes already out when this ships are scheduled at their own next slot, spread as their sends were, not all at once. |
 
 ## 4. Business logic
 
@@ -65,8 +65,9 @@ platform design describes (FR-33, §5.5).
 ## 6. Data design
 
 - Migration 0034: `ix_envelope_recipients_next_reminder_at` on `envelope_recipients (next_reminder_at)
-  WHERE next_reminder_at IS NOT NULL`; backfill of people still to act on open envelopes to
-  `now + interval` (NFR-R4), under the same conditions as `schedule_next`.
+  WHERE next_reminder_at IS NOT NULL`; backfill of people still to act on open envelopes to their next
+  slot on their own schedule, `sent_at + k·interval` the first after now (NFR-R4: as spread as the
+  sends were, at most one interval away), under the same conditions as `schedule_next`.
 - `RecipientView.next_reminder_at` (read-only) for the envelope page.
 
 ## 7. Algorithm and complexity

@@ -529,9 +529,9 @@ def _signer(
 def test_0034_schedules_who_still_has_to_act_one_interval_on_and_back(
     scratch: DatabaseSettings,
 ) -> None:
-    """Reminders LLD §6: everyone still to act on an open envelope is reminded one interval from
-    the deploy, never all at once; nobody past the maximum, signed, on a closed envelope, or whose
-    reminder would fall after the expiry."""
+    """Reminders LLD §6: everyone still to act on an open envelope is reminded at their next slot
+    (sent + k intervals), never all at once; nobody past the maximum, signed, on a closed
+    envelope, or whose reminder would fall after the expiry."""
     config = alembic_config(scratch)
     command.upgrade(config, "0033")
     engine = create_engine(scratch.url)
@@ -546,6 +546,18 @@ def test_0034_schedules_who_still_has_to_act_one_interval_on_and_back(
             _signer(connection, live, version, status="viewed", sent=4),
             _signer(connection, opened, version, status="opened"),
         ]
+        earlier = [  # sent 30 and 54 hours ago: their next slot is 18 hours from now, not 24
+            _signer(connection, live, version, status="sent"),
+            _signer(connection, opened, version, status="opened"),
+        ]
+        for recipient, hours in zip(earlier, (30, 54), strict=True):
+            connection.execute(
+                text(
+                    "UPDATE envelope_recipients SET sent_at = now() - make_interval(hours => :h) "
+                    "WHERE id = :r"
+                ),
+                {"r": recipient, "h": hours},
+            )
         left = [
             _signer(connection, live, version, status="signed"),
             _signer(connection, opened, version, status="sent", sent=5),
@@ -569,6 +581,7 @@ def test_0034_schedules_who_still_has_to_act_one_interval_on_and_back(
             )
         }
     assert {rows[r] for r in scheduled} == {24}
+    assert {rows[r] for r in earlier} == {18}  # spread by when each was sent
     assert {rows[r] for r in left} == {None}
 
     command.downgrade(config, "0033")
