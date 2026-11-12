@@ -29,8 +29,14 @@ def deleted_tables() -> set[str]:
 FOREIGN_KEYS = """
     SELECT c.conname, c.conrelid::regclass::text AS referencing,
            c.confrelid::regclass::text AS referenced, c.confdeltype = 'c' AS cascades,
-           EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.conrelid
-                   AND (i.indkey::int2[])[0] = c.conkey[1]) AS indexed
+           -- An index Postgres can use for the key's check (``col1 = $1 AND col2 = $2``): valid,
+           -- not partial (a partial one cannot serve every row), and leading with one of the key's
+           -- columns (it finds the rows by that one and checks the others among them).
+           EXISTS (
+               SELECT 1 FROM pg_index i
+               WHERE i.indrelid = c.conrelid AND i.indisvalid AND i.indpred IS NULL
+                 AND (string_to_array(i.indkey::text, ' ')::int2[])[1] = ANY(c.conkey)
+           ) AS indexed
     FROM pg_constraint c WHERE c.contype = 'f'
 """
 
