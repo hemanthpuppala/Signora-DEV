@@ -9,11 +9,13 @@ import { fileURLToPath } from "node:url";
 import { QUILL, VANE, VIEW } from "../src/shared/ui/signature/logoArt.ts";
 import { LOGO, SIG } from "../src/shared/ui/signature/penPaths.ts";
 
-const INK = "#ffffff"; // the emails are white on black, as the console's header
-const PAPER = "#000000";
-// The feather in one colour, the middle of the site's gradient: the rasteriser (and some email
-// clients) draw an SVG gradient black, and a black feather vanishes on the email's black.
-const FEATHER = VANE[1];
+// Two inks: white for the emails' black page, black for an email app that repaints it light.
+// The feather in one colour (the rasteriser draws an SVG gradient black): the middle of the site's
+// gradient on black, its darkest stop on white.
+const INKS = [
+  { name: "signora-logo", ink: "#ffffff", paper: "#000000", feather: VANE[1] },
+  { name: "signora-logo-black", ink: "#111111", paper: "#ffffff", feather: VANE[2] },
+];
 
 // The quill's pose when the writing ends (logoSigning's nibAt at LOGO.end).
 const frames = LOGO.nib.length / 5;
@@ -26,19 +28,23 @@ const [x, y, tilt, lift, opacity] = [0, 1, 2, 3, 4].map(
 );
 const grow = 1 + 0.035 * lift;
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}" width="${VIEW.w}" height="${VIEW.h}">
-<path d="${SIG.path}" fill="${INK}"/>
+function logo({ ink, paper, feather }) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}" width="${VIEW.w}" height="${VIEW.h}">
+<path d="${SIG.path}" fill="${ink}"/>
 ${
   opacity > 0.001
     ? `<g opacity="${opacity.toFixed(3)}" transform="translate(${x} ${y - lift * 7}) rotate(${tilt}) scale(${grow}) translate(-18 -88)">
-<path d="${QUILL.vane}" fill="${FEATHER}"/><path d="${QUILL.cuts}" fill="${PAPER}"/><path d="${QUILL.rachis}" fill="${PAPER}"/><path d="${QUILL.shaft}" fill="${INK}"/>
+<path d="${QUILL.vane}" fill="${feather}"/><path d="${QUILL.cuts}" fill="${paper}"/><path d="${QUILL.rachis}" fill="${paper}"/><path d="${QUILL.shaft}" fill="${ink}"/>
 </g>`
     : ""
 }
 </svg>
 `;
+}
 
-const out = resolve(dirname(fileURLToPath(import.meta.url)), "../public/email/signora-logo.svg");
-mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, svg);
-console.log(`${out}: quill at (${x.toFixed(1)}, ${y.toFixed(1)}), opacity ${opacity.toFixed(2)}`);
+const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../public/email");
+mkdirSync(dir, { recursive: true });
+for (const version of INKS) {
+  writeFileSync(resolve(dir, `${version.name}.svg`), logo(version));
+}
+console.log(`${dir}: ${INKS.map((v) => v.name).join(", ")}; quill at (${x.toFixed(1)}, ${y.toFixed(1)})`);

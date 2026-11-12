@@ -24,13 +24,14 @@ _HTML = _env.get_template("layout.html")
 # `make email-logo`), by its absolute address, as an email cannot load anything relative. Its alt
 # text is the name, shown where images are blocked.
 LOGO_PATH = "/email/signora-logo.png"
-# Raised whenever `make email-logo` draws a new file: email apps and their image proxies keep an
+LOGO_BLACK_PATH = "/email/signora-logo-black.png"  # where an email app repainted the email light
+# Raised whenever `make email-logo` draws new files: email apps and their image proxies keep an
 # image by its address, so a new one needs a new address.
-LOGO_VERSION = "2"
+LOGO_VERSION = "3"
 
 
-def logo_url() -> str:
-    return f"{str(get_settings().app.public_base_url).rstrip('/')}{LOGO_PATH}?v={LOGO_VERSION}"
+def logo_url(path: str = LOGO_PATH) -> str:
+    return f"{str(get_settings().app.public_base_url).rstrip('/')}{path}?v={LOGO_VERSION}"
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,11 @@ def render_layout(
     if footer:
         lines += ["--", footer, ""]
     html = _HTML.render(
-        heading=heading, paragraphs=paragraphs, action=action, footer=footer, logo_url=logo_url()
+        heading=heading,
+        paragraphs=paragraphs,
+        action=action,
+        footer=footer,
+        logo_url=logo_url(),
+        logo_black_url=logo_url(LOGO_BLACK_PATH),
     )
     return RenderedEmail(text="\n".join(lines).rstrip() + "\n", html=html)

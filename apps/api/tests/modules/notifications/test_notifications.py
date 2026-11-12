@@ -125,7 +125,7 @@ def test_every_email_shows_the_logo_by_its_absolute_address_with_the_name_as_its
     from pathlib import Path
 
     from signora.kernel.config import get_settings
-    from signora.modules.notifications.layout import LOGO_PATH, LOGO_VERSION
+    from signora.modules.notifications.layout import LOGO_BLACK_PATH, LOGO_PATH, LOGO_VERSION
 
     email = render_layout(heading="Hello", paragraphs=["x"])
 
@@ -134,7 +134,12 @@ def test_every_email_shows_the_logo_by_its_absolute_address_with_the_name_as_its
     assert f'src="{base}{LOGO_PATH}?v={LOGO_VERSION}"' in email.html
     assert 'alt="Signora"' in email.html  # what shows where images are blocked
     web_public = Path(__file__).resolve().parents[4] / "web" / "public"
-    assert (web_public / LOGO_PATH.lstrip("/")).is_file()  # the file the address names is served
+    for path in (LOGO_PATH, LOGO_BLACK_PATH):  # the files the addresses name are served
+        assert (web_public / path.lstrip("/")).is_file()
+    assert f'src="{base}{LOGO_BLACK_PATH}?v={LOGO_VERSION}"' in email.html  # repainted light
+    # Gmail's apps keep the black (a background image) and the white text (its blends).
+    assert "background-image:linear-gradient(#000,#000)" in email.html
+    assert email.html.count('class="gmail-screen"') >= 2
 
 
 # --- queueing ----------------------------------------------------------------------------------
