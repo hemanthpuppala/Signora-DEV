@@ -446,7 +446,11 @@ def remind_automatically(
         actor=AuditActor.system(),
         action="envelope.reminded",
         subject=Subject("envelope", envelope_id),
-        data={"recipients": len(due), "automatic": True},
+        data={
+            "recipients": len(due),
+            "recipient_ids": [str(r.id) for r in due],
+            "automatic": True,
+        },
     )
     return len(due)
 

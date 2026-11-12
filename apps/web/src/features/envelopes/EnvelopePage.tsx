@@ -63,9 +63,13 @@ function happened(entry: Envelope["timeline"][number], envelope: Envelope): stri
   switch (entry.action) {
     case "envelope.sent":
       return `Sent to ${String(data.signers)} ${data.signers === 1 ? "signer" : "signers"}`;
-    case "envelope.reminded":
+    case "envelope.reminded": {
+      const by = data.automatic ? " automatically" : "";
+      const ids = Array.isArray(data.recipient_ids) ? data.recipient_ids : [];
       if (data.recipient_id) return `Reminded ${who(data.recipient_id)}`;
-      return `Reminded ${String(data.recipients)} ${data.recipients === 1 ? "person" : "people"}${data.automatic ? " automatically" : ""}`;
+      if (ids.length === 1) return `Reminded ${who(ids[0])}${by}`;
+      return `Reminded ${String(data.recipients)} ${data.recipients === 1 ? "person" : "people"}${by}`;
+    }
     case "envelope.resent":
       return `Emailed ${who(data.recipient_id)} again`;
     case "envelope.recipient_changed":

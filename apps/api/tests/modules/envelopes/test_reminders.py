@@ -97,7 +97,7 @@ def test_a_signer_is_reminded_once_when_due_and_then_an_interval_later(
     assert (entry["action"], entry["by"], entry["data"]) == (
         "envelope.reminded",
         None,
-        {"recipients": 1, "automatic": True},
+        {"recipients": 1, "recipient_ids": [signer["id"]], "automatic": True},
     )
 
 
