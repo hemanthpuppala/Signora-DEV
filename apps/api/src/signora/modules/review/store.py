@@ -377,6 +377,19 @@ def record_approval(
     )
 
 
+def accept_flags(session: Session, version_id: uuid.UUID) -> None:
+    """Approving accepts every flag still left (§2.2): they are cleared before the version freezes,
+    once counted for its metrics, so neither the approved version nor one made from it by editing
+    asks for a look again."""
+    session.execute(
+        text(
+            "UPDATE version_fields SET needs_review = NULL "
+            "WHERE version_id = :v AND needs_review IS NOT NULL"
+        ),
+        {"v": version_id},
+    )
+
+
 def read_stored(session: Session, version_id: uuid.UUID) -> Stored:
     """A version's set as editing compares it: by id, with each place's PDF field name."""
     parties = {

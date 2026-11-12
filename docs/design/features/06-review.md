@@ -135,7 +135,9 @@ A field nobody fills ("For office use only") is legitimate: no warning; it shows
 ### 2.2 "Needs a look": a checklist (revised 2026-11-11)
 
 A flag clears when its field is edited, or when the person accepts the field as found with **Looks right**; approving
-accepts every flag still left, and the approval's audit entry and metrics record them as accepted as detected.
+accepts every flag still left, and the approval's audit entry and metrics record them as accepted as detected. Approval
+then clears them, before the version freezes: an approved version, and one made from it by editing, never asks for a
+look at what was accepted (`store.accept_flags`; migration 0027 clears the flags kept on versions approved before).
 
 - **Things to check names each flagged field**, with why it was flagged and Show me, drawn from the fields as they
   are now, so the list shortens as each is settled. Five are shown, the rest behind "Show all n".

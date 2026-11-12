@@ -312,3 +312,53 @@ def test_0019_moves_the_email_code_to_envelopes_which_keep_what_they_sent_and_ba
             text("SELECT require_email_code FROM documents WHERE id = :d"), {"d": row.document_id}
         ).scalar_one()
     engine.dispose()
+
+
+def test_0027_clears_the_flags_left_on_approved_versions_and_keeps_them_frozen(
+    scratch: DatabaseSettings,
+) -> None:
+    """Approving accepted every flag left (Phase 6 §2.2): versions approved before approval cleared
+    them lose theirs; one still in review keeps its; approved fields stay frozen after."""
+    config = alembic_config(scratch)
+    command.upgrade(config, "0026")
+    engine = create_engine(scratch.url)
+
+    def flagged_version() -> tuple[uuid.UUID, uuid.UUID]:
+        version = _processed_version(engine, status="ready")
+        with engine.begin() as connection:
+            field = connection.execute(
+                text(
+                    "INSERT INTO version_fields (workspace_id, version_id, key, label, holds, "
+                    "filled_by, required, sensitive, origin, needs_review) VALUES (:w, :v, "
+                    "'agreement.date', 'Effective date', 'date', 'sender', true, false, "
+                    "'detected', 'two answers') RETURNING id"
+                ),
+                {"v": version, "w": SYSTEM_WORKSPACE},
+            ).scalar_one()
+        return version, field
+
+    approved, approved_field = flagged_version()
+    _, in_review_field = flagged_version()
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE document_versions SET status = 'approved', approved_at = now(), "
+                "approved_by = uploaded_by WHERE id = :v"
+            ),
+            {"v": approved},
+        )
+
+    command.upgrade(config, "0027")
+
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text("SELECT id, needs_review FROM version_fields WHERE id IN (:a, :b)"),
+            {"a": approved_field, "b": in_review_field},
+        ).all()
+    flags: dict[uuid.UUID, str | None] = {row.id: row.needs_review for row in rows}
+    assert flags == {approved_field: None, in_review_field: "two answers"}
+    with pytest.raises(IntegrityError), engine.begin() as connection:  # still frozen
+        connection.execute(
+            text("UPDATE version_fields SET label = 'Changed' WHERE id = :f"), {"f": approved_field}
+        )
+    engine.dispose()
