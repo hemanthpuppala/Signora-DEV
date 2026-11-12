@@ -19,6 +19,7 @@ from signora.modules.envelopes import (
     recipient_for_signing,
     record_opened,
     reminders,
+    service,
 )
 from signora.modules.envelopes.reminders import remind_due
 from signora.modules.envelopes.schedule import schedule_next
@@ -401,3 +402,89 @@ def test_no_reminder_is_scheduled_within_an_hour_of_the_expiry(
         with committing_db.unit_of_work() as uow:
             schedule_next(uow.session, [uuid.UUID(signer["id"])])
         assert (_schedule(committing_db, signer["id"]).next_reminder_at is not None) == scheduled
+
+
+def test_a_countersigner_is_reminded_only_on_their_turn_with_their_countersign_page(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    _, envelope = sent_envelope(owner, run, detect, company)
+    signer, firm, _ = envelope["recipients"]
+    _due(committing_db, firm["id"])  # a stray schedule while they wait
+
+    remind_due(committing_db)
+
+    assert not _reminders(committing_db, firm["email"])  # waiting: never reminded
+    _run(
+        committing_db,
+        "UPDATE envelope_recipients SET status = 'signed', signed_at = now() WHERE id = :r",
+        r=signer["id"],
+    )
+    with committing_db.unit_of_work() as uow:
+        every_signer_signed(uow.session, envelope["id"])
+    _due(committing_db, firm["id"])
+    remind_due(committing_db)
+    (reminder,) = _reminders(committing_db, firm["email"])
+    assert f"/countersign/{firm['id']}" in reminder.text_body
+
+
+def test_one_envelope_that_fails_never_stops_the_others_and_every_batch_is_swept(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NFR-R3, and the pass loop: with one envelope a batch, each of three is tried once; the one
+    that fails keeps its schedule for the next sweep and the loop still ends."""
+    doc = sendable(owner, run, detect)
+    sent = []
+    for name in ("one", "two", "three"):
+        address = f"{name}-{uuid.uuid4().hex[:8]}@example.com"
+        signers = [{"party_id": doc.party("Client")["id"], "name": "Maya Chen", "email": address}]
+        response = send(owner, doc, request_for(owner, doc, company, signers=signers))
+        assert response.status_code == 201, response.text
+        sent.append(response.json())
+        _due(committing_db, sent[-1]["recipients"][0]["id"])
+    broken = sent[1]["id"]
+    real = service.remind_automatically
+
+    def remind(uow: Any, envelope_id: uuid.UUID, workspace_id: uuid.UUID, *, at_most: int) -> int:
+        if str(envelope_id) == broken:
+            raise RuntimeError("broken envelope")
+        return real(uow, envelope_id, workspace_id, at_most=at_most)
+
+    monkeypatch.setattr(service, "remind_automatically", remind)
+    monkeypatch.setattr(reminders, "BATCH", 1)
+
+    remind_due(committing_db)
+
+    counts = [len(_reminders(committing_db, e["recipients"][0]["email"])) for e in sent]
+    assert counts == [1, 0, 1]
+    left = _schedule(committing_db, sent[1]["recipients"][0]["id"])
+    assert left.next_reminder_at is not None and left.next_reminder_at <= left.now  # still due
+
+
+def test_a_reminder_by_hand_that_reaches_the_maximum_ends_the_schedule(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    company: Account,
+    committing_db: Database,
+) -> None:
+    _, envelope = sent_envelope(owner, run, detect, company)
+    signer = envelope["recipients"][0]
+    _run(
+        committing_db,
+        "UPDATE envelope_recipients SET reminders_sent = 2 WHERE id = :r",  # the maximum is 3
+        r=signer["id"],
+    )
+
+    assert post(owner, f"{ENVELOPES}/{envelope['id']}/remind").status_code == 200
+
+    after = _schedule(committing_db, signer["id"])
+    assert (after.reminders_sent, after.next_reminder_at) == (3, None)
