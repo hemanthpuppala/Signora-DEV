@@ -124,6 +124,13 @@ class ExtraField(Strict):
             "it is on the line below its label, the label's words."
         )
     )
+    box: list[int] | None = Field(
+        description=(
+            "Only on a scanned page (a picture): where the blank is, [x0, y0, x1, y1], each 0 to "
+            "1000 of the page's width or height, origin top-left; the blank itself, not its "
+            "label. null on every other page."
+        )
+    )
     holds: Holds = Field(description=HOLDS_HELP)
     format: DateFormat | None = Field(description=FORMAT_HELP)
     filled_by: str = Field(description=FILLED_BY_HELP)
@@ -155,9 +162,14 @@ class DocumentMeta(Strict):
     )
 
 
+NO_FIELD = "none"  # the one id allowed when a document has no fields (a scan with no lines)
+
+
 def answer_model(field_ids: list[str]) -> type[BaseModel]:
-    """The answer for one document: every field id is an enum of that document's ids."""
-    field_id: Any = Literal[tuple(field_ids)]
+    """The answer for one document: every field id is an enum of that document's ids. With none
+    (a scanned document on which no line was found, whose places the AI finds as extra fields),
+    the enum holds ``NO_FIELD`` alone: an enum may not be empty, and no field has that id."""
+    field_id: Any = Literal[tuple(field_ids or [NO_FIELD])]
     dependency = create_model(
         "Dependency",
         __base__=Strict,

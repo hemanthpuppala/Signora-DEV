@@ -89,6 +89,17 @@ class PageSpace:
         """Whether an extra field already placed sits right after a label: the same blank."""
         return self._right_after(label, self._extras)
 
+    def lies_on(self, box: Box) -> str | None:
+        """What a box placed by its coordinates lies on, if anything: ``"field"`` (one of the
+        page's fields) or ``"extra"`` (an extra field placed already). Lying on is sharing rows
+        and more than half the box's length (a scanned page's extra fields, Phase 5c)."""
+        for kind, boxes in (("field", self._fields), ("extra", self._extras)):
+            for other, _ in boxes.near(box[1], box[3]):
+                across = min(other[2], box[2]) - max(other[0], box[0])
+                if other[1] < box[3] and box[1] < other[3] and across > (box[2] - box[0]) / 2:
+                    return kind
+        return None
+
     @staticmethod
     def _right_after(label: Box, boxes: RowIndex[None]) -> bool:
         start = label[2] + LABEL_GAP

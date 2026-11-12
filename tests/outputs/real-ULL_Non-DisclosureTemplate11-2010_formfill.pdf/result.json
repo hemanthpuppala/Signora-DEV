@@ -1,0 +1,668 @@
+{
+  "fields_from": "blanks",
+  "roles": [
+    {
+      "slug": "party_1",
+      "kind": "signer",
+      "label": "Party 1",
+      "position": 1
+    },
+    {
+      "slug": "university",
+      "kind": "signer",
+      "label": "University",
+      "position": 2
+    }
+  ],
+  "fields": [
+    {
+      "key": "party_1.party_name",
+      "label": "Party 1 legal name",
+      "holds": "party_name",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f1",
+        "f4",
+        "f7",
+        "f10",
+        "f13",
+        "f16",
+        "f19",
+        "f22",
+        "f25"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            270.8,
+            103.2,
+            296.7,
+            117.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 3,
+          "rect": [
+            155.0,
+            662.7,
+            180.9,
+            676.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            268.5,
+            264.4,
+            294.5,
+            278.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            264.8,
+            499.1,
+            291.2,
+            512.9
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            270.2,
+            112.3,
+            296.6,
+            126.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            267.4,
+            347.5,
+            293.3,
+            360.8
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 11,
+          "rect": [
+            154.6,
+            690.6,
+            180.5,
+            704.4
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            267.7,
+            292.3,
+            294.1,
+            306.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            264.9,
+            526.5,
+            290.3,
+            539.8
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.entity_description",
+      "label": "Party 1 entity description",
+      "holds": "text",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f2",
+        "f5",
+        "f8",
+        "f11",
+        "f14",
+        "f17",
+        "f20",
+        "f23",
+        "f26"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            311.6,
+            103.7,
+            337.5,
+            117.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 3,
+          "rect": [
+            200.5,
+            663.4,
+            226.0,
+            677.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            309.8,
+            265.0,
+            335.3,
+            278.3
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            306.0,
+            499.7,
+            331.5,
+            513.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            311.4,
+            112.8,
+            337.4,
+            126.7
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            308.2,
+            348.0,
+            334.1,
+            361.3
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 11,
+          "rect": [
+            200.6,
+            691.2,
+            226.1,
+            705.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            308.5,
+            292.8,
+            334.9,
+            306.6
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            305.7,
+            527.0,
+            331.6,
+            540.4
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.address",
+      "label": "Party 1 address",
+      "holds": "address",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f3",
+        "f6",
+        "f9",
+        "f12",
+        "f15",
+        "f18",
+        "f21",
+        "f24",
+        "f27"
+      ],
+      "placements": [
+        {
+          "page": 1,
+          "rect": [
+            426.8,
+            105.3,
+            452.2,
+            119.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 3,
+          "rect": [
+            326.8,
+            665.1,
+            352.2,
+            678.9
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            424.5,
+            266.6,
+            450.0,
+            279.9
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 4,
+          "rect": [
+            420.8,
+            501.3,
+            446.2,
+            515.1
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            426.2,
+            114.5,
+            452.1,
+            128.3
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 5,
+          "rect": [
+            422.9,
+            349.6,
+            448.8,
+            363.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 11,
+          "rect": [
+            326.4,
+            693.0,
+            351.8,
+            706.8
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            423.6,
+            294.4,
+            449.1,
+            308.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        },
+        {
+          "page": 12,
+          "rect": [
+            420.4,
+            528.7,
+            446.3,
+            542.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.signature",
+      "label": "Party 1 signature",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f28"
+      ],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            87.9,
+            628.5,
+            248.7,
+            664.5
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "university.signature",
+      "label": "University signature",
+      "holds": "signature",
+      "format": null,
+      "filled_by": "role",
+      "role": "university",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f29"
+      ],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            356.2,
+            632.0,
+            500.7,
+            668.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.full_name",
+      "label": "Party 1 printed name",
+      "holds": "full_name",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": "placed from the scanned picture: check its position",
+      "ids": [],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            99.8,
+            666.9,
+            246.0,
+            678.0
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.title",
+      "label": "Party 1 title",
+      "holds": "title",
+      "format": null,
+      "filled_by": "role",
+      "role": "party_1",
+      "required": false,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": "placed from the scanned picture: check its position",
+      "ids": [],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            99.8,
+            681.1,
+            246.0,
+            692.2
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "party_1.date_signed",
+      "label": "Party 1 signing date",
+      "holds": "date_signed",
+      "format": "Month D, YYYY",
+      "filled_by": "role",
+      "role": "party_1",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f30"
+      ],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            110.4,
+            689.9,
+            248.2,
+            705.3
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "university.date_signed",
+      "label": "University signing date",
+      "holds": "date_signed",
+      "format": "Month D, YYYY",
+      "filled_by": "role",
+      "role": "university",
+      "required": true,
+      "sensitive": false,
+      "depends_on": null,
+      "needs_review": null,
+      "ids": [
+        "f31"
+      ],
+      "placements": [
+        {
+          "page": 14,
+          "rect": [
+            365.3,
+            693.5,
+            500.2,
+            708.8
+          ],
+          "kind": "blank",
+          "pdf_field": null,
+          "option_value": null,
+          "option_text": null,
+          "options": null
+        }
+      ]
+    }
+  ],
+  "not_asked": [],
+  "document": {
+    "name": "Non-Disclosure Agreement",
+    "description": "A non-disclosure agreement between Party 1 and the University of Louisiana at Lafayette. It covers confidential information, permitted use and disclosure, confidentiality obligations, and Louisiana governing law."
+  },
+  "flags": {
+    "no_fields": false,
+    "addressed_to_ai": false,
+    "repaired": false,
+    "xfa": false,
+    "already_signed": false,
+    "name_dropped": false
+  },
+  "notes": []
+}

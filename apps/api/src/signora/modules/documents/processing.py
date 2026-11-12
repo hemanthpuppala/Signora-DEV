@@ -153,18 +153,17 @@ def _needs_password(context: JobContext, work: _Work) -> None:
 
 def _done(context: JobContext, work: _Work, prepared: Prepared, store: BlobStore) -> None:
     ref = store.put(work.workspace_id, BytesIO(prepared.pdf), max_bytes=len(prepared.pdf))
-    # Processed: detection finds its fields next (Phase 5); a scanned page stops it here.
-    status = "needs_ocr" if prepared.pages_without_text else "detecting"
+    # Processed: detection finds its fields next (Phase 5), on scanned pages too (Phase 5c).
     with context.complete() as uow:
         changed = uow.session.execute(
             text(
-                "UPDATE document_versions SET status = :status, pdf_sha256 = :h, pdf_bytes = :b, "
-                "page_count = :n, pages = CAST(:pages AS jsonb), pages_without_text = :without, "
+                "UPDATE document_versions SET status = 'detecting', pdf_sha256 = :h, "
+                "pdf_bytes = :b, page_count = :n, pages = CAST(:pages AS jsonb), "
+                "pages_without_text = :without, "
                 "processed_at = now() WHERE id = :id AND status = 'processing' RETURNING id"
             ),
             {
                 "id": work.id,
-                "status": status,
                 "h": ref.sha256,
                 "b": ref.size,
                 "n": len(prepared.pages),
@@ -172,9 +171,7 @@ def _done(context: JobContext, work: _Work, prepared: Prepared, store: BlobStore
                 "without": prepared.pages_without_text,
             },
         ).one_or_none()
-        if changed is None:
-            return
-        if status == "detecting":
+        if changed is not None:
             # Ready, and current when newest, once detection has finished (lifecycle.py).
             publish_processed(uow.session, work.workspace_id, work.document_id, work.id)
 
