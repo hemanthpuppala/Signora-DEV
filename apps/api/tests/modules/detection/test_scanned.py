@@ -469,3 +469,18 @@ def test_a_scan_with_no_line_still_asks_the_ai_for_its_places() -> None:
         result = derive(reading, answer, document, problems=calls[-1]["problems"], repaired=False)
     assert len(asked) == 1  # the AI was asked, with a schema it can answer
     assert [field.holds for field in result.fields] == ["full_name"]
+
+
+def test_a_fillable_scan_gives_each_place_once() -> None:
+    """Review #6: on a scan with form fields over its picture, the printed line under a field was
+    also read from the pixels, so the same place came back twice."""
+    data = _scan([_text(72, 300, "Signature:"), _line(130, 330, 302)])
+    document = pymupdf.open(stream=data, filetype="pdf")
+    widget = pymupdf.Widget()
+    widget.field_name, widget.field_type = "Signature", pymupdf.PDF_WIDGET_TYPE_SIGNATURE  # type: ignore[attr-defined]
+    widget.rect = pymupdf.Rect(130, 284, 330, 302)
+    document[0].add_widget(widget)
+    reading = read_document(document.tobytes())
+    assert [(field.kind, field.pdf_field) for field in reading.asked] == [
+        ("signature", "Signature")
+    ]
