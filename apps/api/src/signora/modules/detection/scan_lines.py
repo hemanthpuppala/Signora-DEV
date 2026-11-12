@@ -27,6 +27,10 @@ import pymupdf
 from signora.modules.detection.geometry import Box
 
 SCAN_DPI = 150  # pixels per inch the page is read at: a pixel is about half a point
+# The most pixels a page is turned into (a decompression-bomb limit): a Letter or A4 page at
+# 150 dpi is about 2.1 million; a larger page is read at a lower resolution, so one page never
+# holds more than about 60 MB of arrays however large the PDF says it is.
+MAX_PIXELS = 4_200_000
 INK_DROP = 45  # a grey this much darker than the page's paper is ink (0 black, 255 white)
 INK_DARKEST = 100  # the threshold is never darker than this (a dark, dirty scan) ...
 INK_LIGHTEST = 225  # ... nor lighter than this (a faint line on white paper still counts)
@@ -117,14 +121,15 @@ def _border(ink: np.ndarray, x: int, y0: int, y1: int, reach: int) -> bool:
 def scan_blanks(page: pymupdf.Page) -> list[ScanBlank]:
     """The page's blank lines, read from its pixels: the page straightened first (a scanner
     feeds paper at a slight angle), lines found on the straight page, their boxes turned back."""
-    pix = page.get_pixmap(dpi=SCAN_DPI, colorspace=pymupdf.csGRAY)
+    dpi = render_dpi(page, SCAN_DPI)
+    pix = page.get_pixmap(dpi=dpi, colorspace=pymupdf.csGRAY)
     grey = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.stride)[
         :, : pix.width
     ]
     raw = _ink(grey)
     angle = _skew(raw)
     ink = _turned(raw, angle) if angle else raw
-    scale = SCAN_DPI / 72  # pixels per point
+    scale = dpi / 72  # pixels per point
 
     def px(points: float) -> int:
         return round(points * scale)
@@ -265,3 +270,11 @@ def _merge(blanks: list[ScanBlank]) -> list[ScanBlank]:
         if current is not None:
             merged.append(current)
     return merged
+
+
+def render_dpi(page: pymupdf.Page, wanted: float) -> int:
+    """The resolution a page is turned into pixels at: ``wanted``, lowered so the picture holds
+    at most ``MAX_PIXELS``. O(1)."""
+    area = max(page.rect.width * page.rect.height, 1.0)  # square points, as displayed
+    fits = 72 * (MAX_PIXELS / area) ** 0.5
+    return max(int(min(wanted, fits)), 1)

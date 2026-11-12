@@ -344,3 +344,18 @@ def test_a_scan_with_a_fax_header_in_its_text_layer_is_read_from_its_picture() -
     faxed = document.tobytes()
     reading = read_document(faxed)
     assert reading.scanned_pages == [1] and len(reading.asked) == 1
+
+
+def test_a_huge_page_is_read_within_the_pixel_budget() -> None:
+    """Review #1: a scanned page was turned into pixels at 150 dpi whatever its size, so a 23 KB
+    PDF with one 8000 pt page held 2 GB. A page's picture now holds at most MAX_PIXELS."""
+    from signora.modules.detection.scan_lines import MAX_PIXELS, SCAN_DPI, render_dpi
+
+    document = pymupdf.open()
+    document.new_page(width=8000, height=8000)
+    document.new_page(width=612, height=792)
+    huge, letter = document.load_page(0), document.load_page(1)
+    dpi = render_dpi(huge, SCAN_DPI)
+    assert (8000 * dpi / 72) ** 2 <= MAX_PIXELS
+    assert render_dpi(letter, SCAN_DPI) == SCAN_DPI  # an ordinary page keeps its resolution
+    assert scan_blanks(huge) == []  # read, quickly, within the budget
