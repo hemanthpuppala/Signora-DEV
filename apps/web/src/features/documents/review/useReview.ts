@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import { useIdempotentAction } from "@/shared/api/useIdempotentAction";
+import { refreshDepartments } from "@/shared/api/queryKeys";
 
 import { documentKey, type Version } from "../api";
 import type { Tool } from "./AddField";
@@ -106,6 +107,7 @@ export function useReview({
     await queryClient.invalidateQueries({ queryKey: documentKey(documentId) });
     // The department's list carries each document's current version: what the send offers.
     await queryClient.invalidateQueries({ queryKey: ["documents"] });
+    refreshDepartments(queryClient); // its templates waiting for approval: the dots
   };
 
   const path = { document_id: documentId, version_id: version.id };

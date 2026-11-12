@@ -9,6 +9,7 @@ import { EnvelopesList } from "@/features/envelopes/EnvelopesList";
 import { ConsoleShell } from "@/shared/session";
 import { SmallText } from "@/shared/ui";
 
+import { useDepartmentFollows } from "./_follow";
 import { useDepartmentSending } from "./_sending";
 
 /**
@@ -19,6 +20,7 @@ export default function DepartmentRoute() {
   const { id } = useParams<{ id: string }>();
   const documents = useDocuments(id);
   const sending = useDepartmentSending(id, documents.data);
+  useDepartmentFollows(documents.data);
   return (
     <ConsoleShell>
       {(me) => (
