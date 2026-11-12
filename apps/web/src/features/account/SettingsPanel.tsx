@@ -209,7 +209,6 @@ function WebsiteForm({ me }: { me: Me }) {
           autoComplete="url"
           spellCheck={false}
           placeholder="yourcompany.com"
-          hint="Optional. Your company's logo then shows in the header."
           maxLength={2048}
           value={website}
           error={fieldErrors(save.error).website}

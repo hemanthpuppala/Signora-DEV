@@ -86,7 +86,6 @@ export function SignupCompleteForm() {
         autoComplete="url"
         spellCheck={false}
         placeholder="yourcompany.com"
-        hint="Optional. Your company's logo then shows in the header."
         maxLength={2048}
         value={website}
         error={errors.website}
