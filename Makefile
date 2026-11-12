@@ -97,7 +97,7 @@ web-test:      ## Frontend unit tests (Vitest)
 web-build:     ## Production build of the web app
 	pnpm --filter web build
 
-email-logo:    ## Redraw the emails' logo (apps/web/public/email) from the site's logo data
+email-logo:    ## Redraw the emails' logo (apps/web/public/email); then raise notifications.layout.LOGO_VERSION
 	node apps/web/scripts/email-logo.mjs
 	cd $(API) && uv run python -I ../web/scripts/rasterise-logo.py
 

@@ -24,10 +24,13 @@ _HTML = _env.get_template("layout.html")
 # `make email-logo`), by its absolute address, as an email cannot load anything relative. Its alt
 # text is the name, shown where images are blocked.
 LOGO_PATH = "/email/signora-logo.png"
+# Raised whenever `make email-logo` draws a new file: email apps and their image proxies keep an
+# image by its address, so a new one needs a new address.
+LOGO_VERSION = "2"
 
 
 def logo_url() -> str:
-    return str(get_settings().app.public_base_url).rstrip("/") + LOGO_PATH
+    return f"{str(get_settings().app.public_base_url).rstrip('/')}{LOGO_PATH}?v={LOGO_VERSION}"
 
 
 @dataclass(frozen=True)
