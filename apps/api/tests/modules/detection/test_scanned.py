@@ -434,3 +434,38 @@ def test_scanned_pages_go_to_the_ai_as_jpeg_within_a_hard_pixel_budget() -> None
     with pymupdf.open(stream=data, filetype="pdf") as document:
         part = marked_pages(document, read_document(data))[1]
     assert part["image_url"]["url"].startswith("data:image/jpeg;base64,")
+
+
+def test_a_scan_with_no_line_still_asks_the_ai_for_its_places() -> None:
+    """Review #5: a fully scanned document on which no line was found never reached the AI, so its
+    places (found only as extra fields, by their box) could not be made, and it had no fields."""
+    data = _scan([_text(72, 300, "Name:"), _text(72, 340, "Title:")])  # labels, no lines
+    reading = read_document(data)
+    assert reading.asked == [] and reading.scanned_pages == [1]
+    asked: list[Any] = []
+
+    class Answers:
+        def assign(self, messages: list[dict[str, Any]], answer: Any) -> AiCall:
+            asked.append(answer)
+            return AiCall(
+                answer={
+                    "roles": [{"slug": "client", "kind": "signer"}],
+                    "fields": [],
+                    "checkbox_groups": [],
+                    "extra_fields": [_extra([180, 370, 490, 384], holds="full_name")],
+                    "document": {"name": "Agreement", "description": "An agreement."},
+                },
+                content="{}",
+                request_id="r",
+                model="m",
+                latency_s=0.0,
+                usage=Usage(input=0, cached=0, output=0, reasoning=0),
+            )
+
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        calls, answer, _ = ask(
+            reading, document, Answers(), current_name="Agreement", instructions=""
+        )
+        result = derive(reading, answer, document, problems=calls[-1]["problems"], repaired=False)
+    assert len(asked) == 1  # the AI was asked, with a schema it can answer
+    assert [field.holds for field in result.fields] == ["full_name"]

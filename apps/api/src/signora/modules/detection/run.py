@@ -309,12 +309,12 @@ def ask(
     current_name: str,
     instructions: str,
 ) -> tuple[list[JsonDict], dict[str, Any], str | None]:
-    """The AI step (§3.4): one call, and one repair call when the checks find problems; nothing to
-    ask, no call. Returns each call's facts (with the problems found), the last answer, the model.
-    A passing failure propagates (the job retries; ``on_dead`` fails it at the end); any other is
-    ``Failed``. The job and the test pipeline both run this."""
-    if not reading.asked:
-        return [], EMPTY_ANSWER, None
+    """The AI step (§3.4): one call, and one repair call when the checks find problems; nothing
+    to ask and no scanned page, no call. Returns each call's facts (with the problems found), the
+    last answer, the model. A passing failure propagates (the job retries; ``on_dead`` fails it
+    at the end); any other is ``Failed``. The job and the test pipeline both run this."""
+    if not reading.asked and not reading.scanned_pages:
+        return [], EMPTY_ANSWER, None  # nothing to ask; a scanned page may still hold places
     answer_type = answer_model([field.id for field in reading.asked])
     text = user_message(reading, current_name=current_name, instructions=instructions)
     pictures = marked_pages(document, reading)  # the scanned pages, their fields tagged (5c)
