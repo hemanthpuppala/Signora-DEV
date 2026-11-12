@@ -22,13 +22,15 @@ from signora.modules.detection.form_fields import box_issues
 from signora.modules.detection.geometry import Box
 from signora.modules.detection.page_text import UNDERSCORES
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
+from signora.modules.detection.scan_lines import TEXT_ABOVE as SCAN_TEXT_ABOVE
 from signora.modules.detection.schema import ALLOWED, ANCHOR_MAX
-from signora.modules.detection.writing_space import GROWS, DocumentSpace
+from signora.modules.detection.writing_space import CLEARANCE, GROWS, SIGN_HEIGHT, DocumentSpace
 from signora.modules.review.formats import format_for
 from signora.modules.review.keys import name_words, unique
 from signora.modules.review.values import LABEL_MAX, OWN, PARTY_VALUES, SENSITIVE, SHARED
 
 NAME_MAX = 120
+SCALE = 1000  # an extra field's box on a scanned page: 0 to 1000 of the page's width and height
 DESCRIPTION_MAX = 300
 TOKEN = re.compile(r"\{(f\d+)(?:=[^{}]*)?\}")
 # Links and scripts in what the AI writes (§3.5): personal data is a later feature (Presidio).
@@ -221,8 +223,32 @@ def _label_words(extra: dict[str, Any]) -> str:
     return UNDERSCORES.split(extra["anchor_text"][:ANCHOR_MAX], maxsplit=1)[0].strip()
 
 
-def _extra_problem(space: DocumentSpace, extra: dict[str, Any], near: list[Box]) -> str | None:
-    """Why an extra field cannot be placed from its words, in words; None when it can."""
+def _scanned_box(extra: dict[str, Any], reading: Reading) -> Box | None:
+    """An extra field's place on a scanned page (Phase 5c): its box, 0-1000 of the page's width
+    and height, in points as displayed; None when it is not a valid box on such a page."""
+    box, number = extra.get("box"), extra["page"]
+    if number not in reading.scanned_pages or not isinstance(box, list) or len(box) != 4:
+        return None
+    x0, y0, x1, y1 = box
+    if not (0 <= x0 < x1 <= SCALE and 0 <= y0 < y1 <= SCALE):
+        return None
+    page = reading.pages[number - 1]
+    w, h = page.width / SCALE, page.height / SCALE
+    return (round(x0 * w, 1), round(y0 * h, 1), round(x1 * w, 1), round(y1 * h, 1))
+
+
+def _extra_problem(
+    space: DocumentSpace, extra: dict[str, Any], near: list[Box], reading: Reading
+) -> str | None:
+    """Why an extra field cannot be placed, in words; None when it can. On a scanned page there
+    are no words to find: its box places it (Phase 5c)."""
+    if extra["page"] in reading.scanned_pages:
+        if _scanned_box(extra, reading) is None:
+            return (
+                f"page {extra['page']} is a scanned picture: give the blank's box, [x0, y0, x1, "
+                "y1] from 0 to 1000"
+            )
+        return None
     words, number = _label_words(extra), extra["page"]
     if not words:
         return "its words are only the blank: give the words printed right before it"
@@ -316,7 +342,7 @@ def check(answer: dict[str, Any], reading: Reading, document: pymupdf.Document) 
     space = _space(reading, document)
     for extra in answer["extra_fields"]:
         near = _party_places(answer, reading, extra["filled_by"], extra["page"])
-        if (problem := _extra_problem(space, extra, near)) is not None:
+        if (problem := _extra_problem(space, extra, near, reading)) is not None:
             problems.append(f"extra field {extra['label']!r}: {problem}")
         else:  # placed as derive will, so a second field on the same blank is seen
             space.place_after(extra["page"], _label_words(extra), near)
@@ -484,10 +510,14 @@ def derive(
         holds = extra["holds"] if extra["holds"] not in ("checkbox", "choice") else "text"
         filled_by = _who_fills(holds, extra["filled_by"], listed)
         near = _party_places(answer, reading, extra["filled_by"], extra["page"])
-        why = _extra_problem(space, extra, near)
-        rect = (
-            None if why is not None else space.place_after(extra["page"], _label_words(extra), near)
-        )
+        why = _extra_problem(space, extra, near, reading)
+        scanned = extra["page"] in reading.scanned_pages
+        if why is not None:
+            rect = None
+        elif scanned:
+            rect = _scanned_box(extra, reading)
+        else:
+            rect = space.place_after(extra["page"], _label_words(extra), near)
         if rect is None:
             why = why or "a form field already sits after its words: that field is the blank"
             notes.append(f"extra field {extra['label']!r} dropped: {why}")
@@ -502,11 +532,15 @@ def derive(
             required=extra["must_fill"],
             placements=[PlacementOut(page=extra["page"], rect=rect, kind="blank")],
             order=(extra["page"], rect[1], rect[0]),
-            review=["placed after the words printed before it: check its position"],
+            review=[
+                "placed from the scanned picture: check its position"
+                if scanned
+                else "placed after the words printed before it: check its position"
+            ],
             format=extra.get("format"),
         )
 
-    _room_to_sign(items, space)
+    _room_to_sign(items, space, reading)
     _same_values(answer, items, notes)
 
     # Checkbox groups: one choice, its options the checkboxes (§4.3). Each group is its own
@@ -571,20 +605,41 @@ def derive(
     )
 
 
-def _room_to_sign(items: dict[str, _Item], space: DocumentSpace) -> None:
+def _room_to_sign(items: dict[str, _Item], space: DocumentSpace, reading: Reading) -> None:
     """A signature or initials on a blank line takes the writing space above the line (findings
     F2); a form field's box stays as its author drew it. The space holds every field's original
-    place (and the extra fields' places once taken), so one grown box never limits another.
+    place (and the extra fields' places once taken), so one grown box never limits another. A
+    scanned page has no words to stop a box: there a line takes the free height measured above
+    it on the picture (``Placement.headroom``), and a place with none measured keeps its size.
     O(W + P) per page that holds such a line, for W words and P places."""
+    headroom = {
+        (placement.page, placement.rect): placement.headroom
+        for found in reading.fields
+        for placement in found.placements
+        if placement.headroom is not None
+    }
     for item in items.values():
         if item.holds not in GROWS:
             continue
         for index, place in enumerate(item.placements):
-            page = space.page(place.page) if place.kind == "blank" else None
-            if page is not None:
-                item.placements[index] = place.model_copy(
-                    update={"rect": page.room_above(place.rect)}
-                )
+            if place.kind != "blank":
+                continue
+            if place.page in reading.scanned_pages:
+                free = headroom.get((place.page, place.rect))
+                rect = _grown_by(place.rect, free) if free is not None else place.rect
+            else:
+                page = space.page(place.page)
+                rect = page.room_above(place.rect) if page is not None else place.rect
+            item.placements[index] = place.model_copy(update={"rect": rect})
+
+
+def _grown_by(box: Box, free: float) -> Box:
+    """A scanned line's box grown upward by the free height measured above its line, up to
+    ``SIGN_HEIGHT`` in all, never smaller than it was."""
+    x0, y0, x1, y1 = box
+    line_top = y0 + SCAN_TEXT_ABOVE  # the box is the line with the text row above it
+    top = max(y1 - SIGN_HEIGHT, line_top - free + CLEARANCE)
+    return (x0, min(top, y0), x1, y1)
 
 
 def _reading_order(items: dict[str, _Item]) -> list[_Item]:
