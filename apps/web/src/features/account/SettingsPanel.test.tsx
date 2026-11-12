@@ -102,6 +102,9 @@ describe("changing the password in Settings", () => {
     const current = screen.getByLabelText("Current password") as HTMLInputElement;
     expect(current.value).toBe("");
     expect(current.getAttribute("autocomplete")).toBe("off");
+    for (const optOut of ["data-1p-ignore", "data-lpignore", "data-bwignore", "data-form-type"]) {
+      expect(current.hasAttribute(optOut)).toBe(true); // the password managers' own opt-outs
+    }
     expect(screen.getByLabelText("New password").getAttribute("autocomplete")).toBe("new-password");
   });
 });
