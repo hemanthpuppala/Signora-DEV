@@ -161,6 +161,24 @@ placement_text_sizes = Table(
     Index("ix_placement_text_sizes_version_id", "version_id"),
 )
 
+# How high a signature or initials may be drawn above its line without covering the agreement's
+# text above it (typesetting.marks), measured from the PDF when the version is approved, like the
+# text sizes; a version approved earlier is measured by `signora measure-text-sizes`.
+placement_mark_tops = Table(
+    "placement_mark_tops",
+    metadata,
+    Column("placement_id", UUID(as_uuid=True), primary_key=True),
+    Column("workspace_id", UUID(as_uuid=True), nullable=False),
+    Column(
+        "version_id",
+        UUID(as_uuid=True),
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("top", Float, nullable=False),  # the box's top, in points from the page's top
+    Index("ix_placement_mark_tops_version_id", "version_id"),
+)
+
 # A version's review: its revision (one per Save, Phase 6 §1.6) and, at approval, the warnings
 # accepted.
 version_reviews = Table(

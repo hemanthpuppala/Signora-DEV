@@ -3153,6 +3153,17 @@
       "Place": {
         "description": "Where a field's value is drawn: PDF points on the page as displayed.",
         "properties": {
+          "mark_top": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark Top"
+          },
           "option_value": {
             "anyOf": [
               {
@@ -3319,6 +3330,17 @@
           "kind": {
             "title": "Kind",
             "type": "string"
+          },
+          "mark_top": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark Top"
           },
           "option_text": {
             "anyOf": [

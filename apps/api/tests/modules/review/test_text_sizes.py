@@ -92,3 +92,40 @@ def test_a_working_copy_that_cannot_be_read_never_refuses_the_approval(
     with committing_db.unit_of_work() as uow:
         assert measure_unmeasured(uow.session, blobs, row.workspace_id).measured == 1
     assert None not in _sizes(_view(owner, document_id, version_id)).values()
+
+
+def _mark_tops(view: dict[str, object]) -> dict[str, float | None]:
+    return {
+        place["id"]: place["mark_top"]
+        for field in view["fields"]  # type: ignore[attr-defined]
+        for place in field["placements"]
+        if field["holds"] in ("signature", "initials")
+    }
+
+
+def test_approval_measures_the_room_above_each_signature_and_earlier_versions_by_command(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+    settings: Settings,
+) -> None:
+    """A signature grows only into the room the page leaves above it (typesetting.marks)."""
+    document_id, version_id = _in_review(owner, run, detect)
+    assert set(_mark_tops(_view(owner, document_id, version_id)).values()) == {None}
+
+    assert _approve(owner, document_id, version_id).status_code == 204
+
+    measured = _mark_tops(_view(owner, document_id, version_id))
+    assert measured and all(top is not None for top in measured.values())
+    with committing_db.unit_of_work() as uow:  # approved before the room was kept
+        uow.session.execute(
+            text("DELETE FROM placement_mark_tops WHERE version_id = :v"), {"v": version_id}
+        )
+        workspace_id = uow.session.execute(
+            text("SELECT workspace_id FROM document_versions WHERE id = :v"), {"v": version_id}
+        ).scalar_one()
+    blobs = LocalBlobStore(settings.blob_store.dir)
+    with committing_db.unit_of_work() as uow:
+        assert measure_unmeasured(uow.session, blobs, workspace_id).measured == 1
+    assert _mark_tops(_view(owner, document_id, version_id)) == measured

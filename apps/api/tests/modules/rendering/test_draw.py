@@ -112,17 +112,18 @@ def test_a_hundred_page_agreement_renders_in_under_three_seconds() -> None:
     assert _open(signed).page_count == 100
 
 
-def test_a_signature_on_a_bare_line_stands_tall_enough_to_read() -> None:
-    line = (300, 677, 466, 690)  # 13 points: a signature line found as its own height
+def test_a_signature_is_drawn_in_the_box_it_is_given_with_its_frame() -> None:
+    """The box is already its readable height (typesetting.mark_top): drawn as given."""
+    box = (300, 654, 466, 690)  # 36 points: the readable height above a bare line
     signed = _open(
         render(
             _pdf(),
-            [DrawnSignature(1, line, [[(100, 200), (900, 220)]], "0123456789abcdef")],
+            [DrawnSignature(1, box, [[(100, 200), (900, 220)]], "0123456789abcdef")],
             envelope_id=ENVELOPE,
         )
     )
 
     page = signed[0]
     tops = [rect.y0 for d in page.get_drawings() for rect in [d["rect"]]]
-    assert min(tops) < 690 - 30  # the signature rises well above the line
-    assert "Signed by:" in page.get_text()  # and has room for its frame
+    assert min(tops) >= 654 - 0.5  # nothing above the box it was given
+    assert "Signed by:" in page.get_text()  # room for its frame

@@ -16,6 +16,7 @@ from signora.modules.typesetting.fonts import (
     fonts_for,
     has_glyphs,
 )
+from signora.modules.typesetting.marks import SIGNATURE_MIN_HEIGHT, mark_top, mark_tops
 from signora.modules.typesetting.routes import router
 from signora.modules.typesetting.sizes import Measured, text_sizes
 from signora.modules.typesetting.views import FIT_RULE, FitRule, FontView, font_view
@@ -24,6 +25,7 @@ __all__ = [
     "DEFAULT_FONT",
     "FIT_RULE",
     "FONTS",
+    "SIGNATURE_MIN_HEIGHT",
     "FitRule",
     "Font",
     "FontUse",
@@ -38,6 +40,8 @@ __all__ = [
     "fonts_for",
     "has_glyphs",
     "left_edge",
+    "mark_top",
+    "mark_tops",
     "place_size",
     "router",
     "text_sizes",

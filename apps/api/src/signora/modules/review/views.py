@@ -39,6 +39,8 @@ class PlacementView(BaseModel):
     options: list[str] | None = None
     # The agreement's text size beside it, measured at approval (Phase 7b); none before that
     text_size: float | None = None
+    # A signature place's room above it, measured at approval (typesetting.marks); none before
+    mark_top: float | None = None
 
 
 class DependencyView(BaseModel):
