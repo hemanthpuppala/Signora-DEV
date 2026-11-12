@@ -39,6 +39,7 @@ _WAITING = (
     "AND e.expires_at > now()"
 )
 _DONE = _FROM + " AND r.status = 'signed'"
+_IN_DEPARTMENT = " AND (CAST(:dep AS uuid) IS NULL OR e.department_id = :dep)"
 # Searching (ADR S-1), as a department's envelopes are searched: by the envelope's title, its
 # template's name, and each signer's (the customer's) name or email; best match first.
 _OWN_TEXTS = ("e.title", "d.name")
@@ -75,12 +76,20 @@ class Waiting(BaseModel):
     completed: bool  # the signed copy is made
 
 
+class DepartmentRef(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
 class WaitingPage(BaseModel):
     items: list[Waiting]
     next_cursor: str | None
     total: int  # how many match, across every page
-    waiting: int  # how many wait for them (the first tab's count), whatever the search
-    done: int  # how many they countersigned (the second tab's)
+    # The tabs' counts, in the department chosen (if any), whatever the search.
+    waiting: int  # how many wait for them
+    done: int  # how many they countersigned
+    # The departments they countersign in, by name: the inbox's department filter.
+    departments: list[DepartmentRef]
 
 
 class WaitingCount(BaseModel):
@@ -112,14 +121,15 @@ def waiting(
     state: State = "waiting",
     cursor: Annotated[str | None, Query(max_length=300)] = None,
     q: Annotated[str | None, Query(max_length=200)] = None,
+    department: uuid.UUID | None = None,
 ) -> WaitingPage:
     """With ``q``: those whose title, template or signer's name or email matches, best match first,
-    then in the list's own order (ADR S-1)."""
+    then in the list's own order (ADR S-1). With ``department``: only that department's."""
     column, soonest, key = _KEYS[state]
     way = "ASC" if soonest else "DESC"
     query = search.normalize(q)
-    where = _WAITING if state == "waiting" else _DONE
-    params: dict[str, object] = {"u": actor.user_id, "limit": PAGE + 1}
+    where = (_WAITING if state == "waiting" else _DONE) + _IN_DEPARTMENT
+    params: dict[str, object] = {"u": actor.user_id, "limit": PAGE + 1, "dep": department}
     if query is None:
         after = _cursor(cursor)
         score = "NULL"
@@ -159,10 +169,20 @@ def waiting(
         counts = uow.session.execute(
             text(
                 f"SELECT (SELECT count(*) {listed}) AS total, "
-                f"(SELECT count(*) {_WAITING}) AS waiting, (SELECT count(*) {_DONE}) AS done"
+                f"(SELECT count(*) {_WAITING}{_IN_DEPARTMENT}) AS waiting, "
+                f"(SELECT count(*) {_DONE}{_IN_DEPARTMENT}) AS done"
             ),
-            {k: v for k, v in params.items() if k in {"u", "search_q", "search_like"}},
+            {k: v for k, v in params.items() if k in {"u", "dep", "search_q", "search_like"}},
         ).one()
+        departments = uow.session.execute(
+            text(
+                "SELECT DISTINCT dep.id, dep.name FROM envelope_recipients r "
+                "JOIN envelopes e ON e.id = r.envelope_id "
+                "JOIN departments dep ON dep.id = e.department_id "
+                "WHERE r.kind = 'countersigner' AND r.user_id = :u ORDER BY dep.name"
+            ),
+            {"u": actor.user_id},
+        ).all()
     more = len(rows) > PAGE
     shown = rows[:PAGE]
     last = shown[-1] if more else None
@@ -195,6 +215,7 @@ def waiting(
         total=counts.total,
         waiting=counts.waiting,
         done=counts.done,
+        departments=[DepartmentRef(id=row.id, name=row.name) for row in departments],
     )
 
 

@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,7 +42,7 @@ describe("to countersign", () => {
       const url = new URL((input as Request).url);
       asked.push(url.searchParams.get("state") ?? "");
       const done = url.searchParams.get("state") === "done";
-      return reply(200, { items: done ? [] : [item()], next_cursor: null, total: done ? 0 : 1, waiting: 1, done: 0 });
+      return reply(200, { items: done ? [] : [item()], next_cursor: null, total: done ? 0 : 1, waiting: 1, done: 0, departments: [] });
     });
     render(
       <QueryClientProvider client={makeQueryClient()}>
@@ -68,8 +68,35 @@ describe("to countersign", () => {
     expect(asked).toContain("done");
   });
 
+  it("filters by department from a list of the departments I countersign in", async () => {
+    const asked: (string | null)[] = [];
+    const departments = [
+      { id: "dep-lit", name: "Litigation" },
+      { id: "dep-tax", name: "Tax" },
+    ];
+    fetchMock.mockImplementation((input) => {
+      const url = new URL((input as Request).url);
+      asked.push(url.searchParams.get("department"));
+      return reply(200, { items: [item()], next_cursor: null, total: 1, waiting: 1, done: 0, departments });
+    });
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <CountersignInbox />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    const choice = await screen.findByRole("combobox", { name: "Department" });
+    expect(choice.textContent).toContain("All departments");
+    expect(screen.getByRole("searchbox", { name: "Search by customer, email or template" })).toBeTruthy();
+
+    await user.click(choice);
+    await user.click(screen.getByRole("option", { name: "Tax" }));
+
+    await waitFor(() => expect(asked).toContain("dep-tax"));
+  });
+
   it("says when nothing waits", async () => {
-    fetchMock.mockImplementation(() => reply(200, { items: [], next_cursor: null, total: 0, waiting: 0, done: 0 }));
+    fetchMock.mockImplementation(() => reply(200, { items: [], next_cursor: null, total: 0, waiting: 0, done: 0, departments: [] }));
     render(
       <QueryClientProvider client={makeQueryClient()}>
         <CountersignInbox />
