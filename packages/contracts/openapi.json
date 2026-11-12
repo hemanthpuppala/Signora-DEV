@@ -4769,6 +4769,19 @@
             "title": "Token",
             "type": "string"
           },
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional; kept as its domain (scoutboard.com)",
+            "title": "Website"
+          },
           "workspace_name": {
             "maxLength": 120,
             "minLength": 1,
@@ -5815,6 +5828,18 @@
             "title": "Id",
             "type": "string"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The company's logo (PNG), changing with it; null while it has none",
+            "title": "Logo Url"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -5822,7 +5847,8 @@
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "logo_url"
         ],
         "title": "WorkspaceView",
         "type": "object"
@@ -13934,6 +13960,66 @@
           }
         },
         "summary": "Rename the workspace",
+        "tags": [
+          "members"
+        ]
+      }
+    },
+    "/api/v1/workspace/logo": {
+      "get": {
+        "description": "Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until\nthe logo changes.",
+        "operationId": "workspace_logo_api_v1_workspace_logo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The company's logo (PNG), for its members' header",
         "tags": [
           "members"
         ]

@@ -27,6 +27,7 @@ class Actor:
     name: str
     workspace_id: uuid.UUID
     workspace_name: str
+    workspace_logo: str | None  # the logo's sha256 while the company has one
     role_id: uuid.UUID
     role_key: str
     role_name: str

@@ -40,6 +40,7 @@ def resolve_session(
             """
             SELECT s.user_id, s.last_seen_at < now() - make_interval(secs => :touch) AS due,
                    u.email, u.name, u.workspace_id, w.name AS workspace_name,
+                   w.logo_sha256 AS workspace_logo,
                    w.created_by = u.id AS is_creator,
                    r.id AS role_id, r.key AS role_key, r.name AS role_name,
                    r.description AS role_description, r.permissions
@@ -72,6 +73,7 @@ def _actor(row: Any, digest: bytes) -> Actor:
         name=row.name,
         workspace_id=row.workspace_id,
         workspace_name=row.workspace_name,
+        workspace_logo=row.workspace_logo,
         role_id=row.role_id,
         role_key=row.role_key,
         role_name=row.role_name,
@@ -90,6 +92,7 @@ def actor_of(session: Session, workspace_id: uuid.UUID, user_id: uuid.UUID) -> A
         text(
             """
             SELECT u.id AS user_id, u.email, u.name, u.workspace_id, w.name AS workspace_name,
+                   w.logo_sha256 AS workspace_logo,
                    w.created_by = u.id AS is_creator,
                    r.id AS role_id, r.key AS role_key, r.name AS role_name,
                    r.description AS role_description, r.permissions

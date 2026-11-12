@@ -1484,6 +1484,27 @@ export interface paths {
         patch: operations["rename_workspace_api_v1_workspace_patch"];
         trace?: never;
     };
+    "/api/v1/workspace/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The company's logo (PNG), for its members' header
+         * @description Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until
+         *     the logo changes.
+         */
+        get: operations["workspace_logo_api_v1_workspace_logo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3253,6 +3274,11 @@ export interface components {
             password: string;
             /** Token */
             token: string;
+            /**
+             * Website
+             * @description Optional; kept as its domain (scoutboard.com)
+             */
+            website?: string | null;
             /** Workspace Name */
             workspace_name: string;
         };
@@ -3691,6 +3717,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Logo Url
+             * @description The company's logo (PNG), changing with it; null while it has none
+             */
+            logo_url: string | null;
             /** Name */
             name: string;
         };
@@ -9249,6 +9280,54 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorkspaceView"];
                 };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    workspace_logo_api_v1_workspace_logo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (problem details) */
             422: {

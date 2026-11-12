@@ -18,6 +18,7 @@ from signora.modules.identity_access.domain.permissions import (
 # Long enough for any passphrase; short enough that nobody makes the server hash a megabyte.
 PasswordInput = Annotated[str, StringConstraints(min_length=1, max_length=1024)]
 NameInput = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+WORKSPACE_LOGO_PATH = "/api/v1/workspace/logo"
 EmailInput = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=254)]
 
 
@@ -54,6 +55,9 @@ class TokenRequest(_Body):
 
 class SignupCompleteRequest(TokenRequest):
     workspace_name: NameInput
+    website: Annotated[str, StringConstraints(max_length=2048)] | None = Field(
+        default=None, description="Optional; kept as its domain (scoutboard.com)"
+    )
     name: NameInput
     password: PasswordInput
 
@@ -150,6 +154,18 @@ class UserView(BaseModel):
 class WorkspaceView(BaseModel):
     id: uuid.UUID
     name: str
+    logo_url: str | None = Field(
+        description="The company's logo (PNG), changing with it; null while it has none"
+    )
+
+    @staticmethod
+    def of(actor: Actor, *, name: str | None = None) -> WorkspaceView:
+        logo = actor.workspace_logo
+        return WorkspaceView(
+            id=actor.workspace_id,
+            name=actor.workspace_name if name is None else name,
+            logo_url=None if logo is None else f"{WORKSPACE_LOGO_PATH}?v={logo[:16]}",
+        )
 
 
 class RoleView(BaseModel):
@@ -173,7 +189,7 @@ class MeResponse(BaseModel):
     def of(actor: Actor) -> MeResponse:
         return MeResponse(
             user=UserView(id=actor.user_id, email=actor.email, name=actor.name),
-            workspace=WorkspaceView(id=actor.workspace_id, name=actor.workspace_name),
+            workspace=WorkspaceView.of(actor),
             role=RoleView(
                 id=actor.role_id,
                 key=actor.role_key,

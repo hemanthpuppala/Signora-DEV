@@ -118,6 +118,7 @@ def integration_results(settings: Settings) -> tuple[CheckResult, ...]:
         "ai": settings.ai.configured,
         "email": settings.email.configured,
         "stripe": settings.stripe.configured,
+        "company_logos": settings.logo.configured,
     }
     return tuple(
         CheckResult(name, "configured" if ok else "not_configured", core=False, duration_ms=0)

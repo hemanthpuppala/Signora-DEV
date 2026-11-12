@@ -65,6 +65,7 @@ def complete(
             policy=policy,
             token=body.token,
             workspace_name=body.workspace_name,
+            website=body.website,
             name=body.name,
             password=body.password,
         )

@@ -7,7 +7,11 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
+from fastapi.responses import FileResponse
 
+from signora.kernel.blobstore import BlobStore
+from signora.kernel.errors import NotFound
+from signora.modules.identity_access import company_logo
 from signora.modules.identity_access import members as member_service
 from signora.modules.identity_access.access import Actor
 from signora.modules.identity_access.dependencies import current_actor, database_of, require
@@ -92,7 +96,32 @@ def rename_workspace(
 ) -> WorkspaceView:
     with database_of(request).unit_of_work() as uow:
         name = member_service.rename_workspace(uow, actor=actor, name=body.name)
-    return WorkspaceView(id=actor.workspace_id, name=name)
+    return WorkspaceView.of(actor, name=name)
+
+
+@router.get(
+    "/workspace/logo",
+    summary="The company's logo (PNG), for its members' header",
+    response_class=FileResponse,
+)
+def workspace_logo(
+    request: Request, actor: Annotated[Actor, Depends(current_actor)]
+) -> FileResponse:
+    """Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until
+    the logo changes."""
+    with database_of(request).unit_of_work() as uow:
+        logo = company_logo.logo_of(uow.session, actor.workspace_id)
+    if logo is None:
+        raise NotFound("This company has no logo")
+    store: BlobStore = request.app.state.blob_store
+    return FileResponse(
+        store.path(logo),
+        media_type="image/png",
+        headers={
+            "Cache-Control": "private, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.patch("/me", summary="Change your name")

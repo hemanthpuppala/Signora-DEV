@@ -323,6 +323,7 @@ def test_invites_for_one_address_at_once_make_one_invite(
         name="Rosa Hale",
         workspace_id=creator.workspace_id,
         workspace_name="Hale & Ward LLP",
+        workspace_logo=None,
         role_id=creator.role_ids["read_write"],
         role_key="read_write",
         role_name="Editor",
