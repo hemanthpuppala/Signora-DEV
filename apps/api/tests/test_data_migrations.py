@@ -163,6 +163,42 @@ def test_0016_queues_detection_for_every_processed_version_and_back(
     engine.dispose()
 
 
+def test_0027_queues_detection_for_every_scanned_version_and_back(
+    scratch: DatabaseSettings,
+) -> None:
+    """Phase 5c: a version stopped at needs_ocr becomes detecting with its detection queued; the
+    downgrade puts it back and removes the job, leaving other versions and jobs alone."""
+    from signora.modules.documents.processing import DocumentVersionProcessed
+
+    config = alembic_config(scratch)
+    command.upgrade(config, "0026")
+    engine = create_engine(scratch.url)
+    scanned = _processed_version(engine, status="needs_ocr")
+    locked = _processed_version(engine, status="needs_password")
+
+    command.upgrade(config, "0027")
+
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT id, status FROM document_versions")).all()
+        jobs = connection.execute(
+            text("SELECT payload FROM jobs WHERE dedupe_key LIKE '%:scanned-0027'")
+        ).all()
+    assert {row.id: row.status for row in rows} == {scanned: "detecting", locked: "needs_password"}
+    (job,) = jobs
+    assert DocumentVersionProcessed.model_validate(job.payload).version_id == scanned
+
+    command.downgrade(config, "0026")
+
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT id, status FROM document_versions")).all()
+        left = connection.execute(
+            text("SELECT count(*) FROM jobs WHERE dedupe_key LIKE '%:scanned-0027'")
+        ).scalar_one()
+    assert {row.id: row.status for row in rows} == {scanned: "needs_ocr", locked: "needs_password"}
+    assert left == 0
+    engine.dispose()
+
+
 def test_0018_keeps_ready_versions_in_review_without_a_current_one_and_back(
     scratch: DatabaseSettings,
 ) -> None:

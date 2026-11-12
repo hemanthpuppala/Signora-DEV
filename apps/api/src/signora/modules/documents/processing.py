@@ -153,8 +153,8 @@ def _needs_password(context: JobContext, work: _Work) -> None:
 
 def _done(context: JobContext, work: _Work, prepared: Prepared, store: BlobStore) -> None:
     ref = store.put(work.workspace_id, BytesIO(prepared.pdf), max_bytes=len(prepared.pdf))
-    # Processed: detection finds its fields next (Phase 5); a scanned page stops it here.
-    status = "needs_ocr" if prepared.pages_without_text else "detecting"
+    # Processed: detection finds its fields next (Phase 5), scanned pages too (Phase 5c).
+    status = "detecting"
     with context.complete() as uow:
         changed = uow.session.execute(
             text(
