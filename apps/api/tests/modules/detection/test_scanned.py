@@ -164,7 +164,7 @@ def test_the_ai_receives_the_pictures_with_the_text() -> None:
     content = seen[0][1]["content"]
     assert len(calls) == 1 and isinstance(content, list)
     assert [part["type"] for part in content] == ["text", "text", "image_url"]
-    assert content[2]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert content[2]["image_url"]["url"].startswith("data:image/jpeg;base64,")
 
 
 def _answer(reading: Any, extra: list[dict[str, Any]], holds: str = "full_name") -> dict[str, Any]:
@@ -359,3 +359,78 @@ def test_a_huge_page_is_read_within_the_pixel_budget() -> None:
     assert (8000 * dpi / 72) ** 2 <= MAX_PIXELS
     assert render_dpi(letter, SCAN_DPI) == SCAN_DPI  # an ordinary page keeps its resolution
     assert scan_blanks(huge) == []  # read, quickly, within the budget
+
+
+def _upright_turned_scan(rotation: int) -> bytes:
+    """A scan stored turned, its /Rotate showing it upright, as scanners write them: the line of
+    "Name:" lies at (110..300, 302) as the page is shown."""
+    drawn = pymupdf.open()
+    page = drawn.new_page(width=612, height=792)
+    page.insert_text((72, 100), PARAGRAPH, fontsize=11)
+    page.insert_text((72, 300), "Name:", fontsize=11)
+    page.draw_line((110, 302), (300, 302), width=0.75)
+    picture: pymupdf.Pixmap = page.get_pixmap(dpi=150, colorspace=pymupdf.csGRAY)
+    for stored in (0, 90, 180, 270):
+        scan = pymupdf.open()
+        width, height = (612, 792) if rotation in (0, 180) else (792, 612)
+        sheet = scan.new_page(width=width, height=height)
+        sheet.insert_image(sheet.rect, pixmap=picture, rotate=stored)
+        sheet.set_rotation(rotation)
+        data: bytes = scan.tobytes()
+        found = read_document(data).asked
+        if len(found) == 1 and abs(found[0].placements[0].rect[3] - 303) < 4:
+            return data
+    raise AssertionError(f"no upright layout for /Rotate {rotation}")
+
+
+@pytest.mark.parametrize("rotation", [0, 90, 180, 270])
+def test_a_turned_pages_tag_sits_at_the_start_of_its_line(rotation: int) -> None:
+    """Review #4: tags were drawn in the page's own unrotated space, so on /Rotate 180 and 270
+    they landed at the line's end, upside down. They are drawn on the picture as shown now."""
+    import base64
+
+    data = _upright_turned_scan(rotation)
+    reading = read_document(data)
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        part = marked_pages(document, reading)[1]
+        width = document[0].rect.width
+    picture = pymupdf.Pixmap(base64.b64decode(part["image_url"]["url"].split(",")[1]))
+    scale = picture.width / width
+
+    def red_near(x: float) -> int:
+        return sum(
+            1
+            for dx in range(0, 30, 2)
+            for dy in range(-14, 2, 2)
+            if (lambda px: px[0] > 150 and px[1] < 90)(
+                picture.pixel(int((x + dx) * scale), int((303 + dy) * scale))
+            )
+        )
+
+    assert red_near(110) > 5 and red_near(270) == 0  # at the start, not at the end
+
+
+def test_scanned_pages_go_to_the_ai_as_jpeg_within_a_hard_pixel_budget() -> None:
+    """Review #3: every scanned page went as a full PNG in one request, unbounded. Pictures are
+    JPEG now, within a page budget and a hard document budget (lower resolution, never more)."""
+    from signora.modules.detection.scan_images import (
+        DOCUMENT_PIXELS,
+        IMAGE_DPI,
+        PAGE_PIXELS,
+        picture_dpis,
+    )
+
+    letters = pymupdf.open()
+    for _ in range(200):  # the longest upload allowed
+        letters.new_page(width=612, height=792)
+    dpis = picture_dpis(letters, list(range(1, 201)))
+    assert sum((dpi / 72) ** 2 * 612 * 792 for dpi in dpis.values()) <= DOCUMENT_PIXELS
+    assert min(dpis.values()) >= 72  # still readable
+    short = pymupdf.open()
+    short.new_page(width=612, height=792)
+    assert picture_dpis(short, [1]) == {1: IMAGE_DPI}  # an ordinary scan is not lowered
+    assert (612 * IMAGE_DPI / 72) * (792 * IMAGE_DPI / 72) <= PAGE_PIXELS
+    data = _scan([_text(72, 300, "Name:"), _line(110, 300, 302)])
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        part = marked_pages(document, read_document(data))[1]
+    assert part["image_url"]["url"].startswith("data:image/jpeg;base64,")

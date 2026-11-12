@@ -272,9 +272,9 @@ def _merge(blanks: list[ScanBlank]) -> list[ScanBlank]:
     return merged
 
 
-def render_dpi(page: pymupdf.Page, wanted: float) -> int:
+def render_dpi(page: pymupdf.Page, wanted: float, max_pixels: int = MAX_PIXELS) -> int:
     """The resolution a page is turned into pixels at: ``wanted``, lowered so the picture holds
-    at most ``MAX_PIXELS``. O(1)."""
+    at most ``max_pixels``. O(1)."""
     area = max(page.rect.width * page.rect.height, 1.0)  # square points, as displayed
-    fits = 72 * (MAX_PIXELS / area) ** 0.5
+    fits = 72 * (max_pixels / area) ** 0.5
     return max(int(min(wanted, fits)), 1)
