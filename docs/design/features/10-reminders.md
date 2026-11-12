@@ -16,7 +16,7 @@ platform design describes (FR-33, §5.5).
 | FR-R2 | Automatic reminders stop at the envelope's maximum count (manual reminders count towards it), when the person signs or declines, when the envelope is completed, declined, cancelled or past its expiry, and never fall after the expiry. A maximum of 0 means none. |
 | FR-R3 | A reminder sent within one interval of the expiry says when the link stops working (the last chance). |
 | FR-R4 | A reminder by hand also moves that person's next automatic reminder one interval on, so they are never emailed twice in quick succession. |
-| FR-R5 | A corrected email (a new link) and a countersigner's turn start the person's schedule afresh. |
+| FR-R5 | A corrected email (a new link) and a countersigner's turn start the person's schedule afresh; a corrected email also starts its count again. |
 | FR-R6 | Each automatic reminder is on the envelope's timeline as the system's, with how many were reminded. |
 | FR-R7 | The envelope page shows each person's next reminder. |
 | FR-R8 | No reminder is sent twice: two workers, a retried job or a reminder by hand at the same moment still send one email per reminder count. |
@@ -45,7 +45,7 @@ platform design describes (FR-33, §5.5).
   schedules; signing, declining and cancelling therefore need no extra write.
 - **Concurrency:** each envelope is reminded in its own transaction under the envelope's row lock, the
   same lock the manual reminder takes, and the condition is checked again under it. The email's dedupe
-  key `sign_reminder:{recipient}:{count}` is shared with the manual reminder, so a race sends one email.
+  key `sign_reminder:{recipient}:{link_version}:{count}` is shared with the manual reminder, so a race sends one email.
 - **Urgent:** a reminder is the last chance when `expires_at − now ≤ interval`; its subject and heading
   give the moment the link stops working.
 

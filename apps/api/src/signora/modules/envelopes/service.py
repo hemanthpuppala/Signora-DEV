@@ -377,7 +377,8 @@ def _remind(uow: UnitOfWork, envelope: _Locked, due: list[_Recipient]) -> None:
             html=letter.body.html,
             category="sign_reminder",
             workspace_id=envelope.workspace_id,
-            dedupe_key=f"sign_reminder:{recipient.id}:{count}",
+            # Per link: a corrected email's count starts again at 1 (FR-R5).
+            dedupe_key=f"sign_reminder:{recipient.id}:{recipient.link_version}:{count}",
             reply_to=sender.sender_email,
         )
         session.execute(
@@ -538,7 +539,9 @@ def change_recipient(
             "status = CASE WHEN :restart THEN 'sent' ELSE status END, "
             "opened_at = CASE WHEN :restart THEN NULL ELSE opened_at END, "
             "viewed_at = CASE WHEN :restart THEN NULL ELSE viewed_at END, "
-            "sent_at = CASE WHEN :restart THEN now() ELSE sent_at END WHERE id = :r"
+            "sent_at = CASE WHEN :restart THEN now() ELSE sent_at END, "
+            # A new address starts its reminders afresh (reminders LLD FR-R5).
+            "reminders_sent = CASE WHEN :restart THEN 0 ELSE reminders_sent END WHERE id = :r"
         ),
         {
             "email": new_email,

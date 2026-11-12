@@ -196,6 +196,11 @@ def test_a_corrected_email_and_a_countersigners_turn_start_their_schedule(
     _, envelope = sent_envelope(owner, run, detect, company)
     signer, firm, _ = envelope["recipients"]
     _due(committing_db, signer["id"])
+    _run(  # the mistyped address used up every reminder
+        committing_db,
+        "UPDATE envelope_recipients SET reminders_sent = 3 WHERE id = :r",
+        r=signer["id"],
+    )
 
     changed = owner.patch(
         f"{ENVELOPES}/{envelope['id']}/recipients/{signer['id']}",
@@ -204,7 +209,11 @@ def test_a_corrected_email_and_a_countersigners_turn_start_their_schedule(
     )
     assert changed.status_code == 200, changed.text
     moved = _schedule(committing_db, signer["id"])
+    assert moved.reminders_sent == 0  # the new address starts afresh
     assert _about(moved.next_reminder_at, moved.now + INTERVAL)
+    _due(committing_db, signer["id"])
+    remind_due(committing_db)
+    assert len(_reminders(committing_db, f"new-{signer['email']}")) == 1
 
     _run(
         committing_db,
