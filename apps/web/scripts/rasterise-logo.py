@@ -25,5 +25,5 @@ def rasterise(name: str) -> tuple[int, int]:
     return image.size
 
 
-for logo in ("signora-logo", "signora-logo-black"):
+for logo in ("signora-logo",):
     print(EMAIL / f"{logo}.png", rasterise(logo))

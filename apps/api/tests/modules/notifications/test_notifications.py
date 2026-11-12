@@ -122,10 +122,11 @@ def test_layout_escapes_caller_text_and_matches_the_text_part() -> None:
 
 
 def test_every_email_shows_the_logo_by_its_absolute_address_with_the_name_as_its_alt_text() -> None:
+    import hashlib
     from pathlib import Path
 
     from signora.kernel.config import get_settings
-    from signora.modules.notifications.layout import LOGO_BLACK_PATH, LOGO_PATH, LOGO_VERSION
+    from signora.modules.notifications.layout import LOGO_PATH, LOGO_VERSION
 
     email = render_layout(heading="Hello", paragraphs=["x"])
 
@@ -133,16 +134,12 @@ def test_every_email_shows_the_logo_by_its_absolute_address_with_the_name_as_its
     # An email cannot load a relative address; the version makes a new file a new address.
     assert f'src="{base}{LOGO_PATH}?v={LOGO_VERSION}"' in email.html
     assert 'alt="Signora"' in email.html  # what shows where images are blocked
-    web_public = Path(__file__).resolve().parents[4] / "web" / "public"
-    for path in (LOGO_PATH, LOGO_BLACK_PATH):  # the files the addresses name are served
-        assert (web_public / path.lstrip("/")).is_file()
-    assert f'src="{base}{LOGO_BLACK_PATH}?v={LOGO_VERSION}"' in email.html  # repainted light
+    logo = Path(__file__).resolve().parents[4] / "web" / "public" / LOGO_PATH.lstrip("/")
+    # The version is the served file's fingerprint: a redrawn logo without a new version fails.
+    assert hashlib.sha256(logo.read_bytes()).hexdigest()[:12] == LOGO_VERSION
     # Gmail's apps keep the black (a background image) and the white text (its blends).
     assert "background-image:linear-gradient(#000,#000)" in email.html
     assert email.html.count('class="gmail-screen"') >= 2
-
-
-# --- queueing ----------------------------------------------------------------------------------
 
 
 def test_send_email_queues_the_message_and_its_job_together(db: Database) -> None:

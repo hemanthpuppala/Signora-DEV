@@ -1,3 +1,4 @@
+// Run with Node 22.18 or later (it imports the logo's TypeScript data as it is).
 // The Signora logo for emails, as an SVG: the finished frame of the site's animated logo (its
 // letterforms, and the quill where it rests), from the same data the animation draws. Email
 // clients cannot run the animation or show SVG reliably, so `make email-logo` rasterises this to
@@ -9,13 +10,10 @@ import { fileURLToPath } from "node:url";
 import { QUILL, VANE, VIEW } from "../src/shared/ui/signature/logoArt.ts";
 import { LOGO, SIG } from "../src/shared/ui/signature/penPaths.ts";
 
-// Two inks: white for the emails' black page, black for an email app that repaints it light.
-// The feather in one colour (the rasteriser draws an SVG gradient black): the middle of the site's
-// gradient on black, its darkest stop on white.
-const INKS = [
-  { name: "signora-logo", ink: "#ffffff", paper: "#000000", feather: VANE[1] },
-  { name: "signora-logo-black", ink: "#111111", paper: "#ffffff", feather: VANE[2] },
-];
+// White ink, as the emails are white on black (they keep their black even where an app repaints
+// emails: layout.html). The feather in one colour, the middle of the site's gradient: the
+// rasteriser draws an SVG gradient black.
+const INKS = [{ name: "signora-logo", ink: "#ffffff", paper: "#000000", feather: VANE[1] }];
 
 // The quill's pose when the writing ends (logoSigning's nibAt at LOGO.end).
 const frames = LOGO.nib.length / 5;

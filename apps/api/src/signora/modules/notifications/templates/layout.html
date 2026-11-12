@@ -7,16 +7,12 @@
    white through their repaint (u + .body: only Gmail wraps the body so). */
 u + .body .gmail-screen { background:#000; mix-blend-mode:screen; }
 u + .body .gmail-difference { background:#000; mix-blend-mode:difference; }
-/* Outlook marks what it recoloured: where it repainted the email light, the black logo shows. */
-.logo-black { display:none; }
-[data-ogsc] .logo-white { display:none !important; }
-[data-ogsc] .logo-black { display:block !important; }
 </style></head>
 <body class="body" style="margin:0;padding:0;background:#000;background-image:linear-gradient(#000,#000);color:#fff;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#000;background-image:linear-gradient(#000,#000)">
 <tr><td align="center" style="padding:40px 16px;background:#000;background-image:linear-gradient(#000,#000)">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px">
-<tr><td style="padding-bottom:28px"><img class="logo-white" src="{{ logo_url }}" width="140" height="54" alt="Signora" style="display:block;border:0;outline:none;width:140px;height:auto;color:#fff;font-size:14px;letter-spacing:.16em;font-weight:600"><img class="logo-black" src="{{ logo_black_url }}" width="140" height="54" alt="" style="display:none;border:0;outline:none;width:140px;height:auto"></td></tr>
+<tr><td style="padding-bottom:28px"><img src="{{ logo_url }}" width="140" height="54" alt="Signora" style="display:block;border:0;outline:none;width:140px;height:auto;color:#fff;font-size:14px;letter-spacing:.16em;font-weight:600"></td></tr>
 <tr><td style="font-family:Georgia,'Times New Roman',serif;font-size:30px;line-height:1.2;font-weight:300;padding-bottom:20px;color:#fff"><div class="gmail-screen"><div class="gmail-difference">{{ heading }}</div></div></td></tr>
 {% for paragraph in paragraphs %}<tr><td style="font-size:15px;line-height:1.6;color:rgba(255,255,255,.75);padding-bottom:16px"><div class="gmail-screen"><div class="gmail-difference">{{ paragraph }}</div></div></td></tr>
 {% endfor %}{% if action %}<tr><td style="padding:12px 0 24px"><a href="{{ action.url }}" style="display:inline-block;border:1px solid rgba(255,255,255,.4);color:#fff;text-decoration:none;font-size:12px;letter-spacing:.3em;text-transform:uppercase;padding:14px 22px"><span class="gmail-screen"><span class="gmail-difference">{{ action.label }} &rarr;</span></span></a></td></tr>
