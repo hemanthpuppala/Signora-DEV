@@ -6,6 +6,7 @@ import { cx } from "@/shared/lib/cx";
 import { ScrollLatch } from "./ScrollLatch";
 import { SignatureLogo } from "./SignatureLogo";
 import styles from "./shell.module.css";
+import { WorkspaceMark } from "./WorkspaceMark";
 
 /** ``count``: things waiting there for the person (a dot and the number), shown above zero. */
 export type NavItem = { href: string; label: string; active?: boolean; count?: number };
@@ -15,6 +16,8 @@ export type AppShellProps = {
   home?: string;
   /** Workspace name shown next to the logo (signed-in console). */
   workspace?: string;
+  /** The company's logo, shown in place of its name when it loads. */
+  workspaceLogo?: string | null;
   nav?: readonly NavItem[];
   /** Controls after the navigation (e.g. "Log out"). */
   actions?: ReactNode;
@@ -31,7 +34,7 @@ export type TopBarProps = Omit<AppShellProps, "children" | "width" | "home"> & {
   aside?: ReactNode;
 };
 
-export function TopBar({ home = "/", workspace, nav = [], actions, aside }: TopBarProps) {
+export function TopBar({ home = "/", workspace, workspaceLogo, nav = [], actions, aside }: TopBarProps) {
   return (
     <header className={styles.topbar}>
       <div className={cx(styles.topbarInner, styles.wrap)}>
@@ -45,7 +48,7 @@ export function TopBar({ home = "/", workspace, nav = [], actions, aside }: TopB
               <SignatureLogo className={styles.logoMark} />
             </Link>
           )}
-          {workspace ? <span className={styles.workspace}>{workspace}</span> : null}
+          {workspace ? <WorkspaceMark name={workspace} logoUrl={workspaceLogo ?? null} /> : null}
         </div>
         {aside ? <div className={styles.aside}>{aside}</div> : null}
         {nav.length || actions ? (
@@ -74,13 +77,22 @@ export function TopBar({ home = "/", workspace, nav = [], actions, aside }: TopB
 }
 
 /** Logged-in console layout: top bar plus a centred main column (or the full width). */
-export function AppShell({ home, workspace, nav, actions, width = "content", children }: AppShellProps) {
+export function AppShell({
+  home,
+  workspace,
+  workspaceLogo,
+  nav,
+  actions,
+  width = "content",
+  children,
+}: AppShellProps) {
   return (
     <>
       <ScrollLatch />
       <TopBar
         {...(home ? { home } : {})}
         {...(workspace ? { workspace } : {})}
+        {...(workspaceLogo ? { workspaceLogo } : {})}
         {...(nav ? { nav } : {})}
         {...(actions ? { actions } : {})}
       />

@@ -15,7 +15,7 @@ import { AccountReady } from "./AccountReady";
 import { LinkProblem } from "./LinkProblem";
 import { useLinkCheck } from "./useLinkCheck";
 
-type Input = { token: string; workspace_name: string; name: string; password: string };
+type Input = { token: string; workspace_name: string; website: string | null; name: string; password: string };
 
 const verify = (token: string) =>
   unwrap(api.POST("/api/v1/auth/signup/verify", { body: { token } }));
@@ -26,6 +26,7 @@ export function SignupCompleteForm() {
   const rules = usePasswordRules();
   const { token, check } = useLinkCheck("signup", verify);
   const [workspaceName, setWorkspaceName] = useState("");
+  const [website, setWebsite] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const logIn = useLogIn();
@@ -58,7 +59,7 @@ export function SignupCompleteForm() {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token) return;
-    complete.run({ token, workspace_name: workspaceName, name, password });
+    complete.run({ token, workspace_name: workspaceName, website: website.trim() || null, name, password });
   };
   const errors = fieldErrors(complete.state.error);
   const problem = complete.state.status === "retrying" ? "Connection lost — retrying…" : formError(complete.state.error ?? logIn.error);
@@ -76,6 +77,20 @@ export function SignupCompleteForm() {
         value={workspaceName}
         error={errors.workspace_name}
         onChange={(event) => setWorkspaceName(event.target.value)}
+      />
+      <TextField
+        label="Company website"
+        name="url"
+        type="text"
+        inputMode="url"
+        autoComplete="url"
+        spellCheck={false}
+        placeholder="yourcompany.com"
+        hint="Optional. Your company's logo then shows in the header."
+        maxLength={2048}
+        value={website}
+        error={errors.website}
+        onChange={(event) => setWebsite(event.target.value)}
       />
       <TextField
         label="Your name"

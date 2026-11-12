@@ -102,7 +102,7 @@ logo.dev, over http or to an IP never fetched; non-PNG, oversize, gone and redir
 not kept; sign-up keeps the domain and queues one look-up; blank website queues nothing; a bad
 website creates nothing; a found logo served to members only with `immutable` caching; no logo
 means the name; a changed website discards the late logo; no key means no call.
-Web: `shared/ui` tests for the header mark (logo, name, fallback when the image fails).
+Web: `shared/ui/WorkspaceMark.test.tsx` for the header mark (logo, name, fallback when the image fails).
 
 ## Task tracker
 
@@ -114,6 +114,7 @@ Web: `shared/ui` tests for the header mark (logo, name, fallback when the image 
 | 4 | Look-up job and storage | done | `company_logo.py`, `jobs.py` |
 | 5 | Sign-up field (API) | done | `signup.py`, `schemas.py` |
 | 6 | Serve the logo; `logo_url` in `/me` | done | `routes/members.py` |
-| 7 | Sign-up form field (web) | todo | |
-| 8 | Header logo with name fallback (web) | todo | |
-| 9 | Live check with a real key | todo | needs `LOGO_DEV_SECRET_KEY` |
+| 7 | Sign-up form field (web) | done | `SignupCompleteForm.tsx`; `SignupCompleteForm.test.tsx` |
+| 8 | Header logo with name fallback (web) | done | `WorkspaceMark.tsx`; `WorkspaceMark.test.tsx` |
+| 9 | Full gate | done | API 999 tests, lint, mypy, import contracts; web 374 tests, lint, types, build |
+| 10 | Live check with a real key | todo | needs `LOGO_DEV_SECRET_KEY`; the migration must follow 0028 first (§6) |
