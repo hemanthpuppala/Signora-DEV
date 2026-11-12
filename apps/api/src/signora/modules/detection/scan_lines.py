@@ -174,6 +174,23 @@ def scan_blanks(page: pymupdf.Page) -> list[ScanBlank]:
     return _merge(blanks)
 
 
+def free_above(page: pymupdf.Page, box: Box, reach: float) -> float:
+    """The free height above a box's foot on a scanned page, up to ``reach`` points: the rows
+    above it, across its width, with nothing written in them (a place with no line, which the
+    AI gave by its box; F2's room to sign). Only that strip is rendered: O(width · reach)."""
+    x0, _, x1, y1 = box
+    clip = pymupdf.Rect(x0, max(y1 - reach, 0), x1, y1) & page.rect  # as displayed
+    if clip.is_empty:
+        return 0.0
+    pix = page.get_pixmap(dpi=SCAN_DPI, clip=clip, colorspace=pymupdf.csGRAY)
+    grey = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.stride)[
+        :, : pix.width
+    ]
+    rows = np.nonzero(_ink(grey).sum(axis=1) >= INK_ABOVE)[0]
+    free_px = int(pix.height - 1 - rows[-1]) if rows.size else pix.height
+    return round(min(free_px * clip.height / max(pix.height, 1), reach), 1)
+
+
 def _ink(grey: np.ndarray) -> np.ndarray:
     """What is ink on the page: darker than its paper by ``INK_DROP`` (the paper's grey is the
     page's median: most of a page is paper), so a faint, blurred line still counts."""

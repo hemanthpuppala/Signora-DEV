@@ -23,6 +23,7 @@ from signora.modules.detection.geometry import Box
 from signora.modules.detection.page_text import UNDERSCORES
 from signora.modules.detection.reading import FieldsFrom, FoundField, Reading
 from signora.modules.detection.scan_lines import TEXT_ABOVE as SCAN_TEXT_ABOVE
+from signora.modules.detection.scan_lines import free_above
 from signora.modules.detection.schema import ALLOWED, ANCHOR_MAX
 from signora.modules.detection.writing_space import CLEARANCE, GROWS, SIGN_HEIGHT, DocumentSpace
 from signora.modules.review.formats import format_for
@@ -556,7 +557,7 @@ def derive(
             format=extra.get("format"),
         )
 
-    _room_to_sign(items, space, reading)
+    _room_to_sign(items, space, reading, document)
     _same_values(answer, items, notes)
 
     # Checkbox groups: one choice, its options the checkboxes (§4.3). Each group is its own
@@ -621,13 +622,16 @@ def derive(
     )
 
 
-def _room_to_sign(items: dict[str, _Item], space: DocumentSpace, reading: Reading) -> None:
+def _room_to_sign(
+    items: dict[str, _Item], space: DocumentSpace, reading: Reading, document: pymupdf.Document
+) -> None:
     """A signature or initials on a blank line takes the writing space above the line (findings
     F2); a form field's box stays as its author drew it. The space holds every field's original
     place (and the extra fields' places once taken), so one grown box never limits another. A
     scanned page has no words to stop a box: there a line takes the free height measured above
-    it on the picture (``Placement.headroom``), and a place with none measured keeps its size.
-    O(W + P) per page that holds such a line, for W words and P places."""
+    it on the picture (``Placement.headroom``); an extra field placed by its box takes the free
+    height measured above its foot (``free_above``). O(W + P) per page that holds such a line,
+    for W words and P places, plus a strip of pixels per scanned extra field."""
     headroom = {
         (placement.page, placement.rect): placement.headroom
         for found in reading.fields
@@ -642,7 +646,13 @@ def _room_to_sign(items: dict[str, _Item], space: DocumentSpace, reading: Readin
                 continue
             if place.page in reading.scanned_pages:
                 free = headroom.get((place.page, place.rect))
-                rect = _grown_by(place.rect, free) if free is not None else place.rect
+                rect = (
+                    _grown_by(place.rect, free)
+                    if free is not None
+                    else _grown_from_foot(
+                        place.rect, free_above(document[place.page - 1], place.rect, SIGN_HEIGHT)
+                    )
+                )
             else:
                 page = space.page(place.page)
                 rect = page.room_above(place.rect) if page is not None else place.rect
@@ -655,6 +665,14 @@ def _grown_by(box: Box, free: float) -> Box:
     x0, y0, x1, y1 = box
     line_top = y0 + SCAN_TEXT_ABOVE  # the box is the line with the text row above it
     top = max(y1 - SIGN_HEIGHT, line_top - free + CLEARANCE)
+    return (x0, min(top, y0), x1, y1)
+
+
+def _grown_from_foot(box: Box, free: float) -> Box:
+    """A scanned extra field's box (the AI's) grown upward by the free height measured above its
+    foot, up to ``SIGN_HEIGHT`` in all, never smaller than it was."""
+    x0, y0, x1, y1 = box
+    top = max(y1 - SIGN_HEIGHT, y1 - free + CLEARANCE)
     return (x0, min(top, y0), x1, y1)
 
 

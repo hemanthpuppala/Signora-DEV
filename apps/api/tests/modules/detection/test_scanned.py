@@ -250,6 +250,32 @@ def test_a_signature_on_a_scanned_line_takes_the_room_measured_above_it() -> Non
         assert (after[1] < before[1] - 10) is grows  # grows into free space, never over text
 
 
+def test_a_signature_placed_by_its_box_on_a_scan_takes_the_room_measured_above_it() -> None:
+    """Review #8: a scanned signature with no line (an extra field, placed by the AI's box) kept
+    the AI's tight box; it now grows, like a line's, into the free height above it."""
+    roomy = _scan([_text(72, 300, "Signature:")])
+    tight = _scan(
+        [_text(160, 285, "In witness whereof the parties sign"), _text(72, 300, "Signature:")]
+    )
+    for data, grows in ((roomy, True), (tight, False)):
+        reading = read_document(data)
+        page = reading.pages[0]
+        box = [
+            round(160 / page.width * 1000),
+            round(288 / page.height * 1000),
+            round(400 / page.width * 1000),
+            round(302 / page.height * 1000),
+        ]
+        answer = _answer(reading, [{**_extra(box, "signature"), "label": "Signature"}])
+        with pymupdf.open(stream=data, filetype="pdf") as document:
+            assert check(answer, reading, document) == []
+            result = derive(reading, answer, document, problems=[], repaired=False)
+        (field,) = (field for field in result.fields if field.label == "Signature")
+        top, foot = field.placements[0].rect[1], field.placements[0].rect[3]
+        assert foot == pytest.approx(302, abs=1)  # the foot stays
+        assert (top < 288 - 10) is grows  # grows into free space, never over the text above
+
+
 def _scanner(data: bytes, *, angle: float = 0.0, blur: bool = False, dpi: int = 150) -> bytes:
     """A scanner's output of a drawn document: its pages turned by ``angle`` degrees about their
     centre (the page's size kept), blurred, at ``dpi``; with numpy only (nearest pixel)."""
