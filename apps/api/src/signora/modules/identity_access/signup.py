@@ -14,13 +14,14 @@ from signora.kernel.errors import FieldError, ValidationFailed
 from signora.kernel.jobs import JobContext, enqueue
 from signora.kernel.logging import get_logger
 from signora.kernel.ratelimit import RateLimiter
-from signora.modules.identity_access import accounts, emails, links
+from signora.modules.identity_access import accounts, company_logo, emails, links
 from signora.modules.identity_access.domain.emails import (
     InvalidEmailError,
     email_domain,
     normalize_email,
 )
 from signora.modules.identity_access.domain.passwords import PasswordPolicy, hash_password
+from signora.modules.identity_access.domain.website import InvalidWebsiteError, company_domain
 from signora.modules.identity_access.errors import AccountExists
 from signora.modules.notifications import send_email
 
@@ -33,6 +34,16 @@ def valid_email(raw: str, field: str = "email") -> str:
     try:
         return normalize_email(raw)
     except InvalidEmailError as error:
+        raise ValidationFailed([FieldError(field, str(error))]) from None
+
+
+def valid_website(raw: str | None, field: str = "website") -> str | None:
+    """The website's domain; ``None`` when none was given (the field is optional)."""
+    if raw is None or not raw.strip():
+        return None
+    try:
+        return company_domain(raw)
+    except InvalidWebsiteError as error:
         raise ValidationFailed([FieldError(field, str(error))]) from None
 
 
@@ -95,11 +106,15 @@ def complete_signup(
     policy: PasswordPolicy,
     token: str,
     workspace_name: str,
+    website: str | None,
     name: str,
     password: str,
+    queue_logo_lookup: bool,
 ) -> str:
     """Create the workspace and its creator; returns the email. No session here: the page logs in
-    next (LLD §1.2)."""
+    next (LLD §1.2). A website plans the look-up of the company's logo, queued now when logos are
+    configured; it never holds the sign-up up."""
+    domain = valid_website(website)
     # Lock order: the address first, then the link. Completing marks every link of the address
     # used, so taking a link's row lock before the address lock would deadlock two completions.
     accounts.lock_email(
@@ -109,12 +124,15 @@ def complete_signup(
     if accounts.find_user_by_email(uow.session, link.email) is not None:
         raise AccountExists
     check_password(policy, password)
-    accounts.create_workspace(
+    created = accounts.create_workspace(
         uow,
         workspace_name=workspace_name,
+        website=domain,
         creator_name=name,
         email=link.email,
         password_hash=hash_password(password),
     )
     links.use_up_links(uow.session, purpose="signup", email=link.email)
+    if domain is not None:
+        company_logo.plan_check(uow.session, created.workspace_id, queue=queue_logo_lookup)
     return link.email

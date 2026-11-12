@@ -11,6 +11,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from signora.kernel import search
 from signora.modules.departments import SendCounts
 from signora.modules.envelopes.sending import Person, Plan, SettingsIn
 from signora.modules.envelopes.views import (
@@ -280,6 +281,42 @@ LIST_SQL = (
 )
 
 
+# Searching (ADR S-1): an envelope is found by its title, its template's name, and each signer's
+# (the customer's) name or email; its score is the best of them.
+_OWN_TEXTS = ("e.title", "d.name")
+_PERSON_TEXTS = ("r.name", "r.email")
+_SIGNERS = "FROM envelope_recipients r WHERE r.envelope_id = e.id AND r.kind = 'signer'"
+_SCORE = (
+    f"GREATEST({search.score(_OWN_TEXTS)}, "
+    f"COALESCE((SELECT max({search.score(_PERSON_TEXTS)}) {_SIGNERS}), 0))"
+)
+SEARCH_SQL = (  # every interpolated part is a constant of this module or of kernel.search
+    "SELECT e.id, e.title, e.status, e.document_id, d.name AS document_name, v.version_no, "  # noqa: S608
+    "e.sent_at, e.expires_at, e.score, "
+    "coalesce(array_agg(r.name ORDER BY r.position) FILTER (WHERE r.kind = 'signer'), '{}') "
+    "AS signers, count(*) FILTER (WHERE r.kind = 'signer' AND r.status = 'signed') AS signed "
+    "FROM (SELECT * FROM (SELECT e.id, e.title, e.status, e.document_id, e.version_id, e.sent_at, "
+    f"e.expires_at, {_SCORE} AS score FROM envelopes e JOIN documents d ON d.id = e.document_id "
+    "WHERE e.workspace_id = :w AND e.department_id = :dep "
+    "AND (CAST(:status AS text) IS NULL OR e.status = :status) "
+    f"AND ({search.matches(_OWN_TEXTS)} OR EXISTS (SELECT 1 {_SIGNERS} "
+    f"AND {search.matches(_PERSON_TEXTS)}))) m "
+    f"WHERE {search.beyond('m.score', 'm.sent_at', 'm.id')} "
+    f"ORDER BY {search.order('m.score', 'm.sent_at', 'm.id')} LIMIT :n) e "
+    "JOIN documents d ON d.id = e.document_id "
+    "JOIN document_versions v ON v.id = e.version_id "
+    "LEFT JOIN envelope_recipients r ON r.envelope_id = e.id "
+    "GROUP BY e.id, e.title, e.status, e.document_id, d.name, v.version_no, e.sent_at, "
+    "e.expires_at, e.score ORDER BY e.score DESC, e.sent_at DESC, e.id DESC"
+)
+
+
+@dataclass(frozen=True)
+class Listed:
+    envelope: EnvelopeSummary
+    score: float | None  # with a search: how well it matched, for the next page's cursor
+
+
 def list_envelopes(
     session: Session,
     workspace_id: uuid.UUID,
@@ -287,32 +324,37 @@ def list_envelopes(
     *,
     status: str | None,
     after: tuple[datetime, uuid.UUID] | None,
-) -> list[EnvelopeSummary]:
-    """A department's envelopes, newest first, ``PAGE`` at a time after a keyset ``after``
-    (sent_at, id): one index range of the page's size, O(log N + PAGE) (``LIST_SQL``)."""
-    rows = session.execute(
-        text(LIST_SQL),
-        {
-            "w": workspace_id,
-            "dep": department_id,
-            "status": status,
-            "at": after[0] if after else None,
-            "id": after[1] if after else None,
-            "n": PAGE + 1,
-        },
-    )
+    query: search.Search | None = None,
+    after_match: search.After | None = None,
+) -> list[Listed]:
+    """A department's envelopes, ``PAGE`` at a time. Without a search: newest first after a keyset
+    ``after`` (sent_at, id), one index range of the page's size, O(log N + PAGE) (``LIST_SQL``).
+    With one: the matching envelopes best match first, newest first among equals, after a keyset
+    (score, sent_at, id); m matches from the trigram indexes, O(m log m) to order them."""
+    params: dict[str, object] = {"w": workspace_id, "dep": department_id, "status": status}
+    if query is not None:
+        search.begin(session)
+        sql = SEARCH_SQL
+        params |= query.params | search.after_params(after_match)
+    else:
+        sql = LIST_SQL
+        params |= {"at": after[0] if after else None, "id": after[1] if after else None}
+    rows = session.execute(text(sql), {**params, "n": PAGE + 1})
     return [
-        EnvelopeSummary(
-            id=row.id,
-            title=row.title,
-            status=row.status,
-            document_id=row.document_id,
-            document_name=row.document_name,
-            version_number=row.version_no,
-            signers=list(row.signers),
-            signed=row.signed,
-            sent_at=row.sent_at,
-            expires_at=row.expires_at,
+        Listed(
+            EnvelopeSummary(
+                id=row.id,
+                title=row.title,
+                status=row.status,
+                document_id=row.document_id,
+                document_name=row.document_name,
+                version_number=row.version_no,
+                signers=list(row.signers),
+                signed=row.signed,
+                sent_at=row.sent_at,
+                expires_at=row.expires_at,
+            ),
+            row.score if query is not None else None,
         )
         for row in rows
     ]

@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from signora.kernel import search
 from signora.kernel.db import Database
 from signora.kernel.errors import FieldError, ValidationFailed
 from signora.modules.identity_access import Actor, current_actor
@@ -38,23 +39,25 @@ _WAITING = (
     "AND e.expires_at > now()"
 )
 _DONE = _FROM + " AND r.status = 'signed'"
-# A search across what a row shows: its title, template, department and signers' names.
-_SEARCH = """
-    AND (CAST(:q AS text) IS NULL OR e.title ILIKE :q OR d.name ILIKE :q OR dep.name ILIKE :q
-         OR EXISTS (SELECT 1 FROM envelope_recipients s WHERE s.envelope_id = e.id
-                    AND s.kind = 'signer' AND s.name ILIKE :q))
-"""
+# Searching (ADR S-1), as a department's envelopes are searched: by the envelope's title, its
+# template's name, and each signer's (the customer's) name or email; best match first.
+_OWN_TEXTS = ("e.title", "d.name")
+_PERSON_TEXTS = ("s.name", "s.email")
+_SIGNERS = "FROM envelope_recipients s WHERE s.envelope_id = e.id AND s.kind = 'signer'"
+_MATCHES = (
+    f" AND ({search.matches(_OWN_TEXTS)} OR EXISTS (SELECT 1 {_SIGNERS} "
+    f"AND {search.matches(_PERSON_TEXTS)}))"
+)
+_SCORE = (
+    f"GREATEST({search.score(_OWN_TEXTS)}, "
+    f"COALESCE((SELECT max({search.score(_PERSON_TEXTS)}) {_SIGNERS}), 0))"
+)
 
 
-def _escape(words: str) -> str:
-    """A search's own % and _ are letters, not patterns."""
-    return words.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
-# (order, cursor's comparison, the row's key) for each list.
-_ORDER: dict[State, tuple[str, str, str]] = {
-    "waiting": ("e.expires_at ASC, r.id ASC", "(e.expires_at, r.id) > (:at, :id)", "expires_at"),
-    "done": ("r.signed_at DESC, r.id DESC", "(r.signed_at, r.id) < (:at, :id)", "countersigned_at"),
+# Each list's date (the cursor's key), whether it runs soonest first, and the row's field for it.
+_KEYS: dict[State, tuple[str, bool, str]] = {
+    "waiting": ("e.expires_at", True, "expires_at"),  # the urgent first
+    "done": ("r.signed_at", False, "countersigned_at"),  # the latest first
 }
 
 
@@ -107,14 +110,33 @@ def waiting(
     request: Request,
     actor: Member,
     state: State = "waiting",
-    cursor: Annotated[str | None, Query(max_length=200)] = None,
-    q: Annotated[str | None, Query(max_length=100)] = None,
+    cursor: Annotated[str | None, Query(max_length=300)] = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
 ) -> WaitingPage:
-    after = _cursor(cursor)
-    order, beyond, key = _ORDER[state]
-    where = (_WAITING if state == "waiting" else _DONE) + _SEARCH
-    needle = f"%{_escape(q.strip())}%" if q and q.strip() else None
+    """With ``q``: those whose title, template or signer's name or email matches, best match first,
+    then in the list's own order (ADR S-1)."""
+    column, soonest, key = _KEYS[state]
+    way = "ASC" if soonest else "DESC"
+    query = search.normalize(q)
+    where = _WAITING if state == "waiting" else _DONE
+    params: dict[str, object] = {"u": actor.user_id, "limit": PAGE + 1}
+    if query is None:
+        after = _cursor(cursor)
+        score = "NULL"
+        then = ">" if soonest else "<"
+        beyond = f"(CAST(:at AS timestamptz) IS NULL OR ({column}, r.id) {then} (:at, :id))"
+        order = f"{column} {way}, r.id {way}"
+        params |= {"at": after[0] if after else None, "id": after[1] if after else None}
+        listed = where
+    else:
+        score = _SCORE
+        beyond = search.beyond(_SCORE, column, "r.id", soonest_first=soonest)
+        order = search.order(_SCORE, column, "r.id", soonest_first=soonest)
+        params |= query.params | search.after_params(search.after(cursor))
+        listed = where + _MATCHES
     with _db(request).unit_of_work() as uow:
+        if query is not None:
+            search.begin(uow.session)
         rows = uow.session.execute(
             text(
                 f"""
@@ -124,31 +146,34 @@ def waiting(
                        (SELECT array_agg(s.name ORDER BY s.position) FROM envelope_recipients s
                         WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signers,
                        (SELECT max(s.signed_at) FROM envelope_recipients s
-                        WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signed_at
-                {where}
-                  AND (CAST(:at AS timestamptz) IS NULL OR {beyond})
+                        WHERE s.envelope_id = e.id AND s.kind = 'signer') AS signed_at,
+                       {score} AS score
+                {listed}
+                  AND {beyond}
                 ORDER BY {order}
                 LIMIT :limit
-                """  # noqa: S608 - every interpolated part is a constant of this module
+                """  # noqa: S608 - every interpolated part is a constant of this module or search's
             ),
-            {
-                "u": actor.user_id,
-                "q": needle,
-                "at": after[0] if after else None,
-                "id": after[1] if after else None,
-                "limit": PAGE + 1,
-            },
+            params,
         ).all()
         counts = uow.session.execute(
             text(
-                f"SELECT (SELECT count(*) {where}) AS total, "
+                f"SELECT (SELECT count(*) {listed}) AS total, "
                 f"(SELECT count(*) {_WAITING}) AS waiting, (SELECT count(*) {_DONE}) AS done"
             ),
-            {"u": actor.user_id, "q": needle},
+            {k: v for k, v in params.items() if k in {"u", "search_q", "search_like"}},
         ).one()
     more = len(rows) > PAGE
     shown = rows[:PAGE]
     last = shown[-1] if more else None
+    if last is None:
+        next_cursor = None
+    elif query is not None:
+        next_cursor = search.cursor(last.score, getattr(last, key), last.recipient_id)
+    else:
+        next_cursor = base64.urlsafe_b64encode(
+            f"{getattr(last, key).isoformat()}|{last.recipient_id}".encode()
+        ).decode()
     return WaitingPage(
         items=[
             Waiting(
@@ -166,11 +191,7 @@ def waiting(
             )
             for row in shown
         ],
-        next_cursor=base64.urlsafe_b64encode(
-            f"{getattr(last, key).isoformat()}|{last.recipient_id}".encode()
-        ).decode()
-        if last
-        else None,
+        next_cursor=next_cursor,
         total=counts.total,
         waiting=counts.waiting,
         done=counts.done,

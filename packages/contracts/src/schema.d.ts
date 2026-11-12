@@ -232,7 +232,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Documents of a department */
+        /**
+         * Documents of a department
+         * @description With ``q``, the templates whose name matches. In ``sort``'s order; without one, best match
+         *     first while searching, else newest first.
+         */
         get: operations["list_documents_api_v1_departments__department_id__documents_get"];
         put?: never;
         /** Create a document from an upload (requires Idempotency-Key) */
@@ -267,7 +271,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A department's envelopes, newest first, 50 a page (next_cursor for more) */
+        /**
+         * A department's envelopes, newest first, 50 a page (next_cursor for more)
+         * @description Newest first; with ``q``, those whose title, template or signer's name or email matches,
+         *     best match first (ADR S-1).
+         */
         get: operations["list_envelopes_api_v1_departments__department_id__envelopes_get"];
         put?: never;
         post?: never;
@@ -1047,7 +1055,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** My countersigning: what waits for me (soonest expiry first), or what I countersigned */
+        /**
+         * My countersigning: what waits for me (soonest expiry first), or what I countersigned
+         * @description With ``q``: those whose title, template or signer's name or email matches, best match first,
+         *     then in the list's own order (ADR S-1).
+         */
         get: operations["waiting_api_v1_me_countersign_get"];
         put?: never;
         post?: never;
@@ -1484,6 +1496,44 @@ export interface paths {
         patch: operations["rename_workspace_api_v1_workspace_patch"];
         trace?: never;
     };
+    "/api/v1/workspace/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The company's logo (PNG), for its members' header
+         * @description Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until
+         *     the logo changes. A file missing from the store is fetched again; the name shows meanwhile.
+         */
+        get: operations["workspace_logo_api_v1_workspace_logo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/website": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set or remove the company's website (owner only) */
+        put: operations["change_website_api_v1_workspace_website_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1788,6 +1838,11 @@ export interface components {
              * @default 0
              */
             signed: number;
+            /**
+             * To Approve
+             * @default 0
+             */
+            to_approve: number;
         };
         /** CreateDepartment */
         CreateDepartment: {
@@ -2257,6 +2312,11 @@ export interface components {
         };
         /** FieldIn */
         FieldIn: {
+            /**
+             * Checked
+             * @default false
+             */
+            checked: boolean;
             depends_on?: components["schemas"]["DependencyIn"] | null;
             /**
              * Filled By
@@ -3253,6 +3313,11 @@ export interface components {
             password: string;
             /** Token */
             token: string;
+            /**
+             * Website
+             * @description Optional; kept as its domain (scoutboard.com)
+             */
+            website?: string | null;
             /** Workspace Name */
             workspace_name: string;
         };
@@ -3684,6 +3749,14 @@ export interface components {
             /** Waiting */
             waiting: number;
         };
+        /** WebsiteRequest */
+        WebsiteRequest: {
+            /**
+             * Website
+             * @description Kept as its domain; empty or null removes it (and the logo)
+             */
+            website: string | null;
+        };
         /** WorkspaceView */
         WorkspaceView: {
             /**
@@ -3691,8 +3764,18 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Logo Url
+             * @description The company's logo (PNG), changing with it; null while it has none
+             */
+            logo_url: string | null;
             /** Name */
             name: string;
+            /**
+             * Website
+             * @description The company's website as its domain, when given
+             */
+            website: string | null;
         };
         /**
          * Colleague
@@ -4519,6 +4602,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "active" | "archived";
+                sort?: ("newest" | "updated" | "oldest" | "name") | null;
+                q?: string | null;
             };
             header?: never;
             path: {
@@ -4682,6 +4767,7 @@ export interface operations {
             query?: {
                 status?: ("sent" | "opened" | "viewed" | "signed" | "completed" | "declined" | "expired" | "cancelled") | null;
                 cursor?: string | null;
+                q?: string | null;
             };
             header?: never;
             path: {
@@ -9238,6 +9324,108 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["NameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceView"];
+                };
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    workspace_logo_api_v1_workspace_logo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (problem details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Client error (problem details) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Server error (problem details) */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    change_website_api_v1_workspace_website_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebsiteRequest"];
             };
         };
         responses: {

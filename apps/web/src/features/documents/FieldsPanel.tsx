@@ -8,11 +8,13 @@ import { HOLDS, toneOf, whoFills, type PartyRef, type VersionFields } from "./fi
 import type { Selection } from "./FieldBoxes";
 import styles from "./fields.module.css";
 import { AddField, PlacingRow } from "./review/AddField";
-import type { Draft, DraftField } from "./review/editor";
+import { markChecked, needingALook, type Draft, type DraftField } from "./review/editor";
 import { FieldForm } from "./review/FieldForm";
 import { FIELDS_HELP, THINGS_TO_CHECK_HELP, WHO_SIGNS_HELP } from "./review/help";
 import { PartyList } from "./review/PartyList";
 import { PlaceChips } from "./review/PlaceChips";
+import type { LookStep } from "./review/NeedsALook";
+import { NeedsALook } from "./review/NeedsALook";
 import { ThingsToCheck } from "./review/ThingsToCheck";
 import type { PanelEditing } from "./review/useReview";
 
@@ -20,7 +22,7 @@ const STEPS = ["Read the document", "Finding who fills each field", "Checking"] 
 const STEP_OF_STAGE: Record<string, number> = { read: 0, ai: 1, derive: 2, store: 2, done: 3 };
 const ADD_ROW = "add-field";
 
-export type Filter = { kind: "all" } | { kind: "party"; id: string } | { kind: "sender" };
+export type Filter = { kind: "all" } | { kind: "party"; id: string } | { kind: "sender" } | { kind: "look" };
 type Row = { id: string; field: DraftField; depth: number };
 
 /** Brings the list with the chosen field into view, smoothly unless the person asked for less motion. */
@@ -86,6 +88,9 @@ export function FieldsPanel({
   const [adding, setAdding] = useState(false);
   const parties: PartyRef[] = draft.parties;
   const byId = useMemo(() => new Map(draft.fields.map((field) => [field.id, field])), [draft.fields]);
+  const flagged = useMemo(() => needingALook(draft), [draft]);
+  // "Needs a look" with none left shows every field, not an empty list.
+  const active = useMemo<Filter>(() => (filter.kind === "look" && flagged.length === 0 ? { kind: "all" } : filter), [filter, flagged.length]);
   // A field chosen on the PDF (or from a warning) opens in the list, which comes into view; the
   // list itself brings the open row to its top.
   // A closed Fields section opens for it first: a closed section has nothing to bring into view.
@@ -105,12 +110,13 @@ export function FieldsPanel({
   const rows = useMemo<Row[]>(() => {
     const query = search.trim().toLowerCase();
     const shown = (field: DraftField) =>
-      (filter.kind === "all" ||
-        (filter.kind === "sender" && field.filled_by === "sender") ||
-        (filter.kind === "party" && field.filled_by === "role" && field.party_id === filter.id)) &&
+      (active.kind === "all" ||
+        (active.kind === "look" && Boolean(field.needs_review)) ||
+        (active.kind === "sender" && field.filled_by === "sender") ||
+        (active.kind === "party" && field.filled_by === "role" && field.party_id === active.id)) &&
       (!query || field.label.toLowerCase().includes(query));
     const ordered = [...draft.fields].sort((a, b) => Number(Boolean(b.needs_review)) - Number(Boolean(a.needs_review)));
-    if (query || filter.kind !== "all") {
+    if (query || active.kind !== "all") {
       return ordered.filter(shown).map((field) => ({ id: field.id, field, depth: 0 }));
     }
     // A tree: a field that applies under an option sits under its choice.
@@ -131,7 +137,7 @@ export function FieldsPanel({
     for (const field of ordered) if (!field.depends_on || !byId.has(field.depends_on.field_id)) visit(field, 0);
     for (const field of ordered) visit(field, 0);
     return out;
-  }, [draft.fields, byId, filter, search]);
+  }, [draft.fields, byId, active, search]);
 
   if (view.status === "detecting") {
     const step = STEP_OF_STAGE[view.stage ?? "read"] ?? 0;
@@ -170,12 +176,33 @@ export function FieldsPanel({
   const tool = editing?.tool ?? null;
   const filteredParty = filter.kind === "party" ? filter.id : null;
 
+  /** A flagged field's place in the checklist: Next goes on to the following one; Looks right
+   * accepts it as found and goes on, or closes it when it was the last. */
+  const lookStep = (field: DraftField): LookStep | null => {
+    const index = flagged.findIndex((one) => one.id === field.id);
+    if (index < 0) return null;
+    const go = (next: DraftField | undefined) => (next ? onSelect({ kind: "field", id: next.id, place: 0 }) : onClear());
+    return {
+      position: index + 1,
+      total: flagged.length,
+      onNext: () => go(flagged[(index + 1) % flagged.length]),
+      onLooksRight: editing
+        ? () => {
+            editing.review.edit((current) => markChecked(current, field.id));
+            const rest = flagged.filter((one) => one.id !== field.id);
+            go(rest[index] ?? rest[0]);
+          }
+        : null,
+    };
+  };
+
   return (
     <>
-      {inReview && view.warnings.length > 0 ? (
+      {inReview && (view.warnings.length > 0 || flagged.length > 0) ? (
         <Section title="Things to check" info={THINGS_TO_CHECK_HELP} collapsible>
           <ThingsToCheck
             warnings={view.warnings}
+            looks={flagged.map((field) => ({ id: field.id, label: field.label, reason: field.needs_review ?? "" }))}
             stale={(editing?.review.changes ?? 0) > 0}
             onShow={(fieldId) => onSelect({ kind: "field", id: fieldId, place: 0 })}
             onAddSignature={
@@ -221,6 +248,11 @@ export function FieldsPanel({
                   Before sending
                 </Chip>
               ) : null}
+              {flagged.length > 0 ? (
+                <Chip selected={active.kind === "look"} onClick={() => onFilter({ kind: "look" })}>
+                  {`Needs a look · ${flagged.length}`}
+                </Chip>
+              ) : null}
             </ChipGroup>
             <SearchField label="Find a field" value={search} onChange={(event) => setSearch(event.target.value)} />
           </>
@@ -261,7 +293,12 @@ export function FieldsPanel({
                 id={`field-${row.id}`}
                 depth={row.depth}
                 lead={<span className={`${styles.dot} ${styles[toneOf(row.field, parties)]}`} aria-hidden="true" />}
-                title={row.field.label || "Unnamed field"}
+                title={
+                  <>
+                    {row.field.label || "Unnamed field"}
+                    {row.field.needs_review ? <span className={styles.lookDot} aria-hidden="true" /> : null}
+                  </>
+                }
                 meta={[
                   whoFills(row.field, parties),
                   typeOf(row.field),
@@ -282,6 +319,7 @@ export function FieldsPanel({
                       draft={draft}
                       place={selected.place}
                       editing={editing}
+                      look={lookStep(row.field)}
                       onPlace={(place) => onSelect({ kind: "field", id: row.id, place })}
                       onSelect={onSelect}
                       onDone={onClear}
@@ -292,6 +330,7 @@ export function FieldsPanel({
                       parties={parties}
                       byId={byId}
                       place={selected.place}
+                      look={lookStep(row.field)}
                       onPlace={(place) => onSelect({ kind: "field", id: row.id, place })}
                     />
                   )
@@ -312,12 +351,14 @@ function FieldDetails({
   parties,
   byId,
   place,
+  look,
   onPlace,
 }: {
   field: DraftField;
   parties: readonly PartyRef[];
   byId: ReadonlyMap<string, DraftField>;
   place: number;
+  look: LookStep | null;
   onPlace: (place: number) => void;
 }) {
   const places = field.places.length;
@@ -329,7 +370,7 @@ function FieldDetails({
       <SmallText>{current ? `Page ${current.page}${places > 1 ? `, place ${place + 1} of ${places}` : ""}` : null}</SmallText>
       {when ? <SmallText>{when}</SmallText> : null}
       {field.sensitive ? <SmallText>{`Private to ${whoFills(field, parties)}: shown to nobody else`}</SmallText> : null}
-      {field.needs_review ? <Notice tone="warning">{`Needs a look: ${field.needs_review}.`}</Notice> : null}
+      {field.needs_review ? <NeedsALook reason={field.needs_review} step={look} /> : null}
       {options.length > 0 ? (
         <ul className={styles.options} aria-label="Options">
           {options.map((option) => {

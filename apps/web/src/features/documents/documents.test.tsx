@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -86,6 +86,7 @@ const pdf = (name = "Engagement letter v3.pdf") => new File(["%PDF-1.7"], name, 
 describe("documents", () => {
   const fetchMock = vi.fn<typeof fetch>();
   const posted: { url: string; body: unknown; key: string | null }[] = [];
+  const asked: string[] = []; // each list request's query string
 
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
@@ -93,6 +94,7 @@ describe("documents", () => {
     FakeUpload.sent = [];
     META.document_max_bytes = 50 * 1024 * 1024;
     posted.length = 0;
+    asked.length = 0;
     clearHandOff("d-1");
     push.mockReset();
   });
@@ -110,7 +112,12 @@ describe("documents", () => {
         posted.push({ url: path, body: await request.clone().json(), key: request.headers.get("Idempotency-Key") });
         return routes.create ? routes.create() : reply(201, detail("processing"));
       }
-      if (path.endsWith("/documents")) return reply(200, routes.documents ?? []);
+      if (path.endsWith("/documents")) {
+        const query = new URL(request.url).searchParams;
+        asked.push(query.toString());
+        if (query.get("q") === "zzz") return reply(200, []);
+        return reply(200, routes.documents ?? []);
+      }
       return reply(200, routes.document ?? detail("processing"));
     });
   }
@@ -139,6 +146,43 @@ describe("documents", () => {
     expect(within(nda).getAllByText("Needs password").length).toBeGreaterThan(0);
     expect(within(nda).queryByRole("link", { name: "Download original" })).toBeNull(); // nothing ready yet
     expect(screen.queryByLabelText(/Drop a PDF or Word file/)).toBeNull(); // read access: no dropzone
+  });
+
+  it("searches and sorts on the server: newest first, Best match while searching, and clears", async () => {
+    serve({ documents: [summary(), summary({ id: "doc-2", name: "NDA" })] });
+    wrap(<DocumentsSection departmentId="d-1" canEdit />);
+    const user = userEvent.setup();
+    await screen.findByRole("list", { name: "Templates" });
+    const sort = screen.getByRole("combobox", { name: "Sort templates" });
+    expect(sort.textContent).toContain("Newest first");
+
+    await user.click(sort);
+    await user.click(screen.getByRole("option", { name: "Name (A–Z)" }));
+    await waitFor(() => expect(asked).toContain("sort=name"));
+
+    await user.click(sort);
+    await user.click(screen.getByRole("option", { name: "Newest first" }));
+    await user.type(screen.getByRole("searchbox", { name: "Search templates" }), "engagment");
+    await waitFor(() => expect(asked).toContain("q=engagment&sort=newest"));
+    expect(await screen.findByText("2 templates match")).toBeTruthy();
+
+    await user.clear(screen.getByRole("searchbox", { name: "Search templates" }));
+    await user.type(screen.getByRole("searchbox", { name: "Search templates" }), "zzz");
+    expect(await screen.findByText(/No template matches “zzz”/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(await screen.findByRole("list", { name: "Templates" })).toBeTruthy();
+  });
+
+  it("puts the best match first while searching until another order is chosen", async () => {
+    serve({ documents: [summary()] });
+    wrap(<DocumentsSection departmentId="d-1" canEdit />);
+    const user = userEvent.setup();
+    await screen.findByRole("list", { name: "Templates" });
+
+    await user.type(screen.getByRole("searchbox", { name: "Search templates" }), "letter");
+
+    await waitFor(() => expect(asked).toContain("q=letter")); // no sort: the server's best match
+    expect(screen.getByRole("combobox", { name: "Sort templates" }).textContent).toContain("Best match");
   });
 
   it("opens the upload page with a file dropped on the department page", async () => {

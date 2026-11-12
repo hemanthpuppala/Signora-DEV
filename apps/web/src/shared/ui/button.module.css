@@ -88,8 +88,7 @@
   cursor: not-allowed;
 }
 
-/* HeadAction: an icon and its words; on a phone a square with the icon alone. */
-/* Its icon in a square; its words in the tooltip, and read aloud. */
+/* HeadAction: its icon in a square; its words in the tooltip, and read aloud. */
 .headAction {
   width: 38px;
   padding: 0;
@@ -97,4 +96,22 @@
 
 .headActionLabel {
   composes: visuallyHidden from "./display.module.css";
+}
+
+/* A named HeadAction (a page's main actions): its icon and its words; on a phone the square with
+   the icon alone, its words still read aloud. */
+@media (max-width: 719.98px) {
+  .headActionNamed {
+    width: 38px;
+    padding: 0;
+  }
+
+  .headActionNamed .namedLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }

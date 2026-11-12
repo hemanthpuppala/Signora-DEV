@@ -156,6 +156,8 @@ class _EnvVars(BaseSettings):
     # stripe (optional; only needed to offer ID verification)
     stripe_secret_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None
+    # company logos (optional; without a key a company shows its name)
+    logo_dev_secret_key: SecretStr | None = None
 
     @field_validator("secret_key")
     @classmethod
@@ -359,6 +361,16 @@ class StripeSettings(_Group):
         return self.secret_key is not None and self.webhook_secret is not None
 
 
+class LogoSettings(_Group):
+    """Company logos from logo.dev's API (server-side secret key; Company logo LLD §5)."""
+
+    secret_key: SecretStr | None
+
+    @property
+    def configured(self) -> bool:
+        return self.secret_key is not None
+
+
 class Settings(_Group):
     app: AppSettings
     api: ApiSettings
@@ -373,6 +385,7 @@ class Settings(_Group):
     auth: AuthSettings
     rate_limit: RateLimitSettings
     stripe: StripeSettings
+    logo: LogoSettings
 
 
 def _resolve(root: Path, path: Path) -> Path:
@@ -480,6 +493,7 @@ def load_settings(root: Path | None = None) -> Settings:
         stripe=StripeSettings(
             secret_key=env.stripe_secret_key, webhook_secret=env.stripe_webhook_secret
         ),
+        logo=LogoSettings(secret_key=env.logo_dev_secret_key),
     )
 
 

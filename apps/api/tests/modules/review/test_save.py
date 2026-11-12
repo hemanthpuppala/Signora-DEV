@@ -300,6 +300,40 @@ def test_a_flag_stays_while_its_field_is_unchanged_and_clears_when_edited(
     assert after[body["fields"][1]["id"]]["needs_review"] == "two answers"  # untouched
 
 
+def test_a_field_looked_at_as_found_loses_its_flag_and_the_save_records_it(
+    owner: TestClient,
+    run: Callable[..., None],
+    detect: Callable[..., None],
+    committing_db: Database,
+) -> None:
+    """Looks right: nothing about the field changes, yet its flag clears, and the save lists it."""
+    document_id, version_id = _in_review(owner, run, detect)
+    with committing_db.unit_of_work() as uow:
+        uow.session.execute(
+            text("UPDATE version_fields SET needs_review = 'two answers' WHERE version_id = :v"),
+            {"v": version_id},
+        )
+    body = _body(_view(owner, document_id, version_id))
+    looked, untouched = body["fields"][0]["id"], body["fields"][1]["id"]
+    body["fields"][0]["checked"] = True
+
+    assert _save(owner, document_id, version_id, body).status_code == 200
+
+    after = {f["id"]: f for f in _view(owner, document_id, version_id)["fields"]}
+    assert after[looked]["needs_review"] is None
+    assert after[untouched]["needs_review"] == "two answers"
+    with committing_db.unit_of_work() as uow:
+        saved = uow.session.execute(
+            text(
+                "SELECT data FROM audit_events WHERE subject_id = :d "
+                "AND action = 'document.fields_saved' ORDER BY seq DESC LIMIT 1"
+            ),
+            {"d": document_id},
+        ).scalar_one()
+    (change,) = [c for c in saved["changes"] if c["id"] == looked]
+    assert change["attributes"]["needs_review"] == ["two answers", None]
+
+
 def test_read_only_members_cannot_save(
     owner: TestClient,
     run: Callable[..., None],

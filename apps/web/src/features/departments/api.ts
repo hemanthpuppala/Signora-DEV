@@ -45,3 +45,8 @@ export function useDirectory() {
 }
 
 export type Colleague = NonNullable<ReturnType<typeof useDirectory>["data"]>[number];
+
+/** "1 template to approve", "3 templates to approve": what a department's dot says. */
+export function toApprove(count: number): string {
+  return `${count} ${count === 1 ? "template" : "templates"} to approve`;
+}

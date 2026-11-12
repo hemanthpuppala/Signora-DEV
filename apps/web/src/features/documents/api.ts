@@ -1,7 +1,7 @@
 "use client";
 
 import type { components } from "@signora/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { answerError, api, CSRF_COOKIE, CSRF_HEADER, unwrap } from "@/shared/api/client";
 import { NetworkError } from "@/shared/api/errors";
@@ -54,6 +54,36 @@ export function useDocuments(departmentId: string) {
     refetchInterval: (query) =>
       processingInterval(
         (query.state.data ?? [])
+          .filter((document) => isWorking(document.latest_version.status))
+          .map((document) => document.latest_version.created_at),
+      ),
+  });
+}
+
+/** How a department's templates can be ordered; a search with none chosen puts the best match first. */
+export type TemplateSort = "newest" | "updated" | "oldest" | "name";
+
+/**
+ * The Templates tab's list: searched on the server (by name, typos forgiven) and in the chosen
+ * order. Kept apart from ``useDocuments`` (every template, for counts and the send dialogs), so a
+ * search never changes them; it refreshes with them, as its key starts with theirs.
+ */
+export function useTemplates(departmentId: string, query: string, sort: TemplateSort | null) {
+  return useQuery({
+    queryKey: [...documentsKey(departmentId), "list", query, sort],
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/departments/{department_id}/documents", {
+          params: {
+            path: { department_id: departmentId },
+            query: { ...(query ? { q: query } : {}), ...(sort ? { sort } : {}) },
+          },
+        }),
+      ),
+    placeholderData: keepPreviousData, // the last answer stays while the next one comes
+    refetchInterval: (state) =>
+      processingInterval(
+        (state.state.data ?? [])
           .filter((document) => isWorking(document.latest_version.status))
           .map((document) => document.latest_version.created_at),
       ),

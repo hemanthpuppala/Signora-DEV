@@ -33,6 +33,9 @@ export type SelectProps = {
    * it. By default a list of ``SEARCH_FROM`` options or more has one; set it to force either way.
    */
   searchable?: boolean;
+  /** The label is read aloud but not shown: a toolbar's control whose value says what it is
+   * ("Newest first"), beside a search box. */
+  labelHidden?: boolean;
 };
 
 /**
@@ -57,6 +60,7 @@ export function Select({
   disabled = false,
   className,
   searchable: searchableProp,
+  labelHidden = false,
 }: SelectProps) {
   const searchable = searchableProp ?? options.length >= SEARCH_FROM;
   const id = useId();
@@ -180,7 +184,7 @@ export function Select({
 
   return (
     <div ref={rootRef} className={cx(fieldStyles.field, styles.select, className)}>
-      <span id={labelId} className={fieldStyles.label}>
+      <span id={labelId} className={labelHidden ? fieldStyles.hiddenLabel : fieldStyles.label}>
         {label}
       </span>
       <button

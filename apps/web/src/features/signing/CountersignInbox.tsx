@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { formError } from "@/shared/api/errors";
+import { SEARCH_SETTLE_MS, useDebounced } from "@/shared/lib/useDebounced";
 import { Heading1, LinkButton, Notice, SearchField, TextButton } from "@/shared/ui";
 
 import { useWaiting, type InboxState } from "./api";
@@ -38,7 +39,7 @@ function expiry(iso: string, now: number): { words: string; soon: boolean } {
 export function CountersignInbox() {
   const [state, setState] = useState<InboxState>("waiting");
   const [typed, setTyped] = useState("");
-  const query = useDebounced(typed.trim(), 300);
+  const query = useDebounced(typed.trim(), SEARCH_SETTLE_MS);
   const list = useWaiting(state, query);
   const [now] = useState(() => Date.now());
   const first = list.data?.pages[0];
@@ -147,14 +148,4 @@ export function CountersignInbox() {
       </div>
     </main>
   );
-}
-
-/** A value that settles: the latest one once it has not changed for ``ms`` (a search as typed). */
-function useDebounced(value: string, ms: number): string {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSettled(value), ms);
-    return () => window.clearTimeout(timer);
-  }, [value, ms]);
-  return settled;
 }

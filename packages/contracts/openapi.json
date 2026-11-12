@@ -688,6 +688,11 @@
             "default": 0,
             "title": "Signed",
             "type": "integer"
+          },
+          "to_approve": {
+            "default": 0,
+            "title": "To Approve",
+            "type": "integer"
           }
         },
         "title": "Counts",
@@ -1854,6 +1859,11 @@
       "FieldIn": {
         "additionalProperties": false,
         "properties": {
+          "checked": {
+            "default": false,
+            "title": "Checked",
+            "type": "boolean"
+          },
           "depends_on": {
             "anyOf": [
               {
@@ -4769,6 +4779,19 @@
             "title": "Token",
             "type": "string"
           },
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional; kept as its domain (scoutboard.com)",
+            "title": "Website"
+          },
           "workspace_name": {
             "maxLength": 120,
             "minLength": 1,
@@ -5808,6 +5831,29 @@
         "title": "WaitingPage",
         "type": "object"
       },
+      "WebsiteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Kept as its domain; empty or null removes it (and the logo)",
+            "title": "Website"
+          }
+        },
+        "required": [
+          "website"
+        ],
+        "title": "WebsiteRequest",
+        "type": "object"
+      },
       "WorkspaceView": {
         "properties": {
           "id": {
@@ -5815,14 +5861,40 @@
             "title": "Id",
             "type": "string"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The company's logo (PNG), changing with it; null while it has none",
+            "title": "Logo Url"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The company's website as its domain, when given",
+            "title": "Website"
           }
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "website",
+          "logo_url"
         ],
         "title": "WorkspaceView",
         "type": "object"
@@ -7060,6 +7132,7 @@
     },
     "/api/v1/departments/{department_id}/documents": {
       "get": {
+        "description": "With ``q``, the templates whose name matches. In ``sort``'s order; without one, best match\nfirst while searching, else newest first.",
         "operationId": "list_documents_api_v1_departments__department_id__documents_get",
         "parameters": [
           {
@@ -7084,6 +7157,45 @@
               ],
               "title": "Status",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "newest",
+                    "updated",
+                    "oldest",
+                    "name"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           }
         ],
@@ -7320,6 +7432,7 @@
     },
     "/api/v1/departments/{department_id}/envelopes": {
       "get": {
+        "description": "Newest first; with ``q``, those whose title, template or signer's name or email matches,\nbest match first (ADR S-1).",
         "operationId": "list_envelopes_api_v1_departments__department_id__envelopes_get",
         "parameters": [
           {
@@ -7365,7 +7478,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 200,
+                  "maxLength": 300,
                   "type": "string"
                 },
                 {
@@ -7373,6 +7486,23 @@
                 }
               ],
               "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           }
         ],
@@ -11571,6 +11701,7 @@
     },
     "/api/v1/me/countersign": {
       "get": {
+        "description": "With ``q``: those whose title, template or signer's name or email matches, best match first,\nthen in the list's own order (ADR S-1).",
         "operationId": "waiting_api_v1_me_countersign_get",
         "parameters": [
           {
@@ -11594,7 +11725,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 200,
+                  "maxLength": 300,
                   "type": "string"
                 },
                 {
@@ -11611,7 +11742,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 100,
+                  "maxLength": 200,
                   "type": "string"
                 },
                 {
@@ -13934,6 +14065,142 @@
           }
         },
         "summary": "Rename the workspace",
+        "tags": [
+          "members"
+        ]
+      }
+    },
+    "/api/v1/workspace/logo": {
+      "get": {
+        "description": "Addressed with the logo's hash (``WorkspaceView.logo_url``), so a browser keeps it until\nthe logo changes. A file missing from the store is fetched again; the name shows meanwhile.",
+        "operationId": "workspace_logo_api_v1_workspace_logo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "The company's logo (PNG), for its members' header",
+        "tags": [
+          "members"
+        ]
+      }
+    },
+    "/api/v1/workspace/website": {
+      "put": {
+        "operationId": "change_website_api_v1_workspace_website_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebsiteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed (problem details)"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client error (problem details)"
+          },
+          "5XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server error (problem details)"
+          }
+        },
+        "summary": "Set or remove the company's website (owner only)",
         "tags": [
           "members"
         ]
