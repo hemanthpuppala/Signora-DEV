@@ -36,6 +36,9 @@ SWEEP_EVERY = timedelta(minutes=15)
 SWEEP_BATCH = 200
 MAX_ATTEMPTS = 3  # for our own failures (database, disk); logo.dev's never fail the job
 LEASE = timedelta(minutes=1)
+# A look-up not finished this long after it was queued is taken as lost (its job dead, or the
+# queue lost it): the domain comes due again and the sweep queues it anew.
+LOST_AFTER = timedelta(minutes=30)
 # Logos are brand marks, not any company's data: kept in the system's store, served to members.
 STORE = uuid.UUID(SYSTEM_WORKSPACE)
 
@@ -81,7 +84,7 @@ def want_logo(session: Session, domain: str, *, workspace_id: uuid.UUID, queue: 
         },
     ).scalar_one()
     if due is not None and queue:
-        _queue(session, domain, due)
+        _queue(session, domain)
 
 
 def sweep(context: JobContext, *, settings: LogoSettings) -> None:
@@ -99,13 +102,13 @@ def sweep(context: JobContext, *, settings: LogoSettings) -> None:
         )
         due = uow.session.execute(
             text(
-                "SELECT domain, check_due_at FROM company_logos "
+                "SELECT domain FROM company_logos "
                 "WHERE check_due_at <= now() ORDER BY check_due_at LIMIT :n"
             ),
             {"n": SWEEP_BATCH},
-        ).all()
-        for row in due:
-            _queue(uow.session, row.domain, row.check_due_at)
+        ).scalars()
+        for domain in due:
+            _queue(uow.session, domain)
 
 
 def find_and_keep(
@@ -214,7 +217,7 @@ def forget_missing(session: Session, domain: str, logo: BlobRef, *, queue: bool)
     ).scalar_one_or_none()
     log.warning("company_logo.file_missing", sha256=logo.sha256)
     if due is not None and queue:
-        _queue(session, domain, due)
+        _queue(session, domain)
 
 
 def _plan_next(context: JobContext, domain: str, after: timedelta, *, answered: bool) -> None:
@@ -233,24 +236,25 @@ def _retry_soon(context: JobContext, domain: str, wait: timedelta, *, tries: int
     """logo.dev is indexing the domain: ask again after ``wait``, queued now to run then (the
     sweep's quarter-hour would be too late), and planned so a lost job is still picked up."""
     with context.complete() as uow:
-        due = uow.session.execute(
-            text(
-                "UPDATE company_logos SET check_due_at = now() + make_interval(secs => :wait) "
-                "WHERE domain = :d RETURNING check_due_at"
-            ),
-            {"wait": wait.total_seconds(), "d": domain},
-        ).scalar_one()
-        _queue(uow.session, domain, due, run_after=wait, indexing=tries)
+        _queue(uow.session, domain, run_after=wait, indexing=tries)
 
 
 def _queue(
-    session: Session,
-    domain: str,
-    due: datetime,
-    *,
-    run_after: timedelta | None = None,
-    indexing: int = 0,
+    session: Session, domain: str, *, run_after: timedelta | None = None, indexing: int = 0
 ) -> None:
+    """Queue a look-up of ``domain`` (to run after ``run_after``), claiming it: its next look-up
+    moves to when this one should have finished (``LOST_AFTER`` past its start). A look-up queued
+    is never queued twice; one lost (its job dead or gone) comes due again then and is queued
+    anew; one that finishes plans the real next look-up. The claimed time is the job's dedupe key,
+    so a new claim is a new key: never the key of a job that died."""
+    wait = run_after.total_seconds() if run_after else 0.0
+    claimed: datetime = session.execute(
+        text(
+            "UPDATE company_logos SET check_due_at = now() + make_interval(secs => :until) "
+            "WHERE domain = :d RETURNING check_due_at"
+        ),
+        {"until": wait + LOST_AFTER.total_seconds(), "d": domain},
+    ).scalar_one()
     payload: dict[str, object] = {"domain": domain}
     if indexing:
         payload["indexing"] = indexing
@@ -259,5 +263,5 @@ def _queue(
         FIND_LOGO,
         payload,
         run_after=run_after,
-        dedupe_key=f"{FIND_LOGO}:{domain}:{due.isoformat()}",
+        dedupe_key=f"{FIND_LOGO}:{domain}:{claimed.isoformat()}",
     )

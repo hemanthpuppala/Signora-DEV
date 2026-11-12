@@ -146,13 +146,20 @@ export type InboxState = "waiting" | "done";
 export type Waiting = NonNullable<ReturnType<typeof useWaiting>["data"]>["pages"][number]["items"][number];
 
 /** My countersigning (Phase 8 §7.2): what waits for me, or what I countersigned; pages of 50. */
-export function useWaiting(state: InboxState, q: string) {
+export function useWaiting(state: InboxState, q: string, department: string | null = null) {
   return useInfiniteQuery({
-    queryKey: ["me", "countersign", state, q],
+    queryKey: ["me", "countersign", state, q, department],
     queryFn: ({ pageParam }) =>
       unwrap(
         api.GET("/api/v1/me/countersign", {
-          params: { query: { state, ...(q ? { q } : {}), ...(pageParam ? { cursor: pageParam } : {}) } },
+          params: {
+            query: {
+              state,
+              ...(q ? { q } : {}),
+              ...(department ? { department } : {}),
+              ...(pageParam ? { cursor: pageParam } : {}),
+            },
+          },
         }),
       ),
     initialPageParam: null as string | null,

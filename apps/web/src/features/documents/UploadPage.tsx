@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, unwrap } from "@/shared/api/client";
 import { ApiError, fieldErrors, formError } from "@/shared/api/errors";
+import { refreshDepartments } from "@/shared/api/queryKeys";
 import {
   Button,
   Dialog,
@@ -208,6 +209,7 @@ export function UploadPage({ department }: { department: DepartmentRef }) {
         // Added: on to its page, which shows its steps until it is ready (Phase 5 §6.3).
         queryClient.setQueryData(documentKey(document.id), document);
         void queryClient.invalidateQueries({ queryKey: documentsKey(departmentId) });
+        refreshDepartments(queryClient);
         router.replace(`/departments/${departmentId}/documents/${document.id}`);
       })
       .catch((error: unknown) => {

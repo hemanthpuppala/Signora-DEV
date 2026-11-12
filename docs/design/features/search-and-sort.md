@@ -30,7 +30,8 @@ is visible only by opening the Templates tab and reading each card's state.
 - **Normalising** (`kernel.search.normalize`): trimmed, inner spaces collapsed, at most 100 characters; empty means no
   search.
 - **A match**: the text contains the query (`ILIKE '%q%'`), or the query is close to some run of words in it
-  (`q <% text`, pg_trgm's word similarity at or above 0.4, set per transaction). One or two characters have no
+  (`q <% text`, pg_trgm's word similarity at or above 0.5, set per transaction: typos score about 0.6
+  and above, unrelated short words under 0.3). One or two characters have no
   trigrams, so they match by containing only.
 - **The score** of a text: 1 when it contains the query, else its word similarity; an item's score is the best of its
   texts (for an envelope, across its signers too).

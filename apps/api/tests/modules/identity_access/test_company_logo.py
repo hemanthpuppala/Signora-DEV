@@ -53,6 +53,9 @@ DOWNLOAD = "https://img.logo.dev/assets/brand_1.png?signature=abc"
         ("https://www.app.scoutboard.com/team", "scoutboard.com"),
         ("sub.example.ai", "example.ai"),
         ("acme.github.io", "acme.github.io"),  # a platform's suffix: not GitHub's own
+        ("github.io", "github.io"),  # the platform's own domain
+        ("myshopify.com", "myshopify.com"),
+        ("www.app.acme.zzqnewtld", "acme.zzqnewtld"),  # an ending the list does not know
         ("scoutboard.com.", "scoutboard.com"),
         ("münchen.de", "xn--mnchen-3ya.de"),
     ],
@@ -80,7 +83,6 @@ def test_a_website_is_kept_as_its_registrable_domain(typed: str, domain: str) ->
         "a" * 64 + ".com",
         "x." * 130 + "com",
         "co.uk",  # only a public suffix: nobody's company
-        "github.io",
     ],
 )
 def test_anything_but_a_public_host_name_is_refused(typed: str) -> None:
@@ -321,14 +323,7 @@ def run_look_up(db: Database, settings: Settings, domain: str, client: httpx.Cli
 def plan_now(db: Database, domain: str) -> None:
     """A look-up due now, queued: as the sweep does when one comes due."""
     with db.unit_of_work() as uow:
-        due = uow.session.execute(
-            text(
-                "UPDATE company_logos SET check_due_at = now() WHERE domain = :d "
-                "RETURNING check_due_at"
-            ),
-            {"d": domain},
-        ).scalar_one()
-        company_logo._queue(uow.session, domain, due)
+        company_logo._queue(uow.session, domain)
 
 
 def age(db: Database, domain: str, days: int) -> None:
@@ -368,6 +363,7 @@ def run_sweep(db: Database, settings: LogoSettings) -> None:
 
 
 HOUR, DAY = 3600, 86400
+LOST = int(company_logo.LOST_AFTER.total_seconds())  # a queued look-up's claim on its domain
 
 
 def assert_due_in(row: Any, seconds: int) -> None:
@@ -393,7 +389,7 @@ def test_a_website_given_at_sign_up_is_kept_as_its_domain_and_its_logo_looked_up
     assert response.status_code == 201
     workspace = workspace_of(committing_db, email)
     assert workspace.website == domain  # the registrable domain: the key, and what is asked
-    assert_due_in(workspace, 0)
+    assert_due_in(workspace, LOST)  # queued now; due again only if this look-up is lost
     assert queued_look_ups(committing_db, domain) == 1
 
 
@@ -578,7 +574,7 @@ def test_a_refresh_downloads_nothing_while_the_logo_is_unchanged_and_the_new_one
     [
         (answering(404), 7 * DAY),
         (answering(401), 7 * DAY),
-        (answering(202), 10),  # indexing: asked again shortly (below)
+        (answering(202), 10 + LOST),  # indexing: queued again in 10 s (below)
         (answering(503), HOUR),
         (timing_out, HOUR),
     ],
@@ -660,7 +656,7 @@ def test_a_logo_file_missing_from_the_store_shows_the_name_and_is_fetched_again(
 
         assert client.get(logo_url).status_code == 404
         assert client.get("/api/v1/me").json()["workspace"]["logo_url"] is None
-        assert_due_in(logo_row(committing_db, domain), 0)
+        assert_due_in(logo_row(committing_db, domain), LOST)  # queued again at once
         assert queued_look_ups(committing_db, domain) == 1
 
 
@@ -808,7 +804,7 @@ def test_a_domain_logo_dev_is_still_indexing_is_asked_again_three_times_then_hou
         retry = queued_look_up(committing_db, domain)
         assert retry.payload == {"domain": domain, "indexing": tries}
         assert retry.runs_in == pytest.approx(wait, abs=5)
-        assert_due_in(logo_row(committing_db, domain), wait)
+        assert_due_in(logo_row(committing_db, domain), wait + LOST)
 
     run_look_up(committing_db, settings, domain, logo_dev_answering(answering(202)))
 
@@ -832,3 +828,35 @@ def test_a_logo_indexed_by_the_retry_is_kept(
 
     assert workspace_of(committing_db, email).logo_sha256 is not None
     assert_due_in(logo_row(committing_db, domain), 30 * DAY)
+
+
+@pytest.mark.usefixtures("signup_worker")
+def test_a_look_up_whose_job_died_is_queued_anew_once_it_is_taken_as_lost(
+    make_client: Callable[..., TestClient],
+    committing_db: Database,
+    with_key: Settings,
+    domain: str,
+) -> None:
+    """A dead job keeps its dedupe key for ever: the next look-up must never reuse it."""
+    with make_client(with_key) as client:
+        sign_up(client, committing_db, website=domain)
+    with committing_db.unit_of_work() as uow:  # the look-up's job dies
+        uow.session.execute(
+            text("UPDATE jobs SET status = 'dead' WHERE kind = :k AND payload->>'domain' = :d"),
+            {"k": company_logo.FIND_LOGO, "d": domain},
+        )
+    run_sweep(committing_db, LogoSettings(secret_key=KEY))
+    assert queued_look_ups(committing_db, domain) == 0  # not yet taken as lost
+
+    with committing_db.unit_of_work() as uow:  # time passes: due again at the very moment the
+        uow.session.execute(  # dead job was queued, the time its key was made from
+            text(
+                "UPDATE company_logos SET check_due_at = (SELECT created_at FROM jobs "
+                "WHERE kind = :k AND payload->>'domain' = :d) WHERE domain = :d"
+            ),
+            {"k": company_logo.FIND_LOGO, "d": domain},
+        )
+    run_sweep(committing_db, LogoSettings(secret_key=KEY))
+    run_sweep(committing_db, LogoSettings(secret_key=KEY))
+
+    assert queued_look_ups(committing_db, domain) == 1  # queued anew, once
