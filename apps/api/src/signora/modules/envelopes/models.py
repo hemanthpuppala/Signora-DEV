@@ -172,6 +172,9 @@ envelope_recipients = Table(
     ForeignKeyConstraint(["user_id", "workspace_id"], ["users.id", "users.workspace_id"]),
     ForeignKeyConstraint(["last_email_id"], ["email_messages.id"]),
     Index(None, "envelope_id"),
+    # Rows deleted elsewhere: a review save's parties, old mail cleared; each check an index lookup.
+    Index(None, "party_id"),
+    Index(None, "last_email_id"),
     # A countersigner's inbox (Phase 8 §7.2): their waiting envelopes, one index range.
     Index(None, "user_id", "status", postgresql_where=text("kind = 'countersigner'")),
     # Search by a person's name or email (ADR S-1).
@@ -217,4 +220,6 @@ envelope_values = Table(
         ["field_id", "version_id"], ["version_fields.id", "version_fields.version_id"]
     ),
     ForeignKeyConstraint(["recipient_id"], ["envelope_recipients.id"]),
+    # Every review save deletes fields: their foreign-key check is an index lookup, not a scan.
+    Index(None, "field_id"),
 )

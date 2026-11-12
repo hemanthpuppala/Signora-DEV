@@ -155,6 +155,8 @@ signing_drafts = Table(
     ForeignKeyConstraint(
         ["field_id", "version_id"], ["version_fields.id", "version_fields.version_id"]
     ),
+    # Every review save deletes fields: their foreign-key check is an index lookup, not a scan.
+    Index(None, "field_id"),
 )
 
 # What a person adopted for one envelope (§5.5): evidence, frozen once they have signed (a trigger).
