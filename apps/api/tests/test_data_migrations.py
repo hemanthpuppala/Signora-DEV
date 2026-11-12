@@ -362,3 +362,46 @@ def test_0027_clears_the_flags_left_on_approved_versions_and_keeps_them_frozen(
             text("UPDATE version_fields SET label = 'Changed' WHERE id = :f"), {"f": approved_field}
         )
     engine.dispose()
+
+
+def test_0031_keys_logos_by_registrable_domain_and_registers_each_for_a_look_up(
+    scratch: DatabaseSettings,
+) -> None:
+    """Company logo LLD §6 (revised): websites become their registrable domain, each domain gets
+    one shared row with a look-up due, and the per-workspace logo columns go."""
+    config = alembic_config(scratch)
+    command.upgrade(config, "0030")
+    engine = create_engine(scratch.url)
+    with engine.begin() as connection:  # the one workspace there is: give it a website
+        connection.execute(
+            text(
+                "UPDATE workspaces SET website = 'app.scoutboard.com', logo_sha256 = 'x', "
+                "logo_bytes = 1, logo_check_due_at = now() WHERE id = :s"
+            ),
+            {"s": SYSTEM_WORKSPACE},
+        )
+
+    command.upgrade(config, "0031")
+
+    with engine.connect() as connection:
+        websites = connection.execute(
+            text("SELECT DISTINCT website FROM workspaces WHERE website IS NOT NULL")
+        ).scalars()
+        logos = connection.execute(
+            text("SELECT domain, logo_sha256, check_due_at <= now() AS due FROM company_logos")
+        ).all()
+        columns = connection.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'workspaces' AND column_name LIKE 'logo%'"
+            )
+        ).scalars()
+        assert list(websites) == ["scoutboard.com"]
+        assert [(row.domain, row.logo_sha256, row.due) for row in logos] == [
+            ("scoutboard.com", None, True)
+        ]
+        assert list(columns) == []
+
+    command.downgrade(config, "0030")
+    command.upgrade(config, "0031")
+    engine.dispose()

@@ -134,5 +134,7 @@ def complete_signup(
     )
     links.use_up_links(uow.session, purpose="signup", email=link.email)
     if domain is not None:
-        company_logo.plan_check(uow.session, created.workspace_id, queue=queue_logo_lookup)
+        company_logo.want_logo(
+            uow.session, domain, workspace_id=created.workspace_id, queue=queue_logo_lookup
+        )
     return link.email

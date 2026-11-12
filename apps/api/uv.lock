@@ -300,6 +300,15 @@ wheels = [
 ]
 
 [[package]]
+name = "filelock"
+version = "4.2.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/28/3893324bcadf8f89b1616637468d766af3f625008c0735bf704fdfa86617/filelock-4.2.4.tar.gz", hash = "sha256:c6d8663535e1650ee430507b4ffbac7b464dd64b7647ea0112a9f406499d163d", size = 652444, upload-time = "2026-10-19T01:57:51.001Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/1b/5e74289a1878e666bb4b65fe5805a04cafcac2aa5f519ef1ead67ef91c56/filelock-4.2.4-py3-none-any.whl", hash = "sha256:301241438c57936ef93f4243a94f2559022268bfcf9b375a9a72eb0f8db8358e", size = 162475, upload-time = "2026-10-19T01:57:49.419Z" },
+]
+
+[[package]]
 name = "flatbuffers"
 version = "25.12.19"
 source = { registry = "https://pypi.org/simple" }
@@ -1066,6 +1075,18 @@ wheels = [
 ]
 
 [[package]]
+name = "requests-file"
+version = "3.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3c/f8/5dc70102e4d337063452c82e1f0d95e39abfe67aa222ed8a5ddeb9df8de8/requests_file-3.0.1.tar.gz", hash = "sha256:f14243d7796c588f3521bd423c5dea2ee4cc730e54a3cac9574d78aca1272576", size = 6967, upload-time = "2025-10-20T18:56:42.279Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/d5/de8f089119205a09da657ed4784c584ede8381a0ce6821212a6d4ca47054/requests_file-3.0.1-py2.py3-none-any.whl", hash = "sha256:d0f5eb94353986d998f80ac63c7f146a307728be051d4d1cd390dbdb59c10fa2", size = 4514, upload-time = "2025-10-20T18:56:41.184Z" },
+]
+
+[[package]]
 name = "rich"
 version = "15.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1126,6 +1147,7 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "stripe" },
     { name = "structlog" },
+    { name = "tldextract" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -1161,6 +1183,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.1.6" },
     { name = "stripe", specifier = ">=16.0.0" },
     { name = "structlog", specifier = ">=26.1.0" },
+    { name = "tldextract", specifier = ">=5.4.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.54.0" },
 ]
 
@@ -1249,6 +1272,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/46/58/8c37dea7bbf769b20d58e7ace7e5edfe65b849442b00ffcdd56be88697c6/tabulate-0.10.0.tar.gz", hash = "sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d", size = 91754, upload-time = "2026-03-04T18:55:34.402Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl", hash = "sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3", size = 39814, upload-time = "2026-03-04T18:55:31.284Z" },
+]
+
+[[package]]
+name = "tldextract"
+version = "5.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "filelock" },
+    { name = "idna" },
+    { name = "requests" },
+    { name = "requests-file" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fd/5d/45ece871390ccc985f821353543165bcf3784fa97d8484fd0ca5f2726612/tldextract-5.4.0.tar.gz", hash = "sha256:6c9223212c15c25c0da2bf7313893c14f175cb36b64a0c42da67a468e0c61ee3", size = 197271, upload-time = "2026-10-03T21:32:47.229Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b8/e0/d5760e222a7e3f3aec7ef59f6dff952af27d09ec168bcca50751d9698151/tldextract-5.4.0-py3-none-any.whl", hash = "sha256:7f02aed30bd3b6ad5717192eb859a39b20aafc7caf3917d9cf6cb00a58efb34f", size = 107482, upload-time = "2026-10-03T21:32:45.842Z" },
 ]
 
 [[package]]

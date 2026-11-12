@@ -207,25 +207,24 @@ def rename_workspace(uow: UnitOfWork, *, actor: Actor, name: str) -> str:
     return name
 
 
-def change_website(uow: UnitOfWork, *, actor: Actor, domain: str | None, queue: bool) -> None:
-    """The company's website (its domain, or ``None``): the creator's alone to set. A new website
-    drops the old logo and plans a look-up for the new one."""
+def change_website(uow: UnitOfWork, *, actor: Actor, domain: str | None, queue: bool) -> str | None:
+    """The company's website (its registrable domain, or ``None``): the creator's alone to set.
+    The company then shows the new domain's logo: at once when it is known, else once it is found
+    (``company_logo.want_logo``). Returns the logo shown now (its hash), if any."""
     if not actor.is_creator:
         raise PermissionDenied("Only the company's owner can change its website")
     old = uow.session.execute(
         text("SELECT website FROM workspaces WHERE id = :w FOR UPDATE"), {"w": actor.workspace_id}
     ).scalar_one()
     if old == domain:
-        return
+        return actor.workspace_logo
     uow.session.execute(
-        text(
-            "UPDATE workspaces SET website = :d, logo_sha256 = NULL, logo_bytes = NULL, "
-            "logo_etag = NULL, logo_check_due_at = NULL WHERE id = :w"
-        ),
+        text("UPDATE workspaces SET website = :d WHERE id = :w"),
         {"d": domain, "w": actor.workspace_id},
     )
     if domain is not None:
-        company_logo.plan_check(uow.session, actor.workspace_id, queue=queue)
+        company_logo.want_logo(uow.session, domain, workspace_id=actor.workspace_id, queue=queue)
+    shown = company_logo.logo_of(uow.session, actor.workspace_id)
     _audit(
         uow,
         actor,
@@ -234,6 +233,7 @@ def change_website(uow: UnitOfWork, *, actor: Actor, domain: str | None, queue: 
         old_website=old,
         new_website=domain,
     )
+    return shown[1].sha256 if shown else None
 
 
 def rename_self(uow: UnitOfWork, *, actor: Actor, name: str) -> None:

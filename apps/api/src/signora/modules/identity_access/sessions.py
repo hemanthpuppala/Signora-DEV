@@ -34,7 +34,8 @@ def create_session(
 # What an actor is made of (``_actor``), from ``users u``, ``workspaces w`` and ``roles r``.
 _ACTOR_COLUMNS = """
     u.id AS user_id, u.email, u.name, u.workspace_id, w.name AS workspace_name,
-    w.website AS workspace_website, w.logo_sha256 AS workspace_logo,
+    w.website AS workspace_website,
+    (SELECT c.logo_sha256 FROM company_logos c WHERE c.domain = w.website) AS workspace_logo,
     w.created_by = u.id AS is_creator,
     r.id AS role_id, r.key AS role_key, r.name AS role_name,
     r.description AS role_description, r.permissions
