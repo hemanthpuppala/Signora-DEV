@@ -110,9 +110,14 @@ function PasswordForm() {
         <FieldGrid>
           <PasswordField
             label="Current password"
-            // Typed by the person, never filled in by the browser: changing a password asks them
-            // to prove they know the one they have.
+            // Typed by the person, never filled in: changing a password asks them to prove they know
+            // the one they have. Browsers' own managers may ignore "off" on a password; the main
+            // password managers' own opt-outs follow it (1Password, LastPass, Bitwarden, Dashlane).
             autoComplete="off"
+            data-1p-ignore=""
+            data-lpignore="true"
+            data-bwignore=""
+            data-form-type="other"
             required
             value={current}
             error={errors.current_password}
