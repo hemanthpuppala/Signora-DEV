@@ -168,6 +168,7 @@ def create_app(
     identity_access.on_member_removed(departments.drop_removed_member)
     identity_access.on_member_removed(departments.revoke_removed_member)
     departments.provide_send_counts(envelopes.count_sends)
+    departments.provide_approval_counts(documents.count_to_approve)
     return app
 
 

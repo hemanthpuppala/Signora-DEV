@@ -96,6 +96,12 @@ envelopes = Table(
     Index(None, "workspace_id", "department_id", "status", "sent_at"),  # a department's, by state
     Index(None, "workspace_id", "department_id", "sent_at", "id"),  # a department's, newest first
     Index(None, "document_id"),
+    Index(
+        "ix_envelopes_title_trgm",
+        "title",
+        postgresql_using="gin",
+        postgresql_ops={"title": "gin_trgm_ops"},
+    ),  # search (ADR S-1)
 )
 
 # Who an envelope goes to (§2, §3): the version's signers and countersigners, and people who
@@ -168,6 +174,19 @@ envelope_recipients = Table(
     Index(None, "envelope_id"),
     # A countersigner's inbox (Phase 8 §7.2): their waiting envelopes, one index range.
     Index(None, "user_id", "status", postgresql_where=text("kind = 'countersigner'")),
+    # Search by a person's name or email (ADR S-1).
+    Index(
+        "ix_envelope_recipients_name_trgm",
+        "name",
+        postgresql_using="gin",
+        postgresql_ops={"name": "gin_trgm_ops"},
+    ),
+    Index(
+        "ix_envelope_recipients_email_trgm",
+        "email",
+        postgresql_using="gin",
+        postgresql_ops={"email": "gin_trgm_ops"},
+    ),
 )
 
 # Values given before signing (§2): the sender's own (never change, a trigger); a signer's name and

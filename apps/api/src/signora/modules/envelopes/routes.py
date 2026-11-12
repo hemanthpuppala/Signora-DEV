@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from signora.kernel import search
 from signora.kernel.blobstore import BlobStore
 from signora.kernel.db import Database
 from signora.kernel.http import attachment
@@ -213,11 +214,19 @@ def list_envelopes(
     request: Request,
     actor: Member,
     status: EnvelopeStatus | None = None,
-    cursor: Annotated[str | None, Query(max_length=200)] = None,
+    cursor: Annotated[str | None, Query(max_length=300)] = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
 ) -> EnvelopePage:
+    """Newest first; with ``q``, those whose title, template or signer's name or email matches,
+    best match first (ADR S-1)."""
     with _db(request).unit_of_work() as uow:
         return service.list_envelopes(
-            uow.session, actor, department_id, status=status, cursor=cursor
+            uow.session,
+            actor,
+            department_id,
+            status=status,
+            cursor=cursor,
+            query=search.normalize(q),
         )
 
 

@@ -232,7 +232,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Documents of a department */
+        /**
+         * Documents of a department
+         * @description With ``q``, the templates whose name matches. In ``sort``'s order; without one, best match
+         *     first while searching, else newest first.
+         */
         get: operations["list_documents_api_v1_departments__department_id__documents_get"];
         put?: never;
         /** Create a document from an upload (requires Idempotency-Key) */
@@ -267,7 +271,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A department's envelopes, newest first, 50 a page (next_cursor for more) */
+        /**
+         * A department's envelopes, newest first, 50 a page (next_cursor for more)
+         * @description Newest first; with ``q``, those whose title, template or signer's name or email matches,
+         *     best match first (ADR S-1).
+         */
         get: operations["list_envelopes_api_v1_departments__department_id__envelopes_get"];
         put?: never;
         post?: never;
@@ -1047,7 +1055,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** My countersigning: what waits for me (soonest expiry first), or what I countersigned */
+        /**
+         * My countersigning: what waits for me (soonest expiry first), or what I countersigned
+         * @description With ``q``: those whose title, template or signer's name or email matches, best match first,
+         *     then in the list's own order (ADR S-1).
+         */
         get: operations["waiting_api_v1_me_countersign_get"];
         put?: never;
         post?: never;
@@ -1788,6 +1800,11 @@ export interface components {
              * @default 0
              */
             signed: number;
+            /**
+             * To Approve
+             * @default 0
+             */
+            to_approve: number;
         };
         /** CreateDepartment */
         CreateDepartment: {
@@ -4524,6 +4541,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "active" | "archived";
+                sort?: ("newest" | "updated" | "oldest" | "name") | null;
+                q?: string | null;
             };
             header?: never;
             path: {
@@ -4687,6 +4706,7 @@ export interface operations {
             query?: {
                 status?: ("sent" | "opened" | "viewed" | "signed" | "completed" | "declined" | "expired" | "cancelled") | null;
                 cursor?: string | null;
+                q?: string | null;
             };
             header?: never;
             path: {

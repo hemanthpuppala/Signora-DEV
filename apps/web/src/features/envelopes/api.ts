@@ -1,7 +1,7 @@
 "use client";
 
 import type { components } from "@signora/contracts";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { api, unwrap } from "@/shared/api/client";
 import type { Status } from "@/shared/ui";
@@ -42,16 +42,23 @@ export function useEnvelopeDocument(envelopeId: string) {
 }
 
 /** A department's envelopes, newest first, 50 a page ("Show more" asks for the next). */
-export function useEnvelopes(departmentId: string, status: EnvelopeStatus | null) {
+/** A department's envelopes: newest first, or with ``query`` the matching ones, best match first
+ * (searched on the server by title, template, and each signer's name or email). */
+export function useEnvelopes(departmentId: string, status: EnvelopeStatus | null, query = "") {
   return useInfiniteQuery({
-    queryKey: [...envelopesKey(departmentId), status],
+    queryKey: [...envelopesKey(departmentId), status, query],
+    placeholderData: keepPreviousData, // the last answer stays while the next one comes
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       unwrap(
         api.GET("/api/v1/departments/{department_id}/envelopes", {
           params: {
             path: { department_id: departmentId },
-            query: { ...(status ? { status } : {}), ...(pageParam ? { cursor: pageParam } : {}) },
+            query: {
+              ...(status ? { status } : {}),
+              ...(query ? { q: query } : {}),
+              ...(pageParam ? { cursor: pageParam } : {}),
+            },
           },
         }),
       ),

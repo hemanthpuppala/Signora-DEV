@@ -28,6 +28,7 @@ from signora.modules.documents.lifecycle import (
 )
 from signora.modules.documents.processing import DocumentVersionProcessed
 from signora.modules.documents.routes import router
+from signora.modules.documents.service import count_to_approve
 
 __all__ = [
     "DocumentVersionProcessed",
@@ -40,6 +41,7 @@ __all__ = [
     "apply_name_and_description",
     "approve_version",
     "audit_document",
+    "count_to_approve",
     "derive_version",
     "detection_failure_message",
     "fail_detection",

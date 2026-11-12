@@ -106,6 +106,9 @@ describe("envelopes", () => {
       calls.push({ method: request.method, path: url.pathname, query: url.search, body, key: request.headers.get("Idempotency-Key") });
       const route = `${request.method} ${url.pathname}`;
       if (route.endsWith("/departments/d-1/envelopes")) {
+        const q = url.searchParams.get("q");
+        if (q === "nobody") return reply(200, { envelopes: [], next_cursor: null });
+        if (q) return reply(200, { envelopes: [summary("env-4", "Lease · Ada Lovelace", { signers: ["Ada Lovelace"] })], next_cursor: null });
         if (url.searchParams.get("cursor")) return reply(200, { envelopes: [summary("env-3", "Oldest")], next_cursor: null });
         if (url.searchParams.get("status") === "completed")
           return reply(200, { envelopes: [summary("env-2", "Done", { status: "completed", signed: 1 })], next_cursor: null });
@@ -153,6 +156,25 @@ describe("envelopes", () => {
     await user.click(within(screen.getByRole("group", { name: "Show envelopes" })).getByRole("button", { name: "Completed" }));
     expect(await screen.findByRole("link", { name: "Done" })).toBeTruthy();
     expect(calls.some((c) => c.query.includes("status=completed"))).toBe(true);
+  });
+
+  it("searches on the server once typing settles, and says when nothing matches", async () => {
+    wrap(<EnvelopesList departmentId="d-1" />);
+    const user = userEvent.setup();
+    await screen.findByRole("link", { name: "Mutual NDA · Maya Chen" });
+    const box = screen.getByRole("searchbox", { name: "Search by customer, email or template" });
+
+    await user.type(box, "lovlace");
+
+    expect(await screen.findByRole("link", { name: "Lease · Ada Lovelace" })).toBeTruthy();
+    const asked = calls.filter((c) => c.path.endsWith("/envelopes") && c.query.includes("q="));
+    expect(asked.map((c) => new URLSearchParams(c.query).get("q"))).toEqual(["lovlace"]); // once, when typing stopped
+
+    await user.clear(box);
+    await user.type(box, "nobody");
+    expect(await screen.findByText(/No envelope matches “nobody”/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(await screen.findByRole("link", { name: "Mutual NDA · Maya Chen" })).toBeTruthy();
   });
 
   it("follows one envelope: copy a link, send again, correct an email, remind, an email not delivered", async () => {

@@ -7,15 +7,17 @@ changing needs edit access in the document's department, and an active departmen
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from io import BytesIO
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from signora.kernel import search
 from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.db import UnitOfWork
 from signora.kernel.errors import FieldError, NotFound, RateLimited, ValidationFailed
@@ -161,18 +163,61 @@ def get_document(session: Session, workspace_id: uuid.UUID, document_id: uuid.UU
     return DocumentRow(**found._mapping)
 
 
+DocumentSort = Literal["newest", "updated", "oldest", "name"]
+# Each sort's ORDER BY, with the id last so equal dates or names keep one order.
+_SORTS: dict[DocumentSort, str] = {
+    "newest": "d.created_at DESC, d.id DESC",
+    "updated": "d.updated_at DESC, d.id DESC",
+    "oldest": "d.created_at ASC, d.id ASC",
+    "name": "lower(d.name), d.id",
+}
+_SEARCHED = ("d.name",)  # a template is found by its name (ADR S-1)
+
+
 def list_documents(
-    session: Session, workspace_id: uuid.UUID, department_id: uuid.UUID, *, archived: bool
+    session: Session,
+    workspace_id: uuid.UUID,
+    department_id: uuid.UUID,
+    *,
+    archived: bool,
+    sort: DocumentSort | None = None,
+    query: search.Search | None = None,
 ) -> list[DocumentRow]:
+    """A department's templates: with a search only those that match. In the chosen order; with
+    none chosen, best match first while searching (the newest of equal ones first), else newest
+    first."""
     get_department(session, workspace_id, department_id)  # 404 for another company's id
+    where = " AND d.department_id = :d AND (d.archived_at IS NOT NULL) = :a"
+    order = _SORTS[sort or "newest"]
+    params: dict[str, object] = {"w": workspace_id, "d": department_id, "a": archived}
+    if query is not None:
+        search.begin(session)
+        where += " AND " + search.matches(_SEARCHED)
+        if sort is None:
+            order = f"{search.score(_SEARCHED)} DESC, d.created_at DESC, d.id DESC"
+        params |= query.params
+    rows = session.execute(text(f"{_DOCUMENT_SELECT}{where} ORDER BY {order}"), params)
+    return [DocumentRow(**row._mapping) for row in rows]
+
+
+def count_to_approve(
+    session: Session, workspace_id: uuid.UUID, department_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """Each department's templates waiting for approval: not archived, newest version in review
+    (Phase 6 §1.1). One grouped query; a department with none is absent."""
+    if not department_ids:
+        return {}
     rows = session.execute(
         text(
-            _DOCUMENT_SELECT + " AND d.department_id = :d AND (d.archived_at IS NOT NULL) = :a "
-            "ORDER BY lower(d.name), d.id"
+            "SELECT d.department_id, count(*) AS waiting FROM documents d "
+            "JOIN LATERAL (SELECT status FROM document_versions WHERE document_id = d.id "
+            "ORDER BY version_no DESC LIMIT 1) l ON l.status = 'ready' "
+            "WHERE d.workspace_id = :w AND d.department_id = ANY(:ids) AND d.archived_at IS NULL "
+            "GROUP BY d.department_id"
         ),
-        {"w": workspace_id, "d": department_id, "a": archived},
+        {"w": workspace_id, "ids": list(department_ids)},
     )
-    return [DocumentRow(**row._mapping) for row in rows]
+    return {row.department_id: row.waiting for row in rows}
 
 
 def list_versions(

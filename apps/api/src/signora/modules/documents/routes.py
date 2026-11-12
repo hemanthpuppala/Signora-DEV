@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from signora.kernel import search
 from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.config import Settings
 from signora.kernel.db import Database
@@ -363,10 +364,19 @@ def list_documents(
     request: Request,
     actor: Member,
     status_filter: Annotated[Literal["active", "archived"], Query(alias="status")] = "active",
+    sort: service.DocumentSort | None = None,
+    q: Annotated[str | None, Query(max_length=search.QUERY_MAX * 2)] = None,
 ) -> list[DocumentSummary]:
+    """With ``q``, the templates whose name matches. In ``sort``'s order; without one, best match
+    first while searching, else newest first."""
     with _db(request).unit_of_work() as uow:
         rows = service.list_documents(
-            uow.session, actor.workspace_id, department_id, archived=status_filter == "archived"
+            uow.session,
+            actor.workspace_id,
+            department_id,
+            archived=status_filter == "archived",
+            sort=sort,
+            query=search.normalize(q),
         )
     return [summary(row) for row in rows]
 

@@ -74,7 +74,7 @@ def test_create_normalises_the_name_and_records_who(
         "active",
     )
     assert body["created_by"] == {"id": str(company.user_id), "name": "Rosa Hale"}
-    assert body["counts"] == {"sent": 0, "signed": 0, "pending": 0}
+    assert body["counts"] == {"sent": 0, "signed": 0, "pending": 0, "to_approve": 0}
     assert audit_actions(committing_db, company) == ["department.created"]
 
 

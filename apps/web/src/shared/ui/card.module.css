@@ -127,3 +127,18 @@
   font: 300 40px/1 var(--serif);
   letter-spacing: 0;
 }
+
+/* Something waits in it (StatCard ``attention``): the "waiting" amber dot and its words. */
+.attentionDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 10px;
+  border-radius: 50%;
+  background: var(--st-viewed);
+  vertical-align: middle;
+}
+
+.attention {
+  color: var(--st-viewed);
+}

@@ -21,18 +21,25 @@ export function StatCard({
   description,
   stats,
   meta,
+  attention,
 }: {
   href: string;
   title: string;
   description?: string;
   stats: readonly CardStat[];
   meta?: ReactNode;
+  /** Something there waits for the person, in words ("2 templates to approve"): a dot by the
+   * title, the words on the card's last line. */
+  attention?: string;
 }) {
   return (
     <li className={styles.item}>
       <Link href={href} className={styles.card}>
         <div>
-          <h3 className={styles.title}>{title}</h3>
+          <h3 className={styles.title}>
+            {title}
+            {attention ? <span className={styles.attentionDot} aria-hidden="true" /> : null}
+          </h3>
           {description ? <p className={styles.description}>{description}</p> : null}
         </div>
         <dl className={styles.stats}>
@@ -44,7 +51,7 @@ export function StatCard({
           ))}
         </dl>
         <div className={styles.meta}>
-          <span>{meta}</span>
+          <span>{attention ? <span className={styles.attention}>{attention}</span> : meta}</span>
           <span className={styles.go} aria-hidden="true">
             Open →
           </span>

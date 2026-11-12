@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { formError } from "@/shared/api/errors";
-import { Button, Chip, ChipGroup, Notice, SmallText, StatusPill, TablePanel } from "@/shared/ui";
+import { SEARCH_SETTLE_MS, useDebounced } from "@/shared/lib/useDebounced";
+import { Button, Chip, ChipGroup, ListControls, Notice, SearchField, SmallText, StatusPill, TablePanel, TextButton } from "@/shared/ui";
 
 import { ENVELOPE_STATUS, useEnvelopes, type EnvelopeStatus } from "./api";
 import styles from "./envelopes.module.css";
@@ -21,15 +22,24 @@ export function day(iso: string): string {
 /**
  * A department's envelopes (Phase 7 §6; the prototype's screen 07): newest first, filtered by state,
  * each row opening its envelope. The signers' names and how many have signed say where it stands.
+ * A search (on the server: the customer's name or email, the template or the title) puts the best
+ * match first.
  */
 export function EnvelopesList({ departmentId }: { departmentId: string }) {
   const [status, setStatus] = useState<EnvelopeStatus | null>(null);
-  const envelopes = useEnvelopes(departmentId, status);
+  const [typed, setTyped] = useState("");
+  const query = useDebounced(typed.trim(), SEARCH_SETTLE_MS);
+  const envelopes = useEnvelopes(departmentId, status, query);
   const rows = envelopes.data?.pages.flatMap((page) => page.envelopes) ?? [];
 
   if (envelopes.isError) return <Notice tone="warning">{formError(envelopes.error)}</Notice>;
   return (
     <div className={styles.steps}>
+      <ListControls
+        search={
+          <SearchField label="Search by customer, email or template" value={typed} onChange={(event) => setTyped(event.target.value)} />
+        }
+      />
       <ChipGroup label="Show envelopes">
         {FILTERS.map((filter) => (
           <Chip key={filter ?? "all"} selected={status === filter} onClick={() => setStatus(filter)}>
@@ -37,11 +47,18 @@ export function EnvelopesList({ departmentId }: { departmentId: string }) {
           </Chip>
         ))}
       </ChipGroup>
-      {envelopes.isSuccess && rows.length === 0 ? (
-        <SmallText>
-          {status ? "No envelopes in this state." : "No envelopes yet. Send one with New envelope above."}
-        </SmallText>
-      ) : null}
+      <div role="status" aria-live="polite">
+        {envelopes.isSuccess && rows.length === 0 ? (
+          query ? (
+            <SmallText>
+              {`No envelope matches “${query}”${status ? " in this state" : ""}. `}
+              <TextButton onClick={() => setTyped("")}>Clear search</TextButton>
+            </SmallText>
+          ) : (
+            <SmallText>{status ? "No envelopes in this state." : "No envelopes yet. Send one with New envelope above."}</SmallText>
+          )
+        ) : null}
+      </div>
       {rows.length > 0 ? (
         <TablePanel label="Envelopes">
           <table>

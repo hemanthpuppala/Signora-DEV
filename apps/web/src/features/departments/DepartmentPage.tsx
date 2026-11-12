@@ -19,7 +19,7 @@ import {
   Tabs,
 } from "@/shared/ui";
 
-import { dayMonth, departmentKey, useDepartment, type Department } from "./api";
+import { dayMonth, departmentKey, toApprove, useDepartment, type Department } from "./api";
 
 export type DepartmentTab = "envelopes" | "documents";
 
@@ -127,6 +127,7 @@ export function DepartmentPage({
             href: `/departments/${id}/documents`,
             label: documentCount === undefined ? "Templates" : `Templates · ${documentCount}`,
             active: tab === "documents",
+            ...(data.counts.to_approve > 0 ? { attention: toApprove(data.counts.to_approve) } : {}),
           },
         ]}
         actions={

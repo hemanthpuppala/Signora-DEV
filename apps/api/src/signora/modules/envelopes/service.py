@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from signora.kernel import search
 from signora.kernel.blobstore import BlobRef, BlobStore
 from signora.kernel.config import get_settings
 from signora.kernel.db import UnitOfWork
@@ -614,16 +615,30 @@ def list_envelopes(
     *,
     status: str | None,
     cursor: str | None,
+    query: search.Search | None = None,
 ) -> EnvelopePage:
-    """A department's envelopes for someone who may see its sends, newest first, 50 a page."""
+    """A department's envelopes for someone who may see its sends, 50 a page: newest first, or
+    with a search the matching ones, best match first (ADR S-1)."""
     get_department(session, actor.workspace_id, department_id)  # 404 for another company's
     load_access(session, actor).require(Permission.DOCUMENTS_VIEW_SENDS, department_id)
     found = store.list_envelopes(
-        session, actor.workspace_id, department_id, status=status, after=_after(cursor)
+        session,
+        actor.workspace_id,
+        department_id,
+        status=status,
+        after=None if query else _after(cursor),
+        query=query,
+        after_match=search.after(cursor) if query else None,
     )
     page = found[: store.PAGE]
-    more = len(found) > store.PAGE
-    return EnvelopePage(envelopes=page, next_cursor=_cursor(page[-1]) if more and page else None)
+    last = page[-1] if len(found) > store.PAGE and page else None
+    if last is None:
+        next_cursor = None
+    elif last.score is not None:
+        next_cursor = search.cursor(last.score, last.envelope.sent_at, last.envelope.id)
+    else:
+        next_cursor = _cursor(last.envelope)
+    return EnvelopePage(envelopes=[one.envelope for one in page], next_cursor=next_cursor)
 
 
 # --- the completed copy (Phase 8 §12.3) -----------------------------------------------------------

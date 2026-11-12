@@ -688,6 +688,11 @@
             "default": 0,
             "title": "Signed",
             "type": "integer"
+          },
+          "to_approve": {
+            "default": 0,
+            "title": "To Approve",
+            "type": "integer"
           }
         },
         "title": "Counts",
@@ -7065,6 +7070,7 @@
     },
     "/api/v1/departments/{department_id}/documents": {
       "get": {
+        "description": "With ``q``, the templates whose name matches. In ``sort``'s order; without one, best match\nfirst while searching, else newest first.",
         "operationId": "list_documents_api_v1_departments__department_id__documents_get",
         "parameters": [
           {
@@ -7089,6 +7095,45 @@
               ],
               "title": "Status",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "newest",
+                    "updated",
+                    "oldest",
+                    "name"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           }
         ],
@@ -7325,6 +7370,7 @@
     },
     "/api/v1/departments/{department_id}/envelopes": {
       "get": {
+        "description": "Newest first; with ``q``, those whose title, template or signer's name or email matches,\nbest match first (ADR S-1).",
         "operationId": "list_envelopes_api_v1_departments__department_id__envelopes_get",
         "parameters": [
           {
@@ -7370,7 +7416,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 200,
+                  "maxLength": 300,
                   "type": "string"
                 },
                 {
@@ -7378,6 +7424,23 @@
                 }
               ],
               "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           }
         ],
@@ -11576,6 +11639,7 @@
     },
     "/api/v1/me/countersign": {
       "get": {
+        "description": "With ``q``: those whose title, template or signer's name or email matches, best match first,\nthen in the list's own order (ADR S-1).",
         "operationId": "waiting_api_v1_me_countersign_get",
         "parameters": [
           {
@@ -11599,7 +11663,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 200,
+                  "maxLength": 300,
                   "type": "string"
                 },
                 {
@@ -11616,7 +11680,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 100,
+                  "maxLength": 200,
                   "type": "string"
                 },
                 {

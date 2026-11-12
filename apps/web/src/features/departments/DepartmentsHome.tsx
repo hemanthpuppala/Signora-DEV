@@ -17,7 +17,7 @@ import {
   Tabs,
 } from "@/shared/ui";
 
-import { useDepartments, type DepartmentStatus } from "./api";
+import { toApprove, useDepartments, type DepartmentStatus } from "./api";
 
 /** Screen 05: the company's departments (home of the console). */
 export function DepartmentsHome({ me }: { me: Me }) {
@@ -68,6 +68,7 @@ export function DepartmentsHome({ me }: { me: Me }) {
                 { label: "Signed", value: department.counts.signed },
                 { label: "Pending", value: department.counts.pending },
               ]}
+              {...(department.counts.to_approve > 0 ? { attention: toApprove(department.counts.to_approve) } : {})}
             />
           ))}
           {canCreate && status === "active" ? <AddCard href="/departments/new" label="New department" /> : null}

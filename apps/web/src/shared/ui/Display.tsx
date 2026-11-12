@@ -142,7 +142,9 @@ export function MetricGrid({ children }: { children: ReactNode }) {
   return <div className={styles.metricGrid}>{children}</div>;
 }
 
-export type TabItem = { href: string; label: string; active?: boolean };
+/** ``attention``: something there waits for the person, in words ("2 to approve"): a dot after the
+ * tab's name, the words read aloud. */
+export type TabItem = { href: string; label: string; active?: boolean; attention?: string };
 
 /** Tabs with a hairline underline; ``actions`` sit at the end of the same line (the open tab's own). */
 export function Tabs({ items, label, actions }: { items: readonly TabItem[]; label: string; actions?: ReactNode }) {
@@ -156,6 +158,12 @@ export function Tabs({ items, label, actions }: { items: readonly TabItem[]; lab
           aria-current={item.active ? "page" : undefined}
         >
           {item.label}
+          {item.attention ? (
+            <>
+              <span className={styles.attentionDot} aria-hidden="true" />
+              <span className={styles.visuallyHidden}>{`, ${item.attention}`}</span>
+            </>
+          ) : null}
         </Link>
       ))}
     </nav>
