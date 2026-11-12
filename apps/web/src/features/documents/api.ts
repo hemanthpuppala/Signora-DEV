@@ -82,12 +82,8 @@ export function useTemplates(departmentId: string, query: string, sort: Template
         }),
       ),
     placeholderData: keepPreviousData, // the last answer stays while the next one comes
-    refetchInterval: (state) =>
-      processingInterval(
-        (state.state.data ?? [])
-          .filter((document) => isWorking(document.latest_version.status))
-          .map((document) => document.latest_version.created_at),
-      ),
+    // Not polled: useDocuments polls while a template is being worked on, and the Templates tab
+    // reads this list again when that one changes (DocumentsSection).
   });
 }
 
