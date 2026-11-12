@@ -400,13 +400,13 @@ def test_0027_clears_the_flags_left_on_approved_versions_and_keeps_them_frozen(
     engine.dispose()
 
 
-def test_0031_keys_logos_by_registrable_domain_and_registers_each_for_a_look_up(
+def test_0032_keys_logos_by_registrable_domain_and_registers_each_for_a_look_up(
     scratch: DatabaseSettings,
 ) -> None:
     """Company logo LLD §6 (revised): websites become their registrable domain, each domain gets
     one shared row with a look-up due, and the per-workspace logo columns go."""
     config = alembic_config(scratch)
-    command.upgrade(config, "0030")
+    command.upgrade(config, "0031")
     engine = create_engine(scratch.url)
     with engine.begin() as connection:  # the one workspace there is: give it a website
         connection.execute(
@@ -417,7 +417,7 @@ def test_0031_keys_logos_by_registrable_domain_and_registers_each_for_a_look_up(
             {"s": SYSTEM_WORKSPACE},
         )
 
-    command.upgrade(config, "0031")
+    command.upgrade(config, "0032")
 
     with engine.connect() as connection:
         websites = connection.execute(
@@ -438,6 +438,6 @@ def test_0031_keys_logos_by_registrable_domain_and_registers_each_for_a_look_up(
         ]
         assert list(columns) == []
 
-    command.downgrade(config, "0030")
-    command.upgrade(config, "0031")
+    command.downgrade(config, "0031")
+    command.upgrade(config, "0032")
     engine.dispose()

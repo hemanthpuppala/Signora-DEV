@@ -61,7 +61,7 @@ Index(
 )
 
 # One logo per domain, shared by every company on it and kept when they are gone (migration
-# 0031): a company on a known domain shows its logo without asking logo.dev. A row without a logo
+# 0032): a company on a known domain shows its logo without asking logo.dev. A row without a logo
 # after a look-up means none was found then. The file is in the system workspace's store.
 company_logos = Table(
     "company_logos",

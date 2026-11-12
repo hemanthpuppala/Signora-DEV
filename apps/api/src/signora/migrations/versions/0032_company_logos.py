@@ -7,8 +7,8 @@ and its domain gets a row with a look-up due now. The logos kept per workspace a
 over: their files are in each workspace's store, a domain's is in the system's; each is looked up
 once more. The downgrade puts the columns back empty and drops the shared logos.
 
-Revision ID: 0031
-Revises: 0030
+Revision ID: 0032
+Revises: 0031
 Create Date: 2026-11-11
 """
 
@@ -20,8 +20,8 @@ import sqlalchemy as sa
 import tldextract
 from alembic import op
 
-revision: str = "0031"
-down_revision: str | None = "0030"
+revision: str = "0032"
+down_revision: str | None = "0031"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

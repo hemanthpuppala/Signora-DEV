@@ -91,7 +91,7 @@ website, or when no logo can be found, the header stays exactly as it is today.
 
 ## 6. Data
 
-Migration `0029_company_logo` added the website and per-workspace logo columns; `0031_company_logos`
+Migration `0029_company_logo` added the website and per-workspace logo columns; `0032_company_logos`
 (revised 2026-11-11) moves the logo to one row per domain:
 
 `company_logos`
@@ -164,4 +164,4 @@ save; remove).
 | 10 | Review fixes (PR #24): planned re-checks and sweep, timeouts skip, missing file fetched again, owner's website in Settings, one actor query | done | API 1010 tests, lint, mypy, import contracts; web 377 tests, lint, types, build |
 | 11 | Live check with a real key | todo | needs `LOGO_DEV_SECRET_KEY` |
 | 13 | A 202 asked again within seconds, three times at most (owner, 2026-11-11): it waited an hour, and a new domain's logo showed only then | done | `INDEXING_BACKOFF`, `LogoDevIndexingError`; `test_company_logo.py` (three retries then hourly; a logo indexed by the retry kept) |
-| 12 | One logo per domain, registrable domain as the key (owner, 2026-11-11) | done | `company_logos`, `want_logo`, migration 0031; `test_company_logo.py` (a second company, and one re-created a year later, shown without asking logo.dev; "none" asked again after a week; the sweep leaves unused domains), `test_data_migrations.py` |
+| 12 | One logo per domain, registrable domain as the key (owner, 2026-11-11) | done | `company_logos`, `want_logo`, migration 0032; `test_company_logo.py` (a second company, and one re-created a year later, shown without asking logo.dev; "none" asked again after a week; the sweep leaves unused domains), `test_data_migrations.py` |
