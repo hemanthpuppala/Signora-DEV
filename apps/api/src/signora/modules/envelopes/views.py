@@ -42,6 +42,7 @@ class RecipientView(BaseModel):
     signed_at: datetime | None
     declined_at: datetime | None  # a decline is final (Phase 8 §8)
     decline_reason: str | None
+    next_reminder_at: datetime | None  # the next automatic reminder; None: no more
     delivery: Delivery | None
 
 

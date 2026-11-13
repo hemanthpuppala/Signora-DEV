@@ -63,9 +63,13 @@ function happened(entry: Envelope["timeline"][number], envelope: Envelope): stri
   switch (entry.action) {
     case "envelope.sent":
       return `Sent to ${String(data.signers)} ${data.signers === 1 ? "signer" : "signers"}`;
-    case "envelope.reminded":
+    case "envelope.reminded": {
+      const by = data.automatic ? " automatically" : "";
+      const ids = Array.isArray(data.recipient_ids) ? data.recipient_ids : [];
       if (data.recipient_id) return `Reminded ${who(data.recipient_id)}`;
-      return `Reminded ${String(data.recipients)} ${data.recipients === 1 ? "person" : "people"}`;
+      if (ids.length === 1) return `Reminded ${who(ids[0])}${by}`;
+      return `Reminded ${String(data.recipients)} ${data.recipients === 1 ? "person" : "people"}${by}`;
+    }
     case "envelope.resent":
       return `Emailed ${who(data.recipient_id)} again`;
     case "envelope.recipient_changed":
@@ -136,7 +140,22 @@ function left(expiresAt: string): string {
   return days === 1 ? "1 day left" : `${days} days left`;
 }
 
-/** The person's moments, in one quiet line: sent, read, signed; and the time left to act. */
+/** When the person is reminded next, as they would say it: "today at 3:00 PM", "tomorrow at
+ * 9:00 AM", or the day further out. A moment already past is about to be sent: nothing to show. */
+export function nextReminder(iso: string, now: number = Date.now()): string | null {
+  const at = new Date(iso);
+  if (at.getTime() <= now) return null;
+  const time = at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const today = new Date(now);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(today.getDate() + 1);
+  if (at.toDateString() === today.toDateString()) return `Next reminder today at ${time}`;
+  if (at.toDateString() === tomorrow.toDateString()) return `Next reminder tomorrow at ${time}`;
+  return `Next reminder ${day(iso)}`;
+}
+
+/** The person's moments, in one quiet line: sent, read, signed; the time left to act, and when
+ * they are reminded next. */
 function times(recipient: Recipient, envelope: Envelope): string {
   if (recipient.kind === "copy") return "Gets the signed copy";
   if (recipient.status === "waiting") return "Emailed once every signer has signed";
@@ -145,6 +164,7 @@ function times(recipient: Recipient, envelope: Envelope): string {
     recipient.viewed_at ? `Read ${day(recipient.viewed_at)}` : recipient.opened_at ? `Opened ${day(recipient.opened_at)}` : null,
     recipient.signed_at ? `Signed ${day(recipient.signed_at)}` : null,
     OPEN.has(envelope.status) && LIVE.has(recipient.status) ? left(envelope.expires_at) : null,
+    recipient.next_reminder_at ? nextReminder(recipient.next_reminder_at) : null,
   ];
   return parts.filter(Boolean).join(" · ");
 }

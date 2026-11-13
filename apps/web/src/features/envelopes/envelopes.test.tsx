@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeQueryClient } from "@/shared/api/QueryProvider";
 import { ToastProvider } from "@/shared/ui";
 
-import { EnvelopePage } from "./EnvelopePage";
-import { EnvelopesList } from "./EnvelopesList";
+import { EnvelopePage, nextReminder } from "./EnvelopePage";
+import { day, EnvelopesList } from "./EnvelopesList";
 
 vi.mock("pdfjs-dist", () => ({
   version: "6.4.299",
@@ -42,9 +42,12 @@ const recipient = (id: string, overrides: Record<string, unknown> = {}) => ({
   opened_at: null,
   viewed_at: null,
   signed_at: null,
+  next_reminder_at: null,
   delivery: { status: "sent", error: null },
   ...overrides,
 });
+
+const IN_FOUR_DAYS = new Date(Date.now() + 4 * 86_400_000).toISOString();
 
 const ENVELOPE = {
   id: "env-1",
@@ -64,12 +67,14 @@ const ENVELOPE = {
   max_reminders: 5,
   notify_emails: [],
   recipients: [
-    recipient("r-maya"),
+    recipient("r-maya", { next_reminder_at: IN_FOUR_DAYS }),
     recipient("r-ben", { name: "Ben Ode", email: "ben@example.com", delivery: { status: "failed", error: "mailbox full" } }),
     recipient("r-rosa", { kind: "countersigner", party_id: "p-firm", party_label: "Firm", name: "Rosa Hale", email: "rosa@firm.example", status: "waiting", sent_at: null, delivery: null }),
   ],
   values: [{ field_id: "f-date", value: "2026-12-01", given_by: "sender" }],
   timeline: [
+    { at: "2026-11-11T10:00:00Z", action: "envelope.reminded", by: null, data: { recipients: 1, recipient_ids: ["r-ben"], automatic: true } },
+    { at: "2026-11-10T10:00:00Z", action: "envelope.reminded", by: null, data: { recipients: 2, recipient_ids: ["r-maya", "r-ben"], automatic: true } },
     { at: "2026-11-09T10:05:00Z", action: "envelope.resent", by: "rosa@firm.example", data: { recipient_id: "r-ben" } },
     { at: "2026-11-09T10:00:00Z", action: "envelope.sent", by: "rosa@firm.example", data: { signers: 2 } },
   ],
@@ -190,6 +195,10 @@ describe("envelopes", () => {
     expect(firm.textContent).toContain("Emailed once every signer has signed");
     expect(within(firm).queryByRole("button", { name: "Copy link" })).toBeNull(); // not their turn
     expect(rows[0]?.textContent).toContain("Sent Nov 9");
+    expect(rows[0]?.textContent).toContain(`Next reminder ${day(IN_FOUR_DAYS)}`); // scheduled, and shown
+    expect(rows[1]?.textContent).not.toContain("Next reminder");
+    expect(screen.getByText("Reminded 2 people automatically")).toBeTruthy();
+    expect(screen.getByText("Reminded Ben Ode automatically")).toBeTruthy(); // one person: named
     expect(within(rows[0] as HTMLElement).queryByRole("button", { name: "Send again" })).toBeNull(); // delivered
     expect(screen.getByText("Email not delivered: mailbox full")).toBeTruthy();
     expect(screen.getByText("Emailed Ben Ode again")).toBeTruthy();
@@ -297,5 +306,17 @@ describe("envelopes", () => {
     await waitFor(() => expect(sentTo("/cancel")).toHaveLength(1));
     expect((await screen.findAllByText("Withdrawn")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Remind now" })).toBeNull(); // closed
+  });
+});
+
+describe("nextReminder", () => {
+  const now = new Date(2026, 10, 12, 9, 0).getTime(); // Nov 12, 9:00 AM local
+
+  it("says today or tomorrow with the time, a later day by its date, and nothing once past", () => {
+    expect(nextReminder(new Date(2026, 10, 12, 15, 0).toISOString(), now)).toBe("Next reminder today at 3:00 PM");
+    expect(nextReminder(new Date(2026, 10, 13, 9, 30).toISOString(), now)).toBe("Next reminder tomorrow at 9:30 AM");
+    const later = new Date(2026, 10, 16, 9, 0).toISOString();
+    expect(nextReminder(later, now)).toBe(`Next reminder ${day(later)}`); // "Nov 16"
+    expect(nextReminder(new Date(2026, 10, 12, 8, 55).toISOString(), now)).toBeNull(); // due: being sent
   });
 });

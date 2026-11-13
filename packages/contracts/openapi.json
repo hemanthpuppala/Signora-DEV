@@ -3650,6 +3650,18 @@
             "title": "Name",
             "type": "string"
           },
+          "next_reminder_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Reminder At"
+          },
           "opened_at": {
             "anyOf": [
               {
@@ -3748,6 +3760,7 @@
           "signed_at",
           "declined_at",
           "decline_reason",
+          "next_reminder_at",
           "delivery"
         ],
         "title": "RecipientView",

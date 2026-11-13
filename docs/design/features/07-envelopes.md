@@ -325,7 +325,7 @@ measures what is stored; both run `packages/contracts/vectors/numbers.json`. O(l
 ### 11.4 Emails
 
 `notifications.send_email` (Phase 2) with categories `sign_request`, `sign_reminder`, `sign_withdrawn`; dedupe keys
-`sign_request:{recipient}:{link_version}`, `sign_reminder:{recipient}:{reminders_sent}`, `sign_withdrawn:{recipient}`;
+`sign_request:{recipient}:{link_version}`, `sign_reminder:{recipient}:{link_version}:{reminders_sent}`, `sign_withdrawn:{recipient}`;
 a deterministic `Message-ID` from the record id (platform §5.7). Reply-To the sender (a transport change: both
 transports set the header).
 

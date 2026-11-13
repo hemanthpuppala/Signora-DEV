@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 from alembic import command
@@ -452,4 +453,145 @@ def test_0032_keys_logos_by_registrable_domain_and_registers_each_for_a_look_up(
 
     command.downgrade(config, "0031")
     command.upgrade(config, "0032")
+    engine.dispose()
+
+
+def _envelope(connection: Any, version: uuid.UUID, *, expires: str, status: str) -> uuid.UUID:
+    """An envelope of the version, reminding every 24 hours at most 5 times, with one party."""
+    row = connection.execute(
+        text(
+            "SELECT v.workspace_id, v.document_id, d.department_id, d.created_by "
+            "FROM document_versions v JOIN documents d ON d.id = v.document_id WHERE v.id = :v"
+        ),
+        {"v": version},
+    ).one()
+    envelope = connection.execute(
+        text(
+            "INSERT INTO envelopes (workspace_id, department_id, document_id, version_id, title, "
+            "require_email_code, reminder_interval_hours, max_reminders, expires_at, "
+            "notify_emails, sent_by, status, cancelled_at, cancelled_by) VALUES (:w, :dep, :doc, "
+            ":v, 'NDA', true, 24, 5, now() + CAST(:expires AS interval), '{}', :u, :s, "
+            "CASE WHEN :s = 'cancelled' THEN now() END, "
+            "CASE WHEN :s = 'cancelled' THEN CAST(:u AS uuid) END) RETURNING id"
+        ),
+        {
+            "w": row.workspace_id,
+            "dep": row.department_id,
+            "doc": row.document_id,
+            "v": version,
+            "u": row.created_by,
+            "expires": expires,
+            "s": status,
+        },
+    ).scalar_one()
+    return uuid.UUID(str(envelope))
+
+
+def _signer(
+    connection: Any, envelope: uuid.UUID, version: uuid.UUID, *, status: str, sent: int = 0
+) -> uuid.UUID:
+    party = connection.execute(
+        text(
+            "INSERT INTO version_roles (workspace_id, version_id, slug, label, kind, position) "
+            "VALUES (:w, :v, :slug, 'Client', 'signer', 1) RETURNING id"
+        ),
+        {"w": SYSTEM_WORKSPACE, "v": version, "slug": uuid.uuid4().hex[:12]},
+    ).scalar_one()
+    position = connection.execute(
+        text("SELECT count(*) + 1 FROM envelope_recipients WHERE envelope_id = :e"),
+        {"e": envelope},
+    ).scalar_one()
+    return uuid.UUID(
+        str(
+            connection.execute(
+                text(
+                    "INSERT INTO envelope_recipients (workspace_id, envelope_id, version_id, "
+                    "party_id, kind, stage, position, name, email, status, sent_at, signed_at, "
+                    "reminders_sent) VALUES (:w, :e, :v, :p, 'signer', 1, :n, 'Maya Chen', "
+                    ":email, :s, now(), CASE WHEN :s = 'signed' THEN now() END, :sent) "
+                    "RETURNING id"
+                ),
+                {
+                    "w": SYSTEM_WORKSPACE,
+                    "e": envelope,
+                    "v": version,
+                    "p": party,
+                    "n": position,
+                    "email": f"{uuid.uuid4().hex[:8]}@example.com",
+                    "s": status,
+                    "sent": sent,
+                },
+            ).scalar_one()
+        )
+    )
+
+
+def test_0034_schedules_who_still_has_to_act_one_interval_on_and_back(
+    scratch: DatabaseSettings,
+) -> None:
+    """Reminders LLD §6: everyone still to act on an open envelope is reminded at their next slot
+    (sent + k intervals), never all at once; nobody past the maximum, signed, on a closed
+    envelope, or whose reminder would fall after the expiry."""
+    config = alembic_config(scratch)
+    command.upgrade(config, "0033")
+    engine = create_engine(scratch.url)
+    version = _processed_version(engine, status="ready")
+    with engine.begin() as connection:
+        live = _envelope(connection, version, expires="14 days", status="sent")
+        opened = _envelope(connection, version, expires="14 days", status="opened")
+        cancelled = _envelope(connection, version, expires="14 days", status="cancelled")
+        expiring = _envelope(connection, version, expires="12 hours", status="sent")
+        scheduled = [
+            _signer(connection, live, version, status="sent"),
+            _signer(connection, live, version, status="viewed", sent=4),
+            _signer(connection, opened, version, status="opened"),
+        ]
+        earlier = [  # sent 30 and 54 hours ago: their next slot is 18 hours from now, not 24
+            _signer(connection, live, version, status="sent"),
+            _signer(connection, opened, version, status="opened"),
+        ]
+        for recipient, hours in zip(earlier, (30, 54), strict=True):
+            connection.execute(
+                text(
+                    "UPDATE envelope_recipients SET sent_at = now() - make_interval(hours => :h) "
+                    "WHERE id = :r"
+                ),
+                {"r": recipient, "h": hours},
+            )
+        left = [
+            _signer(connection, live, version, status="signed"),
+            _signer(connection, opened, version, status="sent", sent=5),
+            _signer(connection, opened, version, status="sent", sent=6),
+            _signer(connection, cancelled, version, status="sent"),
+            _signer(connection, cancelled, version, status="viewed"),
+            _signer(connection, expiring, version, status="sent"),
+            _signer(connection, expiring, version, status="opened"),
+        ]
+
+    command.upgrade(config, "0034")
+
+    with engine.connect() as connection:
+        rows = {
+            row.id: row.hours
+            for row in connection.execute(
+                text(
+                    "SELECT id, round(extract(epoch FROM next_reminder_at - now()) / 3600) "
+                    "AS hours FROM envelope_recipients"
+                )
+            )
+        }
+    assert {rows[r] for r in scheduled} == {24}
+    assert {rows[r] for r in earlier} == {18}  # spread by when each was sent
+    assert {rows[r] for r in left} == {None}
+
+    command.downgrade(config, "0033")
+
+    with engine.connect() as connection:
+        assert (
+            connection.execute(
+                text("SELECT count(*) FROM envelope_recipients WHERE next_reminder_at IS NOT NULL")
+            ).scalar_one()
+            == 0
+        )
+    command.upgrade(config, "0034")
     engine.dispose()

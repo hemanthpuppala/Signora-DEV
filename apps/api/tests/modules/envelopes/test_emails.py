@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from signora.modules.envelopes.emails import sign_reminder, sign_request, sign_withdrawn
+from signora.modules.envelopes.emails import Letter, sign_reminder, sign_request, sign_withdrawn
 
 URL = "https://signora.example/s/abc123"
 EXPIRES = datetime(2026, 11, 23, 12, 0, tzinfo=UTC)
@@ -81,3 +81,23 @@ def test_a_zone_without_letters_is_given_by_its_distance_from_utc() -> None:
     assert expiry("Asia/Dubai") == "Nov 24, 2026 at 8:05 AM UTC+4"
     assert expiry("Asia/Kathmandu") == "Nov 24, 2026 at 9:50 AM UTC+5:45"
     assert expiry("Asia/Kolkata") == "Nov 24, 2026 at 9:35 AM IST"
+
+
+def test_the_last_chance_reminder_says_when_the_link_stops_and_a_normal_one_does_not() -> None:
+    def reminder(last_chance: bool) -> Letter:
+        return sign_reminder(
+            company="Hale & Ward LLP",
+            signer="Maya Chen",
+            document="Mutual NDA",
+            url=URL,
+            expires_at=EXPIRES,
+            last_chance=last_chance,
+        )
+
+    last = reminder(True)
+    normal = reminder(False)
+
+    assert last.subject == "Reminder: Mutual NDA expires on Nov 23, 2026 at 12:00 PM UTC"
+    assert "After Nov 23, 2026 at 12:00 PM UTC, this link stops working." in last.body.text
+    assert normal.subject == "Reminder: Mutual NDA is waiting for your signature"
+    assert "stops working" not in normal.body.text
