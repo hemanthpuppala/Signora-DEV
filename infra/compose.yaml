@@ -161,7 +161,7 @@ services:
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
     ports:
-      # Tailscale Funnel forwards https://<host>.ts.net to this port.
+      # A Cloudflare Tunnel on the host forwards https://signora.hemanthpuppala.com to this port.
       - "127.0.0.1:3100:3100"
     depends_on:
       api:
