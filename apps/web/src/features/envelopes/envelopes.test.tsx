@@ -158,7 +158,10 @@ describe("envelopes", () => {
     await user.click(screen.getByRole("button", { name: "Show more" }));
     expect(await screen.findByRole("link", { name: "Oldest" })).toBeTruthy();
 
-    await user.click(within(screen.getByRole("group", { name: "Show envelopes" })).getByRole("button", { name: "Completed" }));
+    const filter = screen.getByRole("combobox", { name: "Show envelopes" }); // a dropdown, as the Templates tab's sort
+    expect(filter.textContent).toContain("All envelopes");
+    await user.click(filter);
+    await user.click(screen.getByRole("option", { name: "Completed" }));
     expect(await screen.findByRole("link", { name: "Done" })).toBeTruthy();
     expect(calls.some((c) => c.query.includes("status=completed"))).toBe(true);
   });

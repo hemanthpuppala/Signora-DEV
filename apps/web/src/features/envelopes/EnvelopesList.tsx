@@ -5,12 +5,15 @@ import { useState } from "react";
 
 import { formError } from "@/shared/api/errors";
 import { SEARCH_SETTLE_MS, useDebounced } from "@/shared/lib/useDebounced";
-import { Button, Chip, ChipGroup, ListControls, Notice, SearchField, SmallText, StatusPill, TablePanel, TextButton } from "@/shared/ui";
+import { Button, ListControls, Notice, SearchField, Select, SmallText, StatusPill, TablePanel, TextButton } from "@/shared/ui";
 
 import { ENVELOPE_STATUS, useEnvelopes, type EnvelopeStatus } from "./api";
 import styles from "./envelopes.module.css";
 
-const FILTERS: readonly (EnvelopeStatus | null)[] = [null, "sent", "viewed", "signed", "completed", "declined", "expired", "cancelled"];
+const ALL = "all";
+const STATES: readonly EnvelopeStatus[] = ["sent", "viewed", "signed", "completed", "declined", "expired", "cancelled"];
+/** The state filter, as the Templates tab's sort: one dropdown beside the search. */
+const FILTERS = [{ value: ALL, label: "All envelopes" }, ...STATES.map((state) => ({ value: state, label: ENVELOPE_STATUS[state].label }))];
 
 /** "Nov 9" (this year) or "Nov 9, 2025". */
 export function day(iso: string): string {
@@ -39,14 +42,15 @@ export function EnvelopesList({ departmentId }: { departmentId: string }) {
         search={
           <SearchField label="Search by customer, email or template" value={typed} onChange={(event) => setTyped(event.target.value)} />
         }
-      />
-      <ChipGroup label="Show envelopes">
-        {FILTERS.map((filter) => (
-          <Chip key={filter ?? "all"} selected={status === filter} onClick={() => setStatus(filter)}>
-            {filter ? ENVELOPE_STATUS[filter].label : "All"}
-          </Chip>
-        ))}
-      </ChipGroup>
+      >
+        <Select
+          label="Show envelopes"
+          labelHidden
+          options={FILTERS}
+          value={status ?? ALL}
+          onChange={(value) => setStatus(value === ALL ? null : (value as EnvelopeStatus))}
+        />
+      </ListControls>
       <div role="status" aria-live="polite">
         {envelopes.isSuccess && !envelopes.isPlaceholderData && rows.length === 0 ? (
           query ? (
